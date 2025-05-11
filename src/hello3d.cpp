@@ -12,6 +12,8 @@
 #include "psyqo/soft-math.hh"
 #include "psyqo/trigonometry.hh"
 #include "psyqo/vector.hh"
+#include "helpers/cdrom.hh"
+#include "psyqo/xprintf.h"
 
 using namespace psyqo::fixed_point_literals;
 using namespace psyqo::trig_literals;
@@ -59,6 +61,17 @@ class MadnightEngineScene final : public psyqo::Scene
 
     static constexpr Face c_cubeFaces[NUM_CUBE_FACES] = {
         {.vertices = {0, 1, 2, 3}, .color = {0, 0, 255}}, {.vertices = {6, 7, 4, 5}, .color = {0, 255, 0}}, {.vertices = {4, 5, 0, 1}, .color = {0, 255, 255}}, {.vertices = {7, 6, 3, 2}, .color = {255, 0, 0}}, {.vertices = {6, 4, 2, 0}, .color = {255, 0, 255}}, {.vertices = {5, 7, 1, 3}, .color = {255, 255, 0}}};
+
+public:
+    void fetch_cube_from_cdrom()
+    {
+        // whatever you called the thing in the iso.xml
+        char iso_file_name[MAX_FILE_NAME_LEN];
+        CDRomHelper::get_iso_file_name("MODELS/CUBE.MB", iso_file_name);
+
+        CDRomHelper::load_file(iso_file_name, [](void *data, size_t size)
+                               { printf("loaded MB file with %d bytes of data\n", size); });
+    }
 };
 
 static MadnightEngine engine;
@@ -69,9 +82,14 @@ void MadnightEngine::prepare()
     psyqo::GPU::Configuration gpu_config;
     gpu_config.set(psyqo::GPU::Resolution::W320).set(psyqo::GPU::VideoMode::NTSC).set(psyqo::GPU::ColorMode::C15BITS).set(psyqo::GPU::Interlace::PROGRESSIVE);
     gpu().initialize(gpu_config);
+    CDRomHelper::init();
 }
 
-void MadnightEngine::createScene() { pushScene(&engineScene); }
+void MadnightEngine::createScene()
+{
+    pushScene(&engineScene);
+    engineScene.fetch_cube_from_cdrom();
+}
 
 void MadnightEngineScene::start(StartReason reason)
 {
