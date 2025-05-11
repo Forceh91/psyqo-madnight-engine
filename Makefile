@@ -29,6 +29,7 @@ CXXFLAGS = -std=c++20
 OUTDIR = build
 
 # Include PSYQo build system
+include third_party/nugget/psyqo-paths/psyqo-paths.mk
 include third_party/nugget/psyqo/psyqo.mk
 
 # Custom rule: after building the .ps-exe, move all artifacts to build/
