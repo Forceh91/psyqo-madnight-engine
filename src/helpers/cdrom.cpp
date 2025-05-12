@@ -55,5 +55,5 @@ void CDRomHelper::load_file(const char *file_name, eastl::function<void(void *, 
 void CDRomHelper::get_iso_file_name(const char *file_name, char *iso_filename)
 {
     // modify the given file name into the correct format for the ps1 to read it
-    snprintf(iso_filename, MAX_FILE_NAME_LEN, "%s;1", file_name);
+    snprintf(iso_filename, MAX_CDROM_FILE_NAME_LEN, "%s;1", file_name);
 }

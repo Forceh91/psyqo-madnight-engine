@@ -1,0 +1,200 @@
+#include <string.h>
+#include "mesh_manager.hh"
+#include "../helpers/cdrom.hh"
+
+LOADED_MESH MeshManager::m_loaded_meshes[MAX_CDROM_FILE_NAME_LEN];
+
+void MeshManager::load_mesh_from_cdrom(const char *mesh_name, eastl::function<void(MESH *mesh_out)> onComplete)
+{
+    // is it already loaded?
+    MESH *p_mesh = is_mesh_loaded(mesh_name);
+    if (p_mesh != nullptr)
+    {
+        onComplete(p_mesh);
+        return;
+    }
+
+    // is there space for this mesh?
+    int8_t mesh_ix = find_space_for_mesh();
+    if (mesh_ix == -1)
+    {
+        onComplete(nullptr);
+        return;
+    }
+
+    // try and load the mesh off the cdrom
+    char mesh_file_name[MAX_CDROM_FILE_NAME_LEN];
+    CDRomHelper::get_iso_file_name(mesh_name, mesh_file_name);
+    CDRomHelper::load_file(mesh_file_name, [mesh_name, mesh_ix, onComplete](void *data, size_t size)
+                           {
+        if (data == nullptr || size == 0)
+        {
+            printf("MESH: Failed to load mesh or it has no file size.\n");
+            return;
+        }
+
+        // basic struct setup
+        LOADED_MESH loaded_mesh = {0};
+        loaded_mesh.mesh_name = mesh_name;
+        memset(&loaded_mesh.mesh, 0, sizeof(MESH));
+
+        // get ready with our buffer
+        unsigned char* ptr = (unsigned char*)data;
+
+        // read the model file header, which is the vertex/indices/face count
+        memcpy(&loaded_mesh.mesh.vertex_count, ptr, 4);
+        ptr += 4;
+
+        memcpy(&loaded_mesh.mesh.indices_count, ptr, 4);
+        ptr += 4;
+
+        memcpy(&loaded_mesh.mesh.faces_num, ptr, 4);
+        ptr += 4;
+
+        // do we have too many faces?
+        if (loaded_mesh.mesh.faces_num >= MAX_FACES_PER_MESH) {
+            printf("MESH: Mesh has too many faces, aborting load.\n");
+            memset(&loaded_mesh, 0, sizeof(LOADED_MESH));
+            onComplete(nullptr);
+            psyqo_free(data);
+            return;
+        }
+
+        // read the verts
+        size_t vertices_size = sizeof(psyqo::Vec3) * loaded_mesh.mesh.vertex_count;
+        loaded_mesh.mesh.vertices = (psyqo::Vec3 *)psyqo_malloc(vertices_size);
+
+        int32_t x, y, z;
+        for (int i = 0; i < loaded_mesh.mesh.vertex_count; i++) {
+            memcpy(&x, ptr, sizeof(int32_t));
+            ptr += sizeof(int32_t);
+
+            memcpy(&y, ptr, sizeof(int32_t));
+            ptr += sizeof(int32_t);
+
+            memcpy(&z, ptr, sizeof(int32_t));
+            ptr += sizeof(int32_t);
+
+            loaded_mesh.mesh.vertices[i].x.value = x;
+            loaded_mesh.mesh.vertices[i].y.value = y;
+            loaded_mesh.mesh.vertices[i].z.value = z;
+        }
+
+        // read the verts paint data
+        size_t vertices_paint_size = sizeof(VERTEX_PAINT) * loaded_mesh.mesh.vertex_count;
+        loaded_mesh.mesh.vertex_paint = (VERTEX_PAINT *)psyqo_malloc(vertices_paint_size);
+        memcpy(loaded_mesh.mesh.vertex_paint, ptr, vertices_paint_size);
+        ptr += vertices_paint_size;
+
+        // read the verts indices
+        size_t indices_size = sizeof(INDEX) * loaded_mesh.mesh.indices_count;
+        loaded_mesh.mesh.indices = (INDEX *)psyqo_malloc(indices_size);
+        memcpy(loaded_mesh.mesh.indices, ptr, indices_size);
+        ptr += indices_size;
+
+        // read the normals count
+        int32_t normal_count;
+        memcpy(&normal_count, ptr, 4);
+        ptr += 4;
+
+        // read the normals data
+        size_t normals_size = sizeof(psyqo::Vec3) * normal_count;
+        loaded_mesh.mesh.normals = (psyqo::Vec3 *)psyqo_malloc(normals_size);
+
+        for (int i = 0; i < normal_count; i++) {
+            memcpy(&x, ptr, sizeof(int32_t));
+            ptr += sizeof(int32_t);
+
+            memcpy(&y, ptr, sizeof(int32_t));
+            ptr += sizeof(int32_t);
+
+            memcpy(&z, ptr, sizeof(int32_t));
+            ptr += sizeof(int32_t);
+
+            loaded_mesh.mesh.normals[i].x.value = x;
+            loaded_mesh.mesh.normals[i].y.value = y;
+            loaded_mesh.mesh.normals[i].z.value = z;
+        }
+
+        // read the UV count
+        size_t uv_count; 
+        memcpy(&uv_count, ptr, 4);
+        ptr+= 4;
+
+        // read the uv data
+        size_t uvs_size = sizeof(UV)*uv_count;
+        loaded_mesh.mesh.uvs = (UV *)psyqo_malloc(uvs_size);
+        memcpy(loaded_mesh.mesh.uvs, ptr, uvs_size);
+        ptr+= uvs_size;
+
+        // read the uv indices
+        size_t uv_indices_size = sizeof(INDEX)*loaded_mesh.mesh.indices_count;
+        loaded_mesh.mesh.uv_indices = (INDEX *)psyqo_malloc(uv_indices_size);
+        memcpy(loaded_mesh.mesh.uv_indices, ptr, uv_indices_size);
+        ptr += uv_indices_size;
+
+        // mark mesh as loaded
+        loaded_mesh.is_loaded = true;
+
+        // store in loaded meshes
+        m_loaded_meshes[mesh_ix] = loaded_mesh;
+
+        // free the data
+        psyqo_free(data);
+
+        // callback to whatever asked to load the file
+        onComplete(&m_loaded_meshes[mesh_ix].mesh);
+
+        printf("MESH: Successfully loaded mesh of %d bytes into memory.\n", size); });
+}
+
+MESH *MeshManager::is_mesh_loaded(const char *mesh_name)
+{
+    using FixedString = eastl::fixed_string<char, MAX_CDROM_FILE_NAME_LEN>;
+    FixedString eastl_mesh_name(mesh_name);
+
+    LOADED_MESH *loaded_mesh = nullptr;
+    for (int i = 0; i < MAX_LOADED_MESHES; i++)
+    {
+        // find the first loaded mesh that matches this mesh_name
+        loaded_mesh = &m_loaded_meshes[i];
+        if (loaded_mesh && eastl_mesh_name == FixedString(loaded_mesh->mesh_name))
+        {
+            return &loaded_mesh->mesh;
+        }
+    }
+
+    // can't find a mesh with this file name
+    return nullptr;
+}
+
+int8_t MeshManager::find_space_for_mesh(void)
+{
+    for (int8_t i = 0; i < MAX_LOADED_MESHES; i++)
+    {
+        // return the first mesh that isn't loaded
+        if (m_loaded_meshes->is_loaded == false)
+            return i;
+    }
+
+    // no space in the mesh manager for it
+    return -1;
+}
+
+void MeshManager::unload_mesh(const char *mesh_name)
+{
+    using FixedString = eastl::fixed_string<char, MAX_CDROM_FILE_NAME_LEN>;
+    FixedString eastl_mesh_name(mesh_name);
+
+    LOADED_MESH *loaded_mesh = nullptr;
+    for (int i = 0; i < MAX_LOADED_MESHES; i++)
+    {
+        // find the first loaded mesh that matches this mesh_name
+        loaded_mesh = &m_loaded_meshes[i];
+        if (loaded_mesh && eastl_mesh_name == FixedString(loaded_mesh->mesh_name))
+        {
+            memset(loaded_mesh, 0, sizeof(LOADED_MESH));
+            break;
+        }
+    }
+}
