@@ -6,6 +6,8 @@
 #include "psyqo/trigonometry.hh"
 #include "psyqo/vector.hh"
 
+using namespace psyqo::fixed_point_literals;
+
 typedef struct _CAMERA_ANGLE
 {
     psyqo::Angle x;
@@ -19,6 +21,7 @@ class CameraManager final
     static CAMERA_ANGLE m_angle;
     static psyqo::Matrix33 m_rotation_matrix;
     static void set_rotation_matrix(void);
+    static constexpr psyqo::FixedPoint<12> m_movement_speed = 0.002_fp;
 
 public:
     static void init(void);
