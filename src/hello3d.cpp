@@ -1,6 +1,5 @@
 /* based off the psyqo cube example */
 
-#include "psyqo/application.hh"
 #include "psyqo/fixed-point.hh"
 #include "psyqo/fragments.hh"
 #include "psyqo/gpu.hh"
@@ -10,11 +9,12 @@
 #include "psyqo/primitives/quads.hh"
 #include "psyqo/scene.hh"
 #include "psyqo/soft-math.hh"
-#include "psyqo/trigonometry.hh"
 #include "psyqo/vector.hh"
 #include "psyqo/xprintf.h"
 #include "helpers/cdrom.hh"
 #include "mesh/mesh_manager.hh"
+#include "helpers/camera.hh"
+#include "hello3d.hh"
 
 using namespace psyqo::fixed_point_literals;
 using namespace psyqo::trig_literals;
@@ -23,21 +23,14 @@ static constexpr unsigned ORDERING_TABLE_SIZE = 1024;
 
 static constexpr psyqo::Matrix33 identity = {{{1.0_fp, 0.0_fp, 0.0_fp}, {0.0_fp, 1.0_fp, 0.0_fp}, {0.0_fp, 0.0_fp, 1.0_fp}}};
 
-class MadnightEngine final : public psyqo::Application
-{
-    void prepare() override;
-    void createScene() override;
-
-public:
-    psyqo::Trig<> m_trig;
-};
-
 class MadnightEngineScene final : public psyqo::Scene
 {
     void start(StartReason reason) override;
     void frame() override;
 
     psyqo::Angle m_rot = 0;
+    psyqo::Vec3 m_camera_pos;
+    psyqo::Vec3 m_camera_rot;
 
     // create 2 ordering tables, one for each frame buffer
     psyqo::OrderingTable<ORDERING_TABLE_SIZE> m_orderingTables[2];
@@ -49,6 +42,7 @@ class MadnightEngineScene final : public psyqo::Scene
 
     // the mesh to display and its quads
     MESH *m_mesh = nullptr;
+    psyqo::Vec3 m_mesh_pos = {0, 0, 0};
     eastl::array<psyqo::Fragments::SimpleFragment<psyqo::Prim::Quad>, MAX_FACES_PER_MESH> m_quads;
 
 public:
@@ -59,8 +53,12 @@ public:
     }
 };
 
-static MadnightEngine engine;
 static MadnightEngineScene engineScene;
+
+// Our global application object. This is the only global
+// object in this whole example. It will hold all of the
+// other necessary classes.
+MadnightEngine g_madnightEngine;
 
 void MadnightEngine::prepare()
 {
@@ -68,6 +66,14 @@ void MadnightEngine::prepare()
     gpu_config.set(psyqo::GPU::Resolution::W320).set(psyqo::GPU::VideoMode::NTSC).set(psyqo::GPU::ColorMode::C15BITS).set(psyqo::GPU::Interlace::PROGRESSIVE);
     gpu().initialize(gpu_config);
     CDRomHelper::init();
+
+    // Unlike the `SimplePad` class, the `AdvancedPad` class doesn't need to be initialized
+    // in the `start` method of the root `Scene` object. It can be initialized here.
+    // PollingMode::Fast is used to reduce input lag, but it will increase CPU usage.
+    // PollingMode::Normal is the default, and will poll one port per frame.
+    m_input.initialize(psyqo::AdvancedPad::PollingMode::Fast);
+
+    CameraManager::init();
 }
 
 void MadnightEngine::createScene()
@@ -110,6 +116,10 @@ void MadnightEngineScene::frame()
     gpu().getNextClear(clear.primitive, c_backgroundColour);
     gpu().chain(clear);
 
+    // process camera inputs
+    // todo: can we use m_input events for this? that doesn't support holding the button down?
+    CameraManager::process();
+
     // make sure we have a mesh
     if (m_mesh == nullptr)
     {
@@ -117,22 +127,38 @@ void MadnightEngineScene::frame()
         return;
     }
 
-    // make the cube appear slightly further away
-    psyqo::GTE::write<psyqo::GTE::Register::TRZ, psyqo::GTE::Unsafe>(10);
+    // clear TRX/Y/Z safely
+    psyqo::GTE::clear<psyqo::GTE::Register::TRX, psyqo::GTE::Safe>();
+    psyqo::GTE::clear<psyqo::GTE::Register::TRY, psyqo::GTE::Safe>();
+    psyqo::GTE::clear<psyqo::GTE::Register::TRZ, psyqo::GTE::Safe>();
+
+    // rotate camera translation vector by the camera rotation (matrix)
+    psyqo::GTE::writeSafe<psyqo::GTE::PseudoRegister::Rotation>(CameraManager::get_rotation_matrix());
+    psyqo::GTE::writeSafe<psyqo::GTE::PseudoRegister::V0>(-CameraManager::get_pos());
+
+    // multiply vector by matrix and add vector
+    psyqo::GTE::Kernels::mvmva<psyqo::GTE::Kernels::MX::RT, psyqo::GTE::Kernels::MV::V0, psyqo::GTE::Kernels::TV::TR>();
+    psyqo::Vec3 camera_pos = psyqo::GTE::readSafe<psyqo::GTE::PseudoRegister::SV>();
+
+    // rotate the object translation vector by the camera rotation
+    psyqo::GTE::writeSafe<psyqo::GTE::PseudoRegister::V0>(m_mesh_pos);
+    psyqo::GTE::Kernels::mvmva<psyqo::GTE::Kernels::MX::RT, psyqo::GTE::Kernels::MV::V0, psyqo::GTE::Kernels::TV::TR>();
+    psyqo::Vec3 object_pos = psyqo::GTE::readSafe<psyqo::GTE::PseudoRegister::SV>();
+
+    // adjust object position by camera position
+    object_pos += camera_pos;
 
     // set up the rotation for the spinning cube
-    auto transform = psyqo::SoftMath::generateRotationMatrix33(m_rot, psyqo::SoftMath::Axis::X, engine.m_trig);
-    auto rot = psyqo::SoftMath::generateRotationMatrix33(m_rot, psyqo::SoftMath::Axis::Y, engine.m_trig);
+    auto transform = psyqo::SoftMath::generateRotationMatrix33(m_rot, psyqo::SoftMath::Axis::X, g_madnightEngine.m_trig);
+    auto rot = psyqo::SoftMath::generateRotationMatrix33(m_rot, psyqo::SoftMath::Axis::Y, g_madnightEngine.m_trig);
 
-    // multiply these matricies together
-    psyqo::SoftMath::multiplyMatrix33(transform, rot, &transform);
+    // combine object and camera rotations
+    psyqo::Matrix33 final_matrix;
+    psyqo::SoftMath::multiplyMatrix33(CameraManager::get_rotation_matrix(), rot, &final_matrix);
 
-    // generate a z-axis rotation matrix (this is empty as an example)
-    psyqo::SoftMath::generateRotationMatrix33(&rot, 0, psyqo::SoftMath::Axis::Z, engine.m_trig);
-
-    // apply the combined rotation and write it (to the pseudo register)
-    psyqo::SoftMath::multiplyMatrix33(transform, rot, &transform);
-    psyqo::GTE::writeUnsafe<psyqo::GTE::PseudoRegister::Rotation>(transform);
+    // write the object position and final matrix to the GTE
+    psyqo::GTE::writeSafe<psyqo::GTE::PseudoRegister::Translation>(object_pos);
+    psyqo::GTE::writeSafe<psyqo::GTE::PseudoRegister::Rotation>(final_matrix);
 
     for (int i = 0; i < m_mesh->faces_num; i++)
     {
@@ -193,4 +219,4 @@ void MadnightEngineScene::frame()
     m_rot += 0.005_pi;
 }
 
-int main() { return engine.run(); }
+int main() { return g_madnightEngine.run(); }
