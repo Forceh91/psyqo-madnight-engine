@@ -42,7 +42,7 @@ void CameraManager::process(void)
     // move camera left
     if (g_madnightEngine.m_input.isButtonPressed(psyqo::AdvancedPad::Pad::Pad1a, psyqo::AdvancedPad::Button::Square))
     {
-        psyqo::FixedPoint<12> left = -m_movement_speed;
+        psyqo::FixedPoint<12> left = m_movement_speed;
         m_pos.x += -trig.cos(m_angle.y) * left;
         m_pos.z += trig.sin(m_angle.y) * left;
     }
@@ -50,7 +50,7 @@ void CameraManager::process(void)
     // move camera right
     else if (g_madnightEngine.m_input.isButtonPressed(psyqo::AdvancedPad::Pad::Pad1a, psyqo::AdvancedPad::Button::Circle))
     {
-        psyqo::FixedPoint<12> right = m_movement_speed;
+        psyqo::FixedPoint<12> right = -m_movement_speed;
         m_pos.x += -trig.cos(m_angle.y) * right;
         m_pos.z += trig.sin(m_angle.y) * right;
     }
@@ -58,14 +58,14 @@ void CameraManager::process(void)
     // move camera up
     if (g_madnightEngine.m_input.isButtonPressed(psyqo::AdvancedPad::Pad::Pad1a, psyqo::AdvancedPad::Button::L1))
     {
-        psyqo::FixedPoint<12> up = m_movement_speed;
+        psyqo::FixedPoint<12> up = -m_movement_speed;
         m_pos.y += up;
     }
 
     // move camera down
-    if (g_madnightEngine.m_input.isButtonPressed(psyqo::AdvancedPad::Pad::Pad1a, psyqo::AdvancedPad::Button::R1))
+    else if (g_madnightEngine.m_input.isButtonPressed(psyqo::AdvancedPad::Pad::Pad1a, psyqo::AdvancedPad::Button::R1))
     {
-        psyqo::FixedPoint<12> down = -m_movement_speed;
+        psyqo::FixedPoint<12> down = m_movement_speed;
         m_pos.y += down;
     }
 }

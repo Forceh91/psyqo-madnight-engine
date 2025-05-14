@@ -15,6 +15,7 @@
 #include "mesh/mesh_manager.hh"
 #include "helpers/camera.hh"
 #include "hello3d.hh"
+#include "render/clip.hh"
 
 using namespace psyqo::fixed_point_literals;
 using namespace psyqo::trig_literals;
@@ -22,6 +23,7 @@ using namespace psyqo::trig_literals;
 static constexpr unsigned ORDERING_TABLE_SIZE = 1024;
 
 static constexpr psyqo::Matrix33 identity = {{{1.0_fp, 0.0_fp, 0.0_fp}, {0.0_fp, 1.0_fp, 0.0_fp}, {0.0_fp, 0.0_fp, 1.0_fp}}};
+static constexpr psyqo::Rect screen_space = {.pos = {0, 0}, .size = {320, 240}};
 
 class MadnightEngineScene final : public psyqo::Scene
 {
@@ -192,7 +194,11 @@ void MadnightEngineScene::frame()
         psyqo::GTE::read<psyqo::GTE::Register::OTZ>(reinterpret_cast<uint32_t *>(&z_index));
 
         // make sure we dont go out of bounds
-        if (z_index < 0 || z_index >= ORDERING_TABLE_SIZE)
+        if (z_index <= 0 || z_index >= ORDERING_TABLE_SIZE)
+            continue;
+
+        // if its out of the screen space we can clip too
+        if (quad_clip(&screen_space, &projected[0], &projected[1], &projected[2], &projected[3]))
             continue;
 
         // get the three remaining verts from the GTE
