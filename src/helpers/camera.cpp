@@ -70,6 +70,10 @@ void CameraManager::process(uint32_t delta_time)
         m_pos.y += down;
     }
 
+    // make sure we've actually got an analog pad connected
+    if (g_madnightEngine.m_input.getPadType(psyqo::AdvancedPad::Pad::Pad1a) != psyqo::AdvancedPad::PadType::AnalogPad)
+        return;
+
     // analog stick movement for fps cam (remember 0x80 is centre, so -128 to 127)
     int8_t left_stick_x = static_cast<int8_t>(g_madnightEngine.m_input.getAdc(psyqo::AdvancedPad::Pad::Pad1a, 2) - 0x80);
     int8_t left_stick_y = static_cast<int8_t>(g_madnightEngine.m_input.getAdc(psyqo::AdvancedPad::Pad::Pad1a, 3) - 0x80);
