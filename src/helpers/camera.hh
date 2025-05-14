@@ -22,6 +22,7 @@ class CameraManager final
     static psyqo::Matrix33 m_rotation_matrix;
     static void set_rotation_matrix(void);
     static constexpr psyqo::FixedPoint<12> m_movement_speed = 0.002_fp;
+    static constexpr uint8_t m_stick_deadzone = 16;
 
 public:
     static void init(void);
@@ -29,7 +30,7 @@ public:
     static psyqo::Vec3 &get_pos(void);
     static CAMERA_ANGLE *get_angle(void);
     static psyqo::Matrix33 &get_rotation_matrix(void);
-    static void process(void);
+    static void process(uint32_t delta_time);
 };
 
 #endif

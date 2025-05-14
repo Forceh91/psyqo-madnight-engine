@@ -1,5 +1,6 @@
 #include "camera.hh"
 #include "psyqo/soft-math.hh"
+#include "psyqo/xprintf.h"
 #include "../hello3d.hh"
 
 psyqo::Vec3 CameraManager::m_pos;
@@ -19,14 +20,14 @@ void CameraManager::set_position(psyqo::FixedPoint<12> x, psyqo::FixedPoint<12> 
     m_pos.z = z;
 }
 
-void CameraManager::process(void)
+void CameraManager::process(uint32_t delta_time)
 {
     psyqo::Trig trig = g_madnightEngine.m_trig;
 
     // move camera forward
     if (g_madnightEngine.m_input.isButtonPressed(psyqo::AdvancedPad::Pad::Pad1a, psyqo::AdvancedPad::Button::Triangle))
     {
-        psyqo::FixedPoint<12> forward = m_movement_speed;
+        psyqo::FixedPoint<12> forward = m_movement_speed * delta_time;
         m_pos.x += trig.sin(m_angle.y) * forward;
         m_pos.z += trig.cos(m_angle.y) * forward;
     }
@@ -34,7 +35,7 @@ void CameraManager::process(void)
     // move camera back
     else if (g_madnightEngine.m_input.isButtonPressed(psyqo::AdvancedPad::Pad::Pad1a, psyqo::AdvancedPad::Button::Cross))
     {
-        psyqo::FixedPoint<12> backwards = -m_movement_speed;
+        psyqo::FixedPoint<12> backwards = -m_movement_speed * delta_time;
         m_pos.x += trig.sin(m_angle.y) * backwards;
         m_pos.z += trig.cos(m_angle.y) * backwards;
     }
@@ -42,7 +43,7 @@ void CameraManager::process(void)
     // move camera left
     if (g_madnightEngine.m_input.isButtonPressed(psyqo::AdvancedPad::Pad::Pad1a, psyqo::AdvancedPad::Button::Square))
     {
-        psyqo::FixedPoint<12> left = m_movement_speed;
+        psyqo::FixedPoint<12> left = m_movement_speed * delta_time;
         m_pos.x += -trig.cos(m_angle.y) * left;
         m_pos.z += trig.sin(m_angle.y) * left;
     }
@@ -50,7 +51,7 @@ void CameraManager::process(void)
     // move camera right
     else if (g_madnightEngine.m_input.isButtonPressed(psyqo::AdvancedPad::Pad::Pad1a, psyqo::AdvancedPad::Button::Circle))
     {
-        psyqo::FixedPoint<12> right = -m_movement_speed;
+        psyqo::FixedPoint<12> right = -m_movement_speed * delta_time;
         m_pos.x += -trig.cos(m_angle.y) * right;
         m_pos.z += trig.sin(m_angle.y) * right;
     }
@@ -58,15 +59,38 @@ void CameraManager::process(void)
     // move camera up
     if (g_madnightEngine.m_input.isButtonPressed(psyqo::AdvancedPad::Pad::Pad1a, psyqo::AdvancedPad::Button::L1))
     {
-        psyqo::FixedPoint<12> up = -m_movement_speed;
+        psyqo::FixedPoint<12> up = -m_movement_speed * delta_time;
         m_pos.y += up;
     }
 
     // move camera down
     else if (g_madnightEngine.m_input.isButtonPressed(psyqo::AdvancedPad::Pad::Pad1a, psyqo::AdvancedPad::Button::R1))
     {
-        psyqo::FixedPoint<12> down = m_movement_speed;
+        psyqo::FixedPoint<12> down = m_movement_speed * delta_time;
         m_pos.y += down;
+    }
+
+    // analog stick movement for fps cam (remember 0x80 is centre, so -128 to 127)
+    int8_t left_stick_x = static_cast<int8_t>(g_madnightEngine.m_input.getAdc(psyqo::AdvancedPad::Pad::Pad1a, 2) - 0x80);
+    int8_t left_stick_y = static_cast<int8_t>(g_madnightEngine.m_input.getAdc(psyqo::AdvancedPad::Pad::Pad1a, 3) - 0x80);
+
+    int8_t right_stick_x = static_cast<int8_t>(g_madnightEngine.m_input.getAdc(psyqo::AdvancedPad::Pad::Pad1a, 0) - 0x80);
+    int8_t right_stick_y = static_cast<int8_t>(g_madnightEngine.m_input.getAdc(psyqo::AdvancedPad::Pad::Pad1a, 1) - 0x80);
+
+    // use left stick y to move forward/backwards
+    if (left_stick_y < -m_stick_deadzone || left_stick_y > m_stick_deadzone)
+    {
+        psyqo::FixedPoint<12> forward = m_movement_speed * -left_stick_y >> 5 * delta_time;
+        m_pos.x += trig.sin(m_angle.y) * forward;
+        m_pos.z += trig.cos(m_angle.y) * forward;
+    }
+
+    // use left stick x to strafe left/right
+    if (left_stick_x < -m_stick_deadzone || left_stick_x > m_stick_deadzone)
+    {
+        psyqo::FixedPoint<12> left = m_movement_speed * -left_stick_x >> 5 * delta_time;
+        m_pos.x += -trig.cos(m_angle.y) * left;
+        m_pos.z += trig.sin(m_angle.y) * left;
     }
 }
 

@@ -33,6 +33,7 @@ class MadnightEngineScene final : public psyqo::Scene
     psyqo::Angle m_rot = 0;
     psyqo::Vec3 m_camera_pos;
     psyqo::Vec3 m_camera_rot;
+    uint32_t m_last_frame_counter = 0;
 
     // create 2 ordering tables, one for each frame buffer
     psyqo::OrderingTable<ORDERING_TABLE_SIZE> m_orderingTables[2];
@@ -105,6 +106,14 @@ void MadnightEngineScene::start(StartReason reason)
 
 void MadnightEngineScene::frame()
 {
+    uint32_t begin_frame = gpu().now();
+    uint32_t current_frame_counter = gpu().getFrameCount();
+    uint32_t delta_time = current_frame_counter - m_last_frame_counter;
+    if (delta_time == 0)
+        return;
+
+    m_last_frame_counter = current_frame_counter;
+
     eastl::array<psyqo::Vertex, 4> projected;
 
     // get the frame buffer we're currently rendering
@@ -120,7 +129,7 @@ void MadnightEngineScene::frame()
 
     // process camera inputs
     // todo: can we use m_input events for this? that doesn't support holding the button down?
-    CameraManager::process();
+    CameraManager::process(delta_time);
 
     // make sure we have a mesh
     if (m_mesh == nullptr)
