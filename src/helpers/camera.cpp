@@ -2,6 +2,7 @@
 #include "psyqo/soft-math.hh"
 #include "psyqo/xprintf.h"
 #include "../hello3d.hh"
+#include "../controller/controller.hh"
 
 psyqo::Vec3 CameraManager::m_pos;
 CAMERA_ANGLE CameraManager::m_angle = {0, 0, 0};
@@ -75,11 +76,11 @@ void CameraManager::process(uint32_t delta_time)
         return;
 
     // analog stick movement for fps cam (remember 0x80 is centre, so -128 to 127)
-    int8_t left_stick_x = static_cast<int8_t>(g_madnightEngine.m_input.getAdc(psyqo::AdvancedPad::Pad::Pad1a, 2) - 0x80);
-    int8_t left_stick_y = static_cast<int8_t>(g_madnightEngine.m_input.getAdc(psyqo::AdvancedPad::Pad::Pad1a, 3) - 0x80);
+    int8_t left_stick_x = ControllerHelper::get_normalized_analog_stick_input(psyqo::AdvancedPad::Pad::Pad1a, ControllerHelper::AnalogStickIndex::LeftStickX);
+    int8_t left_stick_y = ControllerHelper::get_normalized_analog_stick_input(psyqo::AdvancedPad::Pad::Pad1a, ControllerHelper::AnalogStickIndex::LeftStickY);
 
-    int8_t right_stick_x = static_cast<int8_t>(g_madnightEngine.m_input.getAdc(psyqo::AdvancedPad::Pad::Pad1a, 0) - 0x80);
-    int8_t right_stick_y = static_cast<int8_t>(g_madnightEngine.m_input.getAdc(psyqo::AdvancedPad::Pad::Pad1a, 1) - 0x80);
+    int8_t right_stick_x = ControllerHelper::get_normalized_analog_stick_input(psyqo::AdvancedPad::Pad::Pad1a, ControllerHelper::AnalogStickIndex::RightStickX);
+    int8_t right_stick_y = ControllerHelper::get_normalized_analog_stick_input(psyqo::AdvancedPad::Pad::Pad1a, ControllerHelper::AnalogStickIndex::RightStickY);
 
     // use left stick y to move forward/backwards
     if (left_stick_y < -m_stick_deadzone || left_stick_y > m_stick_deadzone)
