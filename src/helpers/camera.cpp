@@ -92,6 +92,20 @@ void CameraManager::process(uint32_t delta_time)
         m_pos.x += -trig.cos(m_angle.y) * left;
         m_pos.z += trig.sin(m_angle.y) * left;
     }
+
+    // use right stick y to look up/down
+    if (right_stick_y < -m_stick_deadzone || right_stick_y > m_stick_deadzone)
+    {
+        m_angle.x += (-right_stick_y >> 5) * delta_time * m_rotation_speed;
+        set_rotation_matrix();
+    }
+
+    // use right stick x to look left/right
+    if (right_stick_x < -m_stick_deadzone || right_stick_x > m_stick_deadzone)
+    {
+        m_angle.y -= (-right_stick_x >> 5) * delta_time * m_rotation_speed;
+        set_rotation_matrix();
+    }
 }
 
 void CameraManager::set_rotation_matrix(void)
