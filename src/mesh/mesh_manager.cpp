@@ -1,4 +1,3 @@
-#include <string.h>
 #include "mesh_manager.hh"
 #include "../helpers/cdrom.hh"
 
@@ -36,25 +35,25 @@ void MeshManager::load_mesh_from_cdrom(const char *mesh_name, eastl::function<vo
         // basic struct setup
         LOADED_MESH loaded_mesh = {0};
         loaded_mesh.mesh_name = mesh_name;
-        memset(&loaded_mesh.mesh, 0, sizeof(MESH));
+        __builtin_memset(&loaded_mesh.mesh, 0, sizeof(MESH));
 
         // get ready with our buffer
         unsigned char* ptr = (unsigned char*)data;
 
         // read the model file header, which is the vertex/indices/face count
-        memcpy(&loaded_mesh.mesh.vertex_count, ptr, 4);
+        __builtin_memcpy(&loaded_mesh.mesh.vertex_count, ptr, 4);
         ptr += 4;
 
-        memcpy(&loaded_mesh.mesh.indices_count, ptr, 4);
+        __builtin_memcpy(&loaded_mesh.mesh.indices_count, ptr, 4);
         ptr += 4;
 
-        memcpy(&loaded_mesh.mesh.faces_num, ptr, 4);
+        __builtin_memcpy(&loaded_mesh.mesh.faces_num, ptr, 4);
         ptr += 4;
 
         // do we have too many faces?
         if (loaded_mesh.mesh.faces_num >= MAX_FACES_PER_MESH) {
             printf("MESH: Mesh has too many faces, aborting load.\n");
-            memset(&loaded_mesh, 0, sizeof(LOADED_MESH));
+            __builtin_memset(&loaded_mesh, 0, sizeof(LOADED_MESH));
             onComplete(nullptr);
             psyqo_free(data);
             return;
@@ -66,13 +65,13 @@ void MeshManager::load_mesh_from_cdrom(const char *mesh_name, eastl::function<vo
 
         int32_t x, y, z;
         for (int i = 0; i < loaded_mesh.mesh.vertex_count; i++) {
-            memcpy(&x, ptr, sizeof(int32_t));
+            __builtin_memcpy(&x, ptr, sizeof(int32_t));
             ptr += sizeof(int32_t);
 
-            memcpy(&y, ptr, sizeof(int32_t));
+            __builtin_memcpy(&y, ptr, sizeof(int32_t));
             ptr += sizeof(int32_t);
 
-            memcpy(&z, ptr, sizeof(int32_t));
+            __builtin_memcpy(&z, ptr, sizeof(int32_t));
             ptr += sizeof(int32_t);
 
             loaded_mesh.mesh.vertices[i].x.value = x;
@@ -83,18 +82,18 @@ void MeshManager::load_mesh_from_cdrom(const char *mesh_name, eastl::function<vo
         // read the verts paint data
         size_t vertices_paint_size = sizeof(VERTEX_PAINT) * loaded_mesh.mesh.vertex_count;
         loaded_mesh.mesh.vertex_paint = (VERTEX_PAINT *)psyqo_malloc(vertices_paint_size);
-        memcpy(loaded_mesh.mesh.vertex_paint, ptr, vertices_paint_size);
+        __builtin_memcpy(loaded_mesh.mesh.vertex_paint, ptr, vertices_paint_size);
         ptr += vertices_paint_size;
 
         // read the verts indices
         size_t indices_size = sizeof(INDEX) * loaded_mesh.mesh.indices_count;
         loaded_mesh.mesh.indices = (INDEX *)psyqo_malloc(indices_size);
-        memcpy(loaded_mesh.mesh.indices, ptr, indices_size);
+        __builtin_memcpy(loaded_mesh.mesh.indices, ptr, indices_size);
         ptr += indices_size;
 
         // read the normals count
         int32_t normal_count;
-        memcpy(&normal_count, ptr, 4);
+        __builtin_memcpy(&normal_count, ptr, 4);
         ptr += 4;
 
         // read the normals data
@@ -102,13 +101,13 @@ void MeshManager::load_mesh_from_cdrom(const char *mesh_name, eastl::function<vo
         loaded_mesh.mesh.normals = (psyqo::Vec3 *)psyqo_malloc(normals_size);
 
         for (int i = 0; i < normal_count; i++) {
-            memcpy(&x, ptr, sizeof(int32_t));
+            __builtin_memcpy(&x, ptr, sizeof(int32_t));
             ptr += sizeof(int32_t);
 
-            memcpy(&y, ptr, sizeof(int32_t));
+            __builtin_memcpy(&y, ptr, sizeof(int32_t));
             ptr += sizeof(int32_t);
 
-            memcpy(&z, ptr, sizeof(int32_t));
+            __builtin_memcpy(&z, ptr, sizeof(int32_t));
             ptr += sizeof(int32_t);
 
             loaded_mesh.mesh.normals[i].x.value = x;
@@ -117,20 +116,20 @@ void MeshManager::load_mesh_from_cdrom(const char *mesh_name, eastl::function<vo
         }
 
         // read the UV count
-        size_t uv_count; 
-        memcpy(&uv_count, ptr, 4);
+        size_t uv_count;
+        __builtin_memcpy(&uv_count, ptr, 4);
         ptr+= 4;
 
         // read the uv data
         size_t uvs_size = sizeof(UV)*uv_count;
         loaded_mesh.mesh.uvs = (UV *)psyqo_malloc(uvs_size);
-        memcpy(loaded_mesh.mesh.uvs, ptr, uvs_size);
+        __builtin_memcpy(loaded_mesh.mesh.uvs, ptr, uvs_size);
         ptr+= uvs_size;
 
         // read the uv indices
         size_t uv_indices_size = sizeof(INDEX)*loaded_mesh.mesh.indices_count;
         loaded_mesh.mesh.uv_indices = (INDEX *)psyqo_malloc(uv_indices_size);
-        memcpy(loaded_mesh.mesh.uv_indices, ptr, uv_indices_size);
+        __builtin_memcpy(loaded_mesh.mesh.uv_indices, ptr, uv_indices_size);
         ptr += uv_indices_size;
 
         // mark mesh as loaded
@@ -193,7 +192,7 @@ void MeshManager::unload_mesh(const char *mesh_name)
         loaded_mesh = &m_loaded_meshes[i];
         if (loaded_mesh && eastl_mesh_name == FixedString(loaded_mesh->mesh_name))
         {
-            memset(loaded_mesh, 0, sizeof(LOADED_MESH));
+            __builtin_memset(loaded_mesh, 0, sizeof(LOADED_MESH));
             break;
         }
     }

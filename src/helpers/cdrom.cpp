@@ -1,4 +1,3 @@
-#include <string.h>
 #include "psyqo/alloc.h"
 #include "psyqo/xprintf.h"
 #include "cdrom.hh"
@@ -42,7 +41,7 @@ void CDRomHelper::load_file(const char *file_name, eastl::function<void(void *, 
                                }
 
                                // return the data (dont forget to free it when you're done with it!)
-                               memcpy(ptr, local_buffer.data(), size);
+                               __builtin_memcpy(ptr, local_buffer.data(), size);
 
                                // callback to the loader
                                callback(ptr, local_buffer.size());
