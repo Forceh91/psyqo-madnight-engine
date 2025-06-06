@@ -14,7 +14,7 @@
 #include "helpers/cdrom.hh"
 #include "mesh/mesh_manager.hh"
 #include "helpers/camera.hh"
-#include "hello3d.hh"
+#include "madnight.hh"
 #include "render/clip.hh"
 
 using namespace psyqo::fixed_point_literals;

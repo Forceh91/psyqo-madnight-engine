@@ -1,7 +1,7 @@
 #include "camera.hh"
 #include "psyqo/soft-math.hh"
 #include "psyqo/xprintf.h"
-#include "../hello3d.hh"
+#include "../madnight.hh"
 #include "../controller/controller.hh"
 
 psyqo::Vec3 CameraManager::m_pos;

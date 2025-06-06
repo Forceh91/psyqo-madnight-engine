@@ -18,8 +18,8 @@
 		-->
 		<identifiers
 			system			="PLAYSTATION"
-			volume			="PSYQO_LOAD_FILE_FROM_CD"
-			volume_set		="PSYQO_LOAD_FILE_FROM_CD"
+			volume			="PSYQO_MADNIGHT_ENGINE"
+			volume_set		="PSYQO_MADNIGHT_ENGINE"
 			publisher		="MADNIGHT GAMES"
 			data_preparer	="MADNIGHT GAMES"
 			application		="PLAYSTATION"
@@ -53,7 +53,7 @@
 		-->
 		<directory_tree>
 			<file name="SYSTEM.CNF"		type="data" source="system.cnf" />
-			<file name="HELLO3D.EXE"	type="data" source="../build/hello-3d.ps-exe" />
+			<file name="MADNIGHT.EXE"	type="data" source="../build/madnight.ps-exe" />
 
 			<!-- models in binary format -->
 			<dir name="MODELS">
