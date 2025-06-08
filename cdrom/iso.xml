@@ -62,6 +62,7 @@
 
 			<!-- textures -->
 			<dir name="TEXTURES">
+				<file name="STREET.TIM" type="data" source="assets/residential_street.tim"/>
 			</dir>
 
 			<dummy sectors="1024"/>

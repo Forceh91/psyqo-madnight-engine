@@ -16,6 +16,8 @@
 #include "helpers/camera.hh"
 #include "madnight.hh"
 #include "render/clip.hh"
+#include "render/renderer.hh"
+#include "textures/texture_manager.hh"
 
 using namespace psyqo::fixed_point_literals;
 using namespace psyqo::trig_literals;
@@ -51,8 +53,15 @@ class MadnightEngineScene final : public psyqo::Scene
 public:
     void fetch_cube_from_cdrom()
     {
-        MeshManager::load_mesh_from_cdrom("MODELS/CUBE.MB", [this](MESH *mesh)
-                                          { if (mesh != nullptr) m_mesh = mesh; else printf("FETCH CUBE: No space to load into mesh manager\n"); });
+        TextureManager::LoadTIMFromCDRom("TEXTURES/STREET.TIM", 320, 0, [](size_t textureSize)
+                                         { printf("LOAD TEXTURE: Loaded a texture of %d bytes.\n", textureSize); });
+
+        // MeshManager::load_mesh_from_cdrom("MODELS/CUBE.MB", [this](MESH *mesh)
+        //                                   {
+        //                                       if (mesh != nullptr)
+        //                                           m_mesh = mesh;
+        //                                       else
+        //                                           printf("FETCH CUBE: No space to load into mesh manager\n"); });
     }
 };
 
@@ -65,6 +74,8 @@ MadnightEngine g_madnightEngine;
 
 void MadnightEngine::prepare()
 {
+    // todo: move rendering into renderer class
+    Renderer::Init(gpu());
     psyqo::GPU::Configuration gpu_config;
     gpu_config.set(psyqo::GPU::Resolution::W320).set(psyqo::GPU::VideoMode::NTSC).set(psyqo::GPU::ColorMode::C15BITS).set(psyqo::GPU::Interlace::PROGRESSIVE);
     gpu().initialize(gpu_config);
