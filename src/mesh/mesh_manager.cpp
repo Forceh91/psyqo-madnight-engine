@@ -1,7 +1,7 @@
 #include "mesh_manager.hh"
 #include "../helpers/cdrom.hh"
 
-LOADED_MESH MeshManager::m_loaded_meshes[MAX_CDROM_FILE_NAME_LEN];
+LOADED_MESH MeshManager::m_loaded_meshes[MAX_LOADED_MESHES];
 
 void MeshManager::load_mesh_from_cdrom(const char *mesh_name, eastl::function<void(MESH *mesh_out)> onComplete)
 {
@@ -94,38 +94,43 @@ void MeshManager::load_mesh_from_cdrom(const char *mesh_name, eastl::function<vo
 
         // read the normals count
         int32_t normal_count;
-        __builtin_memcpy(&normal_count, ptr, 4);
-        ptr += 4;
+        __builtin_memcpy(&normal_count, ptr, sizeof(int32_t));
+        ptr += sizeof(int32_t);
 
         // read the normals data
         size_t normals_size = sizeof(psyqo::Vec3) * normal_count;
         loaded_mesh.mesh.normals = (psyqo::Vec3 *)psyqo_malloc(normals_size);
 
         for (int i = 0; i < normal_count; i++) {
-            __builtin_memcpy(&x, ptr, sizeof(int32_t));
-            ptr += sizeof(int32_t);
+            __builtin_memcpy(&x, ptr, sizeof(int16_t));
+            ptr += sizeof(int16_t);
 
-            __builtin_memcpy(&y, ptr, sizeof(int32_t));
-            ptr += sizeof(int32_t);
+            __builtin_memcpy(&y, ptr, sizeof(int16_t));
+            ptr += sizeof(int16_t);
 
-            __builtin_memcpy(&z, ptr, sizeof(int32_t));
-            ptr += sizeof(int32_t);
+            __builtin_memcpy(&z, ptr, sizeof(int16_t));
+            ptr += sizeof(int16_t);
 
             loaded_mesh.mesh.normals[i].x.value = x;
             loaded_mesh.mesh.normals[i].y.value = y;
             loaded_mesh.mesh.normals[i].z.value = z;
         }
 
+        size_t normal_indices_size = sizeof(INDEX) * loaded_mesh.mesh.indices_count;
+        loaded_mesh.mesh.normal_indices = (INDEX *)psyqo_malloc(normal_indices_size);
+        __builtin_memcpy(loaded_mesh.mesh.normal_indices, ptr, normal_indices_size);
+        ptr += normal_indices_size;
+
         // read the UV count
-        size_t uv_count;
-        __builtin_memcpy(&uv_count, ptr, 4);
-        ptr+= 4;
+        int32_t uv_count;
+        __builtin_memcpy(&uv_count, ptr, sizeof(int32_t));
+        ptr += sizeof(int32_t);
 
         // read the uv data
         size_t uvs_size = sizeof(UV)*uv_count;
         loaded_mesh.mesh.uvs = (UV *)psyqo_malloc(uvs_size);
         __builtin_memcpy(loaded_mesh.mesh.uvs, ptr, uvs_size);
-        ptr+= uvs_size;
+        ptr += uvs_size;
 
         // read the uv indices
         size_t uv_indices_size = sizeof(INDEX)*loaded_mesh.mesh.indices_count;
