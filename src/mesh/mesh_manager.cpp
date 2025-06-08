@@ -22,12 +22,13 @@ void MeshManager::load_mesh_from_cdrom(const char *mesh_name, eastl::function<vo
     }
 
     // try and load the mesh off the cdrom
-    char mesh_file_name[MAX_CDROM_FILE_NAME_LEN];
-    CDRomHelper::get_iso_file_name(mesh_name, mesh_file_name);
-    CDRomHelper::load_file(mesh_file_name, [mesh_name, mesh_ix, onComplete](void *data, size_t size)
+    CDRomHelper::load_file(mesh_name, [mesh_name, mesh_ix, onComplete](psyqo::Buffer<uint8_t> &&buffer)
                            {
+                            void * data = buffer.data();
+                            size_t size = buffer.size();
         if (data == nullptr || size == 0)
         {
+            buffer.clear();
             printf("MESH: Failed to load mesh or it has no file size.\n");
             return;
         }
@@ -139,12 +140,12 @@ void MeshManager::load_mesh_from_cdrom(const char *mesh_name, eastl::function<vo
         m_loaded_meshes[mesh_ix] = loaded_mesh;
 
         // free the data
-        psyqo_free(data);
+        buffer.clear();
+
+        printf("MESH: Successfully loaded mesh of %d bytes into memory.\n", size);
 
         // callback to whatever asked to load the file
-        onComplete(&m_loaded_meshes[mesh_ix].mesh);
-
-        printf("MESH: Successfully loaded mesh of %d bytes into memory.\n", size); });
+        onComplete(&m_loaded_meshes[mesh_ix].mesh); });
 }
 
 MESH *MeshManager::is_mesh_loaded(const char *mesh_name)
