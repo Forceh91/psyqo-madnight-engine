@@ -150,7 +150,7 @@ def write_meshbin(filename, verts, norms, uvs, indices, uv_indices, normal_indic
 
         f.write(struct.pack("<I", len(uvs)))
         for u, v in uvs:
-            f.write(struct.pack("<hh", u, v))
+            f.write(struct.pack("<BB", u, v))
 
         for face in uv_indices:
             f.write(struct.pack("<hhhh", *face))

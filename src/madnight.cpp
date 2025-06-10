@@ -48,20 +48,20 @@ class MadnightEngineScene final : public psyqo::Scene
     // the mesh to display and its quads
     MESH *m_mesh = nullptr;
     psyqo::Vec3 m_mesh_pos = {0, 0, 0};
-    eastl::array<psyqo::Fragments::SimpleFragment<psyqo::Prim::Quad>, MAX_FACES_PER_MESH> m_quads;
+    eastl::array<psyqo::Fragments::SimpleFragment<psyqo::Prim::TexturedQuad>, MAX_FACES_PER_MESH> m_quads;
 
 public:
     void fetch_cube_from_cdrom()
     {
-        TextureManager::LoadTIMFromCDRom("TEXTURES/STREET.TIM", 320, 0, [](size_t textureSize)
-                                         { printf("LOAD TEXTURE: Loaded a texture of %d bytes.\n", textureSize); });
+        MeshManager::load_mesh_from_cdrom("MODELS/STREET.MB", [this](MESH *mesh)
+                                          {
+                                            if (mesh != nullptr)
+                                                m_mesh = mesh;
+                                            else
+                                                printf("FETCH CUBE: No space to load into mesh manager\n");
 
-        // MeshManager::load_mesh_from_cdrom("MODELS/CUBE.MB", [this](MESH *mesh)
-        //                                   {
-        //                                       if (mesh != nullptr)
-        //                                           m_mesh = mesh;
-        //                                       else
-        //                                           printf("FETCH CUBE: No space to load into mesh manager\n"); });
+                                            TextureManager::LoadTIMFromCDRom("TEXTURES/STREET.TIM", 320, 0, 0,240, [this](TimFile timFile)
+                                         { m_mesh->tim = timFile; }); });
     }
 };
 
@@ -227,13 +227,40 @@ void MadnightEngineScene::frame()
         psyqo::GTE::read<psyqo::GTE::Register::SXY2>(&projected[3].packed);
 
         // now take a quad fragment from our array and:
-        // set its vertices, colour, and make it opaque
+        // set its vertices
         auto &quad = m_quads[i];
-        quad.primitive.setPointA(projected[0]);
-        quad.primitive.setPointB(projected[1]);
-        quad.primitive.setPointC(projected[2]);
-        quad.primitive.setPointD(projected[3]);
-        quad.primitive.setColor({0 + (i * 50), 0 + (i * 50), 128 + (i * 25)});
+        quad.primitive.pointA = projected[0];
+        quad.primitive.pointB = projected[1];
+        quad.primitive.pointC = projected[2];
+        quad.primitive.pointD = projected[3];
+
+        // set its tpage
+        quad.primitive.tpage = TextureManager::GetTPageAttr(m_mesh->tim);
+
+        // set its clut if it has one
+        if (m_mesh->tim.hasClut)
+        {
+            psyqo::PrimPieces::ClutIndex clut(m_mesh->tim.clutX, m_mesh->tim.clutY);
+            quad.primitive.clutIndex = clut;
+        }
+
+        // set its uv coords
+        // TODO: fix this to use proper data for tpage x/y
+        psyqo::Rect offset = TextureManager::GetTPageUVForTim(m_mesh->tim);
+        quad.primitive.uvA.u = offset.pos.x + m_mesh->uvs[m_mesh->uv_indices[i].v0].u;
+        quad.primitive.uvA.v = offset.pos.y + (m_mesh->tim.height - 1 - m_mesh->uvs[m_mesh->uv_indices[i].v0].v);
+        quad.primitive.uvB.u = offset.pos.x + m_mesh->uvs[m_mesh->uv_indices[i].v1].u;
+        quad.primitive.uvB.v = offset.pos.y + (m_mesh->tim.height - 1 - m_mesh->uvs[m_mesh->uv_indices[i].v1].v);
+        quad.primitive.uvC.u = offset.pos.x + m_mesh->uvs[m_mesh->uv_indices[i].v2].u;
+        quad.primitive.uvC.v = offset.pos.y + (m_mesh->tim.height - 1 - m_mesh->uvs[m_mesh->uv_indices[i].v2].v);
+        quad.primitive.uvD.u = offset.pos.x + m_mesh->uvs[m_mesh->uv_indices[i].v3].u;
+        quad.primitive.uvD.v = offset.pos.y + (m_mesh->tim.height - 1 - m_mesh->uvs[m_mesh->uv_indices[i].v3].v);
+
+        // set its colour, and make it opaque
+        // quad.primitive.setColorA({255, 255, 255});
+        // quad.primitive.setColorB({255, 255, 255});
+        // quad.primitive.setColorC({255, 255, 255});
+        // quad.primitive.setColorD({255, 255, 255});
         quad.primitive.setOpaque();
 
         // insert the quad fragment into the ordering table at the calculated z index
@@ -242,7 +269,7 @@ void MadnightEngineScene::frame()
 
     // send the entire ordering table as a DMA chain to the GPU
     gpu().chain(ot);
-    m_rot += 0.005_pi;
+    // m_rot += 0.005_pi;
 }
 
 int main() { return g_madnightEngine.run(); }

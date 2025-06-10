@@ -127,8 +127,8 @@ void MeshManager::load_mesh_from_cdrom(const char *mesh_name, eastl::function<vo
         ptr += sizeof(int32_t);
 
         // read the uv data
-        size_t uvs_size = sizeof(UV)*uv_count;
-        loaded_mesh.mesh.uvs = (UV *)psyqo_malloc(uvs_size);
+        size_t uvs_size = sizeof(psyqo::PrimPieces::UVCoords)*uv_count;
+        loaded_mesh.mesh.uvs = (psyqo::PrimPieces::UVCoords *)psyqo_malloc(uvs_size);
         __builtin_memcpy(loaded_mesh.mesh.uvs, ptr, uvs_size);
         ptr += uvs_size;
 

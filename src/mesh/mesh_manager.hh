@@ -4,6 +4,7 @@
 #include <stdint.h>
 #include <EASTL/fixed_string.h>
 #include "psyqo/vector.hh"
+#include "../textures/texture_manager.hh"
 #include "../helpers/file_defs.hh"
 
 #define MAX_LOADED_MESHES 32
@@ -31,11 +32,12 @@ typedef struct _MESH
     INDEX *indices;
     psyqo::Vec3 *normals;
     INDEX *normal_indices;
-    UV *uvs;
+    psyqo::PrimPieces::UVCoords *uvs;
     INDEX *uv_indices;
     int vertex_count;
     int indices_count;
     int faces_num;
+    TimFile tim;
 } MESH;
 
 typedef struct _LOADED_MESH

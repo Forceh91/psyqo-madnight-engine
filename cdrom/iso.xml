@@ -58,6 +58,7 @@
 			<!-- models in binary format -->
 			<dir name="MODELS">
 				<file name="CUBE.MB" type="data" source="assets/cube.meshbin"/>
+				<file name="STREET.MB" type="data" source="assets/residential_street.meshbin"/>
 			</dir>
 
 			<!-- textures -->
