@@ -217,14 +217,14 @@ void MadnightEngineScene::frame()
         if (z_index <= 0 || z_index >= ORDERING_TABLE_SIZE)
             continue;
 
-        // if its out of the screen space we can clip too
-        if (quad_clip(&screen_space, &projected[0], &projected[1], &projected[2], &projected[3]))
-            continue;
-
         // get the three remaining verts from the GTE
         psyqo::GTE::read<psyqo::GTE::Register::SXY0>(&projected[1].packed);
         psyqo::GTE::read<psyqo::GTE::Register::SXY1>(&projected[2].packed);
         psyqo::GTE::read<psyqo::GTE::Register::SXY2>(&projected[3].packed);
+
+        // if its out of the screen space we can clip too
+        if (quad_clip(&screen_space, &projected[0], &projected[1], &projected[2], &projected[3]))
+            continue;
 
         // now take a quad fragment from our array and:
         // set its vertices
