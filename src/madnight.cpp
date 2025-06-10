@@ -13,11 +13,12 @@
 #include "psyqo/xprintf.h"
 #include "helpers/cdrom.hh"
 #include "mesh/mesh_manager.hh"
-#include "helpers/camera.hh"
+#include "render/camera.hh"
 #include "madnight.hh"
 #include "render/clip.hh"
 #include "render/renderer.hh"
 #include "textures/texture_manager.hh"
+#include "core/raycast.hh"
 
 using namespace psyqo::fixed_point_literals;
 using namespace psyqo::trig_literals;
@@ -53,7 +54,7 @@ class MadnightEngineScene final : public psyqo::Scene
 public:
     void fetch_cube_from_cdrom()
     {
-        MeshManager::load_mesh_from_cdrom("MODELS/STREET.MB", [this](MESH *mesh)
+        MeshManager::load_mesh_from_cdrom("MODELS/STREET.MB", MeshType::ENVIRONMENT, [this](MESH *mesh)
                                           {
                                             if (mesh != nullptr)
                                                 m_mesh = mesh;
@@ -148,6 +149,12 @@ void MadnightEngineScene::frame()
         gpu().chain(ot);
         return;
     }
+
+    // do a raycast??
+    Ray ray = {.origin{CameraManager::get_pos().x, CameraManager::get_pos().y, CameraManager::get_pos().z}, .direction = CameraManager::get_pos().FORWARD(), .maxDistance = ONE_METRE * 3};
+    RayHit hit = {0};
+    bool didHit = Raycast::RaycastScene(ray, MeshType::ENVIRONMENT, &hit);
+    printf("hit=%d. mesh=%s\n", didHit, didHit ? hit.mesh->mesh_name : "nothing");
 
     // clear TRX/Y/Z safely
     psyqo::GTE::clear<psyqo::GTE::Register::TRX, psyqo::GTE::Safe>();

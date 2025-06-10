@@ -10,7 +10,7 @@ psyqo::Matrix33 CameraManager::m_rotation_matrix = {0};
 
 void CameraManager::init(void)
 {
-    set_position(static_cast<psyqo::FixedPoint<12>>(0), static_cast<psyqo::FixedPoint<12>>(0), static_cast<psyqo::FixedPoint<12>>(-0.01));
+    set_position(static_cast<psyqo::FixedPoint<12>>(0), -0.02_fp, -0.075_fp);
     set_rotation_matrix();
 }
 
@@ -111,6 +111,8 @@ void CameraManager::process(uint32_t delta_time)
         m_angle.y -= (-right_stick_x >> 5) * delta_time * m_rotation_speed;
         set_rotation_matrix();
     }
+
+    printf("CAMERA: pos=%d,%d,%d\n", m_pos.x, m_pos.y, m_pos.z);
 }
 
 void CameraManager::set_rotation_matrix(void)

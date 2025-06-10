@@ -28,6 +28,12 @@
  * and the HUD or menus or whatever
  * 16-bit colour texture = 2 tpages
  * 8-bit + 4-bit colour texture = remaining 18 tpages
+ *
+ * psyqo addition:
+ * right now with the way frame buffers are laid out, we have space for cluts from
+ * 0,240 -> 0,255 (inclusive) and 0,496 -> 0,511 (inclusive), so 30 cluts in total
+ * but we're not limited to that. we can put them wherever else we want as long as the X is % 16.
+ * these are just obviously known safe areas where we're never gonna get a texture or anything in there anyway
  */
 
 void TextureManager::LoadTIMFromCDRom(const char *textureName, uint16_t x, uint16_t y, uint16_t clutX, uint16_t clutY, eastl::function<void(TimFile timFile)> onComplete)
