@@ -48,7 +48,7 @@ class MadnightEngineScene final : public psyqo::Scene
     // the mesh to display and its quads
     MESH *m_mesh = nullptr;
     psyqo::Vec3 m_mesh_pos = {0, 0, 0};
-    eastl::array<psyqo::Fragments::SimpleFragment<psyqo::Prim::TexturedQuad>, MAX_FACES_PER_MESH> m_quads;
+    eastl::array<psyqo::Fragments::SimpleFragment<psyqo::Prim::GouraudTexturedQuad>, MAX_FACES_PER_MESH> m_quads;
 
 public:
     void fetch_cube_from_cdrom()
@@ -245,7 +245,6 @@ void MadnightEngineScene::frame()
         }
 
         // set its uv coords
-        // TODO: fix this to use proper data for tpage x/y
         psyqo::Rect offset = TextureManager::GetTPageUVForTim(m_mesh->tim);
         quad.primitive.uvA.u = offset.pos.x + m_mesh->uvs[m_mesh->uv_indices[i].v0].u;
         quad.primitive.uvA.v = offset.pos.y + (m_mesh->tim.height - 1 - m_mesh->uvs[m_mesh->uv_indices[i].v0].v);
@@ -257,10 +256,11 @@ void MadnightEngineScene::frame()
         quad.primitive.uvD.v = offset.pos.y + (m_mesh->tim.height - 1 - m_mesh->uvs[m_mesh->uv_indices[i].v3].v);
 
         // set its colour, and make it opaque
-        // quad.primitive.setColorA({255, 255, 255});
-        // quad.primitive.setColorB({255, 255, 255});
-        // quad.primitive.setColorC({255, 255, 255});
-        // quad.primitive.setColorD({255, 255, 255});
+        // TODO: make objects decide if they are gouraud shaded or not? saves processing time
+        quad.primitive.setColorA({128, 128, 128});
+        quad.primitive.setColorB({128, 128, 128});
+        quad.primitive.setColorC({128, 128, 128});
+        quad.primitive.setColorD({128, 128, 128});
         quad.primitive.setOpaque();
 
         // insert the quad fragment into the ordering table at the calculated z index
