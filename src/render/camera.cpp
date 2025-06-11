@@ -1,6 +1,5 @@
 #include "camera.hh"
 #include "psyqo/soft-math.hh"
-#include "psyqo/xprintf.h"
 #include "../madnight.hh"
 #include "../controller/controller.hh"
 
@@ -130,7 +129,7 @@ void CameraManager::set_rotation_matrix(void)
 psyqo::Vec3 CameraManager::GetForwardVector(void)
 {
     return {
-        m_rotation_matrix.vs[0].z, m_rotation_matrix.vs[1].z, m_rotation_matrix.vs[2].z};
+        -m_rotation_matrix.vs[0].z, m_rotation_matrix.vs[1].z, m_rotation_matrix.vs[2].z};
 }
 
 psyqo::Vec3 &CameraManager::get_pos(void) { return m_pos; }

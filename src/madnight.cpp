@@ -151,11 +151,9 @@ void MadnightEngineScene::frame()
     }
 
     // do a raycast??
-    Ray ray = {.origin{CameraManager::get_pos().x, CameraManager::get_pos().y, CameraManager::get_pos().z}, .direction = CameraManager::GetForwardVector(), .maxDistance = ONE_METRE * 3};
+    Ray ray = {.origin = CameraManager::get_pos(), .direction = CameraManager::GetForwardVector(), .maxDistance = ONE_METRE * 3};
     RayHit hit = {0};
-    printf("forward=%d,%d,%d\n", ray.direction);
     bool didHit = Raycast::RaycastScene(ray, MeshType::ENVIRONMENT, &hit);
-    printf("hit=%d. mesh=%s\n", didHit, didHit == true ? hit.mesh->mesh_name : "nothing");
 
     // clear TRX/Y/Z safely
     psyqo::GTE::clear<psyqo::GTE::Register::TRX, psyqo::GTE::Safe>();
