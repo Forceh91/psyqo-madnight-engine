@@ -5,7 +5,7 @@
 #include "world_defs.hh"
 #include "psyqo/vector.hh"
 
-static constexpr psyqo::FixedPoint<> maxRayDistance = ONE_METRE * 19; // 10m
+static constexpr psyqo::FixedPoint<> maxRayDistance = ONE_METRE * 10; // 10m
 
 typedef struct _RAY
 {

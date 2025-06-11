@@ -12,6 +12,7 @@
 
 enum MeshType
 {
+    NOT_LOADED = -1,
     ENVIRONMENT,
     INTERACTABLE
 };

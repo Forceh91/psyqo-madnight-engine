@@ -32,6 +32,7 @@ public:
     static psyqo::Vec3 &get_pos(void);
     static CAMERA_ANGLE *get_angle(void);
     static psyqo::Matrix33 &get_rotation_matrix(void);
+    static psyqo::Vec3 GetForwardVector(void);
     static void process(uint32_t delta_time);
 };
 

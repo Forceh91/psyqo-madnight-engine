@@ -44,6 +44,8 @@ void Collision::GenerateAABBForMesh(const MESH *mesh, AABBCollision *collisionBo
         if (vertPos.z > collisionBoxOut->max.z)
             collisionBoxOut->max.z = vertPos.z;
     }
+
+    printf("min=(%d,%d,%d), max=(%d,%d,%d)\n", collisionBoxOut->min.x, collisionBoxOut->min.y, collisionBoxOut->min.z, collisionBoxOut->max.x, collisionBoxOut->max.y, collisionBoxOut->max.z);
 }
 
 bool Collision::IsAABBCollision(const AABBCollision &collisionA, const AABBCollision &collisionB)

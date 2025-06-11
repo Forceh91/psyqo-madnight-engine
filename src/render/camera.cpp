@@ -111,8 +111,6 @@ void CameraManager::process(uint32_t delta_time)
         m_angle.y -= (-right_stick_x >> 5) * delta_time * m_rotation_speed;
         set_rotation_matrix();
     }
-
-    printf("CAMERA: pos=%d,%d,%d\n", m_pos.x, m_pos.y, m_pos.z);
 }
 
 void CameraManager::set_rotation_matrix(void)
@@ -127,6 +125,12 @@ void CameraManager::set_rotation_matrix(void)
 
     // update rotation matrix
     m_rotation_matrix = rm_y;
+}
+
+psyqo::Vec3 CameraManager::GetForwardVector(void)
+{
+    return {
+        m_rotation_matrix.vs[0].z, m_rotation_matrix.vs[1].z, m_rotation_matrix.vs[2].z};
 }
 
 psyqo::Vec3 &CameraManager::get_pos(void) { return m_pos; }

@@ -10,7 +10,7 @@ SRCS := $(shell find src -name '*.cpp')
 # C++ standard
 CXXFLAGS = -std=c++20
 
-CPPFLAGS_msan = -DUSE_PCSXMSAN -O0 -g
+# CPPFLAGS_msan = -DUSE_PCSXMSAN -O0 -g
 
 # Output directory
 OUTDIR = build

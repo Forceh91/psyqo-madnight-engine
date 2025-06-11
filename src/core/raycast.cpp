@@ -1,12 +1,15 @@
 #include "raycast.hh"
 #include "collision.hh"
+#include "psyqo/soft-math.hh"
 #include "psyqo/xprintf.h"
 
 bool Raycast::RaycastScene(const Ray &ray, const MeshType &targetType, RayHit *hitOut)
 {
     // make sure its not too short/long
-    if (ray.maxDistance <= 0 || ray.maxDistance > maxRayDistance)
+    if (ray.maxDistance <= 0)
         return false;
+
+    // ray.maxDistance = eastl::min(ray.maxDistance, maxRayDistance);
 
     // find all meshes of type, if none then presume no hit
     LOADED_MESH *meshes[MAX_LOADED_MESHES];
@@ -16,6 +19,10 @@ bool Raycast::RaycastScene(const Ray &ray, const MeshType &targetType, RayHit *h
         // for each mesh of type...
         for (uint8_t i = 0; i < count; i++)
         {
+            // make sure its loaded...
+            if (!meshes[i]->is_loaded)
+                continue;
+
             MESH *mesh = &meshes[i]->mesh;
 
             // do an AABB check on this, did it hit?
@@ -44,12 +51,15 @@ bool Raycast::DoesRaycastInterceptAABB(const Ray &ray, const MESH *mesh)
     if (aabbBox.min.x == UINT16_MAX)
         return false;
 
-    psyqo::FixedPoint<> tMin = -10.0_fp;
-    psyqo::FixedPoint<> tMax = 10.0_fp;
+    psyqo::FixedPoint<> tMin = -1000.0_fp;
+    psyqo::FixedPoint<> tMax = 1000.0_fp;
+    psyqo::Vec3 normalizedRayDirection = ray.direction;
+    psyqo::SoftMath::normalizeVec3(&normalizedRayDirection);
+    printf("normalized direction=(%d, %d, %d)\n", normalizedRayDirection.x, normalizedRayDirection.y, normalizedRayDirection.z);
 
     for (uint8_t axis = 0; axis < 3; axis++)
     {
-        // we won't move into AABB along X
+        // we won't move into AABB along axis
         if (ray.direction.get(axis) == 0)
         {
             // but are we already inside it?
@@ -60,15 +70,19 @@ bool Raycast::DoesRaycastInterceptAABB(const Ray &ray, const MESH *mesh)
         }
 
         // we know the ray isn't parallel so where do we enter/exit?
-        psyqo::FixedPoint<> invDirX = 1.0_fp / ray.direction.get(axis);
-        psyqo::FixedPoint<> t1 = (aabbBox.min[axis] - ray.origin.get(axis)) * invDirX;
-        psyqo::FixedPoint<> t2 = (aabbBox.max[axis] - ray.origin.get(axis)) * invDirX;
+        psyqo::FixedPoint<> invDir = 1.0_fp / normalizedRayDirection[axis];
+        // printf("dir=(%d, %d, %d)\n", ray.direction.x, ray.direction.y, ray.direction.z);
+        // printf("invDir=%d\n", invDir);
+
+        psyqo::FixedPoint<> t1 = (aabbBox.min[axis] - ray.origin.get(axis)) * invDir;
+        psyqo::FixedPoint<> t2 = (aabbBox.max[axis] - ray.origin.get(axis)) * invDir;
 
         // if entry > exit, swap them round
         if (t1 > t2)
             eastl::swap(t1, t2);
 
-        printf("t1=%d, t2=%d\n", t1, t2);
+        // if (axis == 1)
+        printf("axis=%d, min=%d, max=%d, origin=%d, t1=%d, t2=%d, invdir=%d\n", axis, aabbBox.min[axis], aabbBox.max[axis], ray.origin.get(axis), t1, t2, invDir);
 
         if (t1 > tMin)
             tMin = t1;
@@ -76,11 +90,10 @@ bool Raycast::DoesRaycastInterceptAABB(const Ray &ray, const MESH *mesh)
         if (t2 < tMax)
             tMax = t2;
 
-        printf("tmin=%d, tmax=%d\n", tMin, tMax);
-
-        if (tMax < tMin)
-            return false; // no overlaps
+        if (tMin > tMax)
+            return false; // missed the box
     }
+    printf("loop finished! tmin=%d, tmax=%d\n", tMin, tMax);
 
     // is the box behind or too far?
     if (tMin < 0 || tMin > ray.maxDistance)

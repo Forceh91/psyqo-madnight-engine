@@ -211,7 +211,7 @@ uint8_t MeshManager::GetMeshesOfType(const MeshType &meshType, LOADED_MESH *mesh
     uint8_t count = 0;
     for (uint8_t i = 0; i < MAX_LOADED_MESHES; i++)
     {
-        if (m_loaded_meshes[i].meshType != meshType)
+        if (!m_loaded_meshes[i].is_loaded || m_loaded_meshes[i].meshType != meshType)
             continue;
 
         meshes[count++] = &m_loaded_meshes[i];

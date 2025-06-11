@@ -151,10 +151,11 @@ void MadnightEngineScene::frame()
     }
 
     // do a raycast??
-    Ray ray = {.origin{CameraManager::get_pos().x, CameraManager::get_pos().y, CameraManager::get_pos().z}, .direction = CameraManager::get_pos().FORWARD(), .maxDistance = ONE_METRE * 3};
+    Ray ray = {.origin{CameraManager::get_pos().x, CameraManager::get_pos().y, CameraManager::get_pos().z}, .direction = CameraManager::GetForwardVector(), .maxDistance = ONE_METRE * 3};
     RayHit hit = {0};
+    printf("forward=%d,%d,%d\n", ray.direction);
     bool didHit = Raycast::RaycastScene(ray, MeshType::ENVIRONMENT, &hit);
-    printf("hit=%d. mesh=%s\n", didHit, didHit ? hit.mesh->mesh_name : "nothing");
+    printf("hit=%d. mesh=%s\n", didHit, didHit == true ? hit.mesh->mesh_name : "nothing");
 
     // clear TRX/Y/Z safely
     psyqo::GTE::clear<psyqo::GTE::Register::TRX, psyqo::GTE::Safe>();
@@ -177,7 +178,7 @@ void MadnightEngineScene::frame()
     // adjust object position by camera position
     object_pos += camera_pos;
 
-    // set up the rotation for the spinning cube
+    // set up the rotation for the mesh
     auto transform = psyqo::SoftMath::generateRotationMatrix33(m_rot, psyqo::SoftMath::Axis::X, g_madnightEngine.m_trig);
     auto rot = psyqo::SoftMath::generateRotationMatrix33(m_rot, psyqo::SoftMath::Axis::Y, g_madnightEngine.m_trig);
 
