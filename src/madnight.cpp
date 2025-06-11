@@ -19,6 +19,7 @@
 #include "render/renderer.hh"
 #include "textures/texture_manager.hh"
 #include "core/raycast.hh"
+#include "core/debug/debug_menu.hh"
 
 using namespace psyqo::fixed_point_literals;
 using namespace psyqo::trig_literals;
@@ -89,6 +90,7 @@ void MadnightEngine::prepare()
     m_input.initialize(psyqo::AdvancedPad::PollingMode::Fast);
 
     CameraManager::init();
+    DebugMenu::Init();
 }
 
 void MadnightEngine::createScene()
@@ -140,8 +142,10 @@ void MadnightEngineScene::frame()
     gpu().chain(clear);
 
     // process camera inputs
-    // todo: can we use m_input events for this? that doesn't support holding the button down?
     CameraManager::process(delta_time);
+
+    // process debug menu
+    DebugMenu::Process();
 
     // make sure we have a mesh
     if (m_mesh == nullptr)
@@ -151,7 +155,8 @@ void MadnightEngineScene::frame()
     }
 
     // do a raycast??
-    Ray ray = {.origin = CameraManager::get_pos(), .direction = CameraManager::GetForwardVector(), .maxDistance = ONE_METRE * 3};
+    uint8_t raycastDistance = DebugMenu::RaycastDistance();
+    Ray ray = {.origin = CameraManager::get_pos(), .direction = CameraManager::GetForwardVector(), .maxDistance = raycastDistance * ONE_METRE};
     RayHit hit = {0};
     bool didHit = Raycast::RaycastScene(ray, MeshType::ENVIRONMENT, &hit);
 
@@ -276,6 +281,9 @@ void MadnightEngineScene::frame()
     // send the entire ordering table as a DMA chain to the GPU
     gpu().chain(ot);
     // m_rot += 0.005_pi;
+
+    // todo: eventually this will be the central point for rendering gameobjects etc
+    Renderer::Instance().Render();
 }
 
 int main() { return g_madnightEngine.run(); }

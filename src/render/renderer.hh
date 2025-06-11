@@ -19,6 +19,8 @@ public:
     }
 
     void VRamUpload(const uint16_t *data, int16_t x, int16_t y, int16_t width, int16_t height);
+    void Render(void);
+    psyqo::GPU &GPU() { return m_gpu; }
 };
 
 #endif
