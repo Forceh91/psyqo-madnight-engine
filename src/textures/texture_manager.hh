@@ -29,6 +29,7 @@ class TextureManager final
     static eastl::array<TimFile, MAX_TEXTURES> m_textures;
 
     static int8_t GetFreeIndex(void);
+    static TimFile *IsTextureLoaded(const char *name);
 
 public:
     static void LoadTIMFromCDRom(const char *textureName, uint16_t x, uint16_t y, uint16_t clutX, uint16_t clutY, eastl::function<void(TimFile *timFile)> onComplete);

@@ -40,7 +40,15 @@ eastl::array<TimFile, MAX_TEXTURES> TextureManager::m_textures;
 
 void TextureManager::LoadTIMFromCDRom(const char *textureName, uint16_t x, uint16_t y, uint16_t clutX, uint16_t clutY, eastl::function<void(TimFile *timFile)> onComplete)
 {
-    // find space for it
+    // is it already loaded?
+    TimFile *texture;
+    if ((texture = IsTextureLoaded(textureName)))
+    {
+        onComplete(texture);
+        return;
+    }
+
+    // no its not. find space for it
     int8_t freeIx = GetFreeIndex();
     if (freeIx == -1)
         return;
@@ -191,4 +199,15 @@ int8_t TextureManager::GetFreeIndex(void)
     };
 
     return -1;
+}
+
+TimFile *TextureManager::IsTextureLoaded(const char *name)
+{
+    for (uint8_t i = 0; i < MAX_TEXTURES; i++)
+    {
+        if (m_textures.at(i).name == name)
+            return &m_textures.at(i);
+    };
+
+    return nullptr;
 }
