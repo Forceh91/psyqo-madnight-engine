@@ -54,6 +54,7 @@ class MadnightEngineScene final : public psyqo::Scene
     eastl::array<psyqo::Fragments::SimpleFragment<psyqo::Prim::GouraudTexturedQuad>, MAX_FACES_PER_MESH> m_quads;
 
 public:
+    psyqo::Coroutine<> LoadGameObject();
     void fetch_cube_from_cdrom()
     {
         // MeshManager::load_mesh_from_cdrom("MODELS/STREET.MB", [this](MESH *mesh)
@@ -99,11 +100,15 @@ void MadnightEngine::createScene()
     pushScene(&engineScene);
     engineScene.fetch_cube_from_cdrom();
 
+    engineScene.LoadGameObject().resume();
+}
+
+psyqo::Coroutine<> MadnightEngineScene::LoadGameObject()
+{
     auto a = GameObjectManager::CreateGameObject("STREET", {0, 0, 0}, {0, 0, 0}, GameObjectTag::ENVIRONMENT);
 
-    // TODO: these need to be waited on?
-    a->SetMesh("MODELS/STREET.MB");
-    a->SetTexture("TEXTURES/STREET.TIM", 320, 0, 0, 240);
+    co_await a->SetTexture("TEXTURES/STREET.TIM", 320, 0, 0, 240);
+    co_await a->SetMesh("MODELS/STREET.MB");
 }
 
 void MadnightEngineScene::start(StartReason reason)

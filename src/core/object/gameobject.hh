@@ -1,6 +1,8 @@
 #ifndef _GAMEOBJECT_H
 #define _GAMEOBJECT_H
 
+#include "psyqo/coroutine.hh"
+#include "psyqo/fragments.hh"
 #include "psyqo/trigonometry.hh"
 #include "psyqo/vector.hh"
 #include "EASTL/fixed_string.h"
@@ -22,6 +24,7 @@ class GameObject final
     psyqo::Vec3 m_pos = {0, 0, 0};
     GameObjectRotation m_rotation = {0, 0, 0};
     MESH *m_mesh = nullptr;
+    TimFile *m_texture = nullptr;
 
 public:
     GameObject() = default;
@@ -36,8 +39,8 @@ public:
 
     const eastl::fixed_string<char, MAX_CDROM_FILE_NAME_LEN> &name() { return m_name; }
 
-    void SetMesh(const char *meshName);
-    void SetTexture(const char *textureName, uint16_t vramX, uint16_t vramY, uint16_t clutX, uint16_t clutY);
+    psyqo::Coroutine<> SetMesh(const char *meshName);
+    psyqo::Coroutine<> SetTexture(const char *textureName, uint16_t vramX, uint16_t vramY, uint16_t clutX, uint16_t clutY);
 };
 
 #endif

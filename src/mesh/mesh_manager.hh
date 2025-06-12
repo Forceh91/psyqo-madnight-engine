@@ -3,6 +3,8 @@
 
 #include <stdint.h>
 #include <EASTL/fixed_string.h>
+
+#include "psyqo/coroutine.hh"
 #include "psyqo/vector.hh"
 #include "../textures/texture_manager.hh"
 #include "../helpers/file_defs.hh"
@@ -56,7 +58,7 @@ class MeshManager
     static int8_t find_space_for_mesh(void);
 
 public:
-    static void load_mesh_from_cdrom(const char *mesh_name, eastl::function<void(MESH *mesh_out)> onComplete);
+    static psyqo::Coroutine<> LoadMeshFromCDROM(const char *meshName, MESH *meshOut);
     static void unload_mesh(const char *mesh_name);
     // static uint8_t GetMeshesOfType(const MeshType &meshType, LOADED_MESH *meshes[]);
 };

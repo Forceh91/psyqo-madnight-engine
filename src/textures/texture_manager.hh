@@ -4,6 +4,7 @@
 #include <stdint.h>
 #include <EASTL/functional.h>
 #include <EASTL/fixed_string.h>
+#include "psyqo/coroutine.hh"
 #include "psyqo/primitives.hh"
 #include "../helpers/file_defs.hh"
 
@@ -32,7 +33,7 @@ class TextureManager final
     static TimFile *IsTextureLoaded(const char *name);
 
 public:
-    static void LoadTIMFromCDRom(const char *textureName, uint16_t x, uint16_t y, uint16_t clutX, uint16_t clutY, eastl::function<void(TimFile *timFile)> onComplete);
+    static psyqo::Coroutine<> LoadTIMFromCDRom(const char *textureName, uint16_t x, uint16_t y, uint16_t clutX, uint16_t clutY, TimFile *timOut);
     static psyqo::PrimPieces::TPageAttr GetTPageAttr(const TimFile &tim);
     static psyqo::Rect GetTPageUVForTim(const TimFile &tim);
 };

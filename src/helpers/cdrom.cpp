@@ -14,28 +14,24 @@ void CDRomHelper::init()
 
 // reads a file off of the cd rom into memory (most likely a file full of binary data)
 // dont forget to free the returned data when you're done with it
-void CDRomHelper::load_file(const char *file_name, eastl::function<void(psyqo::Buffer<uint8_t> &&)> callback)
+// allows you to wait for a file to be ready off cdrom without being stuck in callback hell
+psyqo::Coroutine<psyqo::Buffer<uint8_t>> CDRomHelper::LoadFile(const char *fileName)
 {
-    get_iso_file_name(file_name, m_loadingFileName);
+    get_iso_file_name(fileName, m_loadingFileName);
     printf("CD ROM: Attempting to read %s...\n", m_loadingFileName);
 
-    // read the file off of the disc
-    m_cdromLoader.readFile(m_loadingFileName, m_isoParser,
-                           [callback](psyqo::Buffer<uint8_t> &&buffer)
-                           {
-                               printf("CD ROM: Finished reading file (%d bytes) from cd rom.\n", buffer.size());
+    auto buffer = co_await m_cdromLoader.readFile(m_loadingFileName, m_isoParser);
+    printf("CD ROM: Finished reading file (%d bytes) from cd rom.\n", buffer.size());
 
-                               // the file isnt there or its empty
-                               if (buffer.empty())
-                               {
-                                   buffer.clear();
-                                   printf("CD ROM: File %s not found on CD or file is empty\n", m_loadingFileName);
-                                   return;
-                               }
+    // the file isnt there or its empty
+    if (buffer.empty())
+    {
+        buffer.clear();
+        printf("CD ROM: File %s not found on CD or file is empty\n", m_loadingFileName);
+    }
 
-                               // callback to the loader
-                               callback(eastl::move(buffer));
-                           });
+    // callback to the loader
+    co_return eastl::move(buffer);
 }
 
 void CDRomHelper::get_iso_file_name(const char *file_name, char *iso_filename)

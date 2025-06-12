@@ -2,6 +2,7 @@
 #define _CDROM_H
 
 #include "psyqo/cdrom-device.hh"
+#include "psyqo/coroutine.hh"
 #include "psyqo/iso9660-parser.hh"
 #include "psyqo/xprintf.h"
 #include "psyqo-paths/cdrom-loader.hh"
@@ -16,7 +17,7 @@ class CDRomHelper final
 
 public:
     static void init();
-    static void load_file(const char *file_name, eastl::function<void(psyqo::Buffer<uint8_t> &&)> callback);
+    static psyqo::Coroutine<psyqo::Buffer<uint8_t>> LoadFile(const char *fileName);
     static void get_iso_file_name(const char *file_name, char *iso_filename);
 };
 

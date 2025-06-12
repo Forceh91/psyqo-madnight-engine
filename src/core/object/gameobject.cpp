@@ -8,14 +8,12 @@ void GameObject::Destroy(void)
     m_tag = GameObjectTag::NONE;
 }
 
-void GameObject::SetMesh(const char *meshName)
+psyqo::Coroutine<> GameObject::SetMesh(const char *meshName)
 {
-    MeshManager::load_mesh_from_cdrom(meshName, [this](MESH *mesh)
-                                      { m_mesh = mesh; });
+    co_await MeshManager::LoadMeshFromCDROM(meshName, m_mesh);
 }
 
-void GameObject::SetTexture(const char *textureName, uint16_t x, uint16_t y, uint16_t clutX, uint16_t clutY)
+psyqo::Coroutine<> GameObject::SetTexture(const char *textureName, uint16_t x, uint16_t y, uint16_t clutX, uint16_t clutY)
 {
-    TextureManager::LoadTIMFromCDRom(textureName, x, y, clutX, clutY, [this](TimFile *tim)
-                                     { m_mesh->tim = tim; });
+    co_await TextureManager::LoadTIMFromCDRom(textureName, x, y, clutX, clutY, m_texture);
 }
