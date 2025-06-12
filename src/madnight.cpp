@@ -20,6 +20,7 @@
 #include "textures/texture_manager.hh"
 #include "core/raycast.hh"
 #include "core/debug/debug_menu.hh"
+#include "core/object/gameobject_manager.hh"
 
 using namespace psyqo::fixed_point_literals;
 using namespace psyqo::trig_literals;
@@ -55,15 +56,15 @@ class MadnightEngineScene final : public psyqo::Scene
 public:
     void fetch_cube_from_cdrom()
     {
-        MeshManager::load_mesh_from_cdrom("MODELS/STREET.MB", MeshType::ENVIRONMENT, [this](MESH *mesh)
-                                          {
-                                            if (mesh != nullptr)
-                                                m_mesh = mesh;
-                                            else
-                                                printf("FETCH CUBE: No space to load into mesh manager\n");
+        // MeshManager::load_mesh_from_cdrom("MODELS/STREET.MB", [this](MESH *mesh)
+        //                                   {
+        //                                     if (mesh != nullptr)
+        //                                         m_mesh = mesh;
+        //                                     else
+        //                                         printf("FETCH CUBE: No space to load into mesh manager\n");
 
-                                            TextureManager::LoadTIMFromCDRom("TEXTURES/STREET.TIM", 320, 0, 0,240, [this](TimFile timFile)
-                                         { m_mesh->tim = timFile; }); });
+        //                                     TextureManager::LoadTIMFromCDRom("TEXTURES/STREET.TIM", 320, 0, 0,240, [this](TimFile *timFile)
+        //                                  { m_mesh->tim = timFile; }); });
     }
 };
 
@@ -97,6 +98,12 @@ void MadnightEngine::createScene()
 {
     pushScene(&engineScene);
     engineScene.fetch_cube_from_cdrom();
+
+    auto a = GameObjectManager::CreateGameObject("STREET", {0, 0, 0}, {0, 0, 0}, GameObjectTag::ENVIRONMENT);
+
+    // TODO: these need to be waited on?
+    a->SetMesh("MODELS/STREET.MB");
+    a->SetTexture("TEXTURES/STREET.TIM", 320, 0, 0, 240);
 }
 
 void MadnightEngineScene::start(StartReason reason)
@@ -158,7 +165,7 @@ void MadnightEngineScene::frame()
     uint8_t raycastDistance = DebugMenu::RaycastDistance();
     Ray ray = {.origin = CameraManager::get_pos(), .direction = CameraManager::GetForwardVector(), .maxDistance = raycastDistance * ONE_METRE};
     RayHit hit = {0};
-    bool didHit = Raycast::RaycastScene(ray, MeshType::ENVIRONMENT, &hit);
+    bool didHit = Raycast::RaycastScene(ray, &hit);
 
     // clear TRX/Y/Z safely
     psyqo::GTE::clear<psyqo::GTE::Register::TRX, psyqo::GTE::Safe>();
@@ -246,25 +253,28 @@ void MadnightEngineScene::frame()
         quad.primitive.pointD = projected[3];
 
         // set its tpage
-        quad.primitive.tpage = TextureManager::GetTPageAttr(m_mesh->tim);
-
-        // set its clut if it has one
-        if (m_mesh->tim.hasClut)
+        if (m_mesh->tim != nullptr)
         {
-            psyqo::PrimPieces::ClutIndex clut(m_mesh->tim.clutX, m_mesh->tim.clutY);
-            quad.primitive.clutIndex = clut;
-        }
+            quad.primitive.tpage = TextureManager::GetTPageAttr(*m_mesh->tim);
 
-        // set its uv coords
-        psyqo::Rect offset = TextureManager::GetTPageUVForTim(m_mesh->tim);
-        quad.primitive.uvA.u = offset.pos.x + m_mesh->uvs[m_mesh->uv_indices[i].v0].u;
-        quad.primitive.uvA.v = offset.pos.y + (m_mesh->tim.height - 1 - m_mesh->uvs[m_mesh->uv_indices[i].v0].v);
-        quad.primitive.uvB.u = offset.pos.x + m_mesh->uvs[m_mesh->uv_indices[i].v1].u;
-        quad.primitive.uvB.v = offset.pos.y + (m_mesh->tim.height - 1 - m_mesh->uvs[m_mesh->uv_indices[i].v1].v);
-        quad.primitive.uvC.u = offset.pos.x + m_mesh->uvs[m_mesh->uv_indices[i].v2].u;
-        quad.primitive.uvC.v = offset.pos.y + (m_mesh->tim.height - 1 - m_mesh->uvs[m_mesh->uv_indices[i].v2].v);
-        quad.primitive.uvD.u = offset.pos.x + m_mesh->uvs[m_mesh->uv_indices[i].v3].u;
-        quad.primitive.uvD.v = offset.pos.y + (m_mesh->tim.height - 1 - m_mesh->uvs[m_mesh->uv_indices[i].v3].v);
+            // set its clut if it has one
+            if (m_mesh->tim->hasClut)
+            {
+                psyqo::PrimPieces::ClutIndex clut(m_mesh->tim->clutX, m_mesh->tim->clutY);
+                quad.primitive.clutIndex = clut;
+            }
+
+            // set its uv coords
+            psyqo::Rect offset = TextureManager::GetTPageUVForTim(*m_mesh->tim);
+            quad.primitive.uvA.u = offset.pos.x + m_mesh->uvs[m_mesh->uv_indices[i].v0].u;
+            quad.primitive.uvA.v = offset.pos.y + (m_mesh->tim->height - 1 - m_mesh->uvs[m_mesh->uv_indices[i].v0].v);
+            quad.primitive.uvB.u = offset.pos.x + m_mesh->uvs[m_mesh->uv_indices[i].v1].u;
+            quad.primitive.uvB.v = offset.pos.y + (m_mesh->tim->height - 1 - m_mesh->uvs[m_mesh->uv_indices[i].v1].v);
+            quad.primitive.uvC.u = offset.pos.x + m_mesh->uvs[m_mesh->uv_indices[i].v2].u;
+            quad.primitive.uvC.v = offset.pos.y + (m_mesh->tim->height - 1 - m_mesh->uvs[m_mesh->uv_indices[i].v2].v);
+            quad.primitive.uvD.u = offset.pos.x + m_mesh->uvs[m_mesh->uv_indices[i].v3].u;
+            quad.primitive.uvD.v = offset.pos.y + (m_mesh->tim->height - 1 - m_mesh->uvs[m_mesh->uv_indices[i].v3].v);
+        }
 
         // set its colour, and make it opaque
         // TODO: make objects decide if they are gouraud shaded or not? saves processing time

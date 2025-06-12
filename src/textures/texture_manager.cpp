@@ -36,22 +36,29 @@
  * these are just obviously known safe areas where we're never gonna get a texture or anything in there anyway
  */
 
-void TextureManager::LoadTIMFromCDRom(const char *textureName, uint16_t x, uint16_t y, uint16_t clutX, uint16_t clutY, eastl::function<void(TimFile timFile)> onComplete)
+eastl::array<TimFile, MAX_TEXTURES> TextureManager::m_textures;
+
+void TextureManager::LoadTIMFromCDRom(const char *textureName, uint16_t x, uint16_t y, uint16_t clutX, uint16_t clutY, eastl::function<void(TimFile *timFile)> onComplete)
 {
-    CDRomHelper::load_file(textureName, [x, y, clutX, clutY, onComplete](psyqo::Buffer<uint8_t> &&buffer)
+    // find space for it
+    int8_t freeIx = GetFreeIndex();
+    if (freeIx == -1)
+        return;
+
+    CDRomHelper::load_file(textureName, [textureName, x, y, clutX, clutY, freeIx, onComplete](psyqo::Buffer<uint8_t> &&buffer)
                            {
                             void * data = buffer.data();
                             size_t size = buffer.size();
+
         if (data == nullptr || size == 0) {
             printf("TEXTURE: Failed to load texture or it has no file size.\n");
             buffer.clear();
             return;
         }
 
-        TimFile timFile = {0};
+        TimFile timFile = {"", 0};
+        timFile.name = textureName;
         uint32_t * ptr = (uint32_t*)data;
-
-        uint32_t header = *ptr;
 
         // check the header of the tim file
         if ((*(ptr++) & 0xFF) != 0x10) {
@@ -148,13 +155,16 @@ void TextureManager::LoadTIMFromCDRom(const char *textureName, uint16_t x, uint1
         // upload it to the vram
         Renderer::Instance().VRamUpload(imageData, timFile.x, timFile.y, timFile.width, timFile.height);
 
+        // store this into our pool
+        m_textures[freeIx] = timFile;
+
         printf("TEXTURE: Successfully loaded texture of %d bytes into VRAM.\n", buffer.size());
 
-    // free data now we dont need it
-    buffer.clear();
+        // free data now we dont need it
+        buffer.clear();
 
-    // callback
-    onComplete(timFile); });
+        // callback
+        onComplete(&m_textures[freeIx]); });
 }
 
 psyqo::PrimPieces::TPageAttr TextureManager::GetTPageAttr(const TimFile &tim)
@@ -170,4 +180,15 @@ psyqo::Rect TextureManager::GetTPageUVForTim(const TimFile &tim)
     uint16_t tpageX = (tim.x / texturePageWidth) * texturePageWidth, tpageY = (tim.y / texturePageHeight) * texturePageHeight;
     psyqo::Rect rect = {.pos{(tim.x - tpageX), (tim.y - tpageY)}};
     return rect;
+}
+
+int8_t TextureManager::GetFreeIndex(void)
+{
+    for (uint8_t i = 0; i < MAX_TEXTURES; i++)
+    {
+        if (m_textures.at(i).name.empty())
+            return i;
+    };
+
+    return -1;
 }

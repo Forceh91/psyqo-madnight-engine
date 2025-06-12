@@ -26,7 +26,7 @@ class Raycast
     static bool DoesRaycastInterceptAABB(const Ray &ray, const MESH *mesh);
 
 public:
-    static bool RaycastScene(const Ray &ray, const MeshType &targetType, RayHit *hitOut);
+    static bool RaycastScene(const Ray &ray, RayHit *hitOut);
 };
 
 #endif

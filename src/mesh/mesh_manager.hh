@@ -10,13 +10,6 @@
 #define MAX_LOADED_MESHES 32
 #define MAX_FACES_PER_MESH 1024
 
-enum MeshType
-{
-    NOT_LOADED = -1,
-    ENVIRONMENT,
-    INTERACTABLE
-};
-
 typedef struct _INDEX
 {
     int16_t v0, v1, v2, v3;
@@ -32,6 +25,7 @@ typedef struct _UV
     int16_t u, v;
 } UV;
 
+// TODO: update MESH and LOADED_MESH to classes?
 typedef struct _MESH
 {
     psyqo::Vec3 *vertices;
@@ -44,7 +38,7 @@ typedef struct _MESH
     int vertex_count;
     int indices_count;
     int faces_num;
-    TimFile tim;
+    TimFile *tim;
 } MESH;
 
 typedef struct _LOADED_MESH
@@ -52,7 +46,6 @@ typedef struct _LOADED_MESH
     eastl::fixed_string<char, MAX_CDROM_FILE_NAME_LEN> mesh_name;
     bool is_loaded;
     MESH mesh;
-    MeshType meshType;
 } LOADED_MESH;
 
 class MeshManager
@@ -63,9 +56,9 @@ class MeshManager
     static int8_t find_space_for_mesh(void);
 
 public:
-    static void load_mesh_from_cdrom(const char *mesh_name, MeshType meshType, eastl::function<void(MESH *mesh_out)> onComplete);
+    static void load_mesh_from_cdrom(const char *mesh_name, eastl::function<void(MESH *mesh_out)> onComplete);
     static void unload_mesh(const char *mesh_name);
-    static uint8_t GetMeshesOfType(const MeshType &meshType, LOADED_MESH *meshes[]);
+    // static uint8_t GetMeshesOfType(const MeshType &meshType, LOADED_MESH *meshes[]);
 };
 
 #endif

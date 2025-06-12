@@ -3,14 +3,18 @@
 
 #include <stdint.h>
 #include <EASTL/functional.h>
+#include <EASTL/fixed_string.h>
 #include "psyqo/primitives.hh"
+#include "../helpers/file_defs.hh"
 
 static constexpr uint16_t texturePageWidth = 64;
 static constexpr uint16_t texturePageHeight = 256;
 static constexpr uint8_t texturePageColumns = 16;
+static constexpr uint8_t MAX_TEXTURES = 32; // this will need tweaking later
 
 typedef struct _TIM_FILE
 {
+    eastl::fixed_string<char, MAX_CDROM_FILE_NAME_LEN> name;
     uint16_t x, y, width, height;                 // pos in vram + width/height
     psyqo::Prim::TPageAttr::ColorMode colourMode; // bits per pixel (4, 8, 16)
 
@@ -22,9 +26,12 @@ typedef struct _TIM_FILE
 class TextureManager final
 {
     static psyqo::Vertex GetTPageIndex(uint16_t x, uint16_t y);
+    static eastl::array<TimFile, MAX_TEXTURES> m_textures;
+
+    static int8_t GetFreeIndex(void);
 
 public:
-    static void LoadTIMFromCDRom(const char *textureName, uint16_t x, uint16_t y, uint16_t clutX, uint16_t clutY, eastl::function<void(TimFile timFile)> onComplete);
+    static void LoadTIMFromCDRom(const char *textureName, uint16_t x, uint16_t y, uint16_t clutX, uint16_t clutY, eastl::function<void(TimFile *timFile)> onComplete);
     static psyqo::PrimPieces::TPageAttr GetTPageAttr(const TimFile &tim);
     static psyqo::Rect GetTPageUVForTim(const TimFile &tim);
 };

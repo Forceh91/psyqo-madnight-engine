@@ -3,7 +3,7 @@
 #include "../render/camera.hh"
 #include "psyqo/soft-math.hh"
 
-bool Raycast::RaycastScene(const Ray &ray, const MeshType &targetType, RayHit *hitOut)
+bool Raycast::RaycastScene(const Ray &ray, RayHit *hitOut)
 {
     // make sure its not too short/long
     if (ray.maxDistance <= 0)
@@ -14,26 +14,26 @@ bool Raycast::RaycastScene(const Ray &ray, const MeshType &targetType, RayHit *h
     // find all meshes of type, if none then presume no hit
     LOADED_MESH *meshes[MAX_LOADED_MESHES];
     uint8_t count = 0;
-    if ((count = MeshManager::GetMeshesOfType(targetType, meshes)) != 0)
-    {
-        // for each mesh of type...
-        for (uint8_t i = 0; i < count; i++)
-        {
-            // make sure its loaded...
-            if (!meshes[i]->is_loaded)
-                continue;
+    // if ((count = MeshManager::GetMeshesOfType(targetType, meshes)) != 0)
+    // {
+    //     // for each mesh of type...
+    //     for (uint8_t i = 0; i < count; i++)
+    //     {
+    //         // make sure its loaded...
+    //         if (!meshes[i]->is_loaded)
+    //             continue;
 
-            MESH *mesh = &meshes[i]->mesh;
+    //         MESH *mesh = &meshes[i]->mesh;
 
-            // do an AABB check on this, did it hit?
-            if ((hitOut->hit = DoesRaycastInterceptAABB(ray, mesh)))
-            {
-                // hitOut->distance = distance; // get distance? do we need it
-                hitOut->mesh = meshes[i];
-                return true;
-            }
-        }
-    }
+    //         // do an AABB check on this, did it hit?
+    //         if ((hitOut->hit = DoesRaycastInterceptAABB(ray, mesh)))
+    //         {
+    //             // hitOut->distance = distance; // get distance? do we need it
+    //             hitOut->mesh = meshes[i];
+    //             return true;
+    //         }
+    //     }
+    // }
 
     hitOut->hit = false;
     return false;

@@ -3,7 +3,7 @@
 
 LOADED_MESH MeshManager::m_loaded_meshes[MAX_LOADED_MESHES];
 
-void MeshManager::load_mesh_from_cdrom(const char *mesh_name, MeshType meshType, eastl::function<void(MESH *mesh_out)> onComplete)
+void MeshManager::load_mesh_from_cdrom(const char *mesh_name, eastl::function<void(MESH *mesh_out)> onComplete)
 {
     // is it already loaded?
     MESH *p_mesh = is_mesh_loaded(mesh_name);
@@ -22,7 +22,7 @@ void MeshManager::load_mesh_from_cdrom(const char *mesh_name, MeshType meshType,
     }
 
     // try and load the mesh off the cdrom
-    CDRomHelper::load_file(mesh_name, [mesh_name, meshType, mesh_ix, onComplete](psyqo::Buffer<uint8_t> &&buffer)
+    CDRomHelper::load_file(mesh_name, [mesh_name, mesh_ix, onComplete](psyqo::Buffer<uint8_t> &&buffer)
                            {
                             void * data = buffer.data();
                             size_t size = buffer.size();
@@ -36,7 +36,6 @@ void MeshManager::load_mesh_from_cdrom(const char *mesh_name, MeshType meshType,
         // basic struct setup
         LOADED_MESH loaded_mesh = {0};
         loaded_mesh.mesh_name = mesh_name;
-        loaded_mesh.meshType = meshType;
         __builtin_memset(&loaded_mesh.mesh, 0, sizeof(MESH));
 
         // get ready with our buffer
@@ -205,17 +204,17 @@ void MeshManager::unload_mesh(const char *mesh_name)
     }
 }
 
-uint8_t MeshManager::GetMeshesOfType(const MeshType &meshType, LOADED_MESH *meshes[])
-{
-    LOADED_MESH *meshesOfType[MAX_LOADED_MESHES];
-    uint8_t count = 0;
-    for (uint8_t i = 0; i < MAX_LOADED_MESHES; i++)
-    {
-        if (!m_loaded_meshes[i].is_loaded || m_loaded_meshes[i].meshType != meshType)
-            continue;
+// uint8_t MeshManager::GetMeshesOfType(const MeshType &meshType, LOADED_MESH *meshes[])
+// {
+//     LOADED_MESH *meshesOfType[MAX_LOADED_MESHES];
+//     uint8_t count = 0;
+//     for (uint8_t i = 0; i < MAX_LOADED_MESHES; i++)
+//     {
+//         if (!m_loaded_meshes[i].is_loaded || m_loaded_meshes[i].meshType != meshType)
+//             continue;
 
-        meshes[count++] = &m_loaded_meshes[i];
-    }
+//         meshes[count++] = &m_loaded_meshes[i];
+//     }
 
-    return count;
-}
+//     return count;
+// }
