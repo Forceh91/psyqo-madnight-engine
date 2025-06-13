@@ -42,6 +42,7 @@ public:
     const GameObjectRotation &rotation() { return m_rotation; }
     const MESH *mesh() { return m_mesh; }
     const TimFile *texture() { return m_texture; }
+    const GameObjectTag &tag() { return m_tag; }
 
     psyqo::Coroutine<> SetMesh(const char *meshName);
     psyqo::Coroutine<> SetTexture(const char *textureName, uint16_t vramX, uint16_t vramY, uint16_t clutX, uint16_t clutY);

@@ -44,3 +44,17 @@ eastl::vector<GameObject *> GameObjectManager::GetGameObjects(void)
 
     return eastl::move(activeGameObjects);
 }
+
+eastl::vector<GameObject *> GameObjectManager::GetGameObjectsWithTag(GameObjectTag tag)
+{
+    // get all game objects that are actually initialized
+    eastl::vector<GameObject *> gameObjectsWithTag;
+
+    for (uint8_t i = 0; i < MAX_GAME_OBJECTS; i++)
+    {
+        if (!m_gameObjects.at(i).name().empty() && m_gameObjects.at(i).tag() == tag)
+            gameObjectsWithTag.push_back(&m_gameObjects.at(i));
+    };
+
+    return eastl::move(gameObjectsWithTag);
+}

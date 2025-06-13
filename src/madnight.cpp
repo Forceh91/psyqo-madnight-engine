@@ -114,12 +114,6 @@ void MadnightEngineScene::frame()
 
     // the central point for rendering gameobjects etc
     Renderer::Instance().Render();
-
-    // do a raycast??
-    uint8_t raycastDistance = DebugMenu::RaycastDistance();
-    Ray ray = {.origin = CameraManager::get_pos(), .direction = CameraManager::GetForwardVector(), .maxDistance = raycastDistance * ONE_METRE};
-    RayHit hit = {0};
-    bool didHit = Raycast::RaycastScene(ray, &hit);
 }
 
 int main() { return g_madnightEngine.run(); }

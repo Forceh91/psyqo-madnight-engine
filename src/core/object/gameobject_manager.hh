@@ -20,6 +20,7 @@ public:
     static GameObject *CreateGameObject(const char *name, psyqo::Vec3 pos, GameObjectRotation rotation, GameObjectTag tag = GameObjectTag::NONE);
     static void DestroyGameObject(GameObject *gameObject);
     static eastl::vector<GameObject *> GetGameObjects(void);
+    static eastl::vector<GameObject *> GetGameObjectsWithTag(GameObjectTag tag);
 };
 
 #endif
