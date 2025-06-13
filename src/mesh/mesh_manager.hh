@@ -40,7 +40,6 @@ typedef struct _MESH
     int vertex_count;
     int indices_count;
     int faces_num;
-    TimFile *tim;
 } MESH;
 
 typedef struct _LOADED_MESH
@@ -58,7 +57,7 @@ class MeshManager
     static int8_t find_space_for_mesh(void);
 
 public:
-    static psyqo::Coroutine<> LoadMeshFromCDROM(const char *meshName, MESH *meshOut);
+    static psyqo::Coroutine<> LoadMeshFromCDROM(const char *meshName, MESH **meshOut);
     static void unload_mesh(const char *mesh_name);
     // static uint8_t GetMeshesOfType(const MeshType &meshType, LOADED_MESH *meshes[]);
 };

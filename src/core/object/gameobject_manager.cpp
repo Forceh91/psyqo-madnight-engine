@@ -30,3 +30,17 @@ void GameObjectManager::DestroyGameObject(GameObject *object)
     if (object != nullptr)
         object->Destroy();
 }
+
+eastl::vector<GameObject *> GameObjectManager::GetGameObjects(void)
+{
+    // get all game objects that are actually initialized
+    eastl::vector<GameObject *> activeGameObjects;
+
+    for (uint8_t i = 0; i < MAX_GAME_OBJECTS; i++)
+    {
+        if (!m_gameObjects.at(i).name().empty())
+            activeGameObjects.push_back(&m_gameObjects.at(i));
+    };
+
+    return eastl::move(activeGameObjects);
+}

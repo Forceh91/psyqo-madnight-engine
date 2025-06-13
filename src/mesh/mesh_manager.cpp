@@ -3,16 +3,16 @@
 
 LOADED_MESH MeshManager::m_loaded_meshes[MAX_LOADED_MESHES];
 
-psyqo::Coroutine<> MeshManager::LoadMeshFromCDROM(const char *meshName, MESH *meshOut)
+psyqo::Coroutine<> MeshManager::LoadMeshFromCDROM(const char *meshName, MESH **meshOut)
 {
     // make sure we get a valid response at least
-    meshOut = nullptr;
+    *meshOut = nullptr;
 
     // is it already loaded?
     MESH *p_mesh = is_mesh_loaded(meshName);
     if (p_mesh != nullptr)
     {
-        meshOut = p_mesh;
+        *meshOut = p_mesh;
         co_return;
     }
 
@@ -149,7 +149,7 @@ psyqo::Coroutine<> MeshManager::LoadMeshFromCDROM(const char *meshName, MESH *me
     buffer.clear();
 
     // give back the pointer to this mesh
-    meshOut = &m_loaded_meshes[mesh_ix].mesh;
+    *meshOut = &m_loaded_meshes[mesh_ix].mesh;
 
     printf("MESH: Successfully loaded mesh of %d bytes into memory.\n", size);
 }

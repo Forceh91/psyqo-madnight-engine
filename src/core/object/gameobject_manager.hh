@@ -5,6 +5,7 @@
 #include "gameobject_defs.hh"
 
 #include "EASTL/array.h"
+#include "EASTL/vector.h"
 #include "psyqo/vector.hh"
 
 static constexpr uint8_t MAX_GAME_OBJECTS = 200;
@@ -18,6 +19,7 @@ class GameObjectManager final
 public:
     static GameObject *CreateGameObject(const char *name, psyqo::Vec3 pos, GameObjectRotation rotation, GameObjectTag tag = GameObjectTag::NONE);
     static void DestroyGameObject(GameObject *gameObject);
+    static eastl::vector<GameObject *> GetGameObjects(void);
 };
 
 #endif

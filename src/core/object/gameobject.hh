@@ -38,6 +38,10 @@ public:
     void Destroy(void);
 
     const eastl::fixed_string<char, MAX_CDROM_FILE_NAME_LEN> &name() { return m_name; }
+    const psyqo::Vec3 &pos() { return m_pos; }
+    const GameObjectRotation &rotation() { return m_rotation; }
+    const MESH *mesh() { return m_mesh; }
+    const TimFile *texture() { return m_texture; }
 
     psyqo::Coroutine<> SetMesh(const char *meshName);
     psyqo::Coroutine<> SetTexture(const char *textureName, uint16_t vramX, uint16_t vramY, uint16_t clutX, uint16_t clutY);
