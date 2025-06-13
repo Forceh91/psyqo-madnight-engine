@@ -2,7 +2,9 @@
 #define _RAYCAST_H
 
 #include "../mesh/mesh_manager.hh"
+#include "object/gameobject.hh"
 #include "world_defs.hh"
+
 #include "psyqo/vector.hh"
 
 static constexpr psyqo::FixedPoint<> maxRayDistance = ONE_METRE * 10; // 10m
@@ -18,7 +20,7 @@ typedef struct _RAY_HIT
 {
     bool hit;
     psyqo::FixedPoint<> distance;
-    LOADED_MESH *mesh;
+    GameObject *object;
 } RayHit;
 
 class Raycast
@@ -26,7 +28,7 @@ class Raycast
     static bool DoesRaycastInterceptAABB(const Ray &ray, const MESH *mesh);
 
 public:
-    static bool RaycastScene(const Ray &ray, const MeshType &targetType, RayHit *hitOut);
+    static bool RaycastScene(const Ray &ray, GameObjectTag targetTag, RayHit *hitOut);
 };
 
 #endif

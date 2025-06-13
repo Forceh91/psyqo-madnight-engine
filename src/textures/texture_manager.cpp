@@ -36,125 +36,151 @@
  * these are just obviously known safe areas where we're never gonna get a texture or anything in there anyway
  */
 
-void TextureManager::LoadTIMFromCDRom(const char *textureName, uint16_t x, uint16_t y, uint16_t clutX, uint16_t clutY, eastl::function<void(TimFile timFile)> onComplete)
+eastl::array<TimFile, MAX_TEXTURES> TextureManager::m_textures;
+
+psyqo::Coroutine<> TextureManager::LoadTIMFromCDRom(const char *textureName, uint16_t x, uint16_t y, uint16_t clutX, uint16_t clutY, TimFile **timOut)
 {
-    CDRomHelper::load_file(textureName, [x, y, clutX, clutY, onComplete](psyqo::Buffer<uint8_t> &&buffer)
-                           {
-                            void * data = buffer.data();
-                            size_t size = buffer.size();
-        if (data == nullptr || size == 0) {
-            printf("TEXTURE: Failed to load texture or it has no file size.\n");
-            buffer.clear();
-            return;
-        }
+    *timOut = nullptr;
 
-        TimFile timFile = {0};
-        uint32_t * ptr = (uint32_t*)data;
+    // is it already loaded?
+    TimFile *texture;
+    if ((texture = IsTextureLoaded(textureName)) != nullptr)
+    {
+        *timOut = texture;
+        co_return;
+    }
 
-        uint32_t header = *ptr;
+    // no its not. find space for it
+    int8_t freeIx = GetFreeIndex();
+    if (freeIx == -1)
+        co_return;
 
-        // check the header of the tim file
-        if ((*(ptr++) & 0xFF) != 0x10) {
-            printf("TEXTURE: Invalid TIM file, aborting.\n");
-            buffer.clear();
-            return;
-        }
+    auto buffer = co_await CDRomHelper::LoadFile(textureName);
 
-        // read the bpp. flags is bits 0-2 bpp, 3 = has a clut
-        uint32_t flags = *(ptr++);
+    void *data = buffer.data();
+    size_t size = buffer.size();
 
-        // set what colour mode to use on the texture
-        switch (flags & 0x3) {
-            default:
-            case 0:
-                timFile.colourMode = psyqo::Prim::TPageAttr::ColorMode::Tex4Bits;
-            break;
-            case 1:
-                timFile.colourMode = psyqo::Prim::TPageAttr::ColorMode::Tex8Bits;
-            break;
-            case 2:
-                timFile.colourMode = psyqo::Prim::TPageAttr::ColorMode::Tex16Bits;
-            break;
-        }
+    if (data == nullptr || size == 0)
+    {
+        printf("TEXTURE: Failed to load texture or it has no file size.\n");
+        buffer.clear();
+        co_return;
+    }
 
-        // and then read the clut data, this is only present if the flags say so
-        if (flags & 0x8) {
-            // mark it as having a clut
-            timFile.hasClut = true;
+    TimFile timFile = {"", 0};
+    timFile.name = textureName;
+    uint32_t *ptr = (uint32_t *)data;
 
-            // read the clut data
-            uint32_t *clut_end = ptr;
-            clut_end += *(ptr++) / 4;
+    // check the header of the tim file
+    if ((*(ptr++) & 0xFF) != 0x10)
+    {
+        printf("TEXTURE: Invalid TIM file, aborting.\n");
+        buffer.clear();
+        co_return;
+    }
 
-            // clut x/y/w/h data
-            uint16_t* rect = (uint16_t*)ptr;
-            timFile.clutX = clutX > 0 ? clutX : rect[0];
-            timFile.clutY = clutY >= 0 ? clutY : rect[1];
-            timFile.clutWidth = rect[2];
-            timFile.clutHeight = rect[3];
+    // read the bpp. flags is bits 0-2 bpp, 3 = has a clut
+    uint32_t flags = *(ptr++);
 
-            // past the rect we go (2 lots of uint32_t)
-            ptr += 2;
+    // set what colour mode to use on the texture
+    switch (flags & 0x3)
+    {
+    default:
+    case 0:
+        timFile.colourMode = psyqo::Prim::TPageAttr::ColorMode::Tex4Bits;
+        break;
+    case 1:
+        timFile.colourMode = psyqo::Prim::TPageAttr::ColorMode::Tex8Bits;
+        break;
+    case 2:
+        timFile.colourMode = psyqo::Prim::TPageAttr::ColorMode::Tex16Bits;
+        break;
+    }
 
-            // data of the clut. number of colours (width * height entries, which are 2 bytes each)
-            uint16_t numColours = timFile.clutWidth * timFile.clutHeight;
-            uint16_t clutDataSize = numColours * sizeof(uint16_t);
+    // and then read the clut data, this is only present if the flags say so
+    if (flags & 0x8)
+    {
+        // mark it as having a clut
+        timFile.hasClut = true;
 
-            // assign the clut data from the ptr
-            uint16_t * clutData = (uint16_t*) psyqo_malloc(clutDataSize);
-            __builtin_memcpy(clutData, ptr, clutDataSize);
+        // read the clut data
+        uint32_t *clut_end = ptr;
+        clut_end += *(ptr++) / 4;
 
-            // move pointer to the end of the clut block
-            ptr = clut_end;
+        // clut x/y/w/h data
+        uint16_t *rect = (uint16_t *)ptr;
+        timFile.clutX = clutX > 0 ? clutX : rect[0];
+        timFile.clutY = clutY >= 0 ? clutY : rect[1];
+        timFile.clutWidth = rect[2];
+        timFile.clutHeight = rect[3];
 
-            // upload this to the vram
-            Renderer::Instance().VRamUpload(clutData, timFile.clutX, timFile.clutY, timFile.clutWidth, timFile.clutHeight);
-        }
-
-        uint32_t imageLength = *(ptr++);
-        // bnum (4 bytes) + pos(4 bytes) + size(4 bytes)
-        // should be more than 12 bytes as image data follows
-        if (imageLength <= 12) {
-            printf("TEXTURE: Image data seems to be missing from TIM, aborting.\n");
-            buffer.clear();
-            return;
-        }
-
-        // first up is the rect (x, y, width, height)
-        // dont forget to override x/y if provided
-        uint16_t* rect = (uint16_t*)ptr;
-        timFile.x = x > 0 ? x : rect[0];
-        timFile.y = y >= 0 ? y : rect[1];
-        timFile.width = rect[2];
-        timFile.height = rect[3];
-
-        // move past the rect (2 lots of uint32_t)
+        // past the rect we go (2 lots of uint32_t)
         ptr += 2;
 
-        // get the image size (width * height pixels, each pixel is 2 bytes)
-        uint32_t imageDataSize = timFile.width * timFile.height * sizeof(uint16_t);
-        uint16_t * imageData = (uint16_t*)psyqo_malloc(imageDataSize);
-        __builtin_memcpy(imageData, ptr, imageDataSize);
+        // data of the clut. number of colours (width * height entries, which are 2 bytes each)
+        uint16_t numColours = timFile.clutWidth * timFile.clutHeight;
+        uint16_t clutDataSize = numColours * sizeof(uint16_t);
 
-        // go to end.. do we really need to do this though
-        ptr += imageDataSize / sizeof(uint32_t);
+        // assign the clut data from the ptr
+        uint16_t *clutData = (uint16_t *)psyqo_malloc(clutDataSize);
+        __builtin_memcpy(clutData, ptr, clutDataSize);
 
-        if (timFile.width == 0 || timFile.height == 0 || timFile.colourMode > psyqo::Prim::TPageAttr::ColorMode::Tex16Bits) {
-            printf("TEXTURE: Texture has no width (%d)/height (%d)/bpp (%d), aborting.\n", timFile.width, timFile.height, timFile.colourMode);
-            buffer.clear();
-            return;
-        }
+        // move pointer to the end of the clut block
+        ptr = clut_end;
 
-        // upload it to the vram
-        Renderer::Instance().VRamUpload(imageData, timFile.x, timFile.y, timFile.width, timFile.height);
+        // upload this to the vram
+        Renderer::Instance().VRamUpload(clutData, timFile.clutX, timFile.clutY, timFile.clutWidth, timFile.clutHeight);
+    }
 
-        printf("TEXTURE: Successfully loaded texture of %d bytes into VRAM.\n", buffer.size());
+    uint32_t imageLength = *(ptr++);
+    // bnum (4 bytes) + pos(4 bytes) + size(4 bytes)
+    // should be more than 12 bytes as image data follows
+    if (imageLength <= 12)
+    {
+        printf("TEXTURE: Image data seems to be missing from TIM, aborting.\n");
+        buffer.clear();
+        co_return;
+    }
+
+    // first up is the rect (x, y, width, height)
+    // dont forget to override x/y if provided
+    uint16_t *rect = (uint16_t *)ptr;
+    timFile.x = x > 0 ? x : rect[0];
+    timFile.y = y >= 0 ? y : rect[1];
+    timFile.width = rect[2];
+    timFile.height = rect[3];
+
+    // move past the rect (2 lots of uint32_t)
+    ptr += 2;
+
+    // get the image size (width * height pixels, each pixel is 2 bytes)
+    uint32_t imageDataSize = timFile.width * timFile.height * sizeof(uint16_t);
+    uint16_t *imageData = (uint16_t *)psyqo_malloc(imageDataSize);
+    __builtin_memcpy(imageData, ptr, imageDataSize);
+
+    // go to end.. do we really need to do this though
+    ptr += imageDataSize / sizeof(uint32_t);
+
+    if (timFile.width == 0 || timFile.height == 0 || timFile.colourMode > psyqo::Prim::TPageAttr::ColorMode::Tex16Bits)
+    {
+        printf("TEXTURE: Texture has no width (%d)/height (%d)/bpp (%d), aborting.\n", timFile.width, timFile.height, timFile.colourMode);
+        buffer.clear();
+        co_return;
+    }
+
+    // upload it to the vram
+    Renderer::Instance().VRamUpload(imageData, timFile.x, timFile.y, timFile.width, timFile.height);
+
+    // store this into our pool
+    m_textures[freeIx] = timFile;
+
+    // give the ptr out correct data
+    *timOut = &m_textures[freeIx];
 
     // free data now we dont need it
     buffer.clear();
 
-    // callback
-    onComplete(timFile); });
+    printf("TEXTURE: Successfully loaded texture of %d bytes into VRAM.\n", size);
 }
 
 psyqo::PrimPieces::TPageAttr TextureManager::GetTPageAttr(const TimFile &tim)
@@ -170,4 +196,26 @@ psyqo::Rect TextureManager::GetTPageUVForTim(const TimFile &tim)
     uint16_t tpageX = (tim.x / texturePageWidth) * texturePageWidth, tpageY = (tim.y / texturePageHeight) * texturePageHeight;
     psyqo::Rect rect = {.pos{(tim.x - tpageX), (tim.y - tpageY)}};
     return rect;
+}
+
+int8_t TextureManager::GetFreeIndex(void)
+{
+    for (uint8_t i = 0; i < MAX_TEXTURES; i++)
+    {
+        if (m_textures.at(i).name.empty())
+            return i;
+    };
+
+    return -1;
+}
+
+TimFile *TextureManager::IsTextureLoaded(const char *name)
+{
+    for (uint8_t i = 0; i < MAX_TEXTURES; i++)
+    {
+        if (m_textures.at(i).name == name)
+            return &m_textures.at(i);
+    };
+
+    return nullptr;
 }

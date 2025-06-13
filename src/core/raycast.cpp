@@ -1,41 +1,32 @@
 #include "raycast.hh"
 #include "collision.hh"
 #include "../render/camera.hh"
+#include "object/gameobject_manager.hh"
 #include "psyqo/soft-math.hh"
 
-bool Raycast::RaycastScene(const Ray &ray, const MeshType &targetType, RayHit *hitOut)
+bool Raycast::RaycastScene(const Ray &ray, GameObjectTag targetTag, RayHit *hitOut)
 {
+    hitOut->hit = false;
+
     // make sure its not too short/long
-    if (ray.maxDistance <= 0)
+    if (ray.maxDistance <= 0 || ray.maxDistance > maxRayDistance)
         return false;
 
-    // ray.maxDistance = eastl::min(ray.maxDistance, maxRayDistance);
-
-    // find all meshes of type, if none then presume no hit
-    LOADED_MESH *meshes[MAX_LOADED_MESHES];
-    uint8_t count = 0;
-    if ((count = MeshManager::GetMeshesOfType(targetType, meshes)) != 0)
+    // find all objects of type, if none then presume no hit
+    auto objects = GameObjectManager::GetGameObjectsWithTag(targetTag);
+    if (!objects.empty())
     {
-        // for each mesh of type...
-        for (uint8_t i = 0; i < count; i++)
+        for (auto &object : objects)
         {
-            // make sure its loaded...
-            if (!meshes[i]->is_loaded)
-                continue;
-
-            MESH *mesh = &meshes[i]->mesh;
-
-            // do an AABB check on this, did it hit?
-            if ((hitOut->hit = DoesRaycastInterceptAABB(ray, mesh)))
+            if ((hitOut->hit = DoesRaycastInterceptAABB(ray, object->mesh())))
             {
                 // hitOut->distance = distance; // get distance? do we need it
-                hitOut->mesh = meshes[i];
+                hitOut->object = object;
                 return true;
             }
         }
     }
 
-    hitOut->hit = false;
     return false;
 }
 
