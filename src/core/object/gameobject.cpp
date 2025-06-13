@@ -19,3 +19,17 @@ psyqo::Coroutine<> GameObject::SetTexture(const char *textureName, uint16_t x, u
 {
     co_await TextureManager::LoadTIMFromCDRom(textureName, x, y, clutX, clutY, &m_texture);
 }
+
+void GameObject::SetPosition(psyqo::FixedPoint<12> x, psyqo::FixedPoint<12> y, psyqo::FixedPoint<12> z)
+{
+    m_pos.x = x;
+    m_pos.y = y;
+    m_pos.z = z;
+}
+
+void GameObject::SetRotation(psyqo::Angle x, psyqo::Angle y, psyqo::Angle z)
+{
+    m_rotation.x = x;
+    m_rotation.y = y;
+    m_rotation.z = z;
+}

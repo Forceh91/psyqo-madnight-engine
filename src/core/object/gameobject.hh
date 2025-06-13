@@ -46,6 +46,8 @@ public:
 
     psyqo::Coroutine<> SetMesh(const char *meshName);
     psyqo::Coroutine<> SetTexture(const char *textureName, uint16_t vramX, uint16_t vramY, uint16_t clutX, uint16_t clutY);
+    void SetPosition(psyqo::FixedPoint<12> x, psyqo::FixedPoint<12> y, psyqo::FixedPoint<12> z);
+    void SetRotation(psyqo::Angle x, psyqo::Angle y, psyqo::Angle z);
 };
 
 #endif
