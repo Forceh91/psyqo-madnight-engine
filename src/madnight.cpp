@@ -1,21 +1,14 @@
 /* based off the psyqo cube example */
 
-#include "psyqo/fixed-point.hh"
-#include "psyqo/fragments.hh"
-#include "psyqo/primitives/common.hh"
-#include "psyqo/primitives/quads.hh"
 #include "psyqo/scene.hh"
-#include "psyqo/vector.hh"
 #include "psyqo/xprintf.h"
-#include "helpers/cdrom.hh"
-#include "mesh/mesh_manager.hh"
-#include "render/camera.hh"
+
 #include "madnight.hh"
+#include "helpers/cdrom.hh"
 #include "render/renderer.hh"
-#include "textures/texture_manager.hh"
-#include "core/raycast.hh"
+#include "render/camera.hh"
 #include "core/debug/debug_menu.hh"
-#include "core/object/gameobject_manager.hh"
+#include "helpers/load_queue.hh"
 
 #include "scenes/loading.hh"
 #include "scenes/gameplay.hh"
@@ -59,9 +52,20 @@ void MadnightEngine::prepare()
 
 void MadnightEngine::createScene()
 {
+    eastl::vector<LoadQueue> queue = {{.name = "TEXTURES/STREET.TIM", .type = LoadFileType::TEXTURE, .x = 320, .y = 0, .clutX = 0, .clutY = 240},
+                                      {.name = "MODELS/STREET.MB", .type = LoadFileType::OBJECT}};
+    HardLoadGameplayScene(eastl::move(queue)).resume();
+}
+
+psyqo::Coroutine<> MadnightEngine::HardLoadGameplayScene(eastl::vector<LoadQueue> files)
+{
+    popScene();
     pushScene(&loadingScene);
 
-    // gameplayScene.LoadGameObject().resume();
+    co_await loadingScene.LoadFiles(files, true);
+
+    popScene();
+    pushScene(&gameplayScene);
 }
 
 // psyqo::Coroutine<> MadnightEngineScene::LoadGameObject()

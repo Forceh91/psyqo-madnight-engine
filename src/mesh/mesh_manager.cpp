@@ -179,7 +179,7 @@ int8_t MeshManager::find_space_for_mesh(void)
     for (int8_t i = 0; i < MAX_LOADED_MESHES; i++)
     {
         // return the first mesh that isn't loaded
-        if (m_loaded_meshes->is_loaded == false)
+        if (m_loaded_meshes[i].is_loaded == false)
             return i;
     }
 
@@ -205,17 +205,11 @@ void MeshManager::unload_mesh(const char *mesh_name)
     }
 }
 
-// uint8_t MeshManager::GetMeshesOfType(const MeshType &meshType, LOADED_MESH *meshes[])
-// {
-//     LOADED_MESH *meshesOfType[MAX_LOADED_MESHES];
-//     uint8_t count = 0;
-//     for (uint8_t i = 0; i < MAX_LOADED_MESHES; i++)
-//     {
-//         if (!m_loaded_meshes[i].is_loaded || m_loaded_meshes[i].meshType != meshType)
-//             continue;
-
-//         meshes[count++] = &m_loaded_meshes[i];
-//     }
-
-//     return count;
-// }
+void MeshManager::Dump(void)
+{
+    // clear out every instance of loaded_mesh, putting it back to zero
+    for (int8_t i = 0; i < MAX_LOADED_MESHES; i++)
+    {
+        m_loaded_meshes[i] = {"", false, 0};
+    }
+}

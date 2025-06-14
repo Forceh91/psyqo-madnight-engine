@@ -219,3 +219,12 @@ TimFile *TextureManager::IsTextureLoaded(const char *name)
 
     return nullptr;
 }
+
+void TextureManager::Dump(void)
+{
+    // clear out every instance of loaded_mesh, putting it back to zero
+    for (int8_t i = 0; i < MAX_TEXTURES; i++)
+    {
+        m_textures[i] = {"", 0};
+    }
+}

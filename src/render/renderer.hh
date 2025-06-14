@@ -38,7 +38,7 @@ public:
     // must be called on each scene frame
     uint32_t Process(void);
     void Render(void);
-    void RenderLoadingScreen(void);
+    void RenderLoadingScreen(uint16_t loadPercentage);
 
     static Renderer &Instance()
     {

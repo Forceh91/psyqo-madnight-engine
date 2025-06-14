@@ -233,7 +233,7 @@ void Renderer::Render(void)
     DebugMenu::Draw(m_gpu);
 }
 
-void Renderer::RenderLoadingScreen(void)
+void Renderer::RenderLoadingScreen(uint16_t loadPercentage)
 {
     uint32_t frameBuffer = m_gpu.getParity();
     auto &ot = m_orderingTables[frameBuffer];
@@ -244,5 +244,5 @@ void Renderer::RenderLoadingScreen(void)
     m_gpu.chain(clear);
 
     // render the actual loading sprite/font/whatever
-    m_kromFont.print(m_gpu, "Loading...", {.x = 100, .y = 220}, {.r = 255, .g = 255, .b = 255});
+    m_kromFont.printf(m_gpu, {.x = 10, .y = 220}, {.r = 255, .g = 255, .b = 255}, "Loading... (%d%%)", loadPercentage);
 }

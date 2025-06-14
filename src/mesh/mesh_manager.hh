@@ -59,7 +59,11 @@ class MeshManager
 public:
     static psyqo::Coroutine<> LoadMeshFromCDROM(const char *meshName, MESH **meshOut);
     static void unload_mesh(const char *mesh_name);
-    // static uint8_t GetMeshesOfType(const MeshType &meshType, LOADED_MESH *meshes[]);
+
+    // dump all meshes in memory and start fresh
+    // this is used when switching to a loading screen for instance.
+    // this is a dangerous function as it wont check if anything is used
+    static void Dump(void);
 };
 
 #endif
