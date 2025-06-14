@@ -4,14 +4,19 @@
 #include "psyqo/gpu.hh"
 #include "psyqo/fragments.hh"
 #include "psyqo/primitives.hh"
+#include "psyqo/font.hh"
 
-static constexpr unsigned ORDERING_TABLE_SIZE = 1024;
+static constexpr uint16_t ORDERING_TABLE_SIZE = 1024;
 static constexpr psyqo::Color c_backgroundColour = {.r = 63, .g = 63, .b = 63};
+static constexpr psyqo::Color c_loadingBackgroundColour = {.r = 0, .g = 0, .b = 0};
 
 class Renderer final
 {
     static Renderer *m_instance;
+    static psyqo::Font<> m_kromFont;
+
     psyqo::GPU &m_gpu;
+    uint32_t m_lastFrameCounter = 0;
 
     // create 2 ordering tables, one for each frame buffer
     psyqo::OrderingTable<ORDERING_TABLE_SIZE> m_orderingTables[2];
@@ -26,14 +31,21 @@ class Renderer final
 
 public:
     static void Init(psyqo::GPU &gpuInstance);
+
+    void StartScene(void);
+    void VRamUpload(const uint16_t *data, int16_t x, int16_t y, int16_t width, int16_t height);
+    // returns the delta time
+    // must be called on each scene frame
+    uint32_t Process(void);
+    void Render(void);
+    void RenderLoadingScreen(void);
+
     static Renderer &Instance()
     {
         return *m_instance;
     }
-
-    void VRamUpload(const uint16_t *data, int16_t x, int16_t y, int16_t width, int16_t height);
-    void Render(void);
     psyqo::GPU &GPU() { return m_gpu; }
+    psyqo::Font<> *KromFont() { return &m_kromFont; }
 };
 
 #endif

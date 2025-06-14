@@ -1,18 +1,17 @@
 #include "debug_menu.hh"
-#include "psyqo/advancedpad.hh"
 #include "../../render/camera.hh"
 #include "../../render/renderer.hh"
 
+#include "psyqo/advancedpad.hh"
+#include "psyqo/font.hh"
+
 bool DebugMenu::m_isEnabled = false;
-psyqo::Font<> DebugMenu::m_font;
 uint8_t DebugMenu::m_raycastDistance = 3;
 uint8_t DebugMenu::m_selectedDebugOption = 0;
 
 // make sure you call this after initializing the renderer
 void DebugMenu::Init()
 {
-    m_font.uploadKromFont(Renderer::Instance().GPU());
-
     g_madnightEngine.m_input.setOnEvent([&](auto event)
                                         {
         if (event.type != psyqo::AdvancedPad::Event::ButtonReleased) return;
@@ -50,7 +49,9 @@ void DebugMenu::Draw(psyqo::GPU &gpu)
 
     const psyqo::Color white = {.r = 255, .g = 255, .b = 255};
     const psyqo::Color yellow = {.r = 255, .g = 255, .b = 0};
-    m_font.printf(gpu, {.x = 3, .y = 3}, white, "Debug Menu");
-    m_font.printf(gpu, {.x = 3, .y = 18}, m_selectedDebugOption == 0 ? yellow : white, "Raycast Distance:");
-    m_font.printf(gpu, {.x = 3, .y = 33}, m_selectedDebugOption == 0 ? yellow : white, "   < %d >", m_raycastDistance);
+
+    auto font = Renderer::Instance().KromFont();
+    font->printf(gpu, {.x = 3, .y = 3}, white, "Debug Menu");
+    font->printf(gpu, {.x = 3, .y = 18}, m_selectedDebugOption == 0 ? yellow : white, "Raycast Distance:");
+    font->printf(gpu, {.x = 3, .y = 33}, m_selectedDebugOption == 0 ? yellow : white, "   < %d >", m_raycastDistance);
 }

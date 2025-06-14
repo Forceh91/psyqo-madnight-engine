@@ -9,6 +9,7 @@
 #include "psyqo/soft-math.hh"
 
 Renderer *Renderer::m_instance = nullptr;
+psyqo::Font<> Renderer::m_kromFont;
 static constexpr psyqo::Rect screen_space = {.pos = {0, 0}, .size = {320, 240}};
 
 void Renderer::Init(psyqo::GPU &gpuInstance)
@@ -17,12 +18,48 @@ void Renderer::Init(psyqo::GPU &gpuInstance)
         return;
 
     m_instance = new Renderer(gpuInstance);
+    m_kromFont.uploadKromFont(m_instance->GPU());
 }
 
 void Renderer::VRamUpload(const uint16_t *data, int16_t x, int16_t y, int16_t width, int16_t height)
 {
     psyqo::Rect vramRegion = {.pos = {x, y}, .size = {width, height}};
     m_gpu.uploadToVRAM(data, vramRegion);
+}
+
+void Renderer::StartScene(void)
+{
+    // clear translation registers
+    psyqo::GTE::clear<psyqo::GTE::Register::TRX, psyqo::GTE::Unsafe>();
+    psyqo::GTE::clear<psyqo::GTE::Register::TRY, psyqo::GTE::Unsafe>();
+    psyqo::GTE::clear<psyqo::GTE::Register::TRZ, psyqo::GTE::Unsafe>();
+
+    // set the screen offset in the GTE (half of the screen x/y resolution is the standard)
+    psyqo::GTE::write<psyqo::GTE::Register::OFX, psyqo::GTE::Unsafe>(psyqo::FixedPoint<16>(160.0).raw());
+    psyqo::GTE::write<psyqo::GTE::Register::OFY, psyqo::GTE::Unsafe>(psyqo::FixedPoint<16>(120.0).raw());
+
+    // write the projection plane distance
+    psyqo::GTE::write<psyqo::GTE::Register::H, psyqo::GTE::Unsafe>(120);
+
+    // set the scaling for z averaging
+    psyqo::GTE::write<psyqo::GTE::Register::ZSF3, psyqo::GTE::Unsafe>(ORDERING_TABLE_SIZE / 3);
+    psyqo::GTE::write<psyqo::GTE::Register::ZSF4, psyqo::GTE::Unsafe>(ORDERING_TABLE_SIZE / 4);
+}
+
+uint32_t Renderer::Process(void)
+{
+    uint32_t beginFrameTimestamp = m_gpu.now(), currentFrameCount = m_gpu.getFrameCount();
+
+    // figure out delta time (last frame count minus current frame count)
+    uint32_t deltaTime = currentFrameCount - m_lastFrameCounter;
+    if (deltaTime == 0)
+        return 0;
+
+    // update last frame count
+    m_lastFrameCounter = currentFrameCount;
+
+    // give back the delta time
+    return deltaTime;
 }
 
 psyqo::Vec3 Renderer::SetupCamera(void)
@@ -194,4 +231,18 @@ void Renderer::Render(void)
 
     // do this last incase it gets more complex and needs to go on top
     DebugMenu::Draw(m_gpu);
+}
+
+void Renderer::RenderLoadingScreen(void)
+{
+    uint32_t frameBuffer = m_gpu.getParity();
+    auto &ot = m_orderingTables[frameBuffer];
+    auto &clear = m_clear[frameBuffer];
+
+    // clear the buffer
+    m_gpu.getNextClear(clear.primitive, c_loadingBackgroundColour);
+    m_gpu.chain(clear);
+
+    // render the actual loading sprite/font/whatever
+    m_kromFont.print(m_gpu, "Loading...", {.x = 100, .y = 220}, {.r = 255, .g = 255, .b = 255});
 }
