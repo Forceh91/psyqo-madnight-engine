@@ -11,6 +11,14 @@
 #include "../../textures/texture_manager.hh"
 #include "../../mesh/mesh_manager.hh"
 
+enum GameObjectQuadType
+{
+    Quad,
+    TexturedQuad,
+    GouraudQuad,
+    GouraudTextureQuad,
+};
+
 typedef struct _GAMEOBJECT_ROTATION
 {
     psyqo::Angle x, y, z;
@@ -19,6 +27,7 @@ typedef struct _GAMEOBJECT_ROTATION
 class GameObject final
 {
     eastl::fixed_string<char, MAX_CDROM_FILE_NAME_LEN> m_name = "";
+    GameObjectQuadType m_quadType = GameObjectQuadType::Quad;
     GameObjectTag m_tag = GameObjectTag::NONE;
     psyqo::Vec3 m_pos = {0, 0, 0};
     GameObjectRotation m_rotation = {0, 0, 0};
@@ -42,11 +51,14 @@ public:
     const MESH *mesh() { return m_mesh; }
     const TimFile *texture() { return m_texture; }
     const GameObjectTag &tag() { return m_tag; }
+    const GameObjectQuadType &quadType() { return m_quadType; }
 
-    void SetMesh(const char *meshName);
-    void SetTexture(const char *textureName);
     void SetPosition(psyqo::FixedPoint<12> x, psyqo::FixedPoint<12> y, psyqo::FixedPoint<12> z);
     void SetRotation(psyqo::Angle x, psyqo::Angle y, psyqo::Angle z);
+    void SetMesh(const char *meshName);
+    void SetTexture(const char *textureName);
+    // note: doesn't actually do anything yet. need to figure it out later when its important
+    void SetQuadType(const GameObjectQuadType quadType) { m_quadType = quadType; }
 };
 
 #endif
