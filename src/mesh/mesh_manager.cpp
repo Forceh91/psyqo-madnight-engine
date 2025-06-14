@@ -205,6 +205,11 @@ void MeshManager::unload_mesh(const char *mesh_name)
     }
 }
 
+void MeshManager::GetMeshFromName(const char *meshName, MESH **meshOut)
+{
+    *meshOut = is_mesh_loaded(meshName);
+}
+
 void MeshManager::Dump(void)
 {
     // clear out every instance of loaded_mesh, putting it back to zero

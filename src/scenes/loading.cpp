@@ -17,11 +17,11 @@ void LoadingScene::frame()
 
     auto loaded = psyqo::FixedPoint<>(int32_t(m_loadFilesLoadedCount), int32_t(0));
     auto total = psyqo::FixedPoint<>(int32_t(m_loadFilesCount), int32_t(0));
-    auto percent = loaded / total * 100;
+    auto percent = loaded > 0 ? loaded / total * 100 : 0;
     Renderer::Instance().RenderLoadingScreen(percent.integer());
 }
 
-psyqo::Coroutine<> LoadingScene::LoadFiles(eastl::vector<LoadQueue> files, bool dumpExisting)
+psyqo::Coroutine<> LoadingScene::LoadFiles(eastl::vector<LoadQueue> *files, bool dumpExisting)
 {
     // most likely we want to do this, but this will dump everything we know
     // about meshes and textures, ready for a fresh scene
@@ -31,10 +31,10 @@ psyqo::Coroutine<> LoadingScene::LoadFiles(eastl::vector<LoadQueue> files, bool 
         TextureManager::Dump();
     }
 
-    m_loadFilesCount = files.size();
+    m_loadFilesCount = files->size();
     m_loadFilesLoadedCount = 0;
 
-    for (auto &file : files)
+    for (auto &file : *files)
     {
         MESH *mesh = {0};
         TimFile *tim = {0};

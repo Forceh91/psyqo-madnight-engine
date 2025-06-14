@@ -14,7 +14,7 @@ class LoadingScene final : public psyqo::Scene
     uint16_t m_loadFilesLoadedCount = 0;
 
 public:
-    psyqo::Coroutine<> LoadFiles(eastl::vector<LoadQueue> files, bool dumpExisting);
+    psyqo::Coroutine<> LoadFiles(eastl::vector<LoadQueue> *files, bool dumpExisting);
 };
 
 #endif

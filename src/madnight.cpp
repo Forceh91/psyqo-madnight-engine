@@ -7,6 +7,7 @@
 #include "helpers/cdrom.hh"
 #include "render/renderer.hh"
 #include "render/camera.hh"
+#include "core/object/gameobject_manager.hh"
 #include "core/debug/debug_menu.hh"
 #include "helpers/load_queue.hh"
 
@@ -52,28 +53,41 @@ void MadnightEngine::prepare()
 
 void MadnightEngine::createScene()
 {
-    eastl::vector<LoadQueue> queue = {{.name = "TEXTURES/STREET.TIM", .type = LoadFileType::TEXTURE, .x = 320, .y = 0, .clutX = 0, .clutY = 240},
-                                      {.name = "MODELS/STREET.MB", .type = LoadFileType::OBJECT}};
-    HardLoadGameplayScene(eastl::move(queue)).resume();
+    InitialLoad().resume();
 }
 
-psyqo::Coroutine<> MadnightEngine::HardLoadGameplayScene(eastl::vector<LoadQueue> files)
+psyqo::Coroutine<> MadnightEngine::InitialLoad(void)
+{
+    eastl::vector<LoadQueue> queue = {{.name = "TEXTURES/STREET.TIM", .type = LoadFileType::TEXTURE, .x = 320, .y = 0, .clutX = 0, .clutY = 240},
+                                      {.name = "MODELS/STREET.MB", .type = LoadFileType::OBJECT}};
+
+    // show loading screen
+    co_await HardLoadingScreen(eastl::move(queue));
+
+    // create a game object
+    auto gameObject = GameObjectManager::CreateGameObject("STREET", {0, 0, 0}, {0, 0, 0}, GameObjectTag::ENVIRONMENT);
+    if (gameObject != nullptr)
+    {
+        gameObject->SetMesh("MODELS/STREET.MB");
+        gameObject->SetTexture("TEXTURES/STREET.TIM");
+    }
+
+    // regardless, switch to gameplay?
+    SwitchToGameplay();
+}
+
+psyqo::Coroutine<> MadnightEngine::HardLoadingScreen(eastl::vector<LoadQueue> files)
 {
     popScene();
     pushScene(&loadingScene);
 
-    co_await loadingScene.LoadFiles(files, true);
+    co_await loadingScene.LoadFiles(&files, true);
+}
 
+void MadnightEngine::SwitchToGameplay(void)
+{
     popScene();
     pushScene(&gameplayScene);
 }
-
-// psyqo::Coroutine<> MadnightEngineScene::LoadGameObject()
-// {
-//     auto a = GameObjectManager::CreateGameObject("STREET", {0, 0, 0}, {0, 0, 0}, GameObjectTag::ENVIRONMENT);
-
-//     co_await a->SetTexture("TEXTURES/STREET.TIM", 320, 0, 0, 240);
-//     co_await a->SetMesh("MODELS/STREET.MB");
-// }
 
 int main() { return g_madnightEngine.run(); }

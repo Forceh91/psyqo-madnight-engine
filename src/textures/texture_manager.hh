@@ -37,6 +37,8 @@ public:
     static psyqo::PrimPieces::TPageAttr GetTPageAttr(const TimFile &tim);
     static psyqo::Rect GetTPageUVForTim(const TimFile &tim);
 
+    static void GetTextureFromName(const char *meshName, TimFile **timOut);
+
     // dump all textures in memory and start fresh
     // this is used when switching to a loading screen for instance.
     // this is a dangerous function as it wont check if anything is used

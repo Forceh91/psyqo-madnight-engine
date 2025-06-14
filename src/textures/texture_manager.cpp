@@ -220,6 +220,11 @@ TimFile *TextureManager::IsTextureLoaded(const char *name)
     return nullptr;
 }
 
+void TextureManager::GetTextureFromName(const char *textureName, TimFile **timFileOut)
+{
+    *timFileOut = IsTextureLoaded(textureName);
+}
+
 void TextureManager::Dump(void)
 {
     // clear out every instance of loaded_mesh, putting it back to zero

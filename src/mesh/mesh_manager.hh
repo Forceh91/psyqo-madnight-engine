@@ -58,6 +58,7 @@ class MeshManager
 
 public:
     static psyqo::Coroutine<> LoadMeshFromCDROM(const char *meshName, MESH **meshOut);
+    static void GetMeshFromName(const char *meshName, MESH **meshOut);
     static void unload_mesh(const char *mesh_name);
 
     // dump all meshes in memory and start fresh
