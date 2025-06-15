@@ -9,8 +9,11 @@ class DebugMenu final
     static bool m_isEnabled;
     static uint8_t m_raycastDistance;
     static uint8_t m_selectedDebugOption;
+    static uint32_t m_startDebugMenuOpenCapture;
+    static uint8_t m_debugMenuOpenCapturedInputs;
 
     static void ToggleEnabled(void);
+    static void ResetInputCapture(void);
 
 public:
     static void Init(void);
