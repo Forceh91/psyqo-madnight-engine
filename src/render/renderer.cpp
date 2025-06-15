@@ -1,6 +1,8 @@
 #include "renderer.hh"
 #include "camera.hh"
 #include "clip.hh"
+#include "colour.hh"
+
 #include "../core/debug/debug_menu.hh"
 #include "../core/object/gameobject_manager.hh"
 
@@ -244,5 +246,5 @@ void Renderer::RenderLoadingScreen(uint16_t loadPercentage)
     m_gpu.chain(clear);
 
     // render the actual loading sprite/font/whatever
-    m_kromFont.printf(m_gpu, {.x = 10, .y = 220}, {.r = 255, .g = 255, .b = 255}, "Loading... (%d%%)", loadPercentage);
+    m_kromFont.printf(m_gpu, {.x = 10, .y = 220}, COLOUR_WHITE, "Loading... (%d%%)", loadPercentage);
 }

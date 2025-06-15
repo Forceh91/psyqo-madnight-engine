@@ -1,6 +1,7 @@
 #include "debug_menu.hh"
 #include "../../render/camera.hh"
 #include "../../render/renderer.hh"
+#include "../../render/colour.hh"
 
 #include "psyqo/advancedpad.hh"
 #include "psyqo/font.hh"
@@ -72,13 +73,10 @@ void DebugMenu::Draw(psyqo::GPU &gpu)
     if (!m_isEnabled)
         return;
 
-    const psyqo::Color white = {.r = 255, .g = 255, .b = 255};
-    const psyqo::Color yellow = {.r = 255, .g = 255, .b = 0};
-
     auto font = Renderer::Instance().KromFont();
-    font->printf(gpu, {.x = 3, .y = 3}, white, "Debug Menu");
-    font->printf(gpu, {.x = 3, .y = 18}, m_selectedDebugOption == 0 ? yellow : white, "Raycast Distance:");
-    font->printf(gpu, {.x = 3, .y = 33}, m_selectedDebugOption == 0 ? yellow : white, "   < %d >", m_raycastDistance);
+    font->printf(gpu, {.x = 3, .y = 3}, COLOUR_WHITE, "Debug Menu");
+    font->printf(gpu, {.x = 3, .y = 18}, m_selectedDebugOption == 0 ? COLOUR_YELLOW : COLOUR_WHITE, "Raycast Distance:");
+    font->printf(gpu, {.x = 3, .y = 33}, m_selectedDebugOption == 0 ? COLOUR_YELLOW : COLOUR_WHITE, "   < %d >", m_raycastDistance);
 }
 
 void DebugMenu::ResetInputCapture(void)
