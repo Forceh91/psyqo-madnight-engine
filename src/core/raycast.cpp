@@ -18,7 +18,7 @@ bool Raycast::RaycastScene(const Ray &ray, GameObjectTag targetTag, RayHit *hitO
     {
         for (auto &object : objects)
         {
-            if ((hitOut->hit = DoesRaycastInterceptAABB(ray, object->mesh())))
+            if ((hitOut->hit = DoesRaycastInterceptAABB(ray, object)))
             {
                 // hitOut->distance = distance; // get distance? do we need it
                 hitOut->object = object;
@@ -30,16 +30,15 @@ bool Raycast::RaycastScene(const Ray &ray, GameObjectTag targetTag, RayHit *hitO
     return false;
 }
 
-bool Raycast::DoesRaycastInterceptAABB(const Ray &ray, const MESH *mesh)
+bool Raycast::DoesRaycastInterceptAABB(const Ray &ray, const GameObject *object)
 {
     // make sure the mesh is valid
-    if (mesh == nullptr)
+    if (object == nullptr)
         return false;
 
     // get AABB box for the mesh
-    AABBCollision aabbBox = {0};
-    Collision::GenerateAABBForMesh(mesh, &aabbBox);
-    if (aabbBox.min.x == UINT16_MAX)
+    AABBCollision *aabbBox = object->mesh()->collisionBox;
+    if (aabbBox->min.x == UINT16_MAX)
         return false;
 
     psyqo::FixedPoint<> tMin = -1000.0_fp;
@@ -53,7 +52,7 @@ bool Raycast::DoesRaycastInterceptAABB(const Ray &ray, const MESH *mesh)
         if (normalizedRayDirection[axis] == 0)
         {
             // but are we already inside it?
-            if (origin[axis] < aabbBox.min[axis] || origin[axis] > aabbBox.max[axis])
+            if (origin[axis] < aabbBox->min[axis] || origin[axis] > aabbBox->max[axis])
                 return false; // no we're not
 
             continue; // yes we are
@@ -61,8 +60,8 @@ bool Raycast::DoesRaycastInterceptAABB(const Ray &ray, const MESH *mesh)
 
         // we know the ray isn't parallel so where do we enter/exit?
         psyqo::FixedPoint<> invDir = 1.0_fp / normalizedRayDirection[axis];
-        psyqo::FixedPoint<> t1 = (aabbBox.min[axis] - origin[axis]) * invDir;
-        psyqo::FixedPoint<> t2 = (aabbBox.max[axis] - origin[axis]) * invDir;
+        psyqo::FixedPoint<> t1 = (aabbBox->min[axis] - origin[axis]) * invDir;
+        psyqo::FixedPoint<> t2 = (aabbBox->max[axis] - origin[axis]) * invDir;
 
         // if entry > exit, swap them round
         if (t1 > t2)

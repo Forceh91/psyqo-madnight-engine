@@ -1,8 +1,14 @@
 #include "collision.hh"
+#include "../mesh/mesh_manager.hh"
+#include "psyqo/soft-math.hh"
 
 // TODO: cache these AABBs somewhere?
-void Collision::GenerateAABBForMesh(const MESH *mesh, AABBCollision *collisionBoxOut)
+// TODO: this obviously gets weird with rotated objects so might need to update later
+[[deprecated("This should be done offline. DO NOT USE")]]
+void Collision::GenerateAABBForMesh(const GameObject *object, AABBCollision *collisionBoxOut)
 {
+    const MESH *mesh = object->mesh();
+
     // make sure it has faces
     if (mesh->faces_num == 0)
         return;
@@ -15,13 +21,14 @@ void Collision::GenerateAABBForMesh(const MESH *mesh, AABBCollision *collisionBo
     collisionBoxOut->max.y = -UINT16_MAX;
     collisionBoxOut->max.z = -UINT16_MAX;
 
+    psyqo::Vec3 transformedPos = {0};
+    psyqo::SoftMath::matrixVecMul3(object->rotationMatrix(), object->pos(), &transformedPos);
+
     // for each vertex on the mesh
     for (uint16_t vert = 0; vert < mesh->vertex_count; vert++)
     {
-        // TODO: apply camera pos to it...?
-        // TODO: apply rotation to it?
-        // create a vector
-        psyqo::Vec3 vertPos = {mesh->vertices[vert].x, mesh->vertices[vert].y, mesh->vertices[vert].z};
+        // apply object rotation to the vert positions
+        auto vertPos = mesh->vertices[vert];
 
         // mins
         if (vertPos.x < collisionBoxOut->min.x)

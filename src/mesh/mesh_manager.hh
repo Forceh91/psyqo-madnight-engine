@@ -6,11 +6,14 @@
 
 #include "psyqo/coroutine.hh"
 #include "psyqo/vector.hh"
+
 #include "../textures/texture_manager.hh"
 #include "../helpers/file_defs.hh"
 
 #define MAX_LOADED_MESHES 32
 #define MAX_FACES_PER_MESH 1024
+
+struct AABBCollision;
 
 typedef struct _INDEX
 {
@@ -40,6 +43,7 @@ typedef struct _MESH
     int vertex_count;
     int indices_count;
     int faces_num;
+    AABBCollision *collisionBox;
 } MESH;
 
 typedef struct _LOADED_MESH

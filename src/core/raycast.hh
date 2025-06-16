@@ -25,7 +25,7 @@ typedef struct _RAY_HIT
 
 class Raycast
 {
-    static bool DoesRaycastInterceptAABB(const Ray &ray, const MESH *mesh);
+    static bool DoesRaycastInterceptAABB(const Ray &ray, const GameObject *object);
 
 public:
     static bool RaycastScene(const Ray &ray, GameObjectTag targetTag, RayHit *hitOut);

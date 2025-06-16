@@ -1,4 +1,5 @@
 #include "mesh_manager.hh"
+#include "../core/collision.hh"
 #include "../helpers/cdrom.hh"
 
 LOADED_MESH MeshManager::m_loaded_meshes[MAX_LOADED_MESHES];
@@ -138,6 +139,46 @@ psyqo::Coroutine<> MeshManager::LoadMeshFromCDROM(const char *meshName, MESH **m
     loaded_mesh.mesh.uv_indices = (INDEX *)psyqo_malloc(uv_indices_size);
     __builtin_memcpy(loaded_mesh.mesh.uv_indices, ptr, uv_indices_size);
     ptr += uv_indices_size;
+
+    // read the collision box data
+    size_t collisionBoxSize = sizeof(AABBCollision);
+    loaded_mesh.mesh.collisionBox = (AABBCollision *)psyqo_malloc(vertices_size);
+
+    int16_t aabbX, aabbY, aabbZ;
+
+    // load min data
+    for (int i = 0; i < 3; i++)
+    {
+        __builtin_memcpy(&aabbX, ptr, sizeof(int16_t));
+        ptr += sizeof(int16_t);
+
+        __builtin_memcpy(&aabbY, ptr, sizeof(int16_t));
+        ptr += sizeof(int16_t);
+
+        __builtin_memcpy(&aabbZ, ptr, sizeof(int16_t));
+        ptr += sizeof(int16_t);
+
+        loaded_mesh.mesh.collisionBox->min.x.value = aabbX;
+        loaded_mesh.mesh.collisionBox->min.y.value = aabbY;
+        loaded_mesh.mesh.collisionBox->min.z.value = aabbZ;
+    }
+
+    // load max data
+    for (int i = 0; i < 3; i++)
+    {
+        __builtin_memcpy(&aabbX, ptr, sizeof(int16_t));
+        ptr += sizeof(int16_t);
+
+        __builtin_memcpy(&aabbY, ptr, sizeof(int16_t));
+        ptr += sizeof(int16_t);
+
+        __builtin_memcpy(&aabbZ, ptr, sizeof(int16_t));
+        ptr += sizeof(int16_t);
+
+        loaded_mesh.mesh.collisionBox->max.x.value = aabbX;
+        loaded_mesh.mesh.collisionBox->max.y.value = aabbY;
+        loaded_mesh.mesh.collisionBox->max.z.value = aabbZ;
+    }
 
     // mark mesh as loaded
     loaded_mesh.is_loaded = true;
