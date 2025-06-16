@@ -4,6 +4,28 @@ import os
 
 import numpy as np
 
+def generate_aabb_for_verts(verts):
+    min_coords = [sys.maxsize, sys.maxsize, sys.maxsize]
+    max_coords = [-sys.maxsize, -sys.maxsize, -sys.maxsize]
+
+    for vert in verts:
+        x, y, z = vert[:3]
+        if x < min_coords[0]:
+            min_coords[0] = x
+        if y < min_coords[1]:
+            min_coords[1] = y
+        if z < min_coords[2]:
+            min_coords[2] = z
+
+        if x > max_coords[0]:
+            max_coords[0] = x
+        if y > max_coords[1]:
+            max_coords[1] = y
+        if z > max_coords[2]:
+            max_coords[2] = z
+
+    return min_coords, max_coords
+
 def reorder_face_clockwise_z(v_idx, uv_idx, n_idx, verts):
     def get_3d(i):
         v = verts[i]
@@ -155,12 +177,9 @@ def write_meshbin(filename, verts, norms, uvs, indices, uv_indices, normal_indic
         for face in uv_indices:
             f.write(struct.pack("<hhhh", *face))
 
-        f.write(struct.pack("<I", len(collision_verts)))
-        for collision_vert in collision_verts:
-            f.write(struct.pack("<I", len(collision_vert)))
-            
-            for x, y, z, pad in collision_vert:
-                f.write(struct.pack("<hhhh", x, y, z, pad))
+        min_coords, max_coords = generate_aabb_for_verts(verts)
+        f.write(struct.pack("<hhh", *min_coords))
+        f.write(struct.pack("<hhh", *max_coords))
 
 
 if __name__ == "__main__":
@@ -175,4 +194,4 @@ if __name__ == "__main__":
     verts, norms, uvs, indices, uv_idx, norm_idx, num_faces, collision_verts = parse_obj_file_with_collision_data(input_obj, texture_size)
     write_meshbin(output_bin, verts, norms, uvs, indices, uv_idx, norm_idx, num_faces, collision_verts)
     print(f"Successfully wrote mesh binary to {output_bin}\n")
-    print(f"verts: {len(verts)}. indices count: {len(indices)}. faces count: {num_faces}. uv count: {len(uvs)} collision boxes: {len(collision_verts)}")
+    print(f"verts: {len(verts)}. indices count: {len(indices)}. faces count: {num_faces}. uv count: {len(uvs)}")
