@@ -119,18 +119,9 @@ void Renderer::Render(void)
         // adjust object position by camera position
         objectPos += cameraPos;
 
-        // set up the rotation for the game object
-        auto roll = psyqo::SoftMath::generateRotationMatrix33(gameObject->rotation().x, psyqo::SoftMath::Axis::X, g_madnightEngine.m_trig);
-        auto pitch = psyqo::SoftMath::generateRotationMatrix33(gameObject->rotation().y, psyqo::SoftMath::Axis::Y, g_madnightEngine.m_trig);
-        auto yaw = psyqo::SoftMath::generateRotationMatrix33(gameObject->rotation().z, psyqo::SoftMath::Axis::Z, g_madnightEngine.m_trig);
-
-        // create complete x/y/z rotation. this is done ROLL then YAW then PITCH
-        psyqo::Matrix33 tempMatrix = {0}, xyzMatrix = {0}, finalMatrix = {0};
-        psyqo::SoftMath::multiplyMatrix33(yaw, pitch, &tempMatrix);
-        psyqo::SoftMath::multiplyMatrix33(tempMatrix, roll, &xyzMatrix);
-
-        // combine object and camera rotations
-        psyqo::SoftMath::multiplyMatrix33(CameraManager::get_rotation_matrix(), xyzMatrix, &finalMatrix);
+        // get the rotation matrix for the game object and then combine with the camera rotations
+        psyqo::Matrix33 finalMatrix = {0};
+        psyqo::SoftMath::multiplyMatrix33(CameraManager::get_rotation_matrix(), gameObject->rotationMatrix(), &finalMatrix);
 
         // write the object position and final matrix to the GTE
         psyqo::GTE::writeSafe<psyqo::GTE::PseudoRegister::Translation>(objectPos);

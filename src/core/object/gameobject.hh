@@ -31,8 +31,11 @@ class GameObject final
     GameObjectTag m_tag = GameObjectTag::NONE;
     psyqo::Vec3 m_pos = {0, 0, 0};
     GameObjectRotation m_rotation = {0, 0, 0};
+    psyqo::Matrix33 m_rotationMatrix = {0};
     MESH *m_mesh = nullptr;
     TimFile *m_texture = nullptr;
+
+    void GenerateRotationMatrix(void);
 
 public:
     GameObject() = default;
@@ -42,13 +45,16 @@ public:
         m_pos = pos;
         m_rotation = rotation;
         m_tag = tag;
+
+        GenerateRotationMatrix();
     };
     void Destroy(void);
 
     const eastl::fixed_string<char, MAX_CDROM_FILE_NAME_LEN> &name() { return m_name; }
-    const psyqo::Vec3 &pos() { return m_pos; }
-    const GameObjectRotation &rotation() { return m_rotation; }
-    const MESH *mesh() { return m_mesh; }
+    const psyqo::Vec3 &pos() const { return m_pos; }
+    const GameObjectRotation &rotation() const { return m_rotation; }
+    const psyqo::Matrix33 &rotationMatrix() const { return m_rotationMatrix; }
+    const MESH *mesh() const { return m_mesh; }
     const TimFile *texture() { return m_texture; }
     const GameObjectTag &tag() { return m_tag; }
     const GameObjectQuadType &quadType() { return m_quadType; }
