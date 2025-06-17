@@ -123,7 +123,7 @@ void Renderer::Render(void)
 
         // get the rotation matrix for the game object and then combine with the camera rotations
         psyqo::Matrix33 finalMatrix = {0};
-        psyqo::SoftMath::multiplyMatrix33(CameraManager::get_rotation_matrix(), gameObject->rotationMatrix(), &finalMatrix);
+        psyqo::SoftMath::multiplyMatrix33(gameObject->rotationMatrix(), CameraManager::get_rotation_matrix(), &finalMatrix);
 
         // write the object position and final matrix to the GTE
         psyqo::GTE::writeSafe<psyqo::GTE::PseudoRegister::Translation>(objectPos);
