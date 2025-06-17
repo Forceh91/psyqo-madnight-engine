@@ -102,9 +102,6 @@ void Renderer::Render(void)
     if (gameObjects.empty())
         return;
 
-    // setup camera
-    auto cameraPos = SetupCamera();
-
     // now for each object...
     uint16_t quadFragment = 0;
     for (auto &gameObject : gameObjects)
@@ -112,6 +109,9 @@ void Renderer::Render(void)
         // dont overflow our quads/faces/whatever
         if (quadFragment >= QUAD_FRAGMENT_SIZE)
             break;
+
+        // setup camera
+        auto cameraPos = SetupCamera();
 
         // rotate the object translation vector by the camera rotation
         psyqo::GTE::writeSafe<psyqo::GTE::PseudoRegister::V0>(gameObject->pos());
