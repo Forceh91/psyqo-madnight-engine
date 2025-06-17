@@ -83,15 +83,15 @@ psyqo::Vec3 Renderer::SetupCamera(void)
 void Renderer::Render(void)
 {
     // create a quad fragment array for it
-    eastl::array<psyqo::Fragments::SimpleFragment<psyqo::Prim::GouraudTexturedQuad>, MAX_FACES_PER_MESH> quads;
     eastl::array<psyqo::Vertex, 4> projected;
 
     // get the frame buffer we're currently rendering
-    int frame_buffer = m_gpu.getParity();
+    int frameBuffer = m_gpu.getParity();
 
     // current ordering tables and fill command
-    auto &ot = m_orderingTables[frame_buffer];
-    auto &clear = m_clear[frame_buffer];
+    auto &ot = m_orderingTables[frameBuffer];
+    auto &clear = m_clear[frameBuffer];
+    auto &quads = m_quads[frameBuffer];
 
     // chain the fill command to clear the buffer
     m_gpu.getNextClear(clear.primitive, c_backgroundColour);
@@ -100,17 +100,19 @@ void Renderer::Render(void)
     // get game objects. if there's nothing to render then just early return
     auto gameObjects = GameObjectManager::GetGameObjects();
     if (gameObjects.empty())
-    {
-        m_gpu.chain(ot);
         return;
-    }
 
     // setup camera
     auto cameraPos = SetupCamera();
 
     // now for each object...
+    uint16_t quadFragment = 0;
     for (auto &gameObject : gameObjects)
     {
+        // dont overflow our quads/faces/whatever
+        if (quadFragment >= QUAD_FRAGMENT_SIZE)
+            break;
+
         // rotate the object translation vector by the camera rotation
         psyqo::GTE::writeSafe<psyqo::GTE::PseudoRegister::V0>(gameObject->pos());
         psyqo::GTE::Kernels::mvmva<psyqo::GTE::Kernels::MX::RT, psyqo::GTE::Kernels::MV::V0, psyqo::GTE::Kernels::TV::TR>();
@@ -175,7 +177,7 @@ void Renderer::Render(void)
 
             // now take a quad fragment from our array and:
             // set its vertices
-            auto &quad = quads[i];
+            auto &quad = quads[quadFragment];
             quad.primitive.pointA = projected[0];
             quad.primitive.pointB = projected[1];
             quad.primitive.pointC = projected[2];
@@ -216,6 +218,8 @@ void Renderer::Render(void)
 
             // insert the quad fragment into the ordering table at the calculated z index
             ot.insert(quad, z_index);
+
+            quadFragment++;
         };
     }
 

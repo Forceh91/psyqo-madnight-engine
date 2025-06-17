@@ -2,6 +2,8 @@
 #include "../render/renderer.hh"
 #include "../core/debug/debug_menu.hh"
 #include "../render/camera.hh"
+#include "../core/raycast.hh"
+#include "psyqo/xprintf.h"
 
 void GameplayScene::start(StartReason reason)
 {
@@ -21,4 +23,12 @@ void GameplayScene::frame()
 
     // the central point for rendering gameobjects etc
     renderInstance.Render();
+
+    // raycast
+    uint8_t raycastDistance = DebugMenu::RaycastDistance();
+    Ray ray = {.origin = CameraManager::get_pos(), .direction = CameraManager::GetForwardVector(), .maxDistance = raycastDistance * ONE_METRE};
+    RayHit hit = {0};
+
+    bool didHit = Raycast::RaycastScene(ray, GameObjectTag::ENVIRONMENT, &hit);
+    // printf("did hit=%d\n", didHit);
 }

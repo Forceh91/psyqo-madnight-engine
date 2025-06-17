@@ -7,6 +7,7 @@
 #include "psyqo/font.hh"
 
 static constexpr uint16_t ORDERING_TABLE_SIZE = 1024;
+static constexpr uint16_t QUAD_FRAGMENT_SIZE = 4096;
 static constexpr psyqo::Color c_backgroundColour = {.r = 63, .g = 63, .b = 63};
 static constexpr psyqo::Color c_loadingBackgroundColour = {.r = 0, .g = 0, .b = 0};
 
@@ -23,6 +24,9 @@ class Renderer final
 
     // when using ordering tables we also need to sort fill commands as well
     psyqo::Fragments::SimpleFragment<psyqo::Prim::FastFill> m_clear[2];
+
+    // we need a more permanent place to keep our quad info too
+    eastl::array<psyqo::Fragments::SimpleFragment<psyqo::Prim::GouraudTexturedQuad>, QUAD_FRAGMENT_SIZE> m_quads[2];
 
     Renderer(psyqo::GPU &gpuInstance) : m_gpu(gpuInstance) {};
     ~Renderer() {};

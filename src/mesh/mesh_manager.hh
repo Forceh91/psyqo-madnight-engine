@@ -11,7 +11,7 @@
 #include "../helpers/file_defs.hh"
 
 #define MAX_LOADED_MESHES 32
-#define MAX_FACES_PER_MESH 1024
+static constexpr uint16_t MAX_FACES_PER_MESH = 1024;
 
 struct AABBCollision;
 

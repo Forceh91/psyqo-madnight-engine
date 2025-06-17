@@ -54,6 +54,7 @@ void Collision::GenerateAABBForMesh(const GameObject *object, AABBCollision *col
 
 bool Collision::IsAABBCollision(const AABBCollision &collisionA, const AABBCollision &collisionB)
 {
+    // TODO: i need to make sure the AABB is rotated with the object?
     // AABB box: check the min/max X
     if (collisionA.max.x < collisionB.min.x || collisionA.min.x > collisionB.max.x)
         return false;
