@@ -10,6 +10,7 @@
 #include "../../helpers/file_defs.hh"
 #include "../../textures/texture_manager.hh"
 #include "../../mesh/mesh_manager.hh"
+#include "../collision_types.hh"
 
 enum GameObjectQuadType
 {
@@ -34,8 +35,10 @@ class GameObject final
     psyqo::Matrix33 m_rotationMatrix = {0};
     MESH *m_mesh = nullptr;
     TimFile *m_texture = nullptr;
+    OBB m_obb = {0};
 
     void GenerateRotationMatrix(void);
+    void GenerateOBB(void);
 
 public:
     GameObject() = default;
@@ -58,6 +61,7 @@ public:
     const TimFile *texture() { return m_texture; }
     const GameObjectTag &tag() { return m_tag; }
     const GameObjectQuadType &quadType() { return m_quadType; }
+    const OBB &obb() { return m_obb; }
 
     void SetPosition(psyqo::FixedPoint<12> x, psyqo::FixedPoint<12> y, psyqo::FixedPoint<12> z);
     void SetRotation(psyqo::Angle x, psyqo::Angle y, psyqo::Angle z);

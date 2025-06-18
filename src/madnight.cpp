@@ -73,7 +73,7 @@ psyqo::Coroutine<> MadnightEngine::InitialLoad(void)
         gameObject->SetTexture("TEXTURES/STREET.TIM");
     }
 
-    auto gameObject2 = GameObjectManager::CreateGameObject("STREET2", {0.2_fp, 0, 0.5_fp}, {0, 1.0_pi, 0.25_pi}, GameObjectTag::ENVIRONMENT);
+    auto gameObject2 = GameObjectManager::CreateGameObject("STREET2", {0, 0, 0.9_fp}, {0, 1.0_pi, 0.25_pi}, GameObjectTag::ENVIRONMENT);
     if (gameObject2 != nullptr)
     {
         gameObject2->SetQuadType(GameObjectQuadType::GouraudTextureQuad);

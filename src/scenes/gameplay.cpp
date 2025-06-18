@@ -3,6 +3,8 @@
 #include "../core/debug/debug_menu.hh"
 #include "../render/camera.hh"
 #include "../core/raycast.hh"
+#include "../core/collision.hh"
+#include "../core/object/gameobject_manager.hh"
 #include "psyqo/xprintf.h"
 
 void GameplayScene::start(StartReason reason)

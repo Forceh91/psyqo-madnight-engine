@@ -1,7 +1,12 @@
 #include "gameobject.hh"
 
 #include "psyqo/soft-math.hh"
+#include "psyqo/fixed-point.hh"
+#include "psyqo/xprintf.h"
 #include "../../madnight.hh"
+#include "../collision.hh"
+
+using namespace psyqo::fixed_point_literals;
 
 void GameObject::Destroy(void)
 {
@@ -17,6 +22,7 @@ void GameObject::Destroy(void)
 void GameObject::SetMesh(const char *meshName)
 {
     MeshManager::GetMeshFromName(meshName, &m_mesh);
+    GenerateOBB();
 }
 
 void GameObject::SetTexture(const char *textureName)
@@ -29,6 +35,9 @@ void GameObject::SetPosition(psyqo::FixedPoint<12> x, psyqo::FixedPoint<12> y, p
     m_pos.x = x;
     m_pos.y = y;
     m_pos.z = z;
+
+    // update the OBB
+    GenerateOBB();
 }
 
 void GameObject::SetRotation(psyqo::Angle x, psyqo::Angle y, psyqo::Angle z)
@@ -50,4 +59,26 @@ void GameObject::GenerateRotationMatrix(void)
     psyqo::Matrix33 tempMatrix = {0};
     psyqo::SoftMath::multiplyMatrix33(yaw, pitch, &tempMatrix);
     psyqo::SoftMath::multiplyMatrix33(tempMatrix, roll, &m_rotationMatrix);
+
+    // update the OBB
+    GenerateOBB();
+}
+
+void GameObject::GenerateOBB(void)
+{
+    if (m_mesh == nullptr)
+    {
+        printf("GAME OBJECT: [WARNING] You tried to generate an OBB before you had a mesh assigned.\n");
+        return;
+    }
+
+    psyqo::Vec3 rotatedCentre = {0}, localCentre = (m_mesh->collisionBox.min + m_mesh->collisionBox.max) / 2;
+    psyqo::SoftMath::matrixVecMul3(m_rotationMatrix, localCentre, &rotatedCentre);
+
+    m_obb.center = m_pos + rotatedCentre;
+    m_obb.halfExtents = (m_mesh->collisionBox.max - m_mesh->collisionBox.min) / 2;
+
+    m_obb.axes[0] = m_rotationMatrix.vs[0]; // {m_rotationMatrix.vs[0].x, m_rotationMatrix.vs[1].x, m_rotationMatrix.vs[2].x};
+    m_obb.axes[1] = m_rotationMatrix.vs[1]; // {m_rotationMatrix.vs[0].y, m_rotationMatrix.vs[1].y, m_rotationMatrix.vs[2].y};
+    m_obb.axes[2] = m_rotationMatrix.vs[2]; // {m_rotationMatrix.vs[0].z, m_rotationMatrix.vs[1].z, m_rotationMatrix.vs[2].z};
 }

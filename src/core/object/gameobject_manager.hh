@@ -21,6 +21,7 @@ public:
     static void DestroyGameObject(GameObject *gameObject);
     static eastl::vector<GameObject *> GetGameObjects(void);
     static eastl::vector<GameObject *> GetGameObjectsWithTag(GameObjectTag tag);
+    static GameObject *GetGameObjectByName(const char *name);
 };
 
 #endif

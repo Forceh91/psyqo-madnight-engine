@@ -58,3 +58,15 @@ eastl::vector<GameObject *> GameObjectManager::GetGameObjectsWithTag(GameObjectT
 
     return eastl::move(gameObjectsWithTag);
 }
+
+GameObject *GameObjectManager::GetGameObjectByName(const char *name)
+{
+    // find the first game object that matches this name
+    for (uint8_t i = 0; i < MAX_GAME_OBJECTS; i++)
+    {
+        if (m_gameObjects.at(i).name() == name)
+            return &m_gameObjects.at(i);
+    };
+
+    return nullptr;
+}
