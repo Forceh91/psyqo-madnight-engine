@@ -147,38 +147,32 @@ psyqo::Coroutine<> MeshManager::LoadMeshFromCDROM(const char *meshName, MESH **m
     int16_t aabbX, aabbY, aabbZ;
 
     // load min data
-    for (int i = 0; i < 3; i++)
-    {
-        __builtin_memcpy(&aabbX, ptr, sizeof(int16_t));
-        ptr += sizeof(int16_t);
+    __builtin_memcpy(&aabbX, ptr, sizeof(int16_t));
+    ptr += sizeof(int16_t);
 
-        __builtin_memcpy(&aabbY, ptr, sizeof(int16_t));
-        ptr += sizeof(int16_t);
+    __builtin_memcpy(&aabbY, ptr, sizeof(int16_t));
+    ptr += sizeof(int16_t);
 
-        __builtin_memcpy(&aabbZ, ptr, sizeof(int16_t));
-        ptr += sizeof(int16_t);
+    __builtin_memcpy(&aabbZ, ptr, sizeof(int16_t));
+    ptr += sizeof(int16_t);
 
-        loaded_mesh.mesh.collisionBox->min.x.value = aabbX;
-        loaded_mesh.mesh.collisionBox->min.y.value = aabbY;
-        loaded_mesh.mesh.collisionBox->min.z.value = aabbZ;
-    }
+    loaded_mesh.mesh.collisionBox->min.x.value = aabbX;
+    loaded_mesh.mesh.collisionBox->min.y.value = aabbY;
+    loaded_mesh.mesh.collisionBox->min.z.value = aabbZ;
 
     // load max data
-    for (int i = 0; i < 3; i++)
-    {
-        __builtin_memcpy(&aabbX, ptr, sizeof(int16_t));
-        ptr += sizeof(int16_t);
+    __builtin_memcpy(&aabbX, ptr, sizeof(int16_t));
+    ptr += sizeof(int16_t);
 
-        __builtin_memcpy(&aabbY, ptr, sizeof(int16_t));
-        ptr += sizeof(int16_t);
+    __builtin_memcpy(&aabbY, ptr, sizeof(int16_t));
+    ptr += sizeof(int16_t);
 
-        __builtin_memcpy(&aabbZ, ptr, sizeof(int16_t));
-        ptr += sizeof(int16_t);
+    __builtin_memcpy(&aabbZ, ptr, sizeof(int16_t));
+    ptr += sizeof(int16_t);
 
-        loaded_mesh.mesh.collisionBox->max.x.value = aabbX;
-        loaded_mesh.mesh.collisionBox->max.y.value = aabbY;
-        loaded_mesh.mesh.collisionBox->max.z.value = aabbZ;
-    }
+    loaded_mesh.mesh.collisionBox->max.x.value = aabbX;
+    loaded_mesh.mesh.collisionBox->max.y.value = aabbY;
+    loaded_mesh.mesh.collisionBox->max.z.value = aabbZ;
 
     // mark mesh as loaded
     loaded_mesh.is_loaded = true;
