@@ -1,6 +1,7 @@
 #include "collision.hh"
 #include "../mesh/mesh_manager.hh"
-#include "gte-math/vector.hh"
+#include "../math/gte-math.hh"
+#include "../math/vector.hh"
 #include "psyqo/soft-math.hh"
 #include "psyqo/fixed-point.hh"
 
@@ -107,12 +108,12 @@ bool Collision::IsSATCollision(const OBB &collisionA, const OBB &collisionB)
         psyqo::SoftMath::normalizeVec3(&normalizedAxis);
 
         // centre dot products
-        auto aCentre = (collisionA.center.x * normalizedAxis.x) + (collisionA.center.y * normalizedAxis.y) + (collisionA.center.z * normalizedAxis.z);
-        auto bCentre = (collisionB.center.x * normalizedAxis.x) + (collisionB.center.y * normalizedAxis.y) + (collisionB.center.z * normalizedAxis.z);
+        auto aCentre = DotProduct(collisionA.center, normalizedAxis);
+        auto bCentre = DotProduct(collisionB.center, normalizedAxis);
 
         // use the GTE to project the axes for us
-        psyqo::Vec3 projectionA = GTEMathVector::ProjectOntoAxes({collisionA.axes[0], collisionA.axes[1], collisionA.axes[2]}, normalizedAxis);
-        psyqo::Vec3 projectionB = GTEMathVector::ProjectOntoAxes({collisionB.axes[0], collisionB.axes[1], collisionB.axes[2]}, normalizedAxis);
+        psyqo::Vec3 projectionA = GTEMath::ProjectVectorOntoAxes({collisionA.axes[0], collisionA.axes[1], collisionA.axes[2]}, normalizedAxis);
+        psyqo::Vec3 projectionB = GTEMath::ProjectVectorOntoAxes({collisionB.axes[0], collisionB.axes[1], collisionB.axes[2]}, normalizedAxis);
 
         // now project the half extents
         auto aRadius = (projectionA.x.abs() * collisionA.halfExtents.x) + (projectionA.y.abs() * collisionA.halfExtents.y) + (projectionA.z.abs() * collisionA.halfExtents.z);

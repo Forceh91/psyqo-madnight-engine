@@ -1,9 +1,9 @@
-#include "vector.hh"
+#include "gte-math.hh"
 
 #include "psyqo/gte-registers.hh"
 #include "psyqo/gte-kernels.hh"
 
-psyqo::Vec3 GTEMathVector::ProjectOntoAxes(const psyqo::Matrix33 &axisMatrix, const psyqo::Vec3 &normalizedVec)
+psyqo::Vec3 GTEMath::ProjectVectorOntoAxes(const psyqo::Matrix33 &axisMatrix, const psyqo::Vec3 &normalizedVec)
 {
     psyqo::GTE::writeSafe<psyqo::GTE::PseudoRegister::Rotation>(axisMatrix);
     psyqo::GTE::writeSafe<psyqo::GTE::PseudoRegister::V0>(normalizedVec);
