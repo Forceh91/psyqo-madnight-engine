@@ -31,6 +31,11 @@ void GameplayScene::frame()
     Ray ray = {.origin = CameraManager::get_pos(), .direction = CameraManager::GetForwardVector(), .maxDistance = raycastDistance * ONE_METRE};
     RayHit hit = {0};
 
-    bool didHit = Raycast::RaycastScene(ray, GameObjectTag::ENVIRONMENT, &hit);
+    // bool didHit = Raycast::RaycastScene(ray, GameObjectTag::ENVIRONMENT, &hit);
     // printf("did hit=%d\n", didHit);
+
+    // collision detection test...
+    // auto objects = GameObjectManager::GetGameObjectsWithTag(GameObjectTag::ENVIRONMENT);
+    // bool collision = Collision::IsSATCollision(objects[0]->obb(), objects[1]->obb());
+    // printf("collision=%d\n", collision);
 }

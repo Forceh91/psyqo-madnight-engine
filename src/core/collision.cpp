@@ -1,8 +1,8 @@
 #include "collision.hh"
 #include "../mesh/mesh_manager.hh"
+#include "gte-math/vector.hh"
 #include "psyqo/soft-math.hh"
 #include "psyqo/fixed-point.hh"
-#include "psyqo/xprintf.h"
 
 // TODO: cache these AABBs somewhere?
 // TODO: this obviously gets weird with rotated objects so might need to update later
@@ -106,19 +106,17 @@ bool Collision::IsSATCollision(const OBB &collisionA, const OBB &collisionB)
         auto normalizedAxis = axis;
         psyqo::SoftMath::normalizeVec3(&normalizedAxis);
 
-        // project centres
-        // TODO: make this a function?
+        // centre dot products
         auto aCentre = (collisionA.center.x * normalizedAxis.x) + (collisionA.center.y * normalizedAxis.y) + (collisionA.center.z * normalizedAxis.z);
         auto bCentre = (collisionB.center.x * normalizedAxis.x) + (collisionB.center.y * normalizedAxis.y) + (collisionB.center.z * normalizedAxis.z);
 
-        // now project the half extents
-        auto aRadius = ((collisionA.axes[0].x * normalizedAxis.x) + (collisionA.axes[0].y * normalizedAxis.y) + (collisionA.axes[0].z * normalizedAxis.z)).abs() * collisionA.halfExtents.x +
-                       ((collisionA.axes[1].x * normalizedAxis.x) + (collisionA.axes[1].y * normalizedAxis.y) + (collisionA.axes[1].z * normalizedAxis.z)).abs() * collisionA.halfExtents.y +
-                       ((collisionA.axes[2].x * normalizedAxis.x) + (collisionA.axes[2].y * normalizedAxis.y) + (collisionA.axes[2].z * normalizedAxis.z)).abs() * collisionA.halfExtents.z;
+        // use the GTE to project the axes for us
+        psyqo::Vec3 projectionA = GTEMathVector::ProjectOntoAxes({collisionA.axes[0], collisionA.axes[1], collisionA.axes[2]}, normalizedAxis);
+        psyqo::Vec3 projectionB = GTEMathVector::ProjectOntoAxes({collisionB.axes[0], collisionB.axes[1], collisionB.axes[2]}, normalizedAxis);
 
-        auto bRadius = ((collisionB.axes[0].x * normalizedAxis.x) + (collisionB.axes[0].y * normalizedAxis.y) + (collisionB.axes[0].z * normalizedAxis.z)).abs() * collisionB.halfExtents.x +
-                       ((collisionB.axes[1].x * normalizedAxis.x) + (collisionB.axes[1].y * normalizedAxis.y) + (collisionB.axes[1].z * normalizedAxis.z)).abs() * collisionB.halfExtents.y +
-                       ((collisionB.axes[2].x * normalizedAxis.x) + (collisionB.axes[2].y * normalizedAxis.y) + (collisionB.axes[2].z * normalizedAxis.z)).abs() * collisionB.halfExtents.z;
+        // now project the half extents
+        auto aRadius = (projectionA.x.abs() * collisionA.halfExtents.x) + (projectionA.y.abs() * collisionA.halfExtents.y) + (projectionA.z.abs() * collisionA.halfExtents.z);
+        auto bRadius = (projectionB.x.abs() * collisionB.halfExtents.x) + (projectionB.y.abs() * collisionB.halfExtents.y) + (projectionB.z.abs() * collisionB.halfExtents.z);
 
         // check for overlap
         auto distance = (aCentre - bCentre).abs();
