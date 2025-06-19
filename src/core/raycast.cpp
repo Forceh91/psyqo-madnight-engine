@@ -30,6 +30,8 @@ bool Raycast::RaycastScene(const Ray &ray, GameObjectTag targetTag, RayHit *hitO
     return false;
 }
 
+// NOTE: this will be very inaccurate if the object is rotated at all.
+// TODO: implement an OBB/SAT versin of this
 bool Raycast::DoesRaycastInterceptAABB(const Ray &ray, const GameObject *object)
 {
     // make sure the mesh is valid
