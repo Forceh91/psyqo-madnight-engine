@@ -36,9 +36,11 @@ class GameObject final
     MESH *m_mesh = nullptr;
     TimFile *m_texture = nullptr;
     OBB m_obb = {0};
+    CollisionType m_collisionType = CollisionType::SOLID;
 
     void GenerateRotationMatrix(void);
     void GenerateOBB(void);
+    void UpdateOBB(void);
 
 public:
     GameObject() = default;
@@ -69,6 +71,7 @@ public:
     void SetTexture(const char *textureName);
     // note: doesn't actually do anything yet. need to figure it out later when its important
     void SetQuadType(const GameObjectQuadType quadType) { m_quadType = quadType; }
+    void SetAsTrigger(const psyqo::Vec3 &size);
 };
 
 #endif

@@ -17,6 +17,8 @@ void GameObject::Destroy(void)
     m_mesh = nullptr;
     m_texture = nullptr;
     m_rotationMatrix = {0};
+    m_obb = {0};
+    m_collisionType = CollisionType::SOLID;
 }
 
 void GameObject::SetMesh(const char *meshName)
@@ -49,6 +51,18 @@ void GameObject::SetRotation(psyqo::Angle x, psyqo::Angle y, psyqo::Angle z)
     GenerateRotationMatrix();
 }
 
+void GameObject::SetAsTrigger(const psyqo::Vec3 &triggerSize)
+{
+    // mark as trigger
+    m_collisionType = CollisionType::TRIGGER;
+
+    // generate half extents from trigger size, this should never need to change
+    m_obb.halfExtents = triggerSize / 2;
+
+    // generate the obb axes
+    UpdateOBB();
+}
+
 void GameObject::GenerateRotationMatrix(void)
 {
     auto roll = psyqo::SoftMath::generateRotationMatrix33(m_rotation.x, psyqo::SoftMath::Axis::X, g_madnightEngine.m_trig);
@@ -61,7 +75,7 @@ void GameObject::GenerateRotationMatrix(void)
     psyqo::SoftMath::multiplyMatrix33(tempMatrix, roll, &m_rotationMatrix);
 
     // update the OBB
-    GenerateOBB();
+    UpdateOBB();
 }
 
 void GameObject::GenerateOBB(void)
@@ -78,7 +92,21 @@ void GameObject::GenerateOBB(void)
     m_obb.center = m_pos + rotatedCentre;
     m_obb.halfExtents = (m_mesh->collisionBox.max - m_mesh->collisionBox.min) / 2;
 
-    m_obb.axes[0] = m_rotationMatrix.vs[0]; // {m_rotationMatrix.vs[0].x, m_rotationMatrix.vs[1].x, m_rotationMatrix.vs[2].x};
-    m_obb.axes[1] = m_rotationMatrix.vs[1]; // {m_rotationMatrix.vs[0].y, m_rotationMatrix.vs[1].y, m_rotationMatrix.vs[2].y};
-    m_obb.axes[2] = m_rotationMatrix.vs[2]; // {m_rotationMatrix.vs[0].z, m_rotationMatrix.vs[1].z, m_rotationMatrix.vs[2].z};
+    m_obb.axes[0] = m_rotationMatrix.vs[0];
+    m_obb.axes[1] = m_rotationMatrix.vs[1];
+    m_obb.axes[2] = m_rotationMatrix.vs[2];
+}
+
+void GameObject::UpdateOBB(void)
+{
+    psyqo::Vec3 rotatedCentre = {0}, localCentre = m_collisionType == CollisionType::SOLID ? (m_mesh->collisionBox.min + m_mesh->collisionBox.max) / 2 : psyqo::Vec3{0, 0, 0};
+    psyqo::SoftMath::matrixVecMul3(m_rotationMatrix, localCentre, &rotatedCentre);
+
+    // update the centre
+    m_obb.center = m_pos + rotatedCentre;
+
+    // and the new rotation matrix
+    m_obb.axes[0] = m_rotationMatrix.vs[0];
+    m_obb.axes[1] = m_rotationMatrix.vs[1];
+    m_obb.axes[2] = m_rotationMatrix.vs[2];
 }

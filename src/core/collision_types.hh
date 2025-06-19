@@ -3,6 +3,12 @@
 
 #include "psyqo/vector.hh"
 
+enum CollisionType
+{
+    SOLID,
+    TRIGGER
+};
+
 struct OBB
 {
     psyqo::Vec3 center;
