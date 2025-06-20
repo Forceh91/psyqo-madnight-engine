@@ -6,10 +6,16 @@
 #include "../core/collision.hh"
 #include "../core/object/gameobject_manager.hh"
 #include "psyqo/xprintf.h"
+#include "psyqo/alloc.h"
 
 void GameplayScene::start(StartReason reason)
 {
     Renderer::Instance().StartScene();
+
+    psyqo::Rect pos = {.pos = {10, 10}, .size = {100, 100}};
+    m_debugHUD = GameplayHUD("Debug HUD", pos);
+
+    m_heapSizeText = m_debugHUD.AddTextHUDElement(TextHUDElement("HEAP", pos));
 }
 
 void GameplayScene::frame()
@@ -38,4 +44,10 @@ void GameplayScene::frame()
     // auto objects = GameObjectManager::GetGameObjectsWithTag(GameObjectTag::ENVIRONMENT);
     // bool collision = Collision::IsSATCollision(objects[0]->obb(), objects[1]->obb());
     // printf("collision=%d\n", collision);
+
+    char heapSize[GAMEPLAY_HUD_ELEMENT_MAX_STR_LEN];
+    snprintf(heapSize, GAMEPLAY_HUD_ELEMENT_MAX_STR_LEN, "Heap Used: %d", (int)((uint8_t *)psyqo_heap_end() - (uint8_t *)psyqo_heap_start()));
+    m_heapSizeText->SetDisplayText(heapSize);
+
+    m_debugHUD.Render();
 }
