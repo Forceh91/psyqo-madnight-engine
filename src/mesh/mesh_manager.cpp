@@ -34,7 +34,7 @@ psyqo::Coroutine<> MeshManager::LoadMeshFromCDROM(const char *meshName, MESH **m
     }
 
     // basic struct setup
-    LOADED_MESH loaded_mesh = {0};
+    LOADED_MESH loaded_mesh = {"", 0};
     loaded_mesh.mesh_name = meshName;
     __builtin_memset(&loaded_mesh.mesh, 0, sizeof(MESH));
 
