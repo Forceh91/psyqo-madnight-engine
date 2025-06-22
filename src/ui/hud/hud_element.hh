@@ -24,7 +24,7 @@ public:
 
     void Enable() { m_isEnabled = true; }
     void Disable() { m_isEnabled = false; }
-    eastl::fixed_string<char, GAMEPLAY_HUD_MAX_NAME_LEN> &Name() { return m_name; }
+    eastl::fixed_string<char, GAMEPLAY_HUD_MAX_NAME_LEN> &name() { return m_name; }
 };
 
 #endif

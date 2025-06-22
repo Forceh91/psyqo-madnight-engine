@@ -45,10 +45,10 @@ public:
     void Render(void);
 
     // dont lose track of the hud element!
-    TextHUDElement *AddTextHUDElement(TextHUDElement textElement)
+    TextHUDElement *AddTextHUDElement(TextHUDElement &&textElement)
     {
         m_textHUDElements.push_back(eastl::move(textElement));
-        return &m_textHUDElements.back();
+        return &m_textHUDElements.at(m_textHUDElements.size() - 1);
     }
 
     void RemoveTextHUDElement(TextHUDElement *element)

@@ -3,7 +3,7 @@
 #include "../madnight.hh"
 #include "../controller/controller.hh"
 
-psyqo::Vec3 CameraManager::m_pos;
+psyqo::Vec3 CameraManager::m_pos = {0, 0, 0};
 CAMERA_ANGLE CameraManager::m_angle = {0, 0, 0};
 psyqo::Matrix33 CameraManager::m_rotation_matrix = {0};
 

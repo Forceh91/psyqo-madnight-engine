@@ -10,7 +10,7 @@ void GameplayHUD::Render(void)
     // for each hud element, draw to the screen...
     for (auto &element : m_textHUDElements)
     {
-        if (!element.Name().empty())
+        if (!element.name().empty())
             element.Render(m_rect);
     }
 }
