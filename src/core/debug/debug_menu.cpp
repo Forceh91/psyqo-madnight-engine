@@ -5,13 +5,13 @@
 
 #include "psyqo/advancedpad.hh"
 #include "psyqo/font.hh"
-#include "psyqo/xprintf.h"
 
 bool DebugMenu::m_isEnabled = false;
 uint8_t DebugMenu::m_raycastDistance = 3;
 uint8_t DebugMenu::m_selectedDebugOption = 0;
 uint32_t DebugMenu::m_startDebugMenuOpenCapture = 0;
 uint8_t DebugMenu::m_debugMenuOpenCapturedInputs = 0;
+bool DebugMenu::m_displayDebugHUD = true;
 
 static constexpr uint8_t debugInputMask = (1 << 0) | (1 << 1) | (1 << 2) | (1 << 3);
 
@@ -22,6 +22,11 @@ void DebugMenu::Init()
                                         {
         if (event.type != psyqo::AdvancedPad::Event::ButtonReleased) return;
 
+        if (event.button == psyqo::AdvancedPad::Button::Up)
+            m_selectedDebugOption = (m_selectedDebugOption == 0) ? 1 : m_selectedDebugOption - 1;
+        if (event.button == psyqo::AdvancedPad::Button::Down)
+            m_selectedDebugOption = (m_selectedDebugOption % 1) + 1;
+
         if (m_isEnabled) {
             switch (m_selectedDebugOption)
             {
@@ -30,6 +35,11 @@ void DebugMenu::Init()
                         m_raycastDistance = (m_raycastDistance == 1) ? 10 : m_raycastDistance - 1;
                     if (event.button == psyqo::AdvancedPad::Button::Right)
                         m_raycastDistance = (m_raycastDistance % 10) + 1;
+                break;
+
+                case 1: // debug hud/heap usage
+                    if (event.button == psyqo::AdvancedPad::Button::Left || event.button == psyqo::AdvancedPad::Button::Right)
+                        m_displayDebugHUD = !m_displayDebugHUD;
                 break;
             }
 
@@ -77,6 +87,8 @@ void DebugMenu::Draw(psyqo::GPU &gpu)
     font->printf(gpu, {.x = 3, .y = 3}, COLOUR_WHITE, "Debug Menu");
     font->printf(gpu, {.x = 3, .y = 18}, m_selectedDebugOption == 0 ? COLOUR_YELLOW : COLOUR_WHITE, "Raycast Distance:");
     font->printf(gpu, {.x = 3, .y = 33}, m_selectedDebugOption == 0 ? COLOUR_YELLOW : COLOUR_WHITE, "   < %d >", m_raycastDistance);
+    font->printf(gpu, {.x = 3, .y = 48}, m_selectedDebugOption == 1 ? COLOUR_YELLOW : COLOUR_WHITE, "Show heap usage:");
+    font->printf(gpu, {.x = 3, .y = 63}, m_selectedDebugOption == 1 ? COLOUR_YELLOW : COLOUR_WHITE, "   < %d >", m_displayDebugHUD);
 }
 
 void DebugMenu::ResetInputCapture(void)
