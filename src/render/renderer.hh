@@ -33,6 +33,7 @@ class Renderer final
     // texture page + sprite info
     eastl::array<psyqo::Fragments::SimpleFragment<psyqo::Prim::TPage>, 40> m_tpages[2];
     eastl::array<psyqo::Fragments::SimpleFragment<psyqo::Prim::Sprite>, 40> m_sprites[2];
+    uint8_t m_currentSpriteFragment = 0;
 
     Renderer(psyqo::GPU &gpuInstance) : m_gpu(gpuInstance) {};
     ~Renderer() {};

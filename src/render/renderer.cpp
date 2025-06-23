@@ -49,6 +49,7 @@ void Renderer::StartScene(void)
     psyqo::GTE::write<psyqo::GTE::Register::ZSF4, psyqo::GTE::Unsafe>(ORDERING_TABLE_SIZE / 4);
 }
 
+/* this must be called at the start of each frame */
 uint32_t Renderer::Process(void)
 {
     uint32_t beginFrameTimestamp = m_gpu.now(), currentFrameCount = m_gpu.getFrameCount();
@@ -60,6 +61,9 @@ uint32_t Renderer::Process(void)
 
     // update last frame count
     m_lastFrameCounter = currentFrameCount;
+
+    // reset what sprite/tpage we're drawing
+    m_currentSpriteFragment = 0;
 
     // give back the delta time
     return deltaTime;
@@ -264,12 +268,12 @@ void Renderer::RenderSprite(const TimFile *texture, const psyqo::Rect rect, cons
 
     // chain tpage info over
     auto tpageAttr = TextureManager::GetTPageAttr(*texture);
-    auto &tpage = tpages[0];
+    auto &tpage = tpages[m_currentSpriteFragment];
     tpage.primitive.attr = tpageAttr;
     m_gpu.chain(tpage);
 
     // TODO: fix this so it actually renders more than one sprite
-    auto &sprite = sprites[0];
+    auto &sprite = sprites[m_currentSpriteFragment++];
     sprite.primitive.position = rect.pos;
     sprite.primitive.size = rect.size;
 
