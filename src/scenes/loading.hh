@@ -10,11 +10,12 @@ class LoadingScene final : public psyqo::Scene
     void start(StartReason reason) override;
     void frame() override;
 
+    eastl::vector<LoadQueue> m_queue;
     uint16_t m_loadFilesCount = 0;
     uint16_t m_loadFilesLoadedCount = 0;
 
 public:
-    psyqo::Coroutine<> LoadFiles(eastl::vector<LoadQueue> *files, bool dumpExisting);
+    psyqo::Coroutine<> LoadFiles(eastl::vector<LoadQueue> &&files, bool dumpExisting);
 };
 
 #endif

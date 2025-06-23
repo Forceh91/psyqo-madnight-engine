@@ -21,7 +21,7 @@ void LoadingScene::frame()
     Renderer::Instance().RenderLoadingScreen(percent.integer());
 }
 
-psyqo::Coroutine<> LoadingScene::LoadFiles(eastl::vector<LoadQueue> *files, bool dumpExisting)
+psyqo::Coroutine<> LoadingScene::LoadFiles(eastl::vector<LoadQueue> &&files, bool dumpExisting)
 {
     // most likely we want to do this, but this will dump everything we know
     // about meshes and textures, ready for a fresh scene
@@ -31,13 +31,14 @@ psyqo::Coroutine<> LoadingScene::LoadFiles(eastl::vector<LoadQueue> *files, bool
         TextureManager::Dump();
     }
 
-    m_loadFilesCount = files->size();
+    m_queue = eastl::move(files);
+    m_loadFilesCount = m_queue.size();
     m_loadFilesLoadedCount = 0;
 
-    for (auto &file : *files)
+    for (auto &file : m_queue)
     {
-        MESH *mesh = {0};
-        TimFile *tim = {0};
+        MESH *mesh = nullptr;
+        TimFile *tim = nullptr;
         if (file.type == LoadFileType::OBJECT)
             co_await MeshManager::LoadMeshFromCDROM(file.name.c_str(), &mesh);
         if (file.type == LoadFileType::TEXTURE)
@@ -46,4 +47,6 @@ psyqo::Coroutine<> LoadingScene::LoadFiles(eastl::vector<LoadQueue> *files, bool
         // total loaded files
         m_loadFilesLoadedCount++;
     }
+
+    m_queue.clear();
 }
