@@ -63,7 +63,7 @@ void GameplayScene::frame()
     }
 
     char campos[GAMEPLAY_HUD_ELEMENT_MAX_STR_LEN];
-    snprintf(campos, GAMEPLAY_HUD_ELEMENT_MAX_STR_LEN, "Cam: %d,%d,%d", -camPos.x, -camPos.y, -camPos.z);
+    snprintf(campos, GAMEPLAY_HUD_ELEMENT_MAX_STR_LEN, "Cam: %d,%d,%d", camPos.x, camPos.y, camPos.z);
     m_cameraPosText->SetDisplayText(campos);
     m_gameplayHUD.Render();
 }

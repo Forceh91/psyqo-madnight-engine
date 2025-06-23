@@ -9,6 +9,7 @@
 #include "psyqo/gte-kernels.hh"
 #include "psyqo/gte-registers.hh"
 #include "psyqo/soft-math.hh"
+#include "psyqo/primitives/control.hh"
 
 Renderer *Renderer::m_instance = nullptr;
 psyqo::Font<> Renderer::m_kromFont;
@@ -245,5 +246,41 @@ void Renderer::RenderLoadingScreen(uint16_t loadPercentage)
     m_gpu.chain(clear);
 
     // render the actual loading sprite/font/whatever
-    m_kromFont.printf(m_gpu, {.x = 10, .y = 220}, COLOUR_WHITE, "Loading... (%d%%)", loadPercentage);
+    m_kromFont.chainprintf(m_gpu, {.x = 10, .y = 220}, COLOUR_WHITE, "Loading... (%d%%)", loadPercentage);
+}
+
+void Renderer::RenderSprite(const TimFile *texture, const psyqo::Rect rect, const psyqo::PrimPieces::UVCoords uv)
+{
+    // create a quad fragment array for it
+    eastl::array<psyqo::Vertex, 4> projected;
+
+    // get the frame buffer we're currently rendering
+    int frameBuffer = m_gpu.getParity();
+
+    // current ordering tables and fill command
+    auto &clear = m_clear[frameBuffer];
+    auto &tpages = m_tpages[frameBuffer];
+    auto &sprites = m_sprites[frameBuffer];
+
+    // chain tpage info over
+    auto tpageAttr = TextureManager::GetTPageAttr(*texture);
+    auto &tpage = tpages[0];
+    tpage.primitive.attr = tpageAttr;
+    m_gpu.chain(tpage);
+
+    // TODO: fix this so it actually renders more than one sprite
+    auto &sprite = sprites[0];
+    sprite.primitive.position = rect.pos;
+    sprite.primitive.size = rect.size;
+
+    // set its clut if it has one
+    if (texture->hasClut)
+        sprite.primitive.texInfo.clut = psyqo::PrimPieces::ClutIndex(texture->clutX, texture->clutY);
+
+    // set the uv data
+    psyqo::Rect uvOffset = TextureManager::GetTPageUVForTim(*texture);
+    sprite.primitive.texInfo.u = uv.u; // uvOffset.pos.x + uv.u;
+    sprite.primitive.texInfo.v = uv.v; // uvOffset.pos.y + (rect.size.y - 1 - uv.v);
+
+    m_gpu.chain(sprite);
 }

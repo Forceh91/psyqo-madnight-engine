@@ -7,6 +7,7 @@
 #include "psyqo/vector.hh"
 #include "hud_defines.hh"
 #include "text_hud_element.hh"
+#include "sprite_hud_element.h"
 
 /*
  * this is designed for you to create a dumb hud on top of your gameplay
@@ -24,6 +25,7 @@ class GameplayHUD final
     eastl::fixed_string<char, GAMEPLAY_HUD_MAX_NAME_LEN> m_name;
     psyqo::Rect m_rect = {0};
     eastl::fixed_vector<TextHUDElement, 20, false> m_textHUDElements;
+    eastl::fixed_vector<SpriteHUDElement, 40, false> m_spriteHUDElements;
 
 public:
     GameplayHUD()
@@ -59,6 +61,22 @@ public:
                                  { return &el == element; });
         if (it != m_textHUDElements.end())
             m_textHUDElements.erase(it);
+    }
+
+    // dont lose track of the hud element!
+    // has a limit of 40 elements for now, i don't see why you would want more than that
+    SpriteHUDElement *AddSpriteHUDElement(SpriteHUDElement &&spriteElement)
+    {
+        m_spriteHUDElements.push_back(eastl::move(spriteElement));
+        return &m_spriteHUDElements.back();
+    }
+
+    void RemoveSpriteHUDElement(SpriteHUDElement *element)
+    {
+        auto it = eastl::find_if(m_spriteHUDElements.begin(), m_spriteHUDElements.end(), [element](SpriteHUDElement &el)
+                                 { return &el == element; });
+        if (it != m_spriteHUDElements.end())
+            m_spriteHUDElements.erase(it);
     }
 };
 

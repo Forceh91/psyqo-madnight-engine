@@ -1,5 +1,4 @@
 #include "gameplay_hud.hh"
-#include "text_hud_element.hh"
 
 void GameplayHUD::Render(void)
 {
@@ -7,8 +6,15 @@ void GameplayHUD::Render(void)
     if (!m_isEnabled)
         return;
 
-    // for each hud element, draw to the screen...
+    // for each text hud element, draw to the screen...
     for (auto &element : m_textHUDElements)
+    {
+        if (!element.name().empty())
+            element.Render(m_rect);
+    }
+
+    // for each sprite hud element, draw to the screen
+    for (auto &element : m_spriteHUDElements)
     {
         if (!element.name().empty())
             element.Render(m_rect);
