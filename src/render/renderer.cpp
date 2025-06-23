@@ -133,10 +133,14 @@ void Renderer::Render(void)
         auto mesh = gameObject->mesh();
         for (int i = 0; i < mesh->faces_num; i++)
         {
+            // dont overflow our quads/faces/whatever
+            if (quadFragment >= QUAD_FRAGMENT_SIZE)
+                break;
+
             // load the first 3 verts into the GTE. remember it can only handle 3 at a time
-            psyqo::GTE::writeUnsafe<psyqo::GTE::PseudoRegister::V0>(mesh->vertices[mesh->indices[i].v0]);
-            psyqo::GTE::writeUnsafe<psyqo::GTE::PseudoRegister::V1>(mesh->vertices[mesh->indices[i].v1]);
-            psyqo::GTE::writeUnsafe<psyqo::GTE::PseudoRegister::V2>(mesh->vertices[mesh->indices[i].v2]);
+            psyqo::GTE::writeSafe<psyqo::GTE::PseudoRegister::V0>(mesh->vertices[mesh->indices[i].v0]);
+            psyqo::GTE::writeSafe<psyqo::GTE::PseudoRegister::V1>(mesh->vertices[mesh->indices[i].v1]);
+            psyqo::GTE::writeSafe<psyqo::GTE::PseudoRegister::V2>(mesh->vertices[mesh->indices[i].v2]);
 
             // perform the rtpt (perspective transformation) on these three
             psyqo::GTE::Kernels::rtpt();
@@ -145,7 +149,7 @@ void Renderer::Render(void)
             psyqo::GTE::Kernels::nclip();
 
             // read the result of this and skip rendering if its backfaced
-            int32_t mac0 = 0;
+            uint32_t mac0 = 0;
             psyqo::GTE::read<psyqo::GTE::Register::MAC0>(reinterpret_cast<uint32_t *>(&mac0));
             if (mac0 <= 0)
                 continue;
@@ -159,7 +163,7 @@ void Renderer::Render(void)
 
             // average z index for ordering
             psyqo::GTE::Kernels::avsz4();
-            int32_t z_index = 0;
+            uint32_t z_index = 0;
             psyqo::GTE::read<psyqo::GTE::Register::OTZ>(reinterpret_cast<uint32_t *>(&z_index));
 
             // make sure we dont go out of bounds
@@ -219,6 +223,7 @@ void Renderer::Render(void)
             // insert the quad fragment into the ordering table at the calculated z index
             ot.insert(quad, z_index);
 
+            // increase what quad fragment we're on now
             quadFragment++;
         };
     }
@@ -233,7 +238,6 @@ void Renderer::Render(void)
 void Renderer::RenderLoadingScreen(uint16_t loadPercentage)
 {
     uint32_t frameBuffer = m_gpu.getParity();
-    auto &ot = m_orderingTables[frameBuffer];
     auto &clear = m_clear[frameBuffer];
 
     // clear the buffer
