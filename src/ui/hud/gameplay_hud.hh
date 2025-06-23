@@ -3,6 +3,7 @@
 
 #include <EASTL/fixed_string.h>
 #include <EASTL/vector.h>
+#include <EASTL/fixed_vector.h>
 #include "psyqo/vector.hh"
 #include "hud_defines.hh"
 #include "text_hud_element.hh"
@@ -22,7 +23,7 @@ class GameplayHUD final
     bool m_isEnabled = false;
     eastl::fixed_string<char, GAMEPLAY_HUD_MAX_NAME_LEN> m_name;
     psyqo::Rect m_rect = {0};
-    eastl::vector<TextHUDElement> m_textHUDElements;
+    eastl::fixed_vector<TextHUDElement, 20, false> m_textHUDElements;
 
 public:
     GameplayHUD()
@@ -45,10 +46,11 @@ public:
     void Render(void);
 
     // dont lose track of the hud element!
+    // has a limit of 20 elements for now, i don't see why you would want more than that
     TextHUDElement *AddTextHUDElement(TextHUDElement &&textElement)
     {
         m_textHUDElements.push_back(eastl::move(textElement));
-        return &m_textHUDElements.at(m_textHUDElements.size() - 1);
+        return &m_textHUDElements.back();
     }
 
     void RemoveTextHUDElement(TextHUDElement *element)
