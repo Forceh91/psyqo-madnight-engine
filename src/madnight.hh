@@ -14,10 +14,11 @@ class MadnightEngine final : public psyqo::Application
     void prepare() override;
     void createScene() override;
 
+    psyqo::Coroutine<> m_initialLoadRoutine;
     psyqo::Coroutine<> InitialLoad(void);
 
     // shows a loading screen and unloads all known meshes and textures
-    psyqo::Coroutine<> HardLoadingScreen(eastl::vector<LoadQueue> files);
+    psyqo::Coroutine<> HardLoadingScreen(eastl::vector<LoadQueue> &&files);
     void SwitchToGameplay(void);
 
 public:

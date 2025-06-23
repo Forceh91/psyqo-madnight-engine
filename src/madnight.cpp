@@ -53,7 +53,8 @@ void MadnightEngine::prepare()
 
 void MadnightEngine::createScene()
 {
-    InitialLoad().resume();
+    m_initialLoadRoutine = InitialLoad();
+    m_initialLoadRoutine.resume();
 }
 
 psyqo::Coroutine<> MadnightEngine::InitialLoad(void)
@@ -73,24 +74,24 @@ psyqo::Coroutine<> MadnightEngine::InitialLoad(void)
         gameObject->SetTexture("TEXTURES/STREET.TIM");
     }
 
-    auto gameObject2 = GameObjectManager::CreateGameObject("STREET2", {0.05_fp, 0, 0.5_fp}, {0, 1.0_pi, 0.25_pi}, GameObjectTag::ENVIRONMENT);
-    if (gameObject2 != nullptr)
-    {
-        gameObject2->SetQuadType(GameObjectQuadType::GouraudTextureQuad);
-        gameObject2->SetMesh("MODELS/STREET.MB");
-        gameObject2->SetTexture("TEXTURES/STREET.TIM");
-    }
+    // auto gameObject2 = GameObjectManager::CreateGameObject("STREET2", {0.05_fp, 0, 0.5_fp}, {0, 1.0_pi, 0.25_pi}, GameObjectTag::ENVIRONMENT);
+    // if (gameObject2 != nullptr)
+    // {
+    //     gameObject2->SetQuadType(GameObjectQuadType::GouraudTextureQuad);
+    //     gameObject2->SetMesh("MODELS/STREET.MB");
+    //     gameObject2->SetTexture("TEXTURES/STREET.TIM");
+    // }
 
     // regardless, switch to gameplay?
     SwitchToGameplay();
 }
 
-psyqo::Coroutine<> MadnightEngine::HardLoadingScreen(eastl::vector<LoadQueue> files)
+psyqo::Coroutine<> MadnightEngine::HardLoadingScreen(eastl::vector<LoadQueue> &&files)
 {
     popScene();
     pushScene(&loadingScene);
 
-    co_await loadingScene.LoadFiles(&files, true);
+    co_await loadingScene.LoadFiles(eastl::move(files), true);
 }
 
 void MadnightEngine::SwitchToGameplay(void)
