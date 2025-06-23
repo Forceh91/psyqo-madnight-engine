@@ -11,5 +11,5 @@ void TextHUDElement::Render(const psyqo::Rect &parentRect)
     auto font = rendererInstance.KromFont();
 
     psyqo::Vertex posInParent = {parentRect.pos.x + m_rect.pos.x, parentRect.pos.y + m_rect.pos.y};
-    font->print(rendererInstance.GPU(), m_displayText, posInParent, COLOUR_WHITE);
+    font->chainprintf(rendererInstance.GPU(), m_displayText, posInParent, COLOUR_WHITE);
 }

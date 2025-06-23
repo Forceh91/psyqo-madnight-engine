@@ -84,11 +84,11 @@ void DebugMenu::Draw(psyqo::GPU &gpu)
         return;
 
     auto font = Renderer::Instance().KromFont();
-    font->printf(gpu, {.x = 3, .y = 3}, COLOUR_WHITE, "Debug Menu");
-    font->printf(gpu, {.x = 3, .y = 18}, m_selectedDebugOption == 0 ? COLOUR_YELLOW : COLOUR_WHITE, "Raycast Distance:");
-    font->printf(gpu, {.x = 3, .y = 33}, m_selectedDebugOption == 0 ? COLOUR_YELLOW : COLOUR_WHITE, "   < %d >", m_raycastDistance);
-    font->printf(gpu, {.x = 3, .y = 48}, m_selectedDebugOption == 1 ? COLOUR_YELLOW : COLOUR_WHITE, "Show heap usage:");
-    font->printf(gpu, {.x = 3, .y = 63}, m_selectedDebugOption == 1 ? COLOUR_YELLOW : COLOUR_WHITE, "   < %d >", m_displayDebugHUD);
+    font->chainprintf(gpu, {.x = 3, .y = 3}, COLOUR_WHITE, "Debug Menu");
+    font->chainprintf(gpu, {.x = 3, .y = 18}, m_selectedDebugOption == 0 ? COLOUR_YELLOW : COLOUR_WHITE, "Raycast Distance:");
+    font->chainprintf(gpu, {.x = 3, .y = 33}, m_selectedDebugOption == 0 ? COLOUR_YELLOW : COLOUR_WHITE, "   < %d >", m_raycastDistance);
+    font->chainprintf(gpu, {.x = 3, .y = 48}, m_selectedDebugOption == 1 ? COLOUR_YELLOW : COLOUR_WHITE, "Show heap usage:");
+    font->chainprintf(gpu, {.x = 3, .y = 63}, m_selectedDebugOption == 1 ? COLOUR_YELLOW : COLOUR_WHITE, "   < %d >", m_displayDebugHUD);
 }
 
 void DebugMenu::ResetInputCapture(void)
