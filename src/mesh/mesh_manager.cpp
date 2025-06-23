@@ -64,21 +64,16 @@ psyqo::Coroutine<> MeshManager::LoadMeshFromCDROM(const char *meshName, MESH **m
     size_t vertices_size = sizeof(psyqo::Vec3) * loaded_mesh.mesh.vertex_count;
     loaded_mesh.mesh.vertices = (psyqo::Vec3 *)psyqo_malloc(vertices_size);
 
-    int32_t x, y, z;
     for (int i = 0; i < loaded_mesh.mesh.vertex_count; i++)
     {
-        __builtin_memcpy(&x, ptr, sizeof(int32_t));
+        __builtin_memcpy(&loaded_mesh.mesh.vertices[i].x.value, ptr, sizeof(int32_t));
         ptr += sizeof(int32_t);
 
-        __builtin_memcpy(&y, ptr, sizeof(int32_t));
+        __builtin_memcpy(&loaded_mesh.mesh.vertices[i].y.value, ptr, sizeof(int32_t));
         ptr += sizeof(int32_t);
 
-        __builtin_memcpy(&z, ptr, sizeof(int32_t));
+        __builtin_memcpy(&loaded_mesh.mesh.vertices[i].z.value, ptr, sizeof(int32_t));
         ptr += sizeof(int32_t);
-
-        loaded_mesh.mesh.vertices[i].x.value = x;
-        loaded_mesh.mesh.vertices[i].y.value = y;
-        loaded_mesh.mesh.vertices[i].z.value = z;
     }
 
     // read the verts paint data
@@ -104,18 +99,14 @@ psyqo::Coroutine<> MeshManager::LoadMeshFromCDROM(const char *meshName, MESH **m
 
     for (int i = 0; i < normal_count; i++)
     {
-        __builtin_memcpy(&x, ptr, sizeof(int16_t));
+        __builtin_memcpy(&loaded_mesh.mesh.normals[i].x.value, ptr, sizeof(int16_t));
         ptr += sizeof(int16_t);
 
-        __builtin_memcpy(&y, ptr, sizeof(int16_t));
+        __builtin_memcpy(&loaded_mesh.mesh.normals[i].y.value, ptr, sizeof(int16_t));
         ptr += sizeof(int16_t);
 
-        __builtin_memcpy(&z, ptr, sizeof(int16_t));
+        __builtin_memcpy(&loaded_mesh.mesh.normals[i].z.value, ptr, sizeof(int16_t));
         ptr += sizeof(int16_t);
-
-        loaded_mesh.mesh.normals[i].x.value = x;
-        loaded_mesh.mesh.normals[i].y.value = y;
-        loaded_mesh.mesh.normals[i].z.value = z;
     }
 
     size_t normal_indices_size = sizeof(INDEX) * loaded_mesh.mesh.indices_count;
@@ -140,35 +131,25 @@ psyqo::Coroutine<> MeshManager::LoadMeshFromCDROM(const char *meshName, MESH **m
     __builtin_memcpy(loaded_mesh.mesh.uv_indices, ptr, uv_indices_size);
     ptr += uv_indices_size;
 
-    int16_t aabbX, aabbY, aabbZ;
-
     // load min data
-    __builtin_memcpy(&aabbX, ptr, sizeof(int16_t));
+    __builtin_memcpy(&loaded_mesh.mesh.collisionBox.min.x.value, ptr, sizeof(int16_t));
     ptr += sizeof(int16_t);
 
-    __builtin_memcpy(&aabbY, ptr, sizeof(int16_t));
+    __builtin_memcpy(&loaded_mesh.mesh.collisionBox.min.y.value, ptr, sizeof(int16_t));
     ptr += sizeof(int16_t);
 
-    __builtin_memcpy(&aabbZ, ptr, sizeof(int16_t));
+    __builtin_memcpy(&loaded_mesh.mesh.collisionBox.min.z.value, ptr, sizeof(int16_t));
     ptr += sizeof(int16_t);
-
-    loaded_mesh.mesh.collisionBox.min.x.value = aabbX;
-    loaded_mesh.mesh.collisionBox.min.y.value = aabbY;
-    loaded_mesh.mesh.collisionBox.min.z.value = aabbZ;
 
     // load max data
-    __builtin_memcpy(&aabbX, ptr, sizeof(int16_t));
+    __builtin_memcpy(&loaded_mesh.mesh.collisionBox.max.x.value, ptr, sizeof(int16_t));
     ptr += sizeof(int16_t);
 
-    __builtin_memcpy(&aabbY, ptr, sizeof(int16_t));
+    __builtin_memcpy(&loaded_mesh.mesh.collisionBox.max.y.value, ptr, sizeof(int16_t));
     ptr += sizeof(int16_t);
 
-    __builtin_memcpy(&aabbZ, ptr, sizeof(int16_t));
+    __builtin_memcpy(&loaded_mesh.mesh.collisionBox.max.z.value, ptr, sizeof(int16_t));
     ptr += sizeof(int16_t);
-
-    loaded_mesh.mesh.collisionBox.max.x.value = aabbX;
-    loaded_mesh.mesh.collisionBox.max.y.value = aabbY;
-    loaded_mesh.mesh.collisionBox.max.z.value = aabbZ;
 
     // mark mesh as loaded
     loaded_mesh.is_loaded = true;
