@@ -10,6 +10,7 @@ char CDRomHelper::m_loadingFileName[MAX_CDROM_FILE_NAME_LEN];
 void CDRomHelper::init()
 {
     m_cdrom.prepare();
+    m_cdrom.reset();
 }
 
 // reads a file off of the cd rom into memory (most likely a file full of binary data)
