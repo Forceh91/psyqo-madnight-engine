@@ -74,6 +74,24 @@ public:
     MenuItem *AddMenuItem(const MenuItem &item);
     MenuItem *AddMenuItem(const char *name, const char *displayText, const psyqo::Rect posSize);
     void AddMenuItems(const eastl::span<MenuItem> &items);
+
+    uint8_t MoveSelectedMenuItemUp()
+    {
+        if (!m_isEnabled)
+            return m_currentSelectedMenuItem;
+
+        m_currentSelectedMenuItem = (m_currentSelectedMenuItem == 0) ? m_menuItems.size() - 1 : m_currentSelectedMenuItem - 1;
+        return m_currentSelectedMenuItem;
+    }
+
+    uint8_t MoveSelectedMenuItemDown()
+    {
+        if (!m_isEnabled)
+            return m_currentSelectedMenuItem;
+
+        m_currentSelectedMenuItem = (m_currentSelectedMenuItem + 1) % m_menuItems.size();
+        return m_currentSelectedMenuItem;
+    }
 };
 
 #endif
