@@ -1,5 +1,6 @@
 #include "gameplay.hh"
 #include "../render/renderer.hh"
+#include "../render/colour.hh"
 #include "../core/debug/debug_menu.hh"
 #include "../render/camera.hh"
 #include "../core/raycast.hh"
@@ -14,7 +15,6 @@ void GameplayScene::start(StartReason reason)
 
     m_heapSizeText = m_debugHUD.AddTextHUDElement(TextHUDElement("HEAP", {.pos = {5, 0}, .size = {100, 100}}));
     m_fpsText = m_debugHUD.AddTextHUDElement(TextHUDElement("FPS", {.pos = {5, 15}, .size = {100, 100}}));
-    m_cameraPosText = m_gameplayHUD.AddTextHUDElement(TextHUDElement("CAMERA_POS", {.pos = {5, 0}, .size = {100, 100}}));
 }
 
 void GameplayScene::frame()
@@ -61,9 +61,4 @@ void GameplayScene::frame()
 
         m_debugHUD.Render();
     }
-
-    char campos[GAMEPLAY_HUD_ELEMENT_MAX_STR_LEN];
-    snprintf(campos, GAMEPLAY_HUD_ELEMENT_MAX_STR_LEN, "Cam: %d,%d,%d", camPos.x, camPos.y, camPos.z);
-    m_cameraPosText->SetDisplayText(campos);
-    m_gameplayHUD.Render();
 }
