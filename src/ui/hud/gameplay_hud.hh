@@ -7,7 +7,7 @@
 #include "psyqo/vector.hh"
 #include "hud_defines.hh"
 #include "text_hud_element.hh"
-#include "sprite_hud_element.h"
+#include "sprite_hud_element.hh"
 
 /*
  * this is designed for you to create a dumb hud on top of your gameplay

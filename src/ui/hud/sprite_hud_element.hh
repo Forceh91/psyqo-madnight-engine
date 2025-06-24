@@ -13,6 +13,8 @@ class SpriteHUDElement final : public HUDElement
     psyqo::PrimPieces::UVCoords m_spriteUV;
 
 public:
+    SpriteHUDElement() : HUDElement("", {0, 0}) {};
+    SpriteHUDElement(const char *name, psyqo::Rect rect) : HUDElement(name, rect) {};
     SpriteHUDElement(const char *name, psyqo::Rect rect, const char *texture, psyqo::PrimPieces::UVCoords uv);
     void Render(const psyqo::Rect &parentRect);
 };

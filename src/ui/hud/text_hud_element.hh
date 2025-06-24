@@ -12,6 +12,7 @@ class TextHUDElement final : public HUDElement
     psyqo::Color m_colour = COLOUR_WHITE;
 
 public:
+    TextHUDElement() : HUDElement("", {0, 0}) {};
     TextHUDElement(const char *name, psyqo::Rect rect) : HUDElement(name, rect) {};
     TextHUDElement(const char *name, psyqo::Rect rect, psyqo::Color colour) : TextHUDElement(name, rect) { m_colour = colour; }
     void SetDisplayText(const char *displayText) { m_displayText = displayText; }

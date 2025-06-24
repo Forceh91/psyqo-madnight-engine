@@ -1,4 +1,4 @@
-#include "sprite_hud_element.h"
+#include "sprite_hud_element.hh"
 
 #include "text_hud_element.hh"
 #include "../../render/renderer.hh"
