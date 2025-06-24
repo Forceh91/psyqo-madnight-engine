@@ -2,6 +2,7 @@
 #define UI_MENU_MENU_ITEM_H
 
 #include <EASTL/fixed_string.h>
+#include <EASTL/span.h>
 #include "psyqo/primitives/common.hh"
 
 #include "menu_defines.hh"
@@ -18,6 +19,9 @@ class MenuItem
     SpriteHUDElement m_sprite = SpriteHUDElement("", {0, 0});
     TextHUDElement m_text = TextHUDElement("", {0, 0});
 
+    psyqo::Color m_defaultTextColour = COLOUR_WHITE;
+    psyqo::Color m_selectedTextColour = COLOUR_YELLOW;
+
 public:
     MenuItem(const char *name, psyqo::Rect posSizeRect)
     {
@@ -25,10 +29,17 @@ public:
         m_rect = posSizeRect;
     };
 
-    MenuItem(const char *name, psyqo::Rect posSizeRect, const char *text) : MenuItem(name, posSizeRect)
+    MenuItem(const char *name, const char *text, psyqo::Rect posSizeRect) : MenuItem(name, posSizeRect)
     {
         m_text = TextHUDElement("", {0, 0});
         m_text.SetDisplayText(text);
+        m_rect = posSizeRect;
+    };
+
+    MenuItem(const char *name, const char *text, psyqo::Rect posSizeRect, psyqo::Color defaultTextColour, psyqo::Color selectedTextColour) : MenuItem(name, text, posSizeRect)
+    {
+        m_defaultTextColour = defaultTextColour;
+        m_selectedTextColour = selectedTextColour;
     };
 
     ~MenuItem() = default;
@@ -39,7 +50,7 @@ public:
     void SetTextElement(const TextHUDElement &text) { m_text = text; }
     void SetText(const char *text) { m_text.SetDisplayText(text); }
     void SetTextColour(const psyqo::Color colour) { m_text.SetColour(colour); }
-    void Render(void);
+    void Render(const psyqo::Rect parentRect, const bool isSelected);
 };
 
 #endif

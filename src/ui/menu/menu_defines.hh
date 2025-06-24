@@ -9,5 +9,6 @@ static constexpr uint8_t MENU_MAX_NAME_LEN = 32;
 static constexpr uint8_t MENU_MAX_TEXT_ELEMENTS = 20;
 static constexpr uint8_t MENU_MAX_SPRITE_ELEMENTS = 50;
 static constexpr uint8_t MENU_MAX_TEXT_LEN = 255;
+static constexpr uint8_t MENU_MAX_MENU_ITEMS = 10;
 
 #endif
