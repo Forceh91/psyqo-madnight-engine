@@ -63,7 +63,7 @@ psyqo::Coroutine<> MadnightEngine::InitialLoad(void)
                                       {.name = "MODELS/STREET.MB", .type = LoadFileType::OBJECT}};
 
     // show loading screen
-    co_await HardLoadingScreen(eastl::move(queue));
+    co_await HardLoadingScreen(eastl::move(queue), &gameplayScene);
 
     // create a game object
     auto gameObject = GameObjectManager::CreateGameObject("STREET", {0, 0, 0}, {0, 0, 0}, GameObjectTag::ENVIRONMENT);
@@ -81,23 +81,17 @@ psyqo::Coroutine<> MadnightEngine::InitialLoad(void)
         gameObject2->SetMesh("MODELS/STREET.MB");
         gameObject2->SetTexture("TEXTURES/STREET.TIM");
     }
-
-    // regardless, switch to gameplay?
-    SwitchToGameplay();
 }
 
-psyqo::Coroutine<> MadnightEngine::HardLoadingScreen(eastl::vector<LoadQueue> &&files)
+psyqo::Coroutine<> MadnightEngine::HardLoadingScreen(eastl::vector<LoadQueue> &&files, psyqo::Scene *postLoadScene)
 {
     popScene();
     pushScene(&loadingScene);
 
     co_await loadingScene.LoadFiles(eastl::move(files), true);
-}
 
-void MadnightEngine::SwitchToGameplay(void)
-{
     popScene();
-    pushScene(&gameplayScene);
+    pushScene(postLoadScene);
 }
 
 int main() { return g_madnightEngine.run(); }

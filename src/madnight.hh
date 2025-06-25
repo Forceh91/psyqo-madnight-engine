@@ -15,15 +15,23 @@ class MadnightEngine final : public psyqo::Application
     void createScene() override;
 
     psyqo::Coroutine<> m_initialLoadRoutine;
-    psyqo::Coroutine<> InitialLoad(void);
-
-    // shows a loading screen and unloads all known meshes and textures
-    psyqo::Coroutine<> HardLoadingScreen(eastl::vector<LoadQueue> &&files);
-    void SwitchToGameplay(void);
 
 public:
     psyqo::Trig<> m_trig;
     psyqo::AdvancedPad m_input;
+
+    // shows a loading screen and unloads all known meshes and textures
+    // this will also unload the current scene, and start the requested scene fresh, so if you have
+    // stuff that occurs in startscene, you need to make sure you don't do it again
+    // as this will trigger a `Start` reason, and not `Resume`
+    psyqo::Coroutine<> HardLoadingScreen(eastl::vector<LoadQueue> &&files, psyqo::Scene *postLoadScene);
+
+    /*
+     * this is the very first thing that is called once the engine is initialized and ready
+     * for use. you can do whatever you want with this here. for example you can make use of `co_await HardLoadingScreen` in
+     * this function before you do whatever you need/want to do in your actual game code.
+     */
+    virtual psyqo::Coroutine<> InitialLoad(void);
 };
 
 extern MadnightEngine g_madnightEngine;

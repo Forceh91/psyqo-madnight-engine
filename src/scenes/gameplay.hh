@@ -7,6 +7,13 @@
 #include "../ui/hud/gameplay_hud.hh"
 #include "../ui/menu/menu.hh"
 
+/*
+ * the gameplay scene is an example scene that shows
+ * how to use various aspects of the renderer, debug menu,
+ * input events etc. etc.
+ * it will render all your gameobjects and textures via `Renderer::Render`
+ * you can build off of this scene or create your own
+ */
 class GameplayScene final : public psyqo::Scene
 {
     void start(StartReason reason) override;

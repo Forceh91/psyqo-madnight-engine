@@ -12,7 +12,6 @@ void Menu::start(StartReason startReason)
 void Menu::teardown(TearDownReason teardownReason)
 {
     g_madnightEngine.m_input.setOnEvent(nullptr);
-    m_outgoingScene = nullptr;
     m_shouldDeactivate = false;
 }
 
@@ -23,7 +22,7 @@ void Menu::frame(void)
 
     if (m_shouldDeactivate)
     {
-        Deactivate(m_outgoingScene);
+        Deactivate();
         return;
     }
 
@@ -44,17 +43,8 @@ void Menu::Activate()
     g_madnightEngine.pushScene(this);
 }
 
-void Menu::Deactivate(psyqo::Scene *sceneToMoveTo)
-{
-    m_isEnabled = false;
-    g_madnightEngine.popScene();
-}
-
 void Menu::Deactivate(void)
 {
-    // if (m_outgoingScene == nullptr)
-    //     return;
-
     m_isEnabled = false;
     g_madnightEngine.popScene();
 }

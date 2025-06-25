@@ -26,8 +26,6 @@ class Menu : public psyqo::Scene
     void teardown(TearDownReason reason) override;
     void frame() override;
 
-    psyqo::Scene *m_outgoingScene = nullptr;
-
     // this is potentially redundant
     bool m_isEnabled = false;
     bool m_shouldDeactivate = false;
@@ -59,10 +57,9 @@ public:
 
     ~Menu() = default;
 
+    // activate the menu
     void Activate(void);
-    // deactivate the menu and go into a scene of your choice
-    void Deactivate(psyqo::Scene *sceneToMoveTo);
-    // deactivate the menu and go back to the previous scene
+    // deactivate the menu and go back to the previous scene/menu/whatever
     void Deactivate();
 
     // will use defaults if not called
