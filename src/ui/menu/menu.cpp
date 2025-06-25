@@ -1,9 +1,31 @@
-#include "menu.hh"
 
-void Menu::Render(void)
+#include "menu.hh"
+#include "psyqo/xprintf.h"
+#include "../../madnight.hh"
+
+void Menu::start(StartReason startReason)
+{
+    g_madnightEngine.m_input.setOnEvent([&](auto event)
+                                        { ProcessInputs(event); });
+}
+
+void Menu::teardown(TearDownReason teardownReason)
+{
+    g_madnightEngine.m_input.setOnEvent(nullptr);
+    m_outgoingScene = nullptr;
+    m_shouldDeactivate = false;
+}
+
+void Menu::frame(void)
 {
     if (!m_isEnabled)
         return;
+
+    if (m_shouldDeactivate)
+    {
+        Deactivate(m_outgoingScene);
+        return;
+    }
 
     for (auto &text : m_textElements)
         text.Render(m_rect);
@@ -13,9 +35,46 @@ void Menu::Render(void)
 
     uint8_t i = 0;
     for (auto &menuItem : m_menuItems)
-    {
         menuItem.Render(m_rect, m_currentSelectedMenuItem == i++);
-    }
+}
+
+void Menu::Activate()
+{
+    m_isEnabled = true;
+    g_madnightEngine.pushScene(this);
+}
+
+void Menu::Deactivate(psyqo::Scene *sceneToMoveTo)
+{
+    m_isEnabled = false;
+    g_madnightEngine.popScene();
+}
+
+void Menu::Deactivate(void)
+{
+    // if (m_outgoingScene == nullptr)
+    //     return;
+
+    m_isEnabled = false;
+    g_madnightEngine.popScene();
+}
+
+void Menu::SetKeyBindings(const MenuKeyBinds &bindings)
+{
+    m_keyBindings = bindings;
+}
+
+void Menu::ProcessInputs(const psyqo::AdvancedPad::Event &event)
+{
+    if (event.type != m_keyBindings.onEventType.type || !m_isEnabled)
+        return;
+
+    if (event.button == m_keyBindings.menuItemNext)
+        MoveSelectedMenuItemNext();
+    if (event.button == m_keyBindings.menuItemPrev)
+        MoveSelectedMenuItemPrev();
+    if (event.button == m_keyBindings.menuItemBackCancel)
+        m_shouldDeactivate = true;
 }
 
 MenuItem *Menu::AddMenuItem(const char *name, const char *displayText, const psyqo::Rect posSize)

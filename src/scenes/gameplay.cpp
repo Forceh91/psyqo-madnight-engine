@@ -13,8 +13,30 @@ void GameplayScene::start(StartReason reason)
 {
     Renderer::Instance().StartScene();
 
+    g_madnightEngine.m_input.setOnEvent([&](auto event)
+                                        {
+                                            if (event.type != psyqo::AdvancedPad::Event::ButtonReleased) return;
+        if (event.button == psyqo::AdvancedPad::Button::Start) m_menu.Activate(); });
+
+    // the below only needs to happen if this was a freshly created scene
+    if (reason != StartReason::Create)
+        return;
+
     m_heapSizeText = m_debugHUD.AddTextHUDElement(TextHUDElement("HEAP", {.pos = {5, 0}, .size = {100, 100}}));
     m_fpsText = m_debugHUD.AddTextHUDElement(TextHUDElement("FPS", {.pos = {5, 15}, .size = {100, 100}}));
+
+    m_menu = Menu("PAUSE", {.pos = {160, 120}, .size = {100, 100}});
+
+    eastl::array<MenuItem, 2> items = {
+        MenuItem("RESUME", "Resume", {0, 0, 0, 0}),
+        MenuItem("QUIT", "Quit", {0, 15, 0, 0})};
+
+    m_menu.AddMenuItems(items);
+}
+
+void GameplayScene::teardown(TearDownReason reason)
+{
+    g_madnightEngine.m_input.setOnEvent(nullptr);
 }
 
 void GameplayScene::frame()

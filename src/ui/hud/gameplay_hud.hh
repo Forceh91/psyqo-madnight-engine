@@ -5,6 +5,8 @@
 #include <EASTL/vector.h>
 #include <EASTL/fixed_vector.h>
 #include "psyqo/vector.hh"
+#include "psyqo/xprintf.h"
+
 #include "hud_defines.hh"
 #include "text_hud_element.hh"
 #include "sprite_hud_element.hh"
