@@ -24,14 +24,6 @@ void GameplayScene::start(StartReason reason)
 
     m_heapSizeText = m_debugHUD.AddTextHUDElement(TextHUDElement("HEAP", {.pos = {5, 0}, .size = {100, 100}}));
     m_fpsText = m_debugHUD.AddTextHUDElement(TextHUDElement("FPS", {.pos = {5, 15}, .size = {100, 100}}));
-
-    m_menu = Menu("PAUSE", {.pos = {160, 120}, .size = {100, 100}});
-
-    eastl::array<MenuItem, 2> items = {
-        MenuItem("RESUME", "Resume", {0, 0, 0, 0}),
-        MenuItem("QUIT", "Quit", {0, 15, 0, 0})};
-
-    m_menu.AddMenuItems(items);
 }
 
 void GameplayScene::teardown(TearDownReason reason)

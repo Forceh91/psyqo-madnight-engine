@@ -49,9 +49,14 @@ void Menu::Deactivate(void)
     g_madnightEngine.popScene();
 }
 
-void Menu::SetKeyBindings(const MenuKeyBinds &bindings)
+void Menu::SetControllerBindings(const MenuControllerBinds &bindings)
 {
     m_keyBindings = bindings;
+}
+
+void Menu::SetCustomInputCallbackButtons(const eastl::array<psyqo::AdvancedPad::Button, 16> &customBindings)
+{
+    m_keyBindings.menuItemCustom = customBindings;
 }
 
 void Menu::ProcessInputs(const psyqo::AdvancedPad::Event &event)
@@ -63,6 +68,13 @@ void Menu::ProcessInputs(const psyqo::AdvancedPad::Event &event)
         MoveSelectedMenuItemNext();
     if (event.button == m_keyBindings.menuItemPrev)
         MoveSelectedMenuItemPrev();
+
+    if (event.button == m_keyBindings.menuItemConfirm)
+        m_menuItems[m_currentSelectedMenuItem].Confirm();
+
+    if (eastl::find(m_keyBindings.menuItemCustom.begin(), m_keyBindings.menuItemCustom.end(), event.button) != m_keyBindings.menuItemCustom.end())
+        m_menuItems[m_currentSelectedMenuItem].InputCallback(event.button);
+
     if (event.button == m_keyBindings.menuItemBackCancel)
         m_shouldDeactivate = true;
 }

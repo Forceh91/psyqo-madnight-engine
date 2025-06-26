@@ -11,7 +11,7 @@
 
 #include "menu_defines.hh"
 #include "menu_item.hh"
-#include "menu_keybinds.hh"
+#include "menu_controller_binds.hh"
 #include "../hud/text_hud_element.hh"
 #include "../hud/sprite_hud_element.hh"
 
@@ -37,7 +37,7 @@ class Menu : public psyqo::Scene
     eastl::fixed_vector<MenuItem, MENU_MAX_MENU_ITEMS, false> m_menuItems;
     uint8_t m_currentSelectedMenuItem = 0;
 
-    MenuKeyBinds m_keyBindings = {
+    MenuControllerBinds m_keyBindings = {
         .onEventType = psyqo::AdvancedPad::Event::ButtonReleased,
         .menuItemNext = psyqo::AdvancedPad::Button::Down,
         .menuItemPrev = psyqo::AdvancedPad::Button::Up,
@@ -63,7 +63,12 @@ public:
     void Deactivate();
 
     // will use defaults if not called
-    void SetKeyBindings(const MenuKeyBinds &bindings);
+    void SetControllerBindings(const MenuControllerBinds &bindings);
+
+    // Optional: override only the buttons that trigger menu item input callbacks.
+    // useful if you want default up/down/confirm/cancel, but custom triggers for certain items.
+    // just try not to duplicate buttons already in use by default such as up/down/cross/triangle
+    void SetCustomInputCallbackButtons(const eastl::array<psyqo::AdvancedPad::Button, 16> &customBindings);
 
     // dont lose track of the hud element!
     TextHUDElement *AddTextHUDElement(TextHUDElement &&textElement)
