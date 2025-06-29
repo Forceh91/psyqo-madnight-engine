@@ -59,8 +59,11 @@ void MadnightEngine::createScene()
 
 psyqo::Coroutine<> MadnightEngine::InitialLoad(void)
 {
-    eastl::vector<LoadQueue> queue = {{.name = "TEXTURES/STREET.TIM", .type = LoadFileType::TEXTURE, .x = 320, .y = 0, .clutX = 0, .clutY = 240},
-                                      {.name = "MODELS/STREET.MB", .type = LoadFileType::OBJECT}};
+    eastl::vector<LoadQueue> queue = {
+        {.name = "TEXTURES/STREET.TIM", .type = LoadFileType::TEXTURE, .x = 320, .y = 0, .clutX = 0, .clutY = 240},
+        {.name = "MODELS/STREET.MB", .type = LoadFileType::OBJECT},
+        {.name = "SFX/TETRIS.MOD", .type = LoadFileType::MOD_FILE},
+    };
 
     // show loading screen
     co_await HardLoadingScreen(eastl::move(queue), &gameplayScene);

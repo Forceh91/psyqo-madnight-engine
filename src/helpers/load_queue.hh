@@ -7,7 +7,8 @@
 enum LoadFileType
 {
     OBJECT,
-    TEXTURE
+    TEXTURE,
+    MOD_FILE
 };
 
 typedef struct _LOAD_QUEUE

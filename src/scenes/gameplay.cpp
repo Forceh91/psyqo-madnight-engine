@@ -6,6 +6,7 @@
 #include "../core/raycast.hh"
 #include "../core/collision.hh"
 #include "../core/object/gameobject_manager.hh"
+#include "../sound/sound_manager.hh"
 #include "psyqo/alloc.h"
 #include "psyqo/xprintf.h"
 
@@ -15,8 +16,16 @@ void GameplayScene::start(StartReason reason)
 
     g_madnightEngine.m_input.setOnEvent([&](auto event)
                                         {
-                                            if (event.type != psyqo::AdvancedPad::Event::ButtonReleased) return;
-        if (event.button == psyqo::AdvancedPad::Button::Start) m_menu.Activate(); });
+                                            if (event.type != psyqo::AdvancedPad::Event::ButtonReleased)
+                                                return;
+                                            if (event.button == psyqo::AdvancedPad::Button::Start)
+                                                m_menu.Activate();
+                                            if (event.button == psyqo::AdvancedPad::Button::Up)
+                                                SoundManager::PlaySoundEffect(4, 28, 30, 63);
+                                            if (event.button == psyqo::AdvancedPad::Button::L2)
+                                                SoundManager::PlayMusic();
+                                            if (event.button == psyqo::AdvancedPad::Button::R2)
+                                                SoundManager::PauseMusic(); });
 
     // the below only needs to happen if this was a freshly created scene
     if (reason != StartReason::Create)

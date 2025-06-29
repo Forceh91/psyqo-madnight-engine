@@ -66,6 +66,11 @@
 				<file name="STREET.TIM" type="data" source="assets/residential_street.tim"/>
 			</dir>
 
+			<!-- sounds -->
+			<dir name="SFX">
+				<file name="TETRIS.MOD" type="data" source="assets/musix-oh-amiga-with-effects.hit"/>
+			</dir>
+
 			<dummy sectors="1024"/>
 		</directory_tree>
 	</track>

@@ -6,6 +6,7 @@ TYPE = ps-exe
 
 # Source files (recursive find)
 SRCS := $(shell find src -name '*.cpp')
+SRCS += third_party/nugget/modplayer/modplayer.c
 
 # C++ standard
 CXXFLAGS = -std=c++20
