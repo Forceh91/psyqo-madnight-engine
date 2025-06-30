@@ -44,6 +44,8 @@ void GameplayScene::frame()
 {
     auto &renderInstance = Renderer::Instance();
     uint32_t deltaTime = renderInstance.Process();
+    if (deltaTime == 0)
+        return;
 
     // process camera inputs
     CameraManager::process(deltaTime);
