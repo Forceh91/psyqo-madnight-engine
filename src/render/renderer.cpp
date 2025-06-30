@@ -114,6 +114,7 @@ void Renderer::Render(void)
 
     // now for each object...
     uint16_t quadFragment = 0;
+    uint32_t mac0 = 0, zIndex = 0;
     for (auto &gameObject : gameObjects)
     {
         // dont overflow our quads/faces/whatever
@@ -174,7 +175,7 @@ void Renderer::Render(void)
             psyqo::GTE::Kernels::nclip();
 
             // read the result of this and skip rendering if its backfaced
-            uint32_t mac0 = 0;
+            mac0 = 0;
             psyqo::GTE::read<psyqo::GTE::Register::MAC0>(reinterpret_cast<uint32_t *>(&mac0));
             if (mac0 <= 0)
                 continue;
@@ -188,11 +189,11 @@ void Renderer::Render(void)
 
             // average z index for ordering
             psyqo::GTE::Kernels::avsz4();
-            uint32_t z_index = 0;
-            psyqo::GTE::read<psyqo::GTE::Register::OTZ>(reinterpret_cast<uint32_t *>(&z_index));
+            zIndex = 0;
+            psyqo::GTE::read<psyqo::GTE::Register::OTZ>(reinterpret_cast<uint32_t *>(&zIndex));
 
             // make sure we dont go out of bounds
-            if (z_index <= 0 || z_index >= ORDERING_TABLE_SIZE)
+            if (zIndex <= 0 || zIndex >= ORDERING_TABLE_SIZE)
                 continue;
 
             // get the three remaining verts from the GTE
@@ -248,7 +249,7 @@ void Renderer::Render(void)
             quad.primitive.setOpaque();
 
             // insert the quad fragment into the ordering table at the calculated z index
-            ot.insert(quad, z_index);
+            ot.insert(quad, zIndex);
 
             // increase what quad fragment we're on now
             quadFragment++;

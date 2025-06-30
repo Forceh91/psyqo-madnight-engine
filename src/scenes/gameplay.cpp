@@ -51,9 +51,6 @@ void GameplayScene::frame()
     // process debug menu
     DebugMenu::Process();
 
-    // the central point for rendering gameobjects etc
-    renderInstance.Render();
-
     auto camPos = CameraManager::get_pos();
 
     // raycast
@@ -68,6 +65,9 @@ void GameplayScene::frame()
     // auto objects = GameObjectManager::GetGameObjectsWithTag(GameObjectTag::ENVIRONMENT);
     // bool collision = Collision::IsSATCollision(objects[0]->obb(), objects[1]->obb());
     // printf("collision=%d\n", collision);
+
+    // the central point for rendering gameobjects etc
+    renderInstance.Render();
 
     if (DebugMenu::IsEnabled())
         return;
