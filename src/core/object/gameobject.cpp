@@ -19,6 +19,7 @@ void GameObject::Destroy(void)
     m_rotationMatrix = {0};
     m_obb = {0};
     m_collisionType = CollisionType::SOLID;
+    m_id = INVALID_GAMEOBJECT_ID;
 }
 
 void GameObject::SetMesh(const char *meshName)

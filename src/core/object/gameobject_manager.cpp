@@ -10,7 +10,7 @@ GameObject *GameObjectManager::CreateGameObject(const char *name, psyqo::Vec3 po
         return nullptr;
 
     // we do, lets create a new instance and add it
-    m_gameObjects[freeIx] = GameObject(name, pos, rotation, tag);
+    m_gameObjects[freeIx] = GameObject(name, pos, rotation, tag, freeIx);
     return &m_gameObjects[freeIx];
 }
 
@@ -38,11 +38,12 @@ eastl::vector<GameObject *> GameObjectManager::GetGameObjects(void)
 
     for (uint8_t i = 0; i < MAX_GAME_OBJECTS; i++)
     {
-        if (!m_gameObjects.at(i).name().empty())
+        // if (!m_gameObjects.at(i).name().empty())
+        if (m_gameObjects.at(i).id() != INVALID_GAMEOBJECT_ID)
             activeGameObjects.push_back(&m_gameObjects.at(i));
     };
 
-    return eastl::move(activeGameObjects);
+    return activeGameObjects;
 }
 
 eastl::vector<GameObject *> GameObjectManager::GetGameObjectsWithTag(GameObjectTag tag)
@@ -52,7 +53,7 @@ eastl::vector<GameObject *> GameObjectManager::GetGameObjectsWithTag(GameObjectT
 
     for (uint8_t i = 0; i < MAX_GAME_OBJECTS; i++)
     {
-        if (!m_gameObjects.at(i).name().empty() && m_gameObjects.at(i).tag() == tag)
+        if (/*!m_gameObjects.at(i).name().empty()*/ m_gameObjects.at(i).id() != INVALID_GAMEOBJECT_ID && m_gameObjects.at(i).tag() == tag)
             gameObjectsWithTag.push_back(&m_gameObjects.at(i));
     };
 

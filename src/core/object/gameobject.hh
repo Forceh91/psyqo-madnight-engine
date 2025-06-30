@@ -12,6 +12,8 @@
 #include "../../mesh/mesh_manager.hh"
 #include "../collision_types.hh"
 
+static constexpr uint8_t INVALID_GAMEOBJECT_ID = 255;
+
 enum GameObjectQuadType
 {
     Quad,
@@ -28,6 +30,7 @@ typedef struct _GAMEOBJECT_ROTATION
 class GameObject final
 {
     eastl::fixed_string<char, MAX_CDROM_FILE_NAME_LEN> m_name = "";
+    uint8_t m_id = INVALID_GAMEOBJECT_ID;
     GameObjectQuadType m_quadType = GameObjectQuadType::Quad;
     GameObjectTag m_tag = GameObjectTag::NONE;
     psyqo::Vec3 m_pos = {0, 0, 0};
@@ -44,18 +47,20 @@ class GameObject final
 
 public:
     GameObject() = default;
-    GameObject(const char *name, psyqo::Vec3 pos, GameObjectRotation rotation, GameObjectTag tag)
+    GameObject(const char *name, psyqo::Vec3 pos, GameObjectRotation rotation, GameObjectTag tag, uint8_t id)
     {
         m_name = name;
         m_pos = pos;
         m_rotation = rotation;
         m_tag = tag;
+        m_id = id;
 
         GenerateRotationMatrix();
     };
     void Destroy(void);
 
     const eastl::fixed_string<char, MAX_CDROM_FILE_NAME_LEN> &name() { return m_name; }
+    const uint8_t &id() { return m_id; };
     const psyqo::Vec3 &pos() const { return m_pos; }
     const GameObjectRotation &rotation() const { return m_rotation; }
     const psyqo::Matrix33 &rotationMatrix() const { return m_rotationMatrix; }
