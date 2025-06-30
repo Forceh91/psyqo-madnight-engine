@@ -60,12 +60,12 @@ public:
     void Destroy(void);
 
     const eastl::fixed_string<char, MAX_CDROM_FILE_NAME_LEN> &name() { return m_name; }
-    const uint8_t &id() { return m_id; };
+    const uint8_t &id() const { return m_id; };
     const psyqo::Vec3 &pos() const { return m_pos; }
     const GameObjectRotation &rotation() const { return m_rotation; }
     const psyqo::Matrix33 &rotationMatrix() const { return m_rotationMatrix; }
     const MESH *mesh() const { return m_mesh; }
-    const TimFile *texture() { return m_texture; }
+    const TimFile *texture() const { return m_texture; }
     const GameObjectTag &tag() { return m_tag; }
     const GameObjectQuadType &quadType() { return m_quadType; }
     const OBB &obb() { return m_obb; }

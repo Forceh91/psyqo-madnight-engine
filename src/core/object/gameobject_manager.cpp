@@ -1,6 +1,7 @@
 #include "gameobject_manager.hh"
 
 eastl::array<GameObject, MAX_GAME_OBJECTS> GameObjectManager::m_gameObjects;
+eastl::fixed_vector<GameObject *, MAX_GAME_OBJECTS> GameObjectManager::m_activeGameObjects;
 
 GameObject *GameObjectManager::CreateGameObject(const char *name, psyqo::Vec3 pos, GameObjectRotation rotation, GameObjectTag tag)
 {
@@ -31,33 +32,33 @@ void GameObjectManager::DestroyGameObject(GameObject *object)
         object->Destroy();
 }
 
-eastl::vector<GameObject *> GameObjectManager::GetGameObjects(void)
+const eastl::fixed_vector<GameObject *, MAX_GAME_OBJECTS> &GameObjectManager::GetActiveGameObjects(void)
 {
-    // get all game objects that are actually initialized
-    eastl::vector<GameObject *> activeGameObjects;
+    m_activeGameObjects.clear();
 
+    // get all game objects that are actually initialized
     for (uint8_t i = 0; i < MAX_GAME_OBJECTS; i++)
     {
         // if (!m_gameObjects.at(i).name().empty())
         if (m_gameObjects.at(i).id() != INVALID_GAMEOBJECT_ID)
-            activeGameObjects.push_back(&m_gameObjects.at(i));
+            m_activeGameObjects.push_back(&m_gameObjects.at(i));
     };
 
-    return activeGameObjects;
+    return m_activeGameObjects;
 }
 
-eastl::vector<GameObject *> GameObjectManager::GetGameObjectsWithTag(GameObjectTag tag)
+const eastl::fixed_vector<GameObject *, MAX_GAME_OBJECTS> &GameObjectManager::GetGameObjectsWithTag(GameObjectTag tag)
 {
-    // get all game objects that are actually initialized
-    eastl::vector<GameObject *> gameObjectsWithTag;
+    m_activeGameObjects.clear();
 
+    // get all game objects that are actually initialized
     for (uint8_t i = 0; i < MAX_GAME_OBJECTS; i++)
     {
         if (/*!m_gameObjects.at(i).name().empty()*/ m_gameObjects.at(i).id() != INVALID_GAMEOBJECT_ID && m_gameObjects.at(i).tag() == tag)
-            gameObjectsWithTag.push_back(&m_gameObjects.at(i));
+            m_activeGameObjects.push_back(&m_gameObjects.at(i));
     };
 
-    return eastl::move(gameObjectsWithTag);
+    return m_activeGameObjects;
 }
 
 GameObject *GameObjectManager::GetGameObjectByName(const char *name)

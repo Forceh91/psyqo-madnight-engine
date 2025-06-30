@@ -104,17 +104,22 @@ void Renderer::Render(void)
     m_gpu.chain(clear);
 
     // get game objects. if there's nothing to render then just early return
-    auto gameObjects = GameObjectManager::GetGameObjects();
+    const auto &gameObjects = GameObjectManager::GetActiveGameObjects();
     if (gameObjects.empty())
         return;
 
-    // TODO: make use of `gpu.pumpCallbacks` at some point in here
+    // make use of `gpu.pumpCallbacks` at some point in here
     // so that the gpu timers, and subsequently the modplayer
     // are able to get their timer ticks fired off on time
+    // rendering the objects will be the most expensive part of the rendering
+    m_gpu.pumpCallbacks();
 
     // now for each object...
     uint16_t quadFragment = 0;
     uint32_t mac0 = 0, zIndex = 0;
+    psyqo::PrimPieces::ClutIndex clut(0, 0);
+    psyqo::PrimPieces::TPageAttr tpage;
+    psyqo::Rect offset = {0};
     for (auto &gameObject : gameObjects)
     {
         // dont overflow our quads/faces/whatever
@@ -145,17 +150,20 @@ void Renderer::Render(void)
         auto mesh = gameObject->mesh();
 
         // we only need to know these once, not every verex
+        // if its not a nullptr fill out some data so we don't have to do it every face
+        // NOTE: the nullptr check here is a free 0.2ms if you want it but it really should be done
         auto texture = gameObject->texture();
+        if (texture != nullptr)
+        {
+            // default to no clut unless the texture says we have one
+            if (texture->hasClut)
+                clut = psyqo::PrimPieces::ClutIndex(texture->clutX, texture->clutY);
 
-        // default to no clut unless the texture says we have one
-        psyqo::PrimPieces::ClutIndex clut(0, 0);
-        if (texture->hasClut)
-            clut = psyqo::PrimPieces::ClutIndex(texture->clutX, texture->clutY);
-
-        // get the tpage and uv offset info
-        auto tpage = TextureManager::GetTPageAttr(*texture);
-        auto offset = TextureManager::GetTPageUVForTim(*texture);
-        offset.pos.y += (texture->height - 1);
+            // get the tpage and uv offset info
+            tpage = TextureManager::GetTPageAttr(*texture);
+            offset = TextureManager::GetTPageUVForTim(*texture);
+            offset.pos.y += (texture->height - 1);
+        }
 
         for (int i = 0; i < mesh->faces_num; i++)
         {
