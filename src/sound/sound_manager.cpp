@@ -4,6 +4,7 @@
 
 ModSoundFile SoundManager::m_currentSoundFile = {"", 0, false};
 unsigned SoundManager::m_musicTimer = 0;
+uint16_t SoundManager::m_musicVolume = DEFAULT_MUSIC_VOLUME;
 
 psyqo::Coroutine<> SoundManager::LoadMODSoundFromCDRom(const char *modSoundFileName, ModSoundFile **modSoundFileOut)
 {
@@ -53,7 +54,14 @@ void SoundManager::PlayNote(uint32_t voiceID, uint32_t sampleID, uint32_t note, 
 
 void SoundManager::PlayMusic(void)
 {
-    // this will start playing the music in the mod file that was uploaded.
+    PlayMusic(m_musicVolume);
+}
+
+void SoundManager::PlayMusic(uint16_t volume)
+{
+    SetMusicVolume(volume);
+
+    // this will start playing the music in the mod file that was put into the SPU
     auto &gpu = Renderer::Instance().GPU();
     m_musicTimer = gpu.armPeriodicTimer(MOD_hblanks * psyqo::GPU::US_PER_HBLANK, [&](uint32_t)
                                         {
@@ -64,19 +72,22 @@ void SoundManager::PlayMusic(void)
         gpu.changeTimerPeriod(m_musicTimer, MOD_hblanks * psyqo::GPU::US_PER_HBLANK); });
 }
 
-void SoundManager::PlayMusic(uint32_t volume)
-{
-    MOD_SetMusicVolume(volume);
-    PlayMusic();
-}
-
-void SoundManager::PauseMusic()
+void SoundManager::PauseMusic(void)
 {
     auto &gpu = Renderer::Instance().GPU();
     gpu.cancelTimer(m_musicTimer);
-};
+    MOD_SetMusicVolume(0);
+}
 
-void SoundManager::SetMusicVolume(uint32_t volume)
+void SoundManager::StopMusic(void)
 {
-    MOD_SetMusicVolume(volume);
+    auto &gpu = Renderer::Instance().GPU();
+    gpu.cancelTimer(m_musicTimer);
+    MOD_Silence();
+}
+
+void SoundManager::SetMusicVolume(uint16_t volume)
+{
+    m_musicVolume = volume;
+    MOD_SetMusicVolume(m_musicVolume);
 }

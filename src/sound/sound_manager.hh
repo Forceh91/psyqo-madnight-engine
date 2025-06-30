@@ -5,10 +5,14 @@
 #include "sound.hh"
 #include "psyqo/coroutine.hh"
 
+static constexpr uint16_t MAX_MUSIC_VOLUME = 65535;
+static constexpr uint16_t DEFAULT_MUSIC_VOLUME = 16384;
+
 class SoundManager final
 {
     static ModSoundFile m_currentSoundFile;
     static unsigned m_musicTimer;
+    static uint16_t m_musicVolume;
 
 public:
     // this will find a .MOD format file on the CD ROM, given the dir/name.ext format, and load it directly into the SPU
@@ -26,13 +30,17 @@ public:
     static void PlaySoundEffect(uint32_t channel, uint32_t sampleID, int32_t pitch, uint32_t volume);
     // see `MOD_PlayNote` on the best way to use this
     static void PlayNote(uint32_t voiceID, uint32_t sampleID, uint32_t note, int16_t volume);
-    // plays the music in the MOD file using GPU timers/`MOD_Poll`
-    static void PlayMusic();
-    static void PlayMusic(uint32_t volume);
+    // plays the music in the MOD file using GPU timers/`MOD_Poll`, resets volume to
+    // what was previously set via either `PlayMusic(volume)` or `SetMusicVolume`
+    static void PlayMusic(void);
+    // plays the music in the MOD file using GPU timers/`MOD_Poll` whilst setting volume
+    static void PlayMusic(uint16_t volume);
     // pauses the music in the MOD file. if you want to switch to a new track then you simply just `LoadMODSoundFromCDRom` again
-    static void PauseMusic();
+    static void PauseMusic(void);
+    // stops the music completely
+    static void StopMusic(void);
     // see `MOD_SetMusicVolme` on the best way to use this
-    static void SetMusicVolume(uint32_t volume);
+    static void SetMusicVolume(uint16_t volume);
 };
 
 #endif
