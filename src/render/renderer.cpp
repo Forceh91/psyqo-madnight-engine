@@ -5,6 +5,7 @@
 
 #include "../core/debug/debug_menu.hh"
 #include "../core/object/gameobject_manager.hh"
+#include "../math/gte-math.hh"
 
 #include "psyqo/gte-kernels.hh"
 #include "psyqo/gte-registers.hh"
@@ -52,7 +53,7 @@ void Renderer::StartScene(void)
 /* this must be called at the start of each frame */
 uint32_t Renderer::Process(void)
 {
-    uint32_t beginFrameTimestamp = m_gpu.now(), currentFrameCount = m_gpu.getFrameCount();
+    uint32_t currentFrameCount = m_gpu.getFrameCount();
 
     // figure out delta time (last frame count minus current frame count)
     uint32_t deltaTime = currentFrameCount - m_lastFrameCounter;
@@ -107,6 +108,10 @@ void Renderer::Render(void)
     if (gameObjects.empty())
         return;
 
+    // TODO: make use of `gpu.pumpCallbacks` at some point in here
+    // so that the gpu timers, and subsequently the modplayer
+    // are able to get their timer ticks fired off on time
+
     // now for each object...
     uint16_t quadFragment = 0;
     for (auto &gameObject : gameObjects)
@@ -128,14 +133,29 @@ void Renderer::Render(void)
 
         // get the rotation matrix for the game object and then combine with the camera rotations
         psyqo::Matrix33 finalMatrix = {0};
-        psyqo::SoftMath::multiplyMatrix33(gameObject->rotationMatrix(), CameraManager::get_rotation_matrix(), &finalMatrix);
+        GTEMath::MultiplyMatrix33(CameraManager::get_rotation_matrix(), gameObject->rotationMatrix(), &finalMatrix);
 
         // write the object position and final matrix to the GTE
         psyqo::GTE::writeSafe<psyqo::GTE::PseudoRegister::Translation>(objectPos);
         psyqo::GTE::writeSafe<psyqo::GTE::PseudoRegister::Rotation>(finalMatrix);
 
         // now we've done all this we can render the mesh and apply texture (if needed)
+        // we dont need to get texture data for every single vert since it wont change, so lets only do that once
         auto mesh = gameObject->mesh();
+
+        // we only need to know these once, not every verex
+        auto texture = gameObject->texture();
+
+        // default to no clut unless the texture says we have one
+        psyqo::PrimPieces::ClutIndex clut(0, 0);
+        if (texture->hasClut)
+            clut = psyqo::PrimPieces::ClutIndex(texture->clutX, texture->clutY);
+
+        // get the tpage and uv offset info
+        auto tpage = TextureManager::GetTPageAttr(*texture);
+        auto offset = TextureManager::GetTPageUVForTim(*texture);
+        offset.pos.y += (texture->height - 1);
+
         for (int i = 0; i < mesh->faces_num; i++)
         {
             // dont overflow our quads/faces/whatever
@@ -193,28 +213,30 @@ void Renderer::Render(void)
             quad.primitive.pointD = projected[3];
 
             // set its tpage
-            auto texture = gameObject->texture();
             if (texture != nullptr)
             {
-                quad.primitive.tpage = TextureManager::GetTPageAttr(*texture);
+                quad.primitive.tpage = tpage;
 
                 // set its clut if it has one
                 if (texture->hasClut)
-                {
-                    psyqo::PrimPieces::ClutIndex clut(texture->clutX, texture->clutY);
                     quad.primitive.clutIndex = clut;
-                }
 
                 // set its uv coords
-                psyqo::Rect offset = TextureManager::GetTPageUVForTim(*texture);
-                quad.primitive.uvA.u = offset.pos.x + mesh->uvs[mesh->uv_indices[i].v0].u;
-                quad.primitive.uvA.v = offset.pos.y + (texture->height - 1 - mesh->uvs[mesh->uv_indices[i].v0].v);
-                quad.primitive.uvB.u = offset.pos.x + mesh->uvs[mesh->uv_indices[i].v1].u;
-                quad.primitive.uvB.v = offset.pos.y + (texture->height - 1 - mesh->uvs[mesh->uv_indices[i].v1].v);
-                quad.primitive.uvC.u = offset.pos.x + mesh->uvs[mesh->uv_indices[i].v2].u;
-                quad.primitive.uvC.v = offset.pos.y + (texture->height - 1 - mesh->uvs[mesh->uv_indices[i].v2].v);
-                quad.primitive.uvD.u = offset.pos.x + mesh->uvs[mesh->uv_indices[i].v3].u;
-                quad.primitive.uvD.v = offset.pos.y + (texture->height - 1 - mesh->uvs[mesh->uv_indices[i].v3].v);
+                auto uvA = mesh->uvs[mesh->uv_indices[i].v0];
+                quad.primitive.uvA.u = offset.pos.x + uvA.u;
+                quad.primitive.uvA.v = offset.pos.y - uvA.v;
+
+                auto uvB = mesh->uvs[mesh->uv_indices[i].v1];
+                quad.primitive.uvB.u = offset.pos.x + uvB.u;
+                quad.primitive.uvB.v = offset.pos.y - uvB.v;
+
+                auto uvC = mesh->uvs[mesh->uv_indices[i].v2];
+                quad.primitive.uvC.u = offset.pos.x + uvC.u;
+                quad.primitive.uvC.v = offset.pos.y - uvC.v;
+
+                auto uvD = mesh->uvs[mesh->uv_indices[i].v3];
+                quad.primitive.uvD.u = offset.pos.x + uvD.u;
+                quad.primitive.uvD.v = offset.pos.y - uvD.v;
             }
 
             // set its colour, and make it opaque
