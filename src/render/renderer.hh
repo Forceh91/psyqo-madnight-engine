@@ -38,7 +38,7 @@ class Renderer final
     Renderer(psyqo::GPU &gpuInstance) : m_gpu(gpuInstance) {};
     ~Renderer() {};
 
-    psyqo::Vec3 SetupCamera(void);
+    psyqo::Vec3 SetupCamera(const psyqo::Matrix33 &camRotationMatrix, const psyqo::Vec3 &negativeCamPos);
 
 public:
     static void Init(psyqo::GPU &gpuInstance);

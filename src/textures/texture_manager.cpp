@@ -183,6 +183,14 @@ psyqo::Coroutine<> TextureManager::LoadTIMFromCDRom(const char *textureName, uin
     printf("TEXTURE: Successfully loaded texture of %d bytes into VRAM.\n", size);
 }
 
+psyqo::PrimPieces::TPageAttr TextureManager::GetTPageAttr(const TimFile *tim)
+{
+    psyqo::PrimPieces::TPageAttr tpage;
+    tpage.setPageX(tim->x / texturePageWidth).setPageY(tim->y / texturePageHeight).enableDisplayArea().setDithering(true).set(tim->colourMode);
+
+    return tpage;
+};
+
 psyqo::PrimPieces::TPageAttr TextureManager::GetTPageAttr(const TimFile &tim)
 {
     psyqo::PrimPieces::TPageAttr tpage;
@@ -195,6 +203,13 @@ psyqo::Rect TextureManager::GetTPageUVForTim(const TimFile &tim)
 {
     uint16_t tpageX = (tim.x / texturePageWidth) * texturePageWidth, tpageY = (tim.y / texturePageHeight) * texturePageHeight;
     psyqo::Rect rect = {.pos{(tim.x - tpageX), (tim.y - tpageY)}};
+    return rect;
+}
+
+psyqo::Rect TextureManager::GetTPageUVForTim(const TimFile *tim)
+{
+    uint16_t tpageX = (tim->x / texturePageWidth) * texturePageWidth, tpageY = (tim->y / texturePageHeight) * texturePageHeight;
+    psyqo::Rect rect = {.pos{(tim->x - tpageX), (tim->y - tpageY)}};
     return rect;
 }
 

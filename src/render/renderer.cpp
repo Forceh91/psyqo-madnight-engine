@@ -11,6 +11,7 @@
 #include "psyqo/gte-registers.hh"
 #include "psyqo/soft-math.hh"
 #include "psyqo/primitives/control.hh"
+#include "psyqo/xprintf.h"
 
 Renderer *Renderer::m_instance = nullptr;
 psyqo::Font<> Renderer::m_kromFont;
@@ -70,7 +71,7 @@ uint32_t Renderer::Process(void)
     return deltaTime;
 }
 
-psyqo::Vec3 Renderer::SetupCamera(void)
+psyqo::Vec3 Renderer::SetupCamera(const psyqo::Matrix33 &camRotationMatrix, const psyqo::Vec3 &negativeCamPos)
 {
     // clear TRX/Y/Z safely
     psyqo::GTE::clear<psyqo::GTE::Register::TRX, psyqo::GTE::Safe>();
@@ -78,8 +79,8 @@ psyqo::Vec3 Renderer::SetupCamera(void)
     psyqo::GTE::clear<psyqo::GTE::Register::TRZ, psyqo::GTE::Safe>();
 
     // rotate camera translation vector by the camera rotation (matrix)
-    psyqo::GTE::writeSafe<psyqo::GTE::PseudoRegister::Rotation>(CameraManager::get_rotation_matrix());
-    psyqo::GTE::writeSafe<psyqo::GTE::PseudoRegister::V0>(-CameraManager::get_pos());
+    psyqo::GTE::writeSafe<psyqo::GTE::PseudoRegister::Rotation>(camRotationMatrix);
+    psyqo::GTE::writeSafe<psyqo::GTE::PseudoRegister::V0>(negativeCamPos);
 
     // multiply vector by matrix and add vector
     psyqo::GTE::Kernels::mvmva<psyqo::GTE::Kernels::MX::RT, psyqo::GTE::Kernels::MV::V0, psyqo::GTE::Kernels::TV::TR>();
@@ -114,20 +115,24 @@ void Renderer::Render(void)
     // rendering the objects will be the most expensive part of the rendering
     m_gpu.pumpCallbacks();
 
+    // some camera pos/rotation data
+    auto &cameraRotationMatrix = CameraManager::get_rotation_matrix();
+    auto negativeCamPos = -CameraManager::get_pos();
+
     // now for each object...
     uint16_t quadFragment = 0;
     uint32_t mac0 = 0, zIndex = 0;
     psyqo::PrimPieces::ClutIndex clut(0, 0);
     psyqo::PrimPieces::TPageAttr tpage;
     psyqo::Rect offset = {0};
-    for (auto &gameObject : gameObjects)
+    for (const auto &gameObject : gameObjects)
     {
         // dont overflow our quads/faces/whatever
         if (quadFragment >= QUAD_FRAGMENT_SIZE)
             break;
 
         // setup camera
-        auto cameraPos = SetupCamera();
+        auto cameraPos = SetupCamera(cameraRotationMatrix, negativeCamPos);
 
         // rotate the object translation vector by the camera rotation
         psyqo::GTE::writeSafe<psyqo::GTE::PseudoRegister::V0>(gameObject->pos());
@@ -139,20 +144,20 @@ void Renderer::Render(void)
 
         // get the rotation matrix for the game object and then combine with the camera rotations
         psyqo::Matrix33 finalMatrix = {0};
-        GTEMath::MultiplyMatrix33(CameraManager::get_rotation_matrix(), gameObject->rotationMatrix(), &finalMatrix);
+        GTEMath::MultiplyMatrix33(cameraRotationMatrix, gameObject->rotationMatrix(), &finalMatrix);
 
         // write the object position and final matrix to the GTE
         psyqo::GTE::writeSafe<psyqo::GTE::PseudoRegister::Translation>(objectPos);
         psyqo::GTE::writeSafe<psyqo::GTE::PseudoRegister::Rotation>(finalMatrix);
 
         // now we've done all this we can render the mesh and apply texture (if needed)
-        // we dont need to get texture data for every single vert since it wont change, so lets only do that once
-        auto mesh = gameObject->mesh();
+        // we dont need to get mesh data for every single vert since it wont change, so lets only do that once
+        const auto mesh = gameObject->mesh();
 
-        // we only need to know these once, not every verex
+        // we dont need to get texture data for every single vert since it wont change, so lets only do that once
         // if its not a nullptr fill out some data so we don't have to do it every face
         // NOTE: the nullptr check here is a free 0.2ms if you want it but it really should be done
-        auto texture = gameObject->texture();
+        const auto texture = gameObject->texture();
         if (texture != nullptr)
         {
             // default to no clut unless the texture says we have one
@@ -160,8 +165,8 @@ void Renderer::Render(void)
                 clut = psyqo::PrimPieces::ClutIndex(texture->clutX, texture->clutY);
 
             // get the tpage and uv offset info
-            tpage = TextureManager::GetTPageAttr(*texture);
-            offset = TextureManager::GetTPageUVForTim(*texture);
+            tpage = TextureManager::GetTPageAttr(texture);
+            offset = TextureManager::GetTPageUVForTim(texture);
             offset.pos.y += (texture->height - 1);
         }
 
@@ -184,8 +189,8 @@ void Renderer::Render(void)
 
             // read the result of this and skip rendering if its backfaced
             mac0 = 0;
-            psyqo::GTE::read<psyqo::GTE::Register::MAC0>(reinterpret_cast<uint32_t *>(&mac0));
-            if (mac0 <= 0)
+            psyqo::GTE::read<psyqo::GTE::Register::MAC0>(&mac0);
+            if (mac0 == 0)
                 continue;
 
             // store these verts so we can read the last one in
@@ -198,10 +203,10 @@ void Renderer::Render(void)
             // average z index for ordering
             psyqo::GTE::Kernels::avsz4();
             zIndex = 0;
-            psyqo::GTE::read<psyqo::GTE::Register::OTZ>(reinterpret_cast<uint32_t *>(&zIndex));
+            psyqo::GTE::read<psyqo::GTE::Register::OTZ>(&zIndex);
 
             // make sure we dont go out of bounds
-            if (zIndex <= 0 || zIndex >= ORDERING_TABLE_SIZE)
+            if (zIndex == 0 || zIndex >= ORDERING_TABLE_SIZE)
                 continue;
 
             // get the three remaining verts from the GTE
@@ -221,9 +226,10 @@ void Renderer::Render(void)
             quad.primitive.pointC = projected[2];
             quad.primitive.pointD = projected[3];
 
-            // set its tpage
+            // do we have a texture for this?
             if (texture != nullptr)
             {
+                // set its tpage
                 quad.primitive.tpage = tpage;
 
                 // set its clut if it has one
@@ -298,7 +304,7 @@ void Renderer::RenderSprite(const TimFile *texture, const psyqo::Rect rect, cons
     auto &sprites = m_sprites[frameBuffer];
 
     // chain tpage info over
-    auto tpageAttr = TextureManager::GetTPageAttr(*texture);
+    auto tpageAttr = TextureManager::GetTPageAttr(texture);
     auto &tpage = tpages[m_currentSpriteFragment];
     tpage.primitive.attr = tpageAttr;
     m_gpu.chain(tpage);
@@ -313,7 +319,7 @@ void Renderer::RenderSprite(const TimFile *texture, const psyqo::Rect rect, cons
         sprite.primitive.texInfo.clut = psyqo::PrimPieces::ClutIndex(texture->clutX, texture->clutY);
 
     // set the uv data
-    psyqo::Rect uvOffset = TextureManager::GetTPageUVForTim(*texture);
+    psyqo::Rect uvOffset = TextureManager::GetTPageUVForTim(texture);
     sprite.primitive.texInfo.u = uv.u; // uvOffset.pos.x + uv.u;
     sprite.primitive.texInfo.v = uv.v; // uvOffset.pos.y + (rect.size.y - 1 - uv.v);
 

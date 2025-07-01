@@ -37,12 +37,11 @@ const eastl::fixed_vector<GameObject *, MAX_GAME_OBJECTS> &GameObjectManager::Ge
     m_activeGameObjects.clear();
 
     // get all game objects that are actually initialized
-    for (uint8_t i = 0; i < MAX_GAME_OBJECTS; i++)
+    for (auto &gameObject : m_gameObjects)
     {
-        // if (!m_gameObjects.at(i).name().empty())
-        if (m_gameObjects.at(i).id() != INVALID_GAMEOBJECT_ID)
-            m_activeGameObjects.push_back(&m_gameObjects.at(i));
-    };
+        if (gameObject.id() != INVALID_GAMEOBJECT_ID)
+            m_activeGameObjects.push_back(&gameObject);
+    }
 
     return m_activeGameObjects;
 }
@@ -52,11 +51,11 @@ const eastl::fixed_vector<GameObject *, MAX_GAME_OBJECTS> &GameObjectManager::Ge
     m_activeGameObjects.clear();
 
     // get all game objects that are actually initialized
-    for (uint8_t i = 0; i < MAX_GAME_OBJECTS; i++)
+    for (auto &gameObject : m_gameObjects)
     {
-        if (/*!m_gameObjects.at(i).name().empty()*/ m_gameObjects.at(i).id() != INVALID_GAMEOBJECT_ID && m_gameObjects.at(i).tag() == tag)
-            m_activeGameObjects.push_back(&m_gameObjects.at(i));
-    };
+        if (gameObject.id() != INVALID_GAMEOBJECT_ID && gameObject.tag() == tag)
+            m_activeGameObjects.push_back(&gameObject);
+    }
 
     return m_activeGameObjects;
 }
