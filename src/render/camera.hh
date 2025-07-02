@@ -24,7 +24,7 @@ class CameraManager final
     static void set_rotation_matrix(void);
     static constexpr psyqo::FixedPoint<12> m_movement_speed = 0.001_fp;
     static constexpr psyqo::Angle m_rotation_speed = 0.005_pi;
-    static constexpr uint8_t m_stick_deadzone = 16;
+    static constexpr uint8_t m_stickDeadzone = 16;
 
 public:
     static void init(void);

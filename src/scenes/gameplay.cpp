@@ -19,13 +19,7 @@ void GameplayScene::start(StartReason reason)
                                             if (event.type != psyqo::AdvancedPad::Event::ButtonReleased)
                                                 return;
                                             if (event.button == psyqo::AdvancedPad::Button::Start)
-                                                m_menu.Activate();
-                                            if (event.button == psyqo::AdvancedPad::Button::Up)
-                                                SoundManager::PlaySoundEffect(4, 28, 30, 63);
-                                            if (event.button == psyqo::AdvancedPad::Button::L2)
-                                                SoundManager::PlayMusic();
-                                            if (event.button == psyqo::AdvancedPad::Button::R2)
-                                                SoundManager::PauseMusic(); });
+                                                m_menu.Activate(); });
 
     // the below only needs to happen if this was a freshly created scene
     if (reason != StartReason::Create)
@@ -43,9 +37,12 @@ void GameplayScene::teardown(TearDownReason reason)
 void GameplayScene::frame()
 {
     auto &renderInstance = Renderer::Instance();
+    auto &gpu = Renderer::Instance().GPU();
     uint32_t deltaTime = renderInstance.Process();
     if (deltaTime == 0)
         return;
+
+    uint32_t beginFrame = gpu.now();
 
     // process camera inputs
     CameraManager::process(deltaTime);
@@ -53,11 +50,9 @@ void GameplayScene::frame()
     // process debug menu
     DebugMenu::Process();
 
-    auto camPos = CameraManager::get_pos();
-
     // raycast
-    uint8_t raycastDistance = DebugMenu::RaycastDistance();
-    Ray ray = {.origin = camPos, .direction = CameraManager::GetForwardVector(), .maxDistance = raycastDistance * ONE_METRE};
+    const auto &raycastDistance = DebugMenu::RaycastDistance();
+    Ray ray = {.origin = CameraManager::get_pos(), .direction = CameraManager::GetForwardVector(), .maxDistance = raycastDistance * ONE_METRE};
     RayHit hit = {0};
 
     // bool didHit = Raycast::RaycastScene(ray, GameObjectTag::ENVIRONMENT, &hit);
@@ -86,4 +81,9 @@ void GameplayScene::frame()
 
         m_debugHUD.Render();
     }
+
+    gpu.pumpCallbacks();
+    uint32_t endFrame = gpu.now();
+    uint32_t spent = endFrame - beginFrame;
+    printf("Frame took %ius to complete. deltaTime=%d\n", spent, deltaTime);
 }

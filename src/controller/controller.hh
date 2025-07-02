@@ -15,7 +15,7 @@ public:
     };
 
     static void init(void);
-    static int8_t get_normalized_analog_stick_input(psyqo::AdvancedPad::Pad pad, uint8_t index);
+    static int GetNormalizedAnalogStickInput(psyqo::AdvancedPad::Pad pad, uint8_t index);
 };
 
 #endif

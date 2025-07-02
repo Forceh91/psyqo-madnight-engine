@@ -44,21 +44,32 @@ psyqo::Coroutine<> SoundManager::LoadMODSoundFromCDRom(const char *modSoundFileN
 
 void SoundManager::PlaySoundEffect(uint32_t channel, uint32_t sampleID, int32_t pitch, uint32_t volume)
 {
+    if (!m_currentSoundFile.isLoaded)
+        return;
     MOD_PlaySoundEffect(channel, sampleID, pitch, volume);
 }
 
 void SoundManager::PlayNote(uint32_t voiceID, uint32_t sampleID, uint32_t note, int16_t volume)
 {
+    if (!m_currentSoundFile.isLoaded)
+        return;
+
     MOD_PlayNote(voiceID, sampleID, note, volume);
 }
 
 void SoundManager::PlayMusic(void)
 {
+    if (!m_currentSoundFile.isLoaded)
+        return;
+
     PlayMusic(m_musicVolume);
 }
 
 void SoundManager::PlayMusic(uint16_t volume)
 {
+    if (!m_currentSoundFile.isLoaded)
+        return;
+
     SetMusicVolume(volume);
 
     // this will start playing the music in the mod file that was put into the SPU
@@ -74,6 +85,9 @@ void SoundManager::PlayMusic(uint16_t volume)
 
 void SoundManager::PauseMusic(void)
 {
+    if (!m_currentSoundFile.isLoaded)
+        return;
+
     auto &gpu = Renderer::Instance().GPU();
     gpu.cancelTimer(m_musicTimer);
     MOD_SetMusicVolume(0);
@@ -81,6 +95,9 @@ void SoundManager::PauseMusic(void)
 
 void SoundManager::StopMusic(void)
 {
+    if (!m_currentSoundFile.isLoaded)
+        return;
+
     auto &gpu = Renderer::Instance().GPU();
     gpu.cancelTimer(m_musicTimer);
     MOD_Silence();
@@ -88,6 +105,9 @@ void SoundManager::StopMusic(void)
 
 void SoundManager::SetMusicVolume(uint16_t volume)
 {
+    if (!m_currentSoundFile.isLoaded)
+        return;
+
     m_musicVolume = volume;
     MOD_SetMusicVolume(m_musicVolume);
 }

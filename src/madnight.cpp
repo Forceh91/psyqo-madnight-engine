@@ -1,7 +1,6 @@
 /* based off the psyqo cube example */
 
 #include "psyqo/scene.hh"
-#include "psyqo/xprintf.h"
 
 #include "madnight.hh"
 #include "helpers/cdrom.hh"
@@ -12,10 +11,9 @@
 #include "helpers/load_queue.hh"
 
 #include "scenes/loading.hh"
-#include "scenes/gameplay.hh"
+#include "game/game.hh"
 
 using namespace psyqo::fixed_point_literals;
-using namespace psyqo::trig_literals;
 
 static constexpr psyqo::Matrix33 identity = {{{1.0_fp, 0.0_fp, 0.0_fp}, {0.0_fp, 1.0_fp, 0.0_fp}, {0.0_fp, 0.0_fp, 1.0_fp}}};
 
@@ -24,7 +22,6 @@ static constexpr psyqo::Matrix33 identity = {{{1.0_fp, 0.0_fp, 0.0_fp}, {0.0_fp,
 // other necessary classes.
 MadnightEngine g_madnightEngine;
 
-static GameplayScene gameplayScene;
 static LoadingScene loadingScene;
 
 void MadnightEngine::prepare()
@@ -59,31 +56,7 @@ void MadnightEngine::createScene()
 
 psyqo::Coroutine<> MadnightEngine::InitialLoad(void)
 {
-    eastl::vector<LoadQueue> queue = {
-        {.name = "TEXTURES/STREET.TIM", .type = LoadFileType::TEXTURE, .x = 320, .y = 0, .clutX = 0, .clutY = 240},
-        {.name = "MODELS/STREET.MB", .type = LoadFileType::OBJECT},
-        {.name = "SFX/TETRIS.MOD", .type = LoadFileType::MOD_FILE},
-    };
-
-    // show loading screen
-    co_await HardLoadingScreen(eastl::move(queue), &gameplayScene);
-
-    // create a game object
-    auto gameObject = GameObjectManager::CreateGameObject("STREET", {0, 0, 0}, {0, 0, 0}, GameObjectTag::ENVIRONMENT);
-    if (gameObject != nullptr)
-    {
-        gameObject->SetQuadType(GameObjectQuadType::GouraudTextureQuad);
-        gameObject->SetMesh("MODELS/STREET.MB");
-        gameObject->SetTexture("TEXTURES/STREET.TIM");
-    }
-
-    auto gameObject2 = GameObjectManager::CreateGameObject("STREET2", {0.05_fp, 0, 0.5_fp}, {0, 1.0_pi, 0.25_pi}, GameObjectTag::ENVIRONMENT);
-    if (gameObject2 != nullptr)
-    {
-        gameObject2->SetQuadType(GameObjectQuadType::GouraudTextureQuad);
-        gameObject2->SetMesh("MODELS/STREET.MB");
-        gameObject2->SetTexture("TEXTURES/STREET.TIM");
-    }
+    co_await MadnightEngineGame::InitialLoad();
 }
 
 psyqo::Coroutine<> MadnightEngine::HardLoadingScreen(eastl::vector<LoadQueue> &&files, psyqo::Scene *postLoadScene)

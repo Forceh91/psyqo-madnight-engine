@@ -75,39 +75,39 @@ void CameraManager::process(uint32_t delta_time)
         return;
 
     // analog stick movement for fps cam (remember 0x80 is centre, so -128 to 127)
-    int8_t left_stick_x = ControllerHelper::get_normalized_analog_stick_input(psyqo::AdvancedPad::Pad::Pad1a, ControllerHelper::AnalogStickIndex::LeftStickX);
-    int8_t left_stick_y = ControllerHelper::get_normalized_analog_stick_input(psyqo::AdvancedPad::Pad::Pad1a, ControllerHelper::AnalogStickIndex::LeftStickY);
+    int leftStickX = ControllerHelper::GetNormalizedAnalogStickInput(psyqo::AdvancedPad::Pad::Pad1a, ControllerHelper::AnalogStickIndex::LeftStickX);
+    int leftStickY = ControllerHelper::GetNormalizedAnalogStickInput(psyqo::AdvancedPad::Pad::Pad1a, ControllerHelper::AnalogStickIndex::LeftStickY);
 
-    int8_t right_stick_x = ControllerHelper::get_normalized_analog_stick_input(psyqo::AdvancedPad::Pad::Pad1a, ControllerHelper::AnalogStickIndex::RightStickX);
-    int8_t right_stick_y = ControllerHelper::get_normalized_analog_stick_input(psyqo::AdvancedPad::Pad::Pad1a, ControllerHelper::AnalogStickIndex::RightStickY);
+    int rightStickX = ControllerHelper::GetNormalizedAnalogStickInput(psyqo::AdvancedPad::Pad::Pad1a, ControllerHelper::AnalogStickIndex::RightStickX);
+    int rightStickY = ControllerHelper::GetNormalizedAnalogStickInput(psyqo::AdvancedPad::Pad::Pad1a, ControllerHelper::AnalogStickIndex::RightStickY);
 
     // use left stick y to move forward/backwards
-    if (left_stick_y < -m_stick_deadzone || left_stick_y > m_stick_deadzone)
+    if (leftStickY < -m_stickDeadzone || leftStickY > m_stickDeadzone)
     {
-        psyqo::FixedPoint<12> forward = m_movement_speed * -left_stick_y >> 5 * delta_time;
+        psyqo::FixedPoint<12> forward = m_movement_speed * -leftStickY >> 5 * delta_time;
         m_pos.x += trig.sin(m_angle.y) * forward;
         m_pos.z += trig.cos(m_angle.y) * forward;
     }
 
     // use left stick x to strafe left/right
-    if (left_stick_x < -m_stick_deadzone || left_stick_x > m_stick_deadzone)
+    if (leftStickX < -m_stickDeadzone || leftStickX > m_stickDeadzone)
     {
-        psyqo::FixedPoint<12> left = m_movement_speed * -left_stick_x >> 5 * delta_time;
+        psyqo::FixedPoint<12> left = m_movement_speed * -leftStickX >> 5 * delta_time;
         m_pos.x += -trig.cos(m_angle.y) * left;
         m_pos.z += trig.sin(m_angle.y) * left;
     }
 
     // use right stick y to look up/down
-    if (right_stick_y < -m_stick_deadzone || right_stick_y > m_stick_deadzone)
+    if (rightStickY < -m_stickDeadzone || rightStickY > m_stickDeadzone)
     {
-        m_angle.x += (-right_stick_y >> 5) * delta_time * m_rotation_speed;
+        m_angle.x += (-rightStickY >> 5) * delta_time * m_rotation_speed;
         set_rotation_matrix();
     }
 
     // use right stick x to look left/right
-    if (right_stick_x < -m_stick_deadzone || right_stick_x > m_stick_deadzone)
+    if (rightStickX < -m_stickDeadzone || rightStickX > m_stickDeadzone)
     {
-        m_angle.y -= (-right_stick_x >> 5) * delta_time * m_rotation_speed;
+        m_angle.y -= (-rightStickX >> 5) * delta_time * m_rotation_speed;
         set_rotation_matrix();
     }
 }

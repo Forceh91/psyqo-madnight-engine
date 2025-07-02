@@ -68,7 +68,6 @@
 
 			<!-- sounds -->
 			<dir name="SFX">
-				<file name="TETRIS.MOD" type="data" source="assets/musix-oh-amiga-with-effects.hit"/>
 			</dir>
 
 			<dummy sectors="1024"/>
