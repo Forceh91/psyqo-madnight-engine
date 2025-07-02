@@ -11,7 +11,6 @@
 #include "psyqo/gte-registers.hh"
 #include "psyqo/soft-math.hh"
 #include "psyqo/primitives/control.hh"
-#include "psyqo/xprintf.h"
 
 Renderer *Renderer::m_instance = nullptr;
 psyqo::Font<> Renderer::m_kromFont;
@@ -118,6 +117,7 @@ void Renderer::Render(void)
     // some camera pos/rotation data
     auto &cameraRotationMatrix = CameraManager::get_rotation_matrix();
     auto camPos = -CameraManager::get_pos();
+    auto gteCameraPos = SetupCamera(cameraRotationMatrix, camPos);
 
     // now for each object...
     int quadFragment = 0;
@@ -130,7 +130,10 @@ void Renderer::Render(void)
         if (quadFragment >= QUAD_FRAGMENT_SIZE)
             break;
 
-        auto gteCameraPos = SetupCamera(cameraRotationMatrix, camPos);
+        // clear TRX/Y/Z safely
+        psyqo::GTE::clear<psyqo::GTE::Register::TRX, psyqo::GTE::Safe>();
+        psyqo::GTE::clear<psyqo::GTE::Register::TRY, psyqo::GTE::Safe>();
+        psyqo::GTE::clear<psyqo::GTE::Register::TRZ, psyqo::GTE::Safe>();
 
         psyqo::GTE::writeSafe<psyqo::GTE::PseudoRegister::V0>(gameObject->pos());
         psyqo::GTE::Kernels::mvmva<psyqo::GTE::Kernels::MX::RT, psyqo::GTE::Kernels::MV::V0, psyqo::GTE::Kernels::TV::TR>();
@@ -274,7 +277,7 @@ void Renderer::RenderLoadingScreen(uint16_t loadPercentage)
     m_gpu.chain(clear);
 
     // render the actual loading sprite/font/whatever
-    m_kromFont.chainprintf(m_gpu, {.x = 10, .y = 220}, COLOUR_WHITE, "Loading... (%d%%)", loadPercentage);
+    m_kromFont.chainprintf(m_gpu, {10, 220}, COLOUR_WHITE, "Loading... (%d%%)", loadPercentage);
 }
 
 void Renderer::RenderSprite(const TimFile *texture, const psyqo::Rect rect, const psyqo::PrimPieces::UVCoords uv)

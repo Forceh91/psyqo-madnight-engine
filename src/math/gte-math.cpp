@@ -20,10 +20,10 @@ void GTEMath::MultiplyMatrix33(const psyqo::Matrix33 &rotationMatrixA, const psy
 
     // we need to do this 3 times for matrix B, x then y then z
     // this is x
-    psyqo::GTE::writeSafe<psyqo::GTE::PseudoRegister::V0>(psyqo::Vec3{rotationMatrixB.vs[0].x, rotationMatrixB.vs[1].x, rotationMatrixB.vs[2].x});
+    psyqo::GTE::writeSafe<psyqo::GTE::PseudoRegister::V1>(psyqo::Vec3{rotationMatrixB.vs[0].x, rotationMatrixB.vs[1].x, rotationMatrixB.vs[2].x});
 
     // do the mvma which gets put into SV, then read it out from SV
-    psyqo::GTE::Kernels::mvmva<psyqo::GTE::Kernels::MX::RT, psyqo::GTE::Kernels::MV::V0>();
+    psyqo::GTE::Kernels::mvmva<psyqo::GTE::Kernels::MX::RT, psyqo::GTE::Kernels::MV::V1>();
     svOut = psyqo::GTE::readSafe<psyqo::GTE::PseudoRegister::SV>();
 
     // update the out matrix
@@ -32,10 +32,10 @@ void GTEMath::MultiplyMatrix33(const psyqo::Matrix33 &rotationMatrixA, const psy
     out->vs[2].x = svOut.z;
 
     // this is y
-    psyqo::GTE::writeSafe<psyqo::GTE::PseudoRegister::V0>(psyqo::Vec3{rotationMatrixB.vs[0].y, rotationMatrixB.vs[1].y, rotationMatrixB.vs[2].y});
+    psyqo::GTE::writeSafe<psyqo::GTE::PseudoRegister::V1>(psyqo::Vec3{rotationMatrixB.vs[0].y, rotationMatrixB.vs[1].y, rotationMatrixB.vs[2].y});
 
     // do the mvma which gets put into SV, then read it out from SV
-    psyqo::GTE::Kernels::mvmva<psyqo::GTE::Kernels::MX::RT, psyqo::GTE::Kernels::MV::V0>();
+    psyqo::GTE::Kernels::mvmva<psyqo::GTE::Kernels::MX::RT, psyqo::GTE::Kernels::MV::V1>();
     svOut = psyqo::GTE::readSafe<psyqo::GTE::PseudoRegister::SV>();
 
     // update the out matrix
@@ -44,10 +44,10 @@ void GTEMath::MultiplyMatrix33(const psyqo::Matrix33 &rotationMatrixA, const psy
     out->vs[2].y = svOut.z;
 
     // this is z
-    psyqo::GTE::writeSafe<psyqo::GTE::PseudoRegister::V0>(psyqo::Vec3{rotationMatrixB.vs[0].z, rotationMatrixB.vs[1].z, rotationMatrixB.vs[2].z});
+    psyqo::GTE::writeSafe<psyqo::GTE::PseudoRegister::V1>(psyqo::Vec3{rotationMatrixB.vs[0].z, rotationMatrixB.vs[1].z, rotationMatrixB.vs[2].z});
 
     // do the mvma which gets put into SV, then read it out from SV
-    psyqo::GTE::Kernels::mvmva<psyqo::GTE::Kernels::MX::RT, psyqo::GTE::Kernels::MV::V0>();
+    psyqo::GTE::Kernels::mvmva<psyqo::GTE::Kernels::MX::RT, psyqo::GTE::Kernels::MV::V1>();
     svOut = psyqo::GTE::readSafe<psyqo::GTE::PseudoRegister::SV>();
 
     // update the out matrix
