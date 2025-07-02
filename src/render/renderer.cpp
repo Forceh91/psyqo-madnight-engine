@@ -153,6 +153,8 @@ void Renderer::Render(void)
         // now we've done all this we can render the mesh and apply texture (if needed)
         // we dont need to get mesh data for every single vert since it wont change, so lets only do that once
         const auto mesh = gameObject->mesh();
+        if (mesh == nullptr)
+            continue;
 
         // we dont need to get texture data for every single vert since it wont change, so lets only do that once
         // if its not a nullptr fill out some data so we don't have to do it every face
