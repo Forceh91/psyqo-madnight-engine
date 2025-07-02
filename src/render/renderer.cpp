@@ -117,30 +117,27 @@ void Renderer::Render(void)
 
     // some camera pos/rotation data
     auto &cameraRotationMatrix = CameraManager::get_rotation_matrix();
-    auto negativeCamPos = -CameraManager::get_pos();
+    auto camPos = -CameraManager::get_pos();
 
     // now for each object...
-    uint16_t quadFragment = 0;
-    uint32_t mac0 = 0, zIndex = 0;
+    int quadFragment = 0;
+    uint32_t zIndex = 0;
     psyqo::PrimPieces::TPageAttr tpage;
     psyqo::Rect offset = {0};
     for (const auto &gameObject : gameObjects)
     {
-
         // dont overflow our quads/faces/whatever
         if (quadFragment >= QUAD_FRAGMENT_SIZE)
             break;
 
-        // setup camera
-        auto cameraPos = SetupCamera(cameraRotationMatrix, negativeCamPos);
+        auto gteCameraPos = SetupCamera(cameraRotationMatrix, camPos);
 
-        // rotate the object translation vector by the camera rotation
         psyqo::GTE::writeSafe<psyqo::GTE::PseudoRegister::V0>(gameObject->pos());
         psyqo::GTE::Kernels::mvmva<psyqo::GTE::Kernels::MX::RT, psyqo::GTE::Kernels::MV::V0, psyqo::GTE::Kernels::TV::TR>();
         psyqo::Vec3 objectPos = psyqo::GTE::readSafe<psyqo::GTE::PseudoRegister::SV>();
 
         // adjust object position by camera position
-        objectPos += cameraPos;
+        objectPos += gteCameraPos;
 
         // get the rotation matrix for the game object and then combine with the camera rotations
         psyqo::Matrix33 finalMatrix = {0};
@@ -184,9 +181,7 @@ void Renderer::Render(void)
             psyqo::GTE::Kernels::nclip();
 
             // read the result of this and skip rendering if its backfaced
-            mac0 = 0;
-            psyqo::GTE::read<psyqo::GTE::Register::MAC0>(&mac0);
-            if (mac0 == 0)
+            if (psyqo::GTE::readRaw<psyqo::GTE::Register::MAC0>() == 0)
                 continue;
 
             // store these verts so we can read the last one in
@@ -198,8 +193,7 @@ void Renderer::Render(void)
 
             // average z index for ordering
             psyqo::GTE::Kernels::avsz4();
-            zIndex = 0;
-            psyqo::GTE::read<psyqo::GTE::Register::OTZ>(&zIndex);
+            zIndex = psyqo::GTE::readRaw<psyqo::GTE::Register::OTZ>();
 
             // make sure we dont go out of bounds
             if (zIndex == 0 || zIndex >= ORDERING_TABLE_SIZE)
