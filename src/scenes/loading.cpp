@@ -15,6 +15,8 @@ void LoadingScene::start(StartReason reason)
 void LoadingScene::frame()
 {
     uint32_t deltaTime = Renderer::Instance().Process();
+    if (deltaTime == 0)
+        return;
 
     auto loaded = psyqo::FixedPoint<>(int32_t(m_loadFilesLoadedCount), int32_t(0));
     auto total = psyqo::FixedPoint<>(int32_t(m_loadFilesCount), int32_t(0));

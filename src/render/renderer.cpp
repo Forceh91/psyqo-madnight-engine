@@ -122,11 +122,11 @@ void Renderer::Render(void)
     // now for each object...
     uint16_t quadFragment = 0;
     uint32_t mac0 = 0, zIndex = 0;
-    psyqo::PrimPieces::ClutIndex clut(0, 0);
     psyqo::PrimPieces::TPageAttr tpage;
     psyqo::Rect offset = {0};
     for (const auto &gameObject : gameObjects)
     {
+
         // dont overflow our quads/faces/whatever
         if (quadFragment >= QUAD_FRAGMENT_SIZE)
             break;
@@ -160,10 +160,6 @@ void Renderer::Render(void)
         const auto texture = gameObject->texture();
         if (texture != nullptr)
         {
-            // default to no clut unless the texture says we have one
-            if (texture->hasClut)
-                clut = psyqo::PrimPieces::ClutIndex(texture->clutX, texture->clutY);
-
             // get the tpage and uv offset info
             tpage = TextureManager::GetTPageAttr(texture);
             offset = TextureManager::GetTPageUVForTim(texture);
@@ -220,11 +216,19 @@ void Renderer::Render(void)
 
             // now take a quad fragment from our array and:
             // set its vertices
-            auto &quad = quads[quadFragment];
+            auto &quad = quads[quadFragment++];
             quad.primitive.pointA = projected[0];
             quad.primitive.pointB = projected[1];
             quad.primitive.pointC = projected[2];
             quad.primitive.pointD = projected[3];
+
+            // set its colour, and make it opaque
+            // TODO: make objects decide if they are gouraud shaded or not? saves processing time
+            quad.primitive.setColorA({128, 128, 128});
+            quad.primitive.setColorB({128, 128, 128});
+            quad.primitive.setColorC({128, 128, 128});
+            quad.primitive.setColorD({128, 128, 128});
+            quad.primitive.setOpaque();
 
             // do we have a texture for this?
             if (texture != nullptr)
@@ -234,7 +238,7 @@ void Renderer::Render(void)
 
                 // set its clut if it has one
                 if (texture->hasClut)
-                    quad.primitive.clutIndex = clut;
+                    quad.primitive.clutIndex = {texture->clutX, texture->clutY};
 
                 // set its uv coords
                 auto uvA = mesh->uvs[mesh->uv_indices[i].v0];
@@ -254,19 +258,8 @@ void Renderer::Render(void)
                 quad.primitive.uvD.v = offset.pos.y - uvD.v;
             }
 
-            // set its colour, and make it opaque
-            // TODO: make objects decide if they are gouraud shaded or not? saves processing time
-            quad.primitive.setColorA({128, 128, 128});
-            quad.primitive.setColorB({128, 128, 128});
-            quad.primitive.setColorC({128, 128, 128});
-            quad.primitive.setColorD({128, 128, 128});
-            quad.primitive.setOpaque();
-
-            // insert the quad fragment into the ordering table at the calculated z index
+            // finally we can insert the quad fragment into the ordering table at the calculated z-index
             ot.insert(quad, zIndex);
-
-            // increase what quad fragment we're on now
-            quadFragment++;
         };
     }
 

@@ -47,6 +47,8 @@ public:
     void VRamUpload(const uint16_t *data, int16_t x, int16_t y, int16_t width, int16_t height);
     // returns the delta time
     // must be called on each scene frame
+    // if `deltaTime` is 0 then its recommended to early return
+    // and not go any further with your rendering
     uint32_t Process(void);
     void Render(void);
     void RenderLoadingScreen(uint16_t loadPercentage);
