@@ -20,6 +20,10 @@ public:
     psyqo::Trig<> m_trig;
     psyqo::AdvancedPad m_input;
 
+    // you probably want to use hardloadingscreen below, but if you have no files to load then no need, just use this instead
+    // this will pop the existing scene unless you specify `true` for keepPreviousscene
+    void SwitchScene(psyqo::Scene *scene, bool keepPrevious = false);
+
     // shows a loading screen and unloads all known meshes and textures
     // this will also unload the current scene, and start the requested scene fresh, so if you have
     // stuff that occurs in startscene, you need to make sure you don't do it again
@@ -31,7 +35,7 @@ public:
      * for use. you can do whatever you want with this here. for example you can make use of `co_await HardLoadingScreen` in
      * this function before you do whatever you need/want to do in your actual game code.
      */
-    virtual psyqo::Coroutine<> InitialLoad(void);
+    psyqo::Coroutine<> InitialLoad(void);
 };
 
 extern MadnightEngine g_madnightEngine;
