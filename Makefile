@@ -1,31 +1,15 @@
-# Binary name (no extension)
-TARGET = madnight
+ENGINEDIR := $(dir $(abspath $(lastword $(MAKEFILE_LIST))))
 
-# Output type
-TYPE = ps-exe
+TARGET = madnight-engine
+TYPE = library
+
+rwildcard=$(wildcard $1$2) $(foreach d,$(wildcard $1*),$(call rwildcard,$d/,$2))
 
 # Source files (recursive find)
-SRCS := $(shell find src -name '*.cpp')
-SRCS += third_party/nugget/modplayer/modplayer.c
+SRCS := $(call rwildcard,$(ENGINEDIR)src/,*.cpp)
+SRCS += $(ENGINEDIR)third_party/nugget/modplayer/modplayer.c
 
-# C++ standard
-CXXFLAGS = -std=c++20
+EXTRA_DEPS += $(ENGINEDIR)madnight-engine.mk
 
-# CPPFLAGS_msan = -DUSE_PCSXMSAN -O0 -g
-CPPFLAGS_debug = -g -O0
-
-# Output directory
-OUTDIR = build
-
-# Include PSYQo build system
-include third_party/nugget/psyqo-paths/psyqo-paths.mk
-include third_party/nugget/psyqo/psyqo.mk
-
-# Custom rule: after building the .ps-exe, move all artifacts to build/
-.PHONY: all
-all: $(TARGET).$(TYPE)
-	@mkdir -p $(OUTDIR)
-	@mv -f $(TARGET).ps-exe $(OUTDIR)/
-	@mv -f $(TARGET).elf $(OUTDIR)/ 2>/dev/null || true
-	@mv -f $(TARGET).map $(OUTDIR)/ 2>/dev/null || true
-	@echo "Build complete: $(OUTDIR)/$(TARGET).ps-exe"
+include $(ENGINEDIR)third_party/nugget/psyqo/psyqo.mk
+include $(ENGINEDIR)third_party/nugget/psyqo-paths/psyqo-paths.mk

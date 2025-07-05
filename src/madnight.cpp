@@ -21,7 +21,6 @@ static constexpr psyqo::Matrix33 identity = {{{1.0_fp, 0.0_fp, 0.0_fp}, {0.0_fp,
 // object in this whole example. It will hold all of the
 // other necessary classes.
 MadnightEngine g_madnightEngine;
-MadnightEngineGame g_madnightEngineGame;
 
 static LoadingScene loadingScene;
 
@@ -70,5 +69,3 @@ psyqo::Coroutine<> MadnightEngine::HardLoadingScreen(eastl::vector<LoadQueue> &&
     popScene();
     pushScene(postLoadScene);
 }
-
-int main() { return g_madnightEngine.run(); }

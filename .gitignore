@@ -2,4 +2,5 @@
 build
 *.dep
 *.o
+*.a
 .sentry*

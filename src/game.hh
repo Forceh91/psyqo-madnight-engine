@@ -6,7 +6,9 @@
 class MadnightEngineGame
 {
 public:
-    virtual psyqo::Coroutine<> InitialLoad(void);
+    virtual psyqo::Coroutine<> InitialLoad(void) = 0;
 };
+
+extern MadnightEngineGame &g_madnightEngineGame;
 
 #endif
