@@ -1,4 +1,4 @@
-BOOT=cdrom:\madnight.exe;1
+BOOT=cdrom:\madnight-engine-game.exe;1
 TCB=4
 EVENT=10
 STACK=801FFFF0

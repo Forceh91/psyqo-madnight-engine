@@ -42,8 +42,6 @@ void GameplayScene::frame()
     if (deltaTime == 0)
         return;
 
-    uint32_t beginFrame = gpu.now();
-
     // process camera inputs
     CameraManager::process(deltaTime);
 
@@ -81,9 +79,4 @@ void GameplayScene::frame()
 
         m_debugHUD.Render();
     }
-
-    gpu.pumpCallbacks();
-    uint32_t endFrame = gpu.now();
-    uint32_t spent = endFrame - beginFrame;
-    printf("Frame took %ius to complete. deltaTime=%d\n", spent, deltaTime);
 }
