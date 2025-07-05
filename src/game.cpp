@@ -1,9 +1,9 @@
 #include "game.hh"
 
 #include <EASTL/vector.h>
-#include "../core/object/gameobject_manager.hh"
-#include "../scenes/gameplay.hh"
-#include "../madnight.hh"
+#include "core/object/gameobject_manager.hh"
+#include "scenes/gameplay.hh"
+#include "madnight.hh"
 
 using namespace psyqo::fixed_point_literals;
 using namespace psyqo::trig_literals;
@@ -11,6 +11,9 @@ using namespace psyqo::trig_literals;
 // you can either use this or replace it with your own
 static GameplayScene gameplayScene;
 
+// once the engine is ready it will call this function
+// as an entry point into your own game code
+// it has been created as a coroutine so you can await file loading if needed
 psyqo::Coroutine<> MadnightEngineGame::InitialLoad(void)
 {
     eastl::vector<LoadQueue> queue = {

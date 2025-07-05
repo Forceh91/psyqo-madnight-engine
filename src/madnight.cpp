@@ -11,7 +11,7 @@
 #include "helpers/load_queue.hh"
 
 #include "scenes/loading.hh"
-#include "game/game.hh"
+#include "game.hh"
 
 using namespace psyqo::fixed_point_literals;
 
@@ -21,6 +21,7 @@ static constexpr psyqo::Matrix33 identity = {{{1.0_fp, 0.0_fp, 0.0_fp}, {0.0_fp,
 // object in this whole example. It will hold all of the
 // other necessary classes.
 MadnightEngine g_madnightEngine;
+MadnightEngineGame g_madnightEngineGame;
 
 static LoadingScene loadingScene;
 
@@ -56,7 +57,7 @@ void MadnightEngine::createScene()
 
 psyqo::Coroutine<> MadnightEngine::InitialLoad(void)
 {
-    co_await MadnightEngineGame::InitialLoad();
+    co_await g_madnightEngineGame.InitialLoad();
 }
 
 psyqo::Coroutine<> MadnightEngine::HardLoadingScreen(eastl::vector<LoadQueue> &&files, psyqo::Scene *postLoadScene)

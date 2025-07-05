@@ -3,10 +3,10 @@
 
 #include "psyqo/coroutine.hh"
 
-class MadnightEngineGame final
+class MadnightEngineGame
 {
 public:
-    static psyqo::Coroutine<> InitialLoad(void);
+    virtual psyqo::Coroutine<> InitialLoad(void);
 };
 
 #endif
