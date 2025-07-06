@@ -57,6 +57,8 @@ public:
 
     ~Menu() = default;
 
+    bool IsEnabled(void) { return m_isEnabled; }
+
     // activate the menu
     void Activate(void);
     // deactivate the menu and go back to the previous scene/menu/whatever
