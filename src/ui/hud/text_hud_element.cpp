@@ -7,8 +7,10 @@ void TextHUDElement::Render(const psyqo::Rect &parentRect)
         return;
 
     auto &rendererInstance = Renderer::Instance();
-    auto font = rendererInstance.KromFont();
+
+    if (m_font == nullptr)
+        m_font = Renderer::Instance().KromFont();
 
     psyqo::Vertex posInParent = {parentRect.pos.x + m_rect.pos.x, parentRect.pos.y + m_rect.pos.y};
-    font->chainprintf(rendererInstance.GPU(), posInParent, m_colour, m_displayText.c_str());
+    m_font->chainprintf(rendererInstance.GPU(), posInParent, m_colour, m_displayText.c_str());
 }
