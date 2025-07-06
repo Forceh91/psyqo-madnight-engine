@@ -282,6 +282,16 @@ void Renderer::RenderLoadingScreen(uint16_t loadPercentage)
     m_kromFont.chainprintf(m_gpu, {10, 220}, COLOUR_WHITE, "Loading... (%d%%)", loadPercentage);
 }
 
+void Renderer::Clear()
+{
+    uint32_t frameBuffer = m_gpu.getParity();
+    auto &clear = m_clear[frameBuffer];
+
+    // clear the buffer
+    m_gpu.getNextClear(clear.primitive, c_loadingBackgroundColour);
+    m_gpu.chain(clear);
+}
+
 void Renderer::RenderSprite(const TimFile *texture, const psyqo::Rect rect, const psyqo::PrimPieces::UVCoords uv)
 {
     // create a quad fragment array for it
@@ -301,7 +311,7 @@ void Renderer::RenderSprite(const TimFile *texture, const psyqo::Rect rect, cons
     tpage.primitive.attr = tpageAttr;
     m_gpu.chain(tpage);
 
-    // TODO: fix this so it actually renders more than one sprite
+    // fix this so it actually renders more than one sprite
     auto &sprite = sprites[m_currentSpriteFragment++];
     sprite.primitive.position = rect.pos;
     sprite.primitive.size = rect.size;

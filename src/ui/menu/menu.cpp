@@ -1,7 +1,7 @@
-
 #include "menu.hh"
 #include "psyqo/xprintf.h"
 #include "../../madnight.hh"
+#include "../../render/renderer.hh"
 
 void Menu::start(StartReason startReason)
 {
@@ -17,6 +17,10 @@ void Menu::teardown(TearDownReason teardownReason)
 
 void Menu::frame(void)
 {
+    uint32_t deltaTime = Renderer::Instance().Process();
+    if (deltaTime == 0)
+        return;
+
     if (!m_isEnabled)
         return;
 
