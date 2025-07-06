@@ -50,4 +50,4 @@ With the build complete and the `ps-exe` running in your emulator then you shoul
 Huge thank you to the following for their involvement in getting this engine started and understanding so much about psyqo; along with the PS1 and its hardware.
 
 - [PSX.Dev Discord](https://discord.gg/QByKPpH)
-- [Nicolas Noble](@nicolasnoble)
+- [Nicolas Noble](https://github.com/nicolasnoble)
