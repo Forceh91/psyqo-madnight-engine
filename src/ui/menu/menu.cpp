@@ -30,6 +30,9 @@ void Menu::frame(void)
         return;
     }
 
+    if (m_onFrame)
+        m_onFrame(deltaTime);
+
     for (auto &text : m_textElements)
         text.Render(m_rect);
 
