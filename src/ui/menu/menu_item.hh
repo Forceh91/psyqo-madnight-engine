@@ -56,6 +56,7 @@ public:
     void SetTextElement(const TextHUDElement &text) { m_text = text; }
     void SetText(const char *text) { m_text.SetDisplayText(text); }
     void SetTextColour(const psyqo::Color colour) { m_text.SetColour(colour); }
+    void SetPositionSize(psyqo::Rect rect) { m_text.SetPositionSize(rect); }
     void SetOnConfirm(eastl::function<void(void)> callback) { m_onConfirm = eastl::move(callback); }
     // make sure that you have entries in `menuItemCustom` via `Menu::SetKeyBindings` before using this
     void SetOnInputCallback(eastl::function<void(const psyqo::AdvancedPad::Button)> callback) { m_onInput = eastl::move(callback); }

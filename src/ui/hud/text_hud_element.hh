@@ -20,6 +20,7 @@ public:
     void SetFont(psyqo::Font<> *font) { m_font = font; }
     void SetDisplayText(const char *displayText) { m_displayText = displayText; }
     void SetColour(const psyqo::Color colour) { m_colour = colour; }
+    void SetPositionSize(psyqo::Rect rect) { m_rect = rect; }
     void Render(const psyqo::Rect &parentRect);
 };
 
