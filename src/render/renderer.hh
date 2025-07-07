@@ -17,6 +17,7 @@ class Renderer final
 {
     static Renderer *m_instance;
     static psyqo::Font<> m_kromFont;
+    static psyqo::Font<> m_systemFont;
 
     psyqo::GPU &m_gpu;
     uint32_t m_lastFrameCounter = 0;
@@ -61,6 +62,7 @@ public:
     }
     psyqo::GPU &GPU() { return m_gpu; }
     psyqo::Font<> *KromFont() { return &m_kromFont; }
+    psyqo::Font<> *SystemFont() { return &m_systemFont; }
 };
 
 #endif
