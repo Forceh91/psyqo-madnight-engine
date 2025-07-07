@@ -14,6 +14,7 @@
 
 Renderer *Renderer::m_instance = nullptr;
 psyqo::Font<> Renderer::m_kromFont;
+psyqo::Font<> Renderer::m_systemFont;
 static constexpr psyqo::Rect screen_space = {.pos = {0, 0}, .size = {320, 240}};
 
 void Renderer::Init(psyqo::GPU &gpuInstance)
@@ -23,6 +24,7 @@ void Renderer::Init(psyqo::GPU &gpuInstance)
 
     m_instance = new Renderer(gpuInstance);
     m_kromFont.uploadKromFont(m_instance->GPU());
+    m_systemFont.uploadSystemFont(m_instance->GPU(), {960, 256});
 }
 
 void Renderer::VRamUpload(const uint16_t *data, int16_t x, int16_t y, int16_t width, int16_t height)

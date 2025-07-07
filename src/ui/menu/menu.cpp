@@ -30,6 +30,9 @@ void Menu::frame(void)
         return;
     }
 
+    if (m_onFrame)
+        m_onFrame(deltaTime);
+
     for (auto &text : m_textElements)
         text.Render(m_rect);
 
@@ -45,12 +48,14 @@ void Menu::Activate()
 {
     m_isEnabled = true;
     g_madnightEngine.pushScene(this);
+    OnActivate();
 }
 
 void Menu::Deactivate(void)
 {
     m_isEnabled = false;
     g_madnightEngine.popScene();
+    OnDeactivate();
 }
 
 void Menu::SetControllerBindings(const MenuControllerBinds &bindings)

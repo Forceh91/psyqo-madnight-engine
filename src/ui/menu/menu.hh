@@ -17,8 +17,9 @@
 
 /*
  * this is the base class for all menus that are created via this engine
- * you shouldn't access this class directly, and instead use GameplayMenu
- * and SceneMenu. more info on those in the respective classes
+ * once activated it will create a scene on top of what was there previously
+ * by default it won't clear the frame buffers and the previous render image
+ * will remain. so for example using this as a pause menu would be perfectly fine
  */
 class Menu : public psyqo::Scene
 {
@@ -44,8 +45,26 @@ class Menu : public psyqo::Scene
         .menuItemConfirm = psyqo::AdvancedPad::Button::Cross,
         .menuItemBackCancel = psyqo::AdvancedPad::Button::Triangle};
 
+    eastl::function<void(uint32_t)> m_onFrame;
+    eastl::function<void(void)> m_onActivate;
+    eastl::function<void(void)> m_onDeactivate;
+
     void Process(void);
     void ProcessInputs(const psyqo::AdvancedPad::Event &event);
+
+    // these are called when activate/deactivate functions are called
+    // deactivate is additionally called when the backcancel button is pressed
+    void OnActivate(void)
+    {
+        if (m_onActivate)
+            m_onActivate();
+    }
+
+    void OnDeactivate(void)
+    {
+        if (m_onDeactivate)
+            m_onDeactivate();
+    }
 
 public:
     Menu() = default;
@@ -71,6 +90,15 @@ public:
     // useful if you want default up/down/confirm/cancel, but custom triggers for certain items.
     // just try not to duplicate buttons already in use by default such as up/down/cross/triangle
     void SetCustomInputCallbackButtons(const eastl::array<psyqo::AdvancedPad::Button, 16> &customBindings);
+
+    // callback each frame
+    void SetOnFrame(eastl::function<void(uint32_t)> callback) { m_onFrame = eastl::move(callback); }
+
+    // callback when menu is activated
+    void SetOnActivate(eastl::function<void(void)> callback) { m_onActivate = eastl::move(callback); }
+
+    // callback when menu is deactivated
+    void SetOnDeactivate(eastl::function<void(void)> callback) { m_onDeactivate = eastl::move(callback); }
 
     // dont lose track of the hud element!
     TextHUDElement *AddTextHUDElement(TextHUDElement &&textElement)
