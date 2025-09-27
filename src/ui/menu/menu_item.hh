@@ -49,7 +49,7 @@ public:
 
     void Enable() { m_isEnabled = true; }
     void Disable() { m_isEnabled = false; }
-    void Render(const psyqo::Rect parentRect, const bool isSelected);
+    void Render(const psyqo::Rect parentRect, const bool isSelected, psyqo::Font<> *fallbackFont);
 
     void SetSpriteElement(const SpriteHUDElement &sprite) { m_sprite = sprite; }
     void SetFont(psyqo::Font<> *font) { m_text.SetFont(font); }

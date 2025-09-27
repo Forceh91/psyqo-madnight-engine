@@ -39,9 +39,9 @@ void Menu::frame(void)
     for (auto &sprite : m_spriteElements)
         sprite.Render(m_rect);
 
-    uint8_t i = 0;
+    uint32_t i = 0;
     for (auto &menuItem : m_menuItems)
-        menuItem.Render(m_rect, m_currentSelectedMenuItem == i++);
+        menuItem.Render(m_rect, m_currentSelectedMenuItem == i++, m_defaultFont);
 }
 
 void Menu::Activate()
