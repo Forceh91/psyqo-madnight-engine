@@ -6,7 +6,6 @@
 #include "helpers/cdrom.hh"
 #include "render/renderer.hh"
 #include "render/camera.hh"
-#include "core/object/gameobject_manager.hh"
 #include "core/debug/debug_menu.hh"
 #include "helpers/load_queue.hh"
 

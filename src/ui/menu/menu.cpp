@@ -34,7 +34,7 @@ void Menu::frame(void)
         m_onFrame(deltaTime);
 
     for (auto &text : m_textElements)
-        text.Render(m_rect);
+        text.Render(m_rect, m_defaultFont);
 
     for (auto &sprite : m_spriteElements)
         sprite.Render(m_rect);
