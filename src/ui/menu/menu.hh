@@ -32,6 +32,7 @@ class Menu : public psyqo::Scene
     bool m_shouldDeactivate = false;
     eastl::fixed_string<char, MENU_MAX_NAME_LEN> m_name = "";
     psyqo::Rect m_rect = {0};
+    psyqo::Font<> *m_defaultFont = nullptr;
 
     eastl::fixed_vector<TextHUDElement, MENU_MAX_TEXT_ELEMENTS, false> m_textElements;
     eastl::fixed_vector<SpriteHUDElement, MENU_MAX_SPRITE_ELEMENTS, false> m_spriteElements;
@@ -133,6 +134,7 @@ public:
     MenuItem *AddMenuItem(const MenuItem &item);
     MenuItem *AddMenuItem(const char *name, const char *displayText, const psyqo::Rect posSize);
     void AddMenuItems(const eastl::span<MenuItem> &items);
+    void SetDefaultFont(psyqo::Font<> *font) { m_defaultFont = font; }
 
     uint8_t MoveSelectedMenuItemPrev()
     {
