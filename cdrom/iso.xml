@@ -53,7 +53,7 @@
 		-->
 		<directory_tree>
 			<file name="SYSTEM.CNF"		type="data" source="system.cnf" />
-			<file name="MADNIGHT.EXE"	type="data" source="../build/madnight.ps-exe" />
+			<file name="MADNIGHT.EXE"	type="data" source="../build/madnight-engine-game.ps-exe" />
 
 			<!-- models in binary format -->
 			<dir name="MODELS">
