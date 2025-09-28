@@ -25,7 +25,7 @@ struct CameraAngle {
 
 struct CameraTracking {
   psyqo::Vec3 *pos;
-  psyqo::Angle angle;
+  psyqo::Vec2 offsetPos;
   psyqo::FixedPoint<> distance;
 };
 
@@ -51,8 +51,10 @@ public:
     SetRotationMatrix();
   }
 
-  const psyqo::Vec3 &const_pos(void) { return m_pos; };
-  const psyqo::Vec3 *pos(void) { return &m_pos; }
+  ~Camera(){};
+
+  const psyqo::Vec3 &pos(void) const { return m_pos; };
+  const psyqo::Vec3 *posPtr(void) { return &m_pos; }
   const CameraAngle *angle(void) { return &m_angle; }
   const psyqo::Vec3 forwardVector(void) {
     return {-m_rotationMatrix.vs[0].z, m_rotationMatrix.vs[1].z, m_rotationMatrix.vs[2].z};
@@ -69,8 +71,9 @@ public:
 
   // pointer to a vec3 (e.g. player position) that you want to track
   // distance is in metres. try to keep this value small. 128px = 1m
-  // will only affect camera when set to FOLLOW mode
-  void SetFollow(psyqo::Vec3 *pos, psyqo::Angle angle, psyqo::FixedPoint<> distance);
+  // NOTE: will force the camera into follow mode, and will only take affect when in that mode
+  void SetFollow(psyqo::Vec3 *pos, psyqo::FixedPoint<> distance);
+  void SetFollow(psyqo::Vec3 *pos, psyqo::Vec2 offsetPos, psyqo::FixedPoint<> distance);
   void ClearFollow(void);
 
 private:
@@ -78,15 +81,17 @@ private:
   psyqo::Vec3 m_initialPos = {0, 0, 0};
   CameraTracking m_tracking = {nullptr, 0, 0};
   CameraAngle m_angle = {0, 0, 0};
+  CameraAngle m_orbitAngle = {0, 0, 0}; // only used when camera is in FOLLOW mode
   CameraAngle m_initialAngle = {0, 0, 0};
   psyqo::Matrix33 m_rotationMatrix = {0, 0, 0};
   CameraPerspective m_cameraPerspective = CameraPerspective::FIRST;
   CameraMode m_cameraMode = CameraMode::FREE;
-
-  void SetRotationMatrix(void);
   psyqo::FixedPoint<> m_movementSpeed = 0.001_fp;
   psyqo::Angle m_rotationSpeed = 0.005_pi;
   uint8_t m_stickDeadzone = 16;
+
+  void SetRotationMatrix(void);
+  psyqo::Vec3 CalculateOrbitPosition(void);
 };
 
 #endif

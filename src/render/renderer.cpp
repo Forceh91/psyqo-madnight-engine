@@ -12,7 +12,6 @@
 #include "psyqo/primitives/control.hh"
 #include "psyqo/soft-math.hh"
 
-
 Renderer *Renderer::m_instance = nullptr;
 psyqo::Font<> Renderer::m_kromFont;
 psyqo::Font<> Renderer::m_systemFont;
@@ -111,10 +110,13 @@ void Renderer::Render(void) {
   // rendering the objects will be the most expensive part of the rendering
   m_gpu.pumpCallbacks();
 
-  // some camera pos/rotation data
-  auto &cameraRotationMatrix = CameraManager::get_rotation_matrix();
-  auto camPos = -CameraManager::get_pos();
-  auto gteCameraPos = SetupCamera(cameraRotationMatrix, camPos);
+  // fallback if we don't have an active camera set
+  psyqo::Vec3 gteCameraPos = {0, 0, 0};
+  psyqo::Matrix33 cameraRotationMatrix = {{0, 0, 0}};
+  if (m_activeCamera != nullptr) {
+    cameraRotationMatrix = m_activeCamera->rotationMatrix();
+    gteCameraPos = SetupCamera(cameraRotationMatrix, -m_activeCamera->pos());
+  }
 
   // now for each object...
   int quadFragment = 0;
@@ -317,3 +319,5 @@ void Renderer::RenderSprite(const TimFile *texture, const psyqo::Rect rect, cons
 
   m_gpu.chain(sprite);
 }
+
+void Renderer::SetActiveCamera(Camera *camera) { m_activeCamera = camera; }

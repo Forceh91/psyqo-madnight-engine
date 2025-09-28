@@ -6,13 +6,11 @@
 #include "psyqo/trigonometry.hh"
 #include "psyqo/vector.hh"
 
-
 #include "../../helpers/file_defs.hh"
 #include "../../mesh/mesh_manager.hh"
 #include "../../textures/texture_manager.hh"
 #include "../collision_types.hh"
 #include "gameobject_defs.hh"
-
 
 static constexpr uint8_t INVALID_GAMEOBJECT_ID = 255;
 
