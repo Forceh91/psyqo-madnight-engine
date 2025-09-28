@@ -4,7 +4,6 @@
 #include "psyqo/cdrom-device.hh"
 #include "psyqo/coroutine.hh"
 #include "psyqo/iso9660-parser.hh"
-#include "psyqo/xprintf.h"
 #include "psyqo-paths/cdrom-loader.hh"
 #include "file_defs.hh"
 
