@@ -28,9 +28,6 @@ void Camera::Process(uint32_t deltaTime) {
   case CameraMode::FREE:
     break;
   }
-
-  // once everything is processed, update rotation matrix
-  // SetRotationMatrix();
 }
 
 void Camera::SetRotationMatrix(void) {
@@ -55,9 +52,15 @@ void Camera::SetPosition(psyqo::FixedPoint<12> x, psyqo::FixedPoint<12> y, psyqo
 
 void Camera::SetPosition(psyqo::Vec3 pos) { m_pos = pos; }
 
-void Camera::SetAngle(psyqo::Angle x, psyqo::Angle y, psyqo::Angle z) { m_angle = {x, y, z}; }
+void Camera::SetAngle(psyqo::Angle x, psyqo::Angle y, psyqo::Angle z) {
+  SetAngle(CameraAngle{x, y, z});
+  SetRotationMatrix();
+}
 
-void Camera::SetAngle(CameraAngle angle) { m_angle = angle; }
+void Camera::SetAngle(CameraAngle angle) {
+  m_angle = angle;
+  SetRotationMatrix();
+}
 
 void Camera::SetPerspective(CameraPerspective perspective) {
   // TODO: reset position when this happens?
