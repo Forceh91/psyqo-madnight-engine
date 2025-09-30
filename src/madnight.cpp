@@ -6,13 +6,10 @@
 #include "helpers/cdrom.hh"
 #include "helpers/load_queue.hh"
 #include "madnight.hh"
-#include "render/_camera.hh"
 #include "render/renderer.hh"
-
 
 #include "game.hh"
 #include "scenes/loading.hh"
-
 
 using namespace psyqo::fixed_point_literals;
 
@@ -48,7 +45,6 @@ void MadnightEngine::prepare() {
   Renderer::Init(gpu());
 
   // our application inits
-  CameraManager::init();
   DebugMenu::Init();
 }
 

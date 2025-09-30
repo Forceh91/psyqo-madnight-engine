@@ -1,5 +1,4 @@
 #include "renderer.hh"
-#include "_camera.hh"
 #include "clip.hh"
 #include "colour.hh"
 
