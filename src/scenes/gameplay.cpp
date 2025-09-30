@@ -1,5 +1,6 @@
 #include "gameplay.hh"
 #include "../core/collision.hh"
+#include "../core/debug//perf_monitor.hh"
 #include "../core/debug/debug_menu.hh"
 #include "../core/object/gameobject_manager.hh"
 #include "../core/raycast.hh"
@@ -64,16 +65,6 @@ void GameplayScene::frame() {
   if (DebugMenu::IsEnabled())
     return;
 
-  if (DebugMenu::DisplayDebugHUD()) {
-    char heapSize[GAMEPLAY_HUD_ELEMENT_MAX_STR_LEN];
-    snprintf(heapSize, GAMEPLAY_HUD_ELEMENT_MAX_STR_LEN, "Heap Used: %d",
-             (int)((uint8_t *)psyqo_heap_end() - (uint8_t *)psyqo_heap_start()));
-    m_heapSizeText->SetDisplayText(heapSize);
-
-    char fps[GAMEPLAY_HUD_ELEMENT_MAX_STR_LEN];
-    snprintf(fps, GAMEPLAY_HUD_ELEMENT_MAX_STR_LEN, "FPS: %d", renderInstance.GPU().getRefreshRate() / deltaTime);
-    m_fpsText->SetDisplayText(fps);
-
-    m_debugHUD.Render();
-  }
+  if (DebugMenu::DisplayDebugHUD())
+    PerfMonitor::Render(deltaTime);
 }
