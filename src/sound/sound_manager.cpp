@@ -1,4 +1,5 @@
 #include "sound_manager.hh"
+#include "psyqo/xprintf.h"
 #include "../helpers/cdrom.hh"
 #include "../render/renderer.hh"
 

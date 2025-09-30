@@ -1,4 +1,5 @@
 #include "mesh_manager.hh"
+#include "psyqo/xprintf.h"
 #include "../core/collision.hh"
 #include "../helpers/cdrom.hh"
 

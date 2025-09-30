@@ -1,137 +1,178 @@
 #include "camera.hh"
-#include "psyqo/soft-math.hh"
 #include "../madnight.hh"
-#include "../controller/controller.hh"
+#include "EASTL/algorithm.h"
+#include "psyqo/fixed-point.hh"
+#include "psyqo/soft-math.hh"
+#include "psyqo/trigonometry.hh"
+#include "psyqo/vector.hh"
 
-psyqo::Vec3 CameraManager::m_pos = {0, 0, 0};
-CAMERA_ANGLE CameraManager::m_angle = {0, 0, 0};
-psyqo::Matrix33 CameraManager::m_rotation_matrix = {0};
+void Camera::Process(uint32_t deltaTime) {
+  // TODO: should first/third person camera perspective affect things?
+  psyqo::Trig trig = g_madnightEngine.m_trig;
 
-void CameraManager::init(void)
-{
-    set_position(static_cast<psyqo::FixedPoint<12>>(0), -0.02_fp, -0.075_fp);
-    set_rotation_matrix();
+  switch (m_cameraMode) {
+  case CameraMode::FIXED:
+    break;
+
+  case CameraMode::FOLLOW:
+    // update the position to be an orbit around
+    SetPosition(CalculateOrbitPosition());
+    // and update the rotation matrix to be a lookat matrix
+    LookAt(m_tracking.pos);
+
+    break;
+
+  case CameraMode::FREE_LOOK:
+    break;
+  }
 }
 
-void CameraManager::set_position(psyqo::FixedPoint<12> x, psyqo::FixedPoint<12> y, psyqo::FixedPoint<12> z)
-{
-    m_pos.x = x;
-    m_pos.y = y;
-    m_pos.z = z;
+void Camera::SetRotationMatrix(void) {
+  auto rotationMatrixX =
+      psyqo::SoftMath::generateRotationMatrix33(m_angle.x, psyqo::SoftMath::Axis::X, g_madnightEngine.m_trig);
+  auto rotationMatrixY =
+      psyqo::SoftMath::generateRotationMatrix33(m_angle.y, psyqo::SoftMath::Axis::Y, g_madnightEngine.m_trig);
+  auto rotationMatrixZ =
+      psyqo::SoftMath::generateRotationMatrix33(m_angle.z, psyqo::SoftMath::Axis::Z, g_madnightEngine.m_trig);
+
+  // xyz multiplication order
+  psyqo::SoftMath::multiplyMatrix33(rotationMatrixY, rotationMatrixX, &rotationMatrixY);
+  psyqo::SoftMath::multiplyMatrix33(rotationMatrixY, rotationMatrixZ, &rotationMatrixY);
+
+  // update calculated rotation matrix
+  m_rotationMatrix = rotationMatrixY;
 }
 
-void CameraManager::process(uint32_t delta_time)
-{
-    psyqo::Trig trig = g_madnightEngine.m_trig;
-
-    // move camera forward
-    if (g_madnightEngine.m_input.isButtonPressed(psyqo::AdvancedPad::Pad::Pad1a, psyqo::AdvancedPad::Button::Triangle))
-    {
-        psyqo::FixedPoint<12> forward = m_movement_speed * delta_time;
-        m_pos.x += trig.sin(m_angle.y) * forward;
-        m_pos.z += trig.cos(m_angle.y) * forward;
-    }
-
-    // move camera back
-    else if (g_madnightEngine.m_input.isButtonPressed(psyqo::AdvancedPad::Pad::Pad1a, psyqo::AdvancedPad::Button::Cross))
-    {
-        psyqo::FixedPoint<12> backwards = -m_movement_speed * delta_time;
-        m_pos.x += trig.sin(m_angle.y) * backwards;
-        m_pos.z += trig.cos(m_angle.y) * backwards;
-    }
-
-    // move camera left
-    if (g_madnightEngine.m_input.isButtonPressed(psyqo::AdvancedPad::Pad::Pad1a, psyqo::AdvancedPad::Button::Square))
-    {
-        psyqo::FixedPoint<12> left = m_movement_speed * delta_time;
-        m_pos.x += -trig.cos(m_angle.y) * left;
-        m_pos.z += trig.sin(m_angle.y) * left;
-    }
-
-    // move camera right
-    else if (g_madnightEngine.m_input.isButtonPressed(psyqo::AdvancedPad::Pad::Pad1a, psyqo::AdvancedPad::Button::Circle))
-    {
-        psyqo::FixedPoint<12> right = -m_movement_speed * delta_time;
-        m_pos.x += -trig.cos(m_angle.y) * right;
-        m_pos.z += trig.sin(m_angle.y) * right;
-    }
-
-    // move camera up
-    if (g_madnightEngine.m_input.isButtonPressed(psyqo::AdvancedPad::Pad::Pad1a, psyqo::AdvancedPad::Button::L1))
-    {
-        psyqo::FixedPoint<12> up = -m_movement_speed * delta_time;
-        m_pos.y += up;
-    }
-
-    // move camera down
-    else if (g_madnightEngine.m_input.isButtonPressed(psyqo::AdvancedPad::Pad::Pad1a, psyqo::AdvancedPad::Button::R1))
-    {
-        psyqo::FixedPoint<12> down = m_movement_speed * delta_time;
-        m_pos.y += down;
-    }
-
-    // make sure we've actually got an analog pad connected
-    if (g_madnightEngine.m_input.getPadType(psyqo::AdvancedPad::Pad::Pad1a) != psyqo::AdvancedPad::PadType::AnalogPad)
-        return;
-
-    // analog stick movement for fps cam (remember 0x80 is centre, so -128 to 127)
-    int leftStickX = ControllerHelper::GetNormalizedAnalogStickInput(psyqo::AdvancedPad::Pad::Pad1a, ControllerHelper::AnalogStickIndex::LeftStickX);
-    int leftStickY = ControllerHelper::GetNormalizedAnalogStickInput(psyqo::AdvancedPad::Pad::Pad1a, ControllerHelper::AnalogStickIndex::LeftStickY);
-
-    int rightStickX = ControllerHelper::GetNormalizedAnalogStickInput(psyqo::AdvancedPad::Pad::Pad1a, ControllerHelper::AnalogStickIndex::RightStickX);
-    int rightStickY = ControllerHelper::GetNormalizedAnalogStickInput(psyqo::AdvancedPad::Pad::Pad1a, ControllerHelper::AnalogStickIndex::RightStickY);
-
-    // use left stick y to move forward/backwards
-    if (leftStickY < -m_stickDeadzone || leftStickY > m_stickDeadzone)
-    {
-        psyqo::FixedPoint<12> forward = m_movement_speed * -leftStickY >> 5 * delta_time;
-        m_pos.x += trig.sin(m_angle.y) * forward;
-        m_pos.z += trig.cos(m_angle.y) * forward;
-    }
-
-    // use left stick x to strafe left/right
-    if (leftStickX < -m_stickDeadzone || leftStickX > m_stickDeadzone)
-    {
-        psyqo::FixedPoint<12> left = m_movement_speed * -leftStickX >> 5 * delta_time;
-        m_pos.x += -trig.cos(m_angle.y) * left;
-        m_pos.z += trig.sin(m_angle.y) * left;
-    }
-
-    // use right stick y to look up/down
-    if (rightStickY < -m_stickDeadzone || rightStickY > m_stickDeadzone)
-    {
-        m_angle.x += (-rightStickY >> 5) * delta_time * m_rotation_speed;
-        set_rotation_matrix();
-    }
-
-    // use right stick x to look left/right
-    if (rightStickX < -m_stickDeadzone || rightStickX > m_stickDeadzone)
-    {
-        m_angle.y -= (-rightStickX >> 5) * delta_time * m_rotation_speed;
-        set_rotation_matrix();
-    }
+void Camera::SetPosition(psyqo::FixedPoint<12> x, psyqo::FixedPoint<12> y, psyqo::FixedPoint<12> z) {
+  m_pos = {x, y, z};
 }
 
-void CameraManager::set_rotation_matrix(void)
-{
-    auto rm_x = psyqo::SoftMath::generateRotationMatrix33(m_angle.x, psyqo::SoftMath::Axis::X, g_madnightEngine.m_trig);
-    auto rm_y = psyqo::SoftMath::generateRotationMatrix33(m_angle.y, psyqo::SoftMath::Axis::Y, g_madnightEngine.m_trig);
-    auto rm_z = psyqo::SoftMath::generateRotationMatrix33(m_angle.z, psyqo::SoftMath::Axis::Z, g_madnightEngine.m_trig);
+void Camera::SetPosition(psyqo::Vec3 pos) { m_pos = pos; }
 
-    // xyz multiplication order
-    psyqo::SoftMath::multiplyMatrix33(rm_y, rm_x, &rm_y);
-    psyqo::SoftMath::multiplyMatrix33(rm_y, rm_z, &rm_y);
-
-    // update rotation matrix
-    m_rotation_matrix = rm_y;
+void Camera::SetAngle(psyqo::Angle x, psyqo::Angle y, psyqo::Angle z) {
+  SetAngle(CameraAngle{x, y, z});
+  SetRotationMatrix();
 }
 
-psyqo::Vec3 CameraManager::GetForwardVector(void)
-{
-    return {
-        -m_rotation_matrix.vs[0].z, m_rotation_matrix.vs[1].z, m_rotation_matrix.vs[2].z};
+void Camera::SetAngle(CameraAngle angle) {
+  m_angle = angle;
+  SetRotationMatrix();
 }
 
-psyqo::Vec3 &CameraManager::get_pos(void) { return m_pos; }
-CAMERA_ANGLE *CameraManager::get_angle(void) { return &m_angle; }
-psyqo::Matrix33 &CameraManager::get_rotation_matrix(void) { return m_rotation_matrix; };
+void Camera::SetFixed(void) { SetFixed(m_pos, m_angle); }
+
+void Camera::SetFixed(psyqo::Vec3 pos) { SetFixed(pos, m_angle); }
+
+void Camera::SetFixed(psyqo::Vec3 pos, CameraAngle angle) {
+  m_prevCameraMode = m_cameraMode;
+  m_cameraMode = CameraMode::FIXED;
+
+  SetPosition(pos);
+  SetAngle(angle);
+}
+
+void Camera::ClearFixed(void) { m_cameraMode = m_prevCameraMode; }
+
+void Camera::SetFollow(psyqo::Vec3 *pos, psyqo::FixedPoint<> distance) { SetFollow(pos, {0, 0}, distance); }
+
+void Camera::SetFollow(psyqo::Vec3 *pos, psyqo::Vec2 offsetPos, psyqo::FixedPoint<> distance) {
+  m_tracking = {pos, offsetPos, distance};
+  m_cameraMode = CameraMode::FOLLOW;
+}
+
+void Camera::ClearFollow(void) {
+  m_tracking = {nullptr, 0, 0};
+  m_cameraMode = CameraMode::FIXED;
+}
+
+void Camera::SetFreeLook(void) { SetFreeLook(m_pos, m_angle); }
+
+void Camera::SetFreeLook(psyqo::Vec3 pos) { SetFreeLook(pos, m_angle); }
+
+void Camera::SetFreeLook(psyqo::Vec3 pos, CameraAngle initialAngle) {
+  m_cameraMode = CameraMode::FREE_LOOK;
+  SetPosition(pos);
+  SetAngle(initialAngle);
+}
+
+void Camera::SetFreeLookMaxAngles(CameraMaxAngle maxAngles) { m_maxFreeLookAngles = maxAngles; }
+
+void Camera::ClearFreeLook(void) { m_cameraMode = CameraMode::FIXED; }
+
+// TODO: watch for stuff getting in the way, force the distance to be lower if needed
+psyqo::Vec3 Camera::CalculateOrbitPosition(void) {
+  psyqo::Trig trig = g_madnightEngine.m_trig;
+
+  psyqo::Vec3 forward = {trig.cos(m_orbitAngle.x) * trig.sin(m_orbitAngle.y), trig.sin(m_orbitAngle.x),
+                         trig.cos(m_orbitAngle.x) * trig.cos(m_orbitAngle.y)};
+
+  auto worldUp = psyqo::Vec3::UP();
+  auto forwardUpCross = psyqo::SoftMath::crossProductVec3(forward, worldUp);
+  auto right = forwardUpCross;
+  psyqo::SoftMath::normalizeVec3(&right);
+
+  auto rightForwardCross = psyqo::SoftMath::crossProductVec3(right, forward);
+  auto up = rightForwardCross;
+  psyqo::SoftMath::normalizeVec3(&up);
+
+  if (m_orbitAngle.z < 0 || m_orbitAngle.z > 0) {
+    auto cosRight = trig.cos(m_orbitAngle.z);
+    auto sinRight = trig.sin(m_orbitAngle.z);
+
+    auto orbitRight = right * cosRight + up * sinRight;
+    up = up * cosRight - right * sinRight;
+    right = orbitRight;
+  }
+
+  return *m_tracking.pos - (forward * m_tracking.distance) + (right * m_tracking.offsetPos.x) +
+         (up * m_tracking.offsetPos.y);
+}
+
+void Camera::LookAt(const psyqo::Vec3 *target) {
+  // calculate forward axis direction
+  auto forwardVector = *target - m_pos;
+  auto forwardVectorNormal = forwardVector;
+  psyqo::SoftMath::normalizeVec3(&forwardVectorNormal);
+
+  // calculate right axis direction
+  auto up = psyqo::Vec3::UP();
+  auto crossProduct = psyqo::SoftMath::crossProductVec3(forwardVectorNormal, up);
+  auto rightVectorNormal = crossProduct;
+  psyqo::SoftMath::normalizeVec3(&rightVectorNormal);
+
+  // calculate up axis direction
+  auto rightForwardCrossProduct = psyqo::SoftMath::crossProductVec3(rightVectorNormal, forwardVectorNormal);
+  auto upVectorNormal = rightForwardCrossProduct;
+  psyqo::SoftMath::normalizeVec3(&upVectorNormal);
+
+  m_rotationMatrix = {{{rightVectorNormal.x, rightVectorNormal.y, rightVectorNormal.z},
+                       {upVectorNormal.x, upVectorNormal.y, upVectorNormal.z},
+                       {forwardVectorNormal.x, forwardVectorNormal.y, forwardVectorNormal.z}}};
+}
+
+void Camera::UpdateOrbitAngles(psyqo::Angle xDeltaAmount, psyqo::Angle yDeltaAmount) {
+  UpdateOrbitAngles(xDeltaAmount, yDeltaAmount, 1);
+}
+
+void Camera::UpdateOrbitAngles(psyqo::Angle xAmount, psyqo::Angle yAmount, uint32_t deltaTime) {
+  if (m_cameraMode != CameraMode::FOLLOW)
+    return;
+
+  m_orbitAngle.x = eastl::clamp(m_orbitAngle.x - xAmount * deltaTime, -0.21_pi, 0.21_pi);
+  m_orbitAngle.y = eastl::clamp(m_orbitAngle.y + yAmount * deltaTime, -1.0_pi, 1.0_pi);
+
+  // allow a full 360 view when going left->right or vice versa
+  if (m_orbitAngle.y == 1.0_pi || m_orbitAngle.y == -1.0_pi)
+    m_orbitAngle.y = -m_orbitAngle.y;
+}
+
+void Camera::UpdateAngles(psyqo::Angle xDeltaAmount, psyqo::Angle yDeltaAmount, psyqo::Angle zDeltaAmount) {
+  UpdateAngles(xDeltaAmount, yDeltaAmount, zDeltaAmount, 1);
+}
+
+void Camera::UpdateAngles(psyqo::Angle xAmount, psyqo::Angle yAmount, psyqo::Angle zAmount, uint32_t deltaTime) {
+  m_angle.x = eastl::clamp(m_angle.x - xAmount * deltaTime, -m_maxFreeLookAngles.maxX, m_maxFreeLookAngles.maxX);
+  m_angle.y = eastl::clamp(m_angle.y + yAmount * deltaTime, -m_maxFreeLookAngles.maxY, m_maxFreeLookAngles.maxY);
+  m_angle.z = eastl::clamp(m_angle.z + zAmount * deltaTime, -m_maxFreeLookAngles.maxZ, m_maxFreeLookAngles.maxZ);
+  SetRotationMatrix();
+}
