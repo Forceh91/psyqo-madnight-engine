@@ -1,6 +1,7 @@
 #include "camera.hh"
 #include "../madnight.hh"
 #include "EASTL/algorithm.h"
+#include "psyqo/fixed-point.hh"
 #include "psyqo/soft-math.hh"
 #include "psyqo/trigonometry.hh"
 #include "psyqo/vector.hh"
@@ -125,9 +126,13 @@ void Camera::LookAt(const psyqo::Vec3 *target) {
                        {forwardVectorNormal.x, forwardVectorNormal.y, forwardVectorNormal.z}}};
 }
 
-void Camera::UpdateOrbitAngle(int32_t xAmount, int32_t yAmount, uint32_t deltaTime) {
-  m_orbitAngle.x = eastl::clamp(m_orbitAngle.x + (-xAmount >> 5) * deltaTime * m_rotationSpeed, -0.21_pi, 0.21_pi);
-  m_orbitAngle.y = eastl::clamp(m_orbitAngle.y - (yAmount >> 5) * deltaTime * m_rotationSpeed, -1.0_pi, 1.0_pi);
+void Camera::UpdateOrbitAngles(psyqo::Angle xDeltaAmount, psyqo::Angle yDeltaAmount) {
+  UpdateOrbitAngles(xDeltaAmount, yDeltaAmount, 1);
+}
+
+void Camera::UpdateOrbitAngles(psyqo::Angle xAmount, psyqo::Angle yAmount, uint32_t deltaTime) {
+  m_orbitAngle.x = eastl::clamp(m_orbitAngle.x - xAmount * deltaTime, -0.21_pi, 0.21_pi);
+  m_orbitAngle.y = eastl::clamp(m_orbitAngle.y + yAmount * deltaTime, -1.0_pi, 1.0_pi);
 
   // allow a full 360 view when going left->right or vice versa
   if (m_orbitAngle.y == 1.0_pi || m_orbitAngle.y == -1.0_pi)

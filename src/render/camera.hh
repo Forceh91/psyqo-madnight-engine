@@ -79,7 +79,8 @@ public:
   void LookAt(const psyqo::Vec3 *target);
 
   // deltaTime in terms of frames
-  void UpdateOrbitAngle(int32_t xAmount, int32_t yAmount, uint32_t deltaTime);
+  void UpdateOrbitAngles(psyqo::Angle xDeltaAmount, psyqo::Angle yDeltaAmount);
+  void UpdateOrbitAngles(psyqo::Angle xAmount, psyqo::Angle yAmount, uint32_t deltaTime);
 
 private:
   psyqo::Vec3 m_pos = {0, 0, 0};
