@@ -1,7 +1,6 @@
 #include "camera.hh"
 #include "../madnight.hh"
-#include "../math/vector.hh"
-#include "psyqo/advancedpad.hh"
+#include "EASTL/algorithm.h"
 #include "psyqo/soft-math.hh"
 #include "psyqo/trigonometry.hh"
 #include "psyqo/vector.hh"
@@ -11,32 +10,21 @@ void Camera::Process(uint32_t deltaTime) {
   psyqo::Trig trig = g_madnightEngine.m_trig;
 
   switch (m_cameraMode) {
+  // used for looking at a set point, not much processing to do really
   case CameraMode::FIXED:
-    // used for looking at a set point, not much processing to do really
     break;
 
+  // update position, allow camera rotation in an orbit style
   case CameraMode::FOLLOW:
-    // update position, allow camera rotation in an orbit style
-    // L2 will orbit the camera left
-    if (g_madnightEngine.m_input.isButtonPressed(psyqo::AdvancedPad::Pad::Pad1a, psyqo::AdvancedPad::L2)) {
-      m_orbitAngle.y -= (128 >> 5) * deltaTime * m_rotationSpeed;
-    }
-
-    // R2 will orbit the camera right
-    if (g_madnightEngine.m_input.isButtonPressed(psyqo::AdvancedPad::Pad::Pad1a, psyqo::AdvancedPad::R2)) {
-      m_orbitAngle.y -= (-128 >> 5) * deltaTime * m_rotationSpeed;
-    }
-
     // update the position to be an orbit around
     SetPosition(CalculateOrbitPosition());
     // and update the rotation matrix to be a lookat matrix
-    m_rotationMatrix = LookAt(m_pos, *m_tracking.pos);
+    LookAt(m_tracking.pos);
 
-    // watch for rotation inputs
     break;
 
+  // ignore follow position, allow camera rotation
   case CameraMode::FREE:
-    // ignore follow position, allow camera rotation
     break;
   }
 
@@ -89,6 +77,7 @@ void Camera::ClearFollow(void) { m_tracking = {nullptr, 0, 0}; }
 // TODO: watch for stuff getting in the way, force the distance to be lower if needed
 psyqo::Vec3 Camera::CalculateOrbitPosition(void) {
   psyqo::Trig trig = g_madnightEngine.m_trig;
+
   psyqo::Vec3 forward = {trig.cos(m_orbitAngle.x) * trig.sin(m_orbitAngle.y), trig.sin(m_orbitAngle.x),
                          trig.cos(m_orbitAngle.x) * trig.cos(m_orbitAngle.y)};
 
@@ -112,4 +101,35 @@ psyqo::Vec3 Camera::CalculateOrbitPosition(void) {
 
   return *m_tracking.pos - (forward * m_tracking.distance) + (right * m_tracking.offsetPos.x) +
          (up * m_tracking.offsetPos.y);
+}
+
+void Camera::LookAt(const psyqo::Vec3 *target) {
+  // calculate forward axis direction
+  auto forwardVector = *target - m_pos;
+  auto forwardVectorNormal = forwardVector;
+  psyqo::SoftMath::normalizeVec3(&forwardVectorNormal);
+
+  // calculate right axis direction
+  auto up = psyqo::Vec3::UP();
+  auto crossProduct = psyqo::SoftMath::crossProductVec3(forwardVectorNormal, up);
+  auto rightVectorNormal = crossProduct;
+  psyqo::SoftMath::normalizeVec3(&rightVectorNormal);
+
+  // calculate up axis direction
+  auto rightForwardCrossProduct = psyqo::SoftMath::crossProductVec3(rightVectorNormal, forwardVectorNormal);
+  auto upVectorNormal = rightForwardCrossProduct;
+  psyqo::SoftMath::normalizeVec3(&upVectorNormal);
+
+  m_rotationMatrix = {{{rightVectorNormal.x, rightVectorNormal.y, rightVectorNormal.z},
+                       {upVectorNormal.x, upVectorNormal.y, upVectorNormal.z},
+                       {forwardVectorNormal.x, forwardVectorNormal.y, forwardVectorNormal.z}}};
+}
+
+void Camera::UpdateOrbitAngle(int32_t xAmount, int32_t yAmount, uint32_t deltaTime) {
+  m_orbitAngle.x = eastl::clamp(m_orbitAngle.x + (-xAmount >> 5) * deltaTime * m_rotationSpeed, -0.21_pi, 0.21_pi);
+  m_orbitAngle.y = eastl::clamp(m_orbitAngle.y - (yAmount >> 5) * deltaTime * m_rotationSpeed, -1.0_pi, 1.0_pi);
+
+  // allow a full 360 view when going left->right or vice versa
+  if (m_orbitAngle.y == 1.0_pi || m_orbitAngle.y == -1.0_pi)
+    m_orbitAngle.y = -m_orbitAngle.y;
 }

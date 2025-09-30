@@ -13,7 +13,7 @@ enum CameraPerspective { FIRST, THIRD };
 
 enum CameraMode {
   FIXED /* camera is fixed, user has no control */,
-  FOLLOW /* camera will follow a set pos at a set distance, user can rotate around said pos */,
+  FOLLOW /* camera will follow a set pos at a set distance, user can orbit around said pos */,
   FREE /* user has full control over the camera*/
 };
 
@@ -76,6 +76,11 @@ public:
   void SetFollow(psyqo::Vec3 *pos, psyqo::Vec2 offsetPos, psyqo::FixedPoint<> distance);
   void ClearFollow(void);
 
+  void LookAt(const psyqo::Vec3 *target);
+
+  // deltaTime in terms of frames
+  void UpdateOrbitAngle(int32_t xAmount, int32_t yAmount, uint32_t deltaTime);
+
 private:
   psyqo::Vec3 m_pos = {0, 0, 0};
   psyqo::Vec3 m_initialPos = {0, 0, 0};
@@ -88,7 +93,6 @@ private:
   CameraMode m_cameraMode = CameraMode::FREE;
   psyqo::FixedPoint<> m_movementSpeed = 0.001_fp;
   psyqo::Angle m_rotationSpeed = 0.005_pi;
-  uint8_t m_stickDeadzone = 16;
 
   void SetRotationMatrix(void);
   psyqo::Vec3 CalculateOrbitPosition(void);
