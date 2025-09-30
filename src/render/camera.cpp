@@ -11,11 +11,9 @@ void Camera::Process(uint32_t deltaTime) {
   psyqo::Trig trig = g_madnightEngine.m_trig;
 
   switch (m_cameraMode) {
-  // used for looking at a set point, not much processing to do really
   case CameraMode::FIXED:
     break;
 
-  // update position, allow camera rotation in an orbit style
   case CameraMode::FOLLOW:
     // update the position to be an orbit around
     SetPosition(CalculateOrbitPosition());
@@ -24,8 +22,7 @@ void Camera::Process(uint32_t deltaTime) {
 
     break;
 
-  // ignore follow position, allow camera rotation
-  case CameraMode::FREE:
+  case CameraMode::FREE_LOOK:
     break;
   }
 }
@@ -62,12 +59,19 @@ void Camera::SetAngle(CameraAngle angle) {
   SetRotationMatrix();
 }
 
-void Camera::SetPerspective(CameraPerspective perspective) {
-  // TODO: reset position when this happens?
-  m_cameraPerspective = perspective;
+void Camera::SetFixed(void) { SetFixed(m_pos, m_angle); }
+
+void Camera::SetFixed(psyqo::Vec3 pos) { SetFixed(pos, m_angle); }
+
+void Camera::SetFixed(psyqo::Vec3 pos, CameraAngle angle) {
+  m_prevCameraMode = m_cameraMode;
+  m_cameraMode = CameraMode::FIXED;
+
+  SetPosition(pos);
+  SetAngle(angle);
 }
 
-void Camera::SetMode(CameraMode mode) { m_cameraMode = mode; }
+void Camera::ClearFixed(void) { m_cameraMode = m_prevCameraMode; }
 
 void Camera::SetFollow(psyqo::Vec3 *pos, psyqo::FixedPoint<> distance) { SetFollow(pos, {0, 0}, distance); }
 
@@ -76,7 +80,24 @@ void Camera::SetFollow(psyqo::Vec3 *pos, psyqo::Vec2 offsetPos, psyqo::FixedPoin
   m_cameraMode = CameraMode::FOLLOW;
 }
 
-void Camera::ClearFollow(void) { m_tracking = {nullptr, 0, 0}; }
+void Camera::ClearFollow(void) {
+  m_tracking = {nullptr, 0, 0};
+  m_cameraMode = CameraMode::FIXED;
+}
+
+void Camera::SetFreeLook(void) { SetFreeLook(m_pos, m_angle); }
+
+void Camera::SetFreeLook(psyqo::Vec3 pos) { SetFreeLook(pos, m_angle); }
+
+void Camera::SetFreeLook(psyqo::Vec3 pos, CameraAngle initialAngle) {
+  m_cameraMode = CameraMode::FREE_LOOK;
+  SetPosition(pos);
+  SetAngle(initialAngle);
+}
+
+void Camera::SetFreeLookMaxAngles(CameraMaxAngle maxAngles) { m_maxFreeLookAngles = maxAngles; }
+
+void Camera::ClearFreeLook(void) { m_cameraMode = CameraMode::FIXED; }
 
 // TODO: watch for stuff getting in the way, force the distance to be lower if needed
 psyqo::Vec3 Camera::CalculateOrbitPosition(void) {
@@ -134,10 +155,24 @@ void Camera::UpdateOrbitAngles(psyqo::Angle xDeltaAmount, psyqo::Angle yDeltaAmo
 }
 
 void Camera::UpdateOrbitAngles(psyqo::Angle xAmount, psyqo::Angle yAmount, uint32_t deltaTime) {
+  if (m_cameraMode != CameraMode::FOLLOW)
+    return;
+
   m_orbitAngle.x = eastl::clamp(m_orbitAngle.x - xAmount * deltaTime, -0.21_pi, 0.21_pi);
   m_orbitAngle.y = eastl::clamp(m_orbitAngle.y + yAmount * deltaTime, -1.0_pi, 1.0_pi);
 
   // allow a full 360 view when going left->right or vice versa
   if (m_orbitAngle.y == 1.0_pi || m_orbitAngle.y == -1.0_pi)
     m_orbitAngle.y = -m_orbitAngle.y;
+}
+
+void Camera::UpdateAngles(psyqo::Angle xDeltaAmount, psyqo::Angle yDeltaAmount, psyqo::Angle zDeltaAmount) {
+  UpdateAngles(xDeltaAmount, yDeltaAmount, zDeltaAmount, 1);
+}
+
+void Camera::UpdateAngles(psyqo::Angle xAmount, psyqo::Angle yAmount, psyqo::Angle zAmount, uint32_t deltaTime) {
+  m_angle.x = eastl::clamp(m_angle.x - xAmount * deltaTime, -m_maxFreeLookAngles.maxX, m_maxFreeLookAngles.maxX);
+  m_angle.y = eastl::clamp(m_angle.y + yAmount * deltaTime, -m_maxFreeLookAngles.maxY, m_maxFreeLookAngles.maxY);
+  m_angle.z = eastl::clamp(m_angle.z + zAmount * deltaTime, -m_maxFreeLookAngles.maxZ, m_maxFreeLookAngles.maxZ);
+  SetRotationMatrix();
 }
