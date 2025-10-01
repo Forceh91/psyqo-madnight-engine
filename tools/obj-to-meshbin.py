@@ -145,9 +145,15 @@ def parse_obj_file_with_collision_data(path,texture_size):
 
 def write_meshbin(filename, verts, norms, uvs, indices, uv_indices, normal_indices, num_faces, collision_verts):
     with open(filename, "wb") as f:
+        f.write(b"MESHBIN") # magic
+        f.write(struct.pack("<B", 1)) # version
+        f.write(struct.pack("<B", 1)) # type
+
         f.write(struct.pack("<I", len(verts)))
         f.write(struct.pack("<I", len(indices)))
         f.write(struct.pack("<I", num_faces)) 
+        f.write(struct.pack("<I", len(norms)))
+        f.write(struct.pack("<I", len(uvs)))
 
         for vert in verts:
             x, y, z = vert[:3]
@@ -158,19 +164,17 @@ def write_meshbin(filename, verts, norms, uvs, indices, uv_indices, normal_indic
                 r, g, b = vert[3:6]
             else:
                 r, g, b = -1, -1, -1
-            f.write(struct.pack("<hhh", r, g, b))
+            f.write(struct.pack("<bbb", r, g, b))
 
         for face in indices:
             f.write(struct.pack("<hhhh", *face))
 
-        f.write(struct.pack("<I", len(norms)))
         for x, y, z in norms:
             f.write(struct.pack("<hhh", x, y, z))
 
         for face in normal_indices:
             f.write(struct.pack("<hhhh", *face))
 
-        f.write(struct.pack("<I", len(uvs)))
         for u, v in uvs:
             f.write(struct.pack("<BB", u, v))
 

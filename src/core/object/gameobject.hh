@@ -33,7 +33,7 @@ class GameObject final {
   psyqo::Vec3 m_pos = {0, 0, 0};
   GameObjectRotation m_rotation = {0, 0, 0};
   psyqo::Matrix33 m_rotationMatrix = {0};
-  MESH *m_mesh = nullptr;
+  MeshBin *m_mesh = nullptr;
   TimFile *m_texture = nullptr;
   OBB m_obb = {0};
   CollisionType m_collisionType = CollisionType::SOLID;
@@ -64,7 +64,7 @@ public:
 
   const GameObjectRotation &rotation() const { return m_rotation; }
   const psyqo::Matrix33 &rotationMatrix() const { return m_rotationMatrix; }
-  const MESH *mesh() const { return m_mesh; }
+  const MeshBin *mesh() const { return m_mesh; }
   const TimFile *texture() const { return m_texture; }
   const GameObjectTag &tag() { return m_tag; }
   const GameObjectQuadType &quadType() { return m_quadType; }

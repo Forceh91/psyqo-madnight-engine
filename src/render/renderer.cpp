@@ -164,15 +164,15 @@ void Renderer::Render(void) {
       offset.pos.y += (texture->height - 1);
     }
 
-    for (int i = 0; i < mesh->faces_num; i++) {
+    for (int i = 0; i < mesh->facesCount; i++) {
       // dont overflow our quads/faces/whatever
       if (quadFragment >= QUAD_FRAGMENT_SIZE)
         break;
 
       // load the first 3 verts into the GTE. remember it can only handle 3 at a time
-      psyqo::GTE::writeSafe<psyqo::GTE::PseudoRegister::V0>(mesh->vertices[mesh->indices[i].v0]);
-      psyqo::GTE::writeSafe<psyqo::GTE::PseudoRegister::V1>(mesh->vertices[mesh->indices[i].v1]);
-      psyqo::GTE::writeSafe<psyqo::GTE::PseudoRegister::V2>(mesh->vertices[mesh->indices[i].v2]);
+      psyqo::GTE::writeSafe<psyqo::GTE::PseudoRegister::V0>(mesh->vertices[mesh->vertexIndices[i].i1]);
+      psyqo::GTE::writeSafe<psyqo::GTE::PseudoRegister::V1>(mesh->vertices[mesh->vertexIndices[i].i2]);
+      psyqo::GTE::writeSafe<psyqo::GTE::PseudoRegister::V2>(mesh->vertices[mesh->vertexIndices[i].i3]);
 
       // perform the rtpt (perspective transformation) on these three
       psyqo::GTE::Kernels::rtpt();
@@ -186,7 +186,7 @@ void Renderer::Render(void) {
 
       // store these verts so we can read the last one in
       psyqo::GTE::read<psyqo::GTE::Register::SXY0>(&projected[0].packed);
-      psyqo::GTE::writeSafe<psyqo::GTE::PseudoRegister::V0>(mesh->vertices[mesh->indices[i].v3]);
+      psyqo::GTE::writeSafe<psyqo::GTE::PseudoRegister::V0>(mesh->vertices[mesh->vertexIndices[i].i4]);
 
       // again we need to rtps it
       psyqo::GTE::Kernels::rtps();
@@ -234,19 +234,19 @@ void Renderer::Render(void) {
           quad.primitive.clutIndex = {texture->clutX, texture->clutY};
 
         // set its uv coords
-        auto uvA = mesh->uvs[mesh->uv_indices[i].v0];
+        auto uvA = mesh->uvs[mesh->uvIndices[i].i1];
         quad.primitive.uvA.u = offset.pos.x + uvA.u;
         quad.primitive.uvA.v = offset.pos.y - uvA.v;
 
-        auto uvB = mesh->uvs[mesh->uv_indices[i].v1];
+        auto uvB = mesh->uvs[mesh->uvIndices[i].i2];
         quad.primitive.uvB.u = offset.pos.x + uvB.u;
         quad.primitive.uvB.v = offset.pos.y - uvB.v;
 
-        auto uvC = mesh->uvs[mesh->uv_indices[i].v2];
+        auto uvC = mesh->uvs[mesh->uvIndices[i].i3];
         quad.primitive.uvC.u = offset.pos.x + uvC.u;
         quad.primitive.uvC.v = offset.pos.y - uvC.v;
 
-        auto uvD = mesh->uvs[mesh->uv_indices[i].v3];
+        auto uvD = mesh->uvs[mesh->uvIndices[i].i4];
         quad.primitive.uvD.u = offset.pos.x + uvD.u;
         quad.primitive.uvD.v = offset.pos.y - uvD.v;
       }
