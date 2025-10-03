@@ -19,15 +19,24 @@ struct SkeletonBoneRotation {
 };
 
 struct SkeletonBone {
-  uint8_t parent;                     // -1 = root
+  int8_t parent;                      // -1 = root
   psyqo::Vec3 localPos;               // relative to parent
   SkeletonBoneRotation localRotation; // relative to parent. TODO: make euler
-  SkeletonBoneMatrix worldMatrix;     // computed from parent
+  SkeletonBoneMatrix localMatrix;     // computed itself. to generate this see `GameObject::GenerateRotationMatrix`
+  SkeletonBoneMatrix worldMatrix;     // computed from parent. to generate this see `GameObject::GenerateRotationMatrix`
 };
 
 struct Skeleton {
   uint8_t numBones;
   SkeletonBone bones[maxBones];
+};
+
+class SkeletonController {
+public:
+  static void UpdateSkeleton(Skeleton *skeleton);
+
+private:
+  static void GenerateBoneMatrix(const SkeletonBone &bone, psyqo::Matrix33 *matrix);
 };
 
 #endif
