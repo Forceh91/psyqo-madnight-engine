@@ -117,6 +117,19 @@ void Renderer::Render(void) {
     gteCameraPos = SetupCamera(cameraRotationMatrix, -m_activeCamera->pos());
   }
 
+  Skeleton skel;
+  skel.numBones = 2;
+
+  // Root bone
+  skel.bones[0].localPos = {0, 0, 0};
+  skel.bones[0].localRotation = {0, 0, 0};
+  skel.bones[0].parent = -1;
+
+  // Child bone (arm)
+  skel.bones[1].localPos = {1000, 0, 0}; // offset 1 unit
+  skel.bones[1].localRotation = {0, 0, 0};
+  skel.bones[1].parent = 0;
+
   // now for each object...
   int quadFragment = 0;
   uint32_t zIndex = 0;
@@ -126,6 +139,14 @@ void Renderer::Render(void) {
     // dont overflow our quads/faces/whatever
     if (quadFragment >= QUAD_FRAGMENT_SIZE)
       break;
+
+    // we dont need to get mesh data for every single vert since it wont change, so lets only do that once
+    const auto mesh = gameObject->mesh();
+    if (mesh == nullptr)
+      continue;
+
+    // if this mesh has a skeleton, update all the bones world/local matrixes
+    SkeletonController::UpdateSkeleton(&skel);
 
     // clear TRX/Y/Z safely
     psyqo::GTE::clear<psyqo::GTE::Register::TRX, psyqo::GTE::Safe>();
@@ -148,11 +169,6 @@ void Renderer::Render(void) {
     psyqo::GTE::writeSafe<psyqo::GTE::PseudoRegister::Rotation>(finalMatrix);
 
     // now we've done all this we can render the mesh and apply texture (if needed)
-    // we dont need to get mesh data for every single vert since it wont change, so lets only do that once
-    const auto mesh = gameObject->mesh();
-    if (mesh == nullptr)
-      continue;
-
     // we dont need to get texture data for every single vert since it wont change, so lets only do that once
     // if its not a nullptr fill out some data so we don't have to do it every face
     // NOTE: the nullptr check here is a free 0.2ms if you want it but it really should be done
