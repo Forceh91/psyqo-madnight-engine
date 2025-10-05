@@ -1,29 +1,23 @@
 #ifndef _SKELETON_H
 #define _SKELETON_H
 
+#include "../../quaternion.hh"
 #include "psyqo/matrix.hh"
-#include "psyqo/trigonometry.hh"
 #include "psyqo/vector.hh"
 
 static constexpr uint8_t maxBones = 20;
 
 struct SkeletonBoneMatrix {
-  psyqo::Matrix33 rotationMatrix;
-  psyqo::Vec3 translation;
-};
-
-struct SkeletonBoneRotation {
-  psyqo::Angle x;
-  psyqo::Angle y;
-  psyqo::Angle z;
+  psyqo::Matrix33 rotationMatrix = {{{0, 0, 0}, {0, 0, 0}, {0, 0, 0}}};
+  psyqo::Vec3 translation = {0, 0, 0};
 };
 
 struct SkeletonBone {
-  int8_t parent;                      // -1 = root
-  psyqo::Vec3 localPos;               // relative to parent
-  SkeletonBoneRotation localRotation; // relative to parent. TODO: make euler
-  SkeletonBoneMatrix localMatrix;     // computed itself. to generate this see `GameObject::GenerateRotationMatrix`
-  SkeletonBoneMatrix worldMatrix;     // computed from parent. to generate this see `GameObject::GenerateRotationMatrix`
+  int8_t parent;                           // -1 = root
+  psyqo::Vec3 localPos = {0, 0, 0};        // relative to parent
+  Quaternion localRotation = {0, 0, 0, 0}; // relative to parent
+  SkeletonBoneMatrix localMatrix;          // computed itself. to generate this see `GameObject::GenerateRotationMatrix`
+  SkeletonBoneMatrix worldMatrix; // computed from parent. to generate this see `GameObject::GenerateRotationMatrix`
 };
 
 struct Skeleton {
@@ -34,9 +28,6 @@ struct Skeleton {
 class SkeletonController {
 public:
   static void UpdateSkeleton(Skeleton *skeleton);
-
-private:
-  static void GenerateBoneMatrix(const SkeletonBone &bone, psyqo::Matrix33 *matrix);
 };
 
 #endif

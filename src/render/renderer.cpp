@@ -6,10 +6,11 @@
 #include "../core/object/gameobject_manager.hh"
 #include "../math/gte-math.hh"
 
+#include "psyqo/fixed-point.hh"
 #include "psyqo/gte-kernels.hh"
 #include "psyqo/gte-registers.hh"
 #include "psyqo/primitives/control.hh"
-#include "psyqo/soft-math.hh"
+#include "psyqo/xprintf.h"
 
 Renderer *Renderer::m_instance = nullptr;
 psyqo::Font<> Renderer::m_kromFont;
@@ -122,19 +123,53 @@ void Renderer::Render(void) {
 
   // Root bone
   skel.bones[0].localPos = {0, 0, 0};
-  skel.bones[0].localRotation = {0, 0, 0};
+  skel.bones[0].localRotation = {0, 0, 0, 0};
   skel.bones[0].parent = -1;
 
   // Child bone (arm)
-  skel.bones[1].localPos = {1000, 0, 0}; // offset 1 unit
-  skel.bones[1].localRotation = {0, 0, 0};
+  skel.bones[1].localPos = {0.01_fp, -0.02_fp, 0};
+  skel.bones[1].localRotation = {0, 0, 0, 0};
   skel.bones[1].parent = 0;
+
+  // update the skeleton verts
+  // // TODO: use better values here
+  // psyqo::Vec3 vertexOnBonePos[QUAD_FRAGMENT_SIZE];
+  // int32_t gameObjectIx = 0;
+  // for (const auto &gameObject : gameObjects) {
+  //   // no mesh means no skeleton
+  //   const auto mesh = gameObject->mesh();
+  //   if (mesh == nullptr)
+  //     continue;
+
+  // TODO: add skeleton check
+  // if (mesh->hasSkeleton)
+
+  //   // update all the bones world/local matrixes
+  //   SkeletonController::UpdateSkeleton(&skel);
+
+  //   // for each vert in this mesh, generate a position for it based off of the bone its attached to
+  //   for (int i = 0; i < mesh->vertexCount; i++) {
+  //     auto isFirstFace = i != mesh->vertexIndices[0].i1 && i != mesh->vertexIndices[0].i2 &&
+  //                        i != mesh->vertexIndices[0].i3 && i != mesh->vertexIndices[0].i4;
+  //     auto bone = !isFirstFace ? skel.bones[0] : skel.bones[1]; // mesh->skeleton->bones[mesh->boneForVertex[vi.i1]];
+  //     auto vertexPos = mesh->vertices[i];
+  //     psyqo::Vec3 adjustedVertPos = vertexPos;
+  //     GTEMath::MultiplyMatrixVec3(bone.worldMatrix.rotationMatrix, vertexPos, &adjustedVertPos);
+  //     vertexOnBonePos[i] = adjustedVertPos + bone.worldMatrix.translation;
+  //   }
+
+  //   gameObjectIx++;
+  // }
 
   // now for each object...
   int quadFragment = 0;
   uint32_t zIndex = 0;
   psyqo::PrimPieces::TPageAttr tpage;
   psyqo::Rect offset = {0};
+  int32_t gameObjectIx = 0;
+
+  psyqo::Vec3 vertexOnBonePos[QUAD_FRAGMENT_SIZE];
+
   for (const auto &gameObject : gameObjects) {
     // dont overflow our quads/faces/whatever
     if (quadFragment >= QUAD_FRAGMENT_SIZE)
@@ -145,8 +180,20 @@ void Renderer::Render(void) {
     if (mesh == nullptr)
       continue;
 
-    // if this mesh has a skeleton, update all the bones world/local matrixes
+    // TODO: add skeleton check
+    // if (mesh->hasSkeleton)
     SkeletonController::UpdateSkeleton(&skel);
+
+    // adjust pos of verts that are attached to bones
+    for (int i = 0; i < mesh->vertexCount; i++) {
+      auto isFirstFace = i != mesh->vertexIndices[0].i1 && i != mesh->vertexIndices[0].i2 &&
+                         i != mesh->vertexIndices[0].i3 && i != mesh->vertexIndices[0].i4;
+      auto bone = !isFirstFace ? skel.bones[0] : skel.bones[1]; // mesh->skeleton->bones[mesh->boneForVertex[vi.i1]];
+      auto vertexPos = mesh->vertices[i];
+      psyqo::Vec3 adjustedVertPos = vertexPos;
+      GTEMath::MultiplyMatrixVec3(bone.worldMatrix.rotationMatrix, vertexPos, &adjustedVertPos);
+      vertexOnBonePos[i] = adjustedVertPos + bone.worldMatrix.translation;
+    }
 
     // clear TRX/Y/Z safely
     psyqo::GTE::clear<psyqo::GTE::Register::TRX, psyqo::GTE::Safe>();
@@ -154,7 +201,7 @@ void Renderer::Render(void) {
     psyqo::GTE::clear<psyqo::GTE::Register::TRZ, psyqo::GTE::Safe>();
 
     psyqo::GTE::writeSafe<psyqo::GTE::PseudoRegister::V0>(gameObject->pos());
-    psyqo::GTE::Kernels::mvmva<psyqo::GTE::Kernels::MX::RT, psyqo::GTE::Kernels::MV::V0, psyqo::GTE::Kernels::TV::TR>();
+    psyqo::GTE::Kernels::rt();
     psyqo::Vec3 objectPos = psyqo::GTE::readSafe<psyqo::GTE::PseudoRegister::SV>();
 
     // adjust object position by camera position
@@ -186,9 +233,9 @@ void Renderer::Render(void) {
         break;
 
       // load the first 3 verts into the GTE. remember it can only handle 3 at a time
-      psyqo::GTE::writeSafe<psyqo::GTE::PseudoRegister::V0>(mesh->vertices[mesh->vertexIndices[i].i1]);
-      psyqo::GTE::writeSafe<psyqo::GTE::PseudoRegister::V1>(mesh->vertices[mesh->vertexIndices[i].i2]);
-      psyqo::GTE::writeSafe<psyqo::GTE::PseudoRegister::V2>(mesh->vertices[mesh->vertexIndices[i].i3]);
+      psyqo::GTE::writeSafe<psyqo::GTE::PseudoRegister::V0>(vertexOnBonePos[mesh->vertexIndices[i].i1]);
+      psyqo::GTE::writeSafe<psyqo::GTE::PseudoRegister::V1>(vertexOnBonePos[mesh->vertexIndices[i].i2]);
+      psyqo::GTE::writeSafe<psyqo::GTE::PseudoRegister::V2>(vertexOnBonePos[mesh->vertexIndices[i].i3]);
 
       // perform the rtpt (perspective transformation) on these three
       psyqo::GTE::Kernels::rtpt();
@@ -202,7 +249,7 @@ void Renderer::Render(void) {
 
       // store these verts so we can read the last one in
       psyqo::GTE::read<psyqo::GTE::Register::SXY0>(&projected[0].packed);
-      psyqo::GTE::writeSafe<psyqo::GTE::PseudoRegister::V0>(mesh->vertices[mesh->vertexIndices[i].i4]);
+      psyqo::GTE::writeSafe<psyqo::GTE::PseudoRegister::V0>(vertexOnBonePos[mesh->vertexIndices[i].i4]);
 
       // again we need to rtps it
       psyqo::GTE::Kernels::rtps();
@@ -234,10 +281,17 @@ void Renderer::Render(void) {
 
       // set its colour, and make it opaque
       // TODO: make objects decide if they are gouraud shaded or not? saves processing time
-      quad.primitive.setColorA({128, 128, 128});
-      quad.primitive.setColorB({128, 128, 128});
-      quad.primitive.setColorC({128, 128, 128});
-      quad.primitive.setColorD({128, 128, 128});
+      if (i != 0) {
+        quad.primitive.setColorA({128, 128, 128});
+        quad.primitive.setColorB({128, 128, 128});
+        quad.primitive.setColorC({128, 128, 128});
+        quad.primitive.setColorD({128, 128, 128});
+      } else {
+        quad.primitive.setColorA({255, 0, 0});
+        quad.primitive.setColorB({255, 0, 0});
+        quad.primitive.setColorC({255, 0, 0});
+        quad.primitive.setColorD({255, 0, 0});
+      }
       quad.primitive.setOpaque();
 
       // do we have a texture for this?
@@ -270,6 +324,8 @@ void Renderer::Render(void) {
       // finally we can insert the quad fragment into the ordering table at the calculated z-index
       ot.insert(quad, zIndex);
     };
+
+    gameObjectIx++;
   }
 
   // send the entire ordering table as a DMA chain to the gpu

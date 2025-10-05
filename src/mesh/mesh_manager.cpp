@@ -160,6 +160,11 @@ psyqo::Coroutine<> MeshManager::LoadMeshFromCDROM(const char *meshName, MeshBin 
   __builtin_memcpy(&loaded_mesh.mesh.collisionBox.max.z.value, ptr, sizeof(int16_t));
   ptr += sizeof(int16_t);
 
+  // skeleton data
+  // TODO: make sure it has a skeleton
+  int16_t blah[4] = {1, 1, 1, 1};
+  __builtin_memcpy(&loaded_mesh.mesh.skeleton, blah, sizeof(int16_t) * 4);
+
   // mark mesh as loaded
   loaded_mesh.isLoaded = true;
 
