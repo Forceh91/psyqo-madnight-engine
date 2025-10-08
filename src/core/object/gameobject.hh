@@ -65,6 +65,7 @@ public:
   const GameObjectRotation &rotation() const { return m_rotation; }
   const psyqo::Matrix33 &rotationMatrix() const { return m_rotationMatrix; }
   const MeshBin *mesh() const { return m_mesh; }
+  MeshBin *mesh() { return m_mesh; }
   const TimFile *texture() const { return m_texture; }
   const GameObjectTag &tag() { return m_tag; }
   const GameObjectQuadType &quadType() { return m_quadType; }

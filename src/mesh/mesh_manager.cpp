@@ -2,6 +2,7 @@
 #include "../helpers/cdrom.hh"
 #include "EASTL/string.h"
 #include "psyqo/xprintf.h"
+#include "skeleton/skeleton.hh"
 
 LoadedMeshBin MeshManager::mLoadedMeshes[MAX_LOADED_MESHES];
 
@@ -40,7 +41,6 @@ psyqo::Coroutine<> MeshManager::LoadMeshFromCDROM(const char *meshName, MeshBin 
   unsigned char *ptr = (unsigned char *)data;
 
   // meshbin header
-
   // magic value
   loaded_mesh.mesh.magic.assign(reinterpret_cast<char *>(ptr), 7);
   ptr += 7;
@@ -72,6 +72,13 @@ psyqo::Coroutine<> MeshManager::LoadMeshFromCDROM(const char *meshName, MeshBin 
 
   __builtin_memcpy(&loaded_mesh.mesh.uvCount, ptr, sizeof(uint32_t)); // 4 bytes
   ptr += sizeof(uint32_t);
+
+  // skeleton exists and how many bones?
+  // v2 onwards has skeleton data
+  if (loaded_mesh.mesh.version > 1) {
+    __builtin_memcpy(&loaded_mesh.mesh.hasSkeleton, ptr++, sizeof(uint8_t)); // 1 byte
+    __builtin_memcpy(&loaded_mesh.mesh.numBones, ptr++, sizeof(uint8_t));    // 1 byte
+  }
 
   // do we have too many faces?
   if (loaded_mesh.mesh.facesCount >= MAX_FACES_PER_MESH) {
@@ -140,7 +147,7 @@ psyqo::Coroutine<> MeshManager::LoadMeshFromCDROM(const char *meshName, MeshBin 
   __builtin_memcpy(loaded_mesh.mesh.uvIndices, ptr, uvIndicesSize);
   ptr += uvIndicesSize;
 
-  // load min data
+  // load aabb min data
   __builtin_memcpy(&loaded_mesh.mesh.collisionBox.min.x.value, ptr, sizeof(int16_t));
   ptr += sizeof(int16_t);
 
@@ -150,7 +157,7 @@ psyqo::Coroutine<> MeshManager::LoadMeshFromCDROM(const char *meshName, MeshBin 
   __builtin_memcpy(&loaded_mesh.mesh.collisionBox.min.z.value, ptr, sizeof(int16_t));
   ptr += sizeof(int16_t);
 
-  // load max data
+  // load aabb max data
   __builtin_memcpy(&loaded_mesh.mesh.collisionBox.max.x.value, ptr, sizeof(int16_t));
   ptr += sizeof(int16_t);
 
@@ -160,10 +167,46 @@ psyqo::Coroutine<> MeshManager::LoadMeshFromCDROM(const char *meshName, MeshBin 
   __builtin_memcpy(&loaded_mesh.mesh.collisionBox.max.z.value, ptr, sizeof(int16_t));
   ptr += sizeof(int16_t);
 
-  // skeleton data
-  // TODO: make sure it has a skeleton
-  int16_t blah[4] = {1, 1, 1, 1};
-  __builtin_memcpy(&loaded_mesh.mesh.skeleton, blah, sizeof(int16_t) * 4);
+  // load skeleton bones
+  if (loaded_mesh.mesh.version > 1 && loaded_mesh.mesh.hasSkeleton) {
+    __builtin_memset(&loaded_mesh.mesh.skeleton, 0, sizeof(Skeleton));
+    __builtin_memset(&loaded_mesh.mesh.skeleton.bones, 0, sizeof(SkeletonBone) * MAX_BONES);
+
+    // number of bones
+    loaded_mesh.mesh.skeleton.numBones = loaded_mesh.mesh.numBones;
+
+    // individual bone data
+    for (int32_t i = 0; i < loaded_mesh.mesh.numBones; i++) {
+      // parent bone
+      __builtin_memcpy(&loaded_mesh.mesh.skeleton.bones[i].parent, ptr++, sizeof(int8_t)); // 1 byte
+
+      // local pos
+      __builtin_memcpy(&loaded_mesh.mesh.skeleton.bones[i].localPos.x.value, ptr, sizeof(int32_t)); // 4 bytes
+      ptr += sizeof(int32_t);
+
+      __builtin_memcpy(&loaded_mesh.mesh.skeleton.bones[i].localPos.y.value, ptr, sizeof(int32_t)); // 4 bytes
+      ptr += sizeof(int32_t);
+
+      __builtin_memcpy(&loaded_mesh.mesh.skeleton.bones[i].localPos.z.value, ptr, sizeof(int32_t)); // 4 bytes
+      ptr += sizeof(int32_t);
+
+      // local rotation
+      __builtin_memcpy(&loaded_mesh.mesh.skeleton.bones[i].localRotation.w.value, ptr, sizeof(int32_t)); // 4 bytes
+      ptr += sizeof(int32_t);
+
+      __builtin_memcpy(&loaded_mesh.mesh.skeleton.bones[i].localRotation.x.value, ptr, sizeof(int32_t)); // 4 bytes
+      ptr += sizeof(int32_t);
+
+      __builtin_memcpy(&loaded_mesh.mesh.skeleton.bones[i].localRotation.y.value, ptr, sizeof(int32_t)); // 4 bytes
+      ptr += sizeof(int32_t);
+
+      __builtin_memcpy(&loaded_mesh.mesh.skeleton.bones[i].localRotation.z.value, ptr, sizeof(int32_t)); // 4 bytes
+      ptr += sizeof(int32_t);
+
+      // mark as dirty initially
+      loaded_mesh.mesh.skeleton.bones[i].isDirty = true;
+    }
+  }
 
   // mark mesh as loaded
   loaded_mesh.isLoaded = true;
