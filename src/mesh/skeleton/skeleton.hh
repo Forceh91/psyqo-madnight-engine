@@ -5,7 +5,7 @@
 #include "psyqo/matrix.hh"
 #include "psyqo/vector.hh"
 
-static constexpr uint8_t maxBones = 20;
+static constexpr uint8_t MAX_BONES = 50;
 
 struct SkeletonBoneMatrix {
   psyqo::Matrix33 rotationMatrix = {{{0, 0, 0}, {0, 0, 0}, {0, 0, 0}}};
@@ -18,16 +18,17 @@ struct SkeletonBone {
   Quaternion localRotation = {0, 0, 0, 0}; // relative to parent
   SkeletonBoneMatrix localMatrix;          // computed itself. to generate this see `GameObject::GenerateRotationMatrix`
   SkeletonBoneMatrix worldMatrix; // computed from parent. to generate this see `GameObject::GenerateRotationMatrix`
+  bool isDirty = true;            // set by the animation to determine if we need to regenrate the above
 };
 
 struct Skeleton {
   uint8_t numBones;
-  SkeletonBone bones[maxBones];
+  SkeletonBone bones[MAX_BONES];
 };
 
 class SkeletonController {
 public:
-  static void UpdateSkeleton(Skeleton *skeleton);
+  static void UpdateSkeletonBoneMatrices(Skeleton *skeleton);
 };
 
 #endif

@@ -2,13 +2,18 @@
 #include "../../math/gte-math.hh"
 #include "psyqo/matrix.hh"
 
-void SkeletonController::UpdateSkeleton(Skeleton *skeleton) {
+void SkeletonController::UpdateSkeletonBoneMatrices(Skeleton *skeleton) {
   if (skeleton == nullptr)
     return;
 
   // for each bone in the skeleton we need to update its wordlMatrix. child bones are done from the parent
   for (int32_t i = 0; i < skeleton->numBones; i++) {
-    SkeletonBone &bone = skeleton->bones[i];
+    auto &bone = skeleton->bones[i];
+
+    // if this bone and the parent bone aren't dirty, dont need to do this
+    if ((bone.parent == -1 && !bone.isDirty) ||
+        (bone.parent != -1 && !bone.isDirty && !skeleton->bones[bone.parent].isDirty))
+      continue;
 
     // generate its local matrix from rot (quats) + pos?
     auto normalizedRotation = bone.localRotation;
@@ -18,10 +23,18 @@ void SkeletonController::UpdateSkeleton(Skeleton *skeleton) {
 
     // world matrix
     // is the local one if its the root
+    auto existingMatrix = bone.worldMatrix;
     if (bone.parent == -1)
       bone.worldMatrix = bone.localMatrix;
     else {
       auto &parentBone = skeleton->bones[bone.parent];
+
+      if (!parentBone.isDirty)
+        continue;
+
+      // since the parent has changed, mark this as dirty
+      bone.isDirty = true;
+
       psyqo::Matrix33 boneWorldRot;
       GTEMath::MultiplyMatrix33(parentBone.worldMatrix.rotationMatrix, bone.localMatrix.rotationMatrix, &boneWorldRot);
 
