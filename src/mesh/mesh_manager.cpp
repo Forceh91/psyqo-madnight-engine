@@ -142,7 +142,7 @@ psyqo::Coroutine<> MeshManager::LoadMeshFromCDROM(const char *meshName, MeshBin 
   ptr += uvSize;
 
   // read the uv indices
-  size_t uvIndicesSize = sizeof(MeshBinIndex) * loaded_mesh.mesh.uvCount;
+  size_t uvIndicesSize = sizeof(MeshBinIndex) * loaded_mesh.mesh.indicesCount;
   loaded_mesh.mesh.uvIndices = (MeshBinIndex *)psyqo_malloc(uvIndicesSize);
   __builtin_memcpy(loaded_mesh.mesh.uvIndices, ptr, uvIndicesSize);
   ptr += uvIndicesSize;
