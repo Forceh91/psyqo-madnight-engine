@@ -3,7 +3,7 @@
 ## Changelog
 
 ### Version 2 (2025-10-07)
-- Implement skeleton loading
+- Implement skeleton data
 
 ## Header
 
@@ -40,6 +40,7 @@
 | AABBMin           | int16_t[3]      | 6 bytes                  | Min coords (x,y,z) for AABB box |
 | AABBMax           | int16_t[3]      | 6 bytes                  | Max coords (x,y,z) for AABB box |
 | bones           | `SkeletonBone`      | 24 * boneCount                | Bone data including parent, local pos, and local rotation (quaternion) |
+| vertexToBoneID           | uint8_t[vertexCount]      | 1 * vertexCount                | Vertex index to bone ID, array indexes match vertex index
 
 ## Types
 ### SkeletonBone

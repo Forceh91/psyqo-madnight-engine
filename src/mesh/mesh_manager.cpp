@@ -191,21 +191,27 @@ psyqo::Coroutine<> MeshManager::LoadMeshFromCDROM(const char *meshName, MeshBin 
       ptr += sizeof(int32_t);
 
       // local rotation
-      __builtin_memcpy(&loaded_mesh.mesh.skeleton.bones[i].localRotation.w.value, ptr, sizeof(int32_t)); // 4 bytes
-      ptr += sizeof(int32_t);
+      __builtin_memcpy(&loaded_mesh.mesh.skeleton.bones[i].localRotation.w.value, ptr, sizeof(int16_t)); // 2 bytes
+      ptr += sizeof(int16_t);
 
-      __builtin_memcpy(&loaded_mesh.mesh.skeleton.bones[i].localRotation.x.value, ptr, sizeof(int32_t)); // 4 bytes
-      ptr += sizeof(int32_t);
+      __builtin_memcpy(&loaded_mesh.mesh.skeleton.bones[i].localRotation.x.value, ptr, sizeof(int16_t)); // 2 bytes
+      ptr += sizeof(int16_t);
 
-      __builtin_memcpy(&loaded_mesh.mesh.skeleton.bones[i].localRotation.y.value, ptr, sizeof(int32_t)); // 4 bytes
-      ptr += sizeof(int32_t);
+      __builtin_memcpy(&loaded_mesh.mesh.skeleton.bones[i].localRotation.y.value, ptr, sizeof(int16_t)); // 2 bytes
+      ptr += sizeof(int16_t);
 
-      __builtin_memcpy(&loaded_mesh.mesh.skeleton.bones[i].localRotation.z.value, ptr, sizeof(int32_t)); // 4 bytes
-      ptr += sizeof(int32_t);
+      __builtin_memcpy(&loaded_mesh.mesh.skeleton.bones[i].localRotation.z.value, ptr, sizeof(int16_t)); // 2 bytes
+      ptr += sizeof(int16_t);
 
       // mark as dirty initially
       loaded_mesh.mesh.skeleton.bones[i].isDirty = true;
     }
+
+    // map a bone id to a vertex ix
+    size_t boneForVertexSize = sizeof(uint8_t) * loaded_mesh.mesh.vertexCount;
+    loaded_mesh.mesh.boneForVertex = (uint8_t *)psyqo_malloc(boneForVertexSize);
+    __builtin_memcpy(loaded_mesh.mesh.boneForVertex, ptr, boneForVertexSize);
+    ptr += boneForVertexSize;
   }
 
   // mark mesh as loaded
