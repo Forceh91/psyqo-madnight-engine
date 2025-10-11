@@ -5,10 +5,12 @@
 #include "../core/debug/debug_menu.hh"
 #include "../core/object/gameobject_manager.hh"
 #include "../math/gte-math.hh"
+#include "../math/matrix.hh"
 
 #include "psyqo/fixed-point.hh"
 #include "psyqo/gte-kernels.hh"
 #include "psyqo/gte-registers.hh"
+#include "psyqo/matrix.hh"
 #include "psyqo/primitives/control.hh"
 #include "psyqo/xprintf.h"
 
@@ -118,49 +120,6 @@ void Renderer::Render(void) {
     gteCameraPos = SetupCamera(cameraRotationMatrix, -m_activeCamera->pos());
   }
 
-  Skeleton skel;
-  skel.numBones = 2;
-
-  // Root bone
-  skel.bones[0].localPos = {0, 0, 0};
-  skel.bones[0].localRotation = {0, 0, 0, 0};
-  skel.bones[0].parent = -1;
-
-  // Child bone (arm)
-  skel.bones[1].localPos = {0.01_fp, -0.02_fp, 0};
-  skel.bones[1].localRotation = {0, 0, 0, 0};
-  skel.bones[1].parent = 0;
-
-  // update the skeleton verts
-  // // TODO: use better values here
-  // psyqo::Vec3 vertexOnBonePos[QUAD_FRAGMENT_SIZE];
-  // int32_t gameObjectIx = 0;
-  // for (const auto &gameObject : gameObjects) {
-  //   // no mesh means no skeleton
-  //   const auto mesh = gameObject->mesh();
-  //   if (mesh == nullptr)
-  //     continue;
-
-  // TODO: add skeleton check
-  // if (mesh->hasSkeleton)
-
-  //   // update all the bones world/local matrixes
-  //   SkeletonController::UpdateSkeleton(&skel);
-
-  //   // for each vert in this mesh, generate a position for it based off of the bone its attached to
-  //   for (int i = 0; i < mesh->vertexCount; i++) {
-  //     auto isFirstFace = i != mesh->vertexIndices[0].i1 && i != mesh->vertexIndices[0].i2 &&
-  //                        i != mesh->vertexIndices[0].i3 && i != mesh->vertexIndices[0].i4;
-  //     auto bone = !isFirstFace ? skel.bones[0] : skel.bones[1]; // mesh->skeleton->bones[mesh->boneForVertex[vi.i1]];
-  //     auto vertexPos = mesh->vertices[i];
-  //     psyqo::Vec3 adjustedVertPos = vertexPos;
-  //     GTEMath::MultiplyMatrixVec3(bone.worldMatrix.rotationMatrix, vertexPos, &adjustedVertPos);
-  //     vertexOnBonePos[i] = adjustedVertPos + bone.worldMatrix.translation;
-  //   }
-
-  //   gameObjectIx++;
-  // }
-
   // now for each object...
   int quadFragment = 0;
   uint32_t zIndex = 0;
@@ -177,30 +136,33 @@ void Renderer::Render(void) {
     if (mesh == nullptr)
       continue;
 
-    // TODO: run the animation and mark bones as dirty
+    // if we've got a skeleton on this mesh
+    if (mesh->hasSkeleton) {
+      // TODO: run the animation and mark bones as dirty
 
-    // TODO: add skeleton check
-    // if (mesh->hasSkeleton)
-    SkeletonController::UpdateSkeletonBoneMatrices(&skel);
+      // update the bone/rotation matrices
+      SkeletonController::UpdateSkeletonBoneMatrices(&mesh->skeleton);
 
-    // adjust pos of verts that are attached to bones
-    for (int i = 0; i < mesh->vertexCount; i++) {
-      auto isFirstFace = i != mesh->vertexIndices[0].i1 && i != mesh->vertexIndices[0].i2 &&
-                         i != mesh->vertexIndices[0].i3 && i != mesh->vertexIndices[0].i4;
-      auto *bone = !isFirstFace ? &skel.bones[0] : &skel.bones[1]; // mesh->skeleton->bones[mesh->boneForVertex[vi.i1]];
-      auto vertexPos = mesh->vertices[i];
+      // adjust pos of verts that are attached to bones
+      for (int i = 0; i < mesh->vertexCount; i++) {
+        auto *bone = &mesh->skeleton.bones[mesh->boneForVertex[i]];
+        auto vertexPos = mesh->vertices[i];
 
-      // if the bone is dirty then readjust the vert pos
-      if (bone->isDirty) {
-        psyqo::Vec3 adjustedVertPos = vertexPos;
-        GTEMath::MultiplyMatrixVec3(bone->worldMatrix.rotationMatrix, vertexPos, &adjustedVertPos);
-        mesh->verticesOnBonePos[i] = adjustedVertPos + bone->worldMatrix.translation;
+        // if the bone is dirty then readjust the vert pos
+        if (bone->isDirty) {
+          psyqo::Vec3 adjustedVertPos = vertexPos;
+          auto vertRelativeToBind = adjustedVertPos - bone->bindPose.translation;
+          psyqo::Matrix33 deltaRot;
+          GTEMath::MultiplyMatrix33(bone->worldMatrix.rotationMatrix, TransposeMatrix33(bone->bindPose.rotationMatrix),
+                                    &deltaRot);
+          GTEMath::MultiplyMatrixVec3(deltaRot, vertRelativeToBind, &adjustedVertPos);
+          mesh->verticesOnBonePos[i] = adjustedVertPos + bone->worldMatrix.translation;
+        }
       }
-    }
 
-    // TODO: the animation will clear dirty values on its next run. delete this when animation implemented
-    skel.bones[0].isDirty = false;
-    skel.bones[1].isDirty = false;
+      // should the animation do this? maybe.
+      SkeletonController::MarkBonesClean(&mesh->skeleton);
+    }
 
     // clear TRX/Y/Z safely
     psyqo::GTE::clear<psyqo::GTE::Register::TRX, psyqo::GTE::Safe>();
@@ -288,17 +250,11 @@ void Renderer::Render(void) {
 
       // set its colour, and make it opaque
       // TODO: make objects decide if they are gouraud shaded or not? saves processing time
-      if (i != 0) {
-        quad.primitive.setColorA({128, 128, 128});
-        quad.primitive.setColorB({128, 128, 128});
-        quad.primitive.setColorC({128, 128, 128});
-        quad.primitive.setColorD({128, 128, 128});
-      } else {
-        quad.primitive.setColorA({255, 0, 0});
-        quad.primitive.setColorB({255, 0, 0});
-        quad.primitive.setColorC({255, 0, 0});
-        quad.primitive.setColorD({255, 0, 0});
-      }
+      quad.primitive.setColorA({128, 128, 128});
+      quad.primitive.setColorB({128, 128, 128});
+      quad.primitive.setColorC({128, 128, 128});
+      quad.primitive.setColorD({128, 128, 128});
+
       quad.primitive.setOpaque();
 
       // do we have a texture for this?

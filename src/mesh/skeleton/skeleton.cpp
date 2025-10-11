@@ -43,5 +43,17 @@ void SkeletonController::UpdateSkeletonBoneMatrices(Skeleton *skeleton) {
                                   &boneWorldTranslation);
       bone.worldMatrix = SkeletonBoneMatrix{boneWorldRot, parentBone.worldMatrix.translation + boneWorldTranslation};
     }
+
+    // if we've not done the initial pose (t-pose) then create the bindpose too
+    if (!bone.hasDoneBindPose) {
+      bone.bindPose = bone.worldMatrix;
+      bone.hasDoneBindPose = true;
+    }
+  }
+}
+
+void SkeletonController::MarkBonesClean(Skeleton *skeleton) {
+  for (int32_t i = 0; i < skeleton->numBones; i++) {
+    skeleton->bones[i].isDirty = false;
   }
 }

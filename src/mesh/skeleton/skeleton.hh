@@ -18,7 +18,9 @@ struct SkeletonBone {
   Quaternion localRotation = {0, 0, 0, 0}; // relative to parent
   SkeletonBoneMatrix localMatrix;          // computed itself. to generate this see `GameObject::GenerateRotationMatrix`
   SkeletonBoneMatrix worldMatrix; // computed from parent. to generate this see `GameObject::GenerateRotationMatrix`
+  SkeletonBoneMatrix bindPose;    // initial pose when the skeleton is loaded in
   bool isDirty = true;            // set by the animation to determine if we need to regenrate the above
+  bool hasDoneBindPose = false;
 };
 
 struct Skeleton {
@@ -29,6 +31,7 @@ struct Skeleton {
 class SkeletonController {
 public:
   static void UpdateSkeletonBoneMatrices(Skeleton *skeleton);
+  static void MarkBonesClean(Skeleton *skeleton);
 };
 
 #endif

@@ -64,7 +64,8 @@ def parse_obj_file_with_collision_data(path,texture_size):
     total_collision_verts = 0
     total_collision_faces = 0
     total_collision_uvs = 0
-    ONE = 128
+    ONE_ENGINE_METRE = 128
+    ONE_FP12 = 4096
     has_skeleton = False
     skeleton_bone_count = 0
     skeleton_bones = []
@@ -86,10 +87,10 @@ def parse_obj_file_with_collision_data(path,texture_size):
                 else:
                     r, g, b = -1, -1, -1  # or 0s if that's your neutral color
                 if is_collision:
-                    collision_verts[-1].append((int(float(x)*ONE), int(float(y)*ONE), int(float(z)*ONE)))
+                    collision_verts[-1].append((int(float(x)*ONE_ENGINE_METRE), int(float(y)*ONE_ENGINE_METRE), int(float(z)*ONE_ENGINE_METRE)))
                     total_collision_verts += 1
                 else:
-                    verts.append((int(float(x)*ONE), int(float(y)*ONE), int(float(z)*ONE), r, g, b))
+                    verts.append((int(float(x)*ONE_ENGINE_METRE), int(float(y)*ONE_ENGINE_METRE), int(float(z)*ONE_ENGINE_METRE), r, g, b))
 
             elif line.startswith("vn "):
                 if is_collision: continue
@@ -150,7 +151,7 @@ def parse_obj_file_with_collision_data(path,texture_size):
 
             elif line.startswith("bone ") and has_skeleton:
                 bone_id, name, parent, x, y, z, rotW, rotX, rotY, rotZ = line.strip().split()[1:]
-                skeleton_bones.append((int(parent), int(float(x)*ONE), int(float(y)*ONE), int(float(z)*ONE), int(float(rotW)*ONE), int(float(rotX)*ONE), int(float(rotY)*ONE), int(float(rotZ)*ONE)))
+                skeleton_bones.append((int(parent), int(float(x)*ONE_ENGINE_METRE), int(float(y)*ONE_ENGINE_METRE), int(float(z)*ONE_ENGINE_METRE), int(float(rotW)*ONE_FP12), int(float(rotX)*ONE_FP12), int(float(rotY)*ONE_FP12), int(float(rotZ)*ONE_FP12)))
 
             elif line.startswith("vw ") and has_skeleton:
                 bone_id = line.strip().split()[2]
