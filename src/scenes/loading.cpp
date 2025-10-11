@@ -1,8 +1,10 @@
 #include "loading.hh"
+#include "../animation/animation_manager.hh"
 #include "../mesh/mesh_manager.hh"
 #include "../render/renderer.hh"
 #include "../sound/sound_manager.hh"
 #include "../textures/texture_manager.hh"
+
 
 #include "psyqo/fixed-point.hh"
 #include "psyqo/xprintf.h"
@@ -42,6 +44,8 @@ psyqo::Coroutine<> LoadingScene::LoadFiles(eastl::vector<LoadQueue> &&files, boo
       co_await TextureManager::LoadTIMFromCDRom(file.name.c_str(), file.x, file.y, file.clutX, file.clutY, &tim);
     if (file.type == LoadFileType::MOD_FILE)
       co_await SoundManager::LoadMODSoundFromCDRom(file.name.c_str(), &modSound);
+    if (file.type == LoadFileType::ANIMATION)
+      co_await AnimationManager::LoadAnimationFromCDRom(file.name.c_str());
 
     // total loaded files
     m_loadFilesLoadedCount++;
