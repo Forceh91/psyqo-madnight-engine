@@ -24,12 +24,10 @@ void SkeletonController::UpdateSkeletonBoneMatrices(Skeleton *skeleton) {
 
     // world matrix
     // is the local one if its the root
-    auto existingMatrix = bone.worldMatrix;
     if (bone.parent == -1)
       bone.worldMatrix = bone.localMatrix;
     else {
       auto &parentBone = skeleton->bones[bone.parent];
-
       if (!parentBone.isDirty)
         continue;
 
@@ -42,6 +40,7 @@ void SkeletonController::UpdateSkeletonBoneMatrices(Skeleton *skeleton) {
       psyqo::Vec3 boneWorldTranslation;
       GTEMath::MultiplyMatrixVec3(parentBone.worldMatrix.rotationMatrix, bone.localMatrix.translation,
                                   &boneWorldTranslation);
+
       bone.worldMatrix = SkeletonBoneMatrix{boneWorldRot, parentBone.worldMatrix.translation + boneWorldTranslation};
     }
 
@@ -112,11 +111,14 @@ void SkeletonController::PlayAnimation(Skeleton *skeleton, uint32_t deltaTime) {
 
     // need to sleep
     auto frameDiff = next->frame - prev->frame;
-    auto prevFrame = prev->frame * 1.0_fp;
-    auto slerpFactor = frameDiff > 0 ? (skeleton->animationCurrentFrame - prevFrame) / (next->frame - prev->frame) : 0;
+    auto slerpFactor = frameDiff > 0 ? ((skeleton->animationCurrentFrame - prev->frame) / frameDiff) * 1.0_fp : 0;
 
     auto &bone = skeleton->bones[track.jointId];
-    bone.localRotation = Slerp(prev->rotation, next->rotation, slerpFactor);
+    if (next->keyType == KeyType::ROTATION) {
+      auto rot = bone.localRotation;
+      bone.localRotation = Slerp(prev->rotation, next->rotation, slerpFactor);
+    }
+
     // TODO: translation
     bone.isDirty = true;
   }
