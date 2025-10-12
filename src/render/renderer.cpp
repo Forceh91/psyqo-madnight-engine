@@ -85,7 +85,9 @@ psyqo::Vec3 Renderer::SetupCamera(const psyqo::Matrix33 &camRotationMatrix, cons
   return psyqo::GTE::readSafe<psyqo::GTE::PseudoRegister::SV>();
 }
 
-void Renderer::Render(void) {
+void Renderer::Render(void) { Render(1); }
+
+void Renderer::Render(uint32_t deltaTime) {
   // create a quad fragment array for it
   eastl::array<psyqo::Vertex, 4> projected;
 
@@ -138,7 +140,7 @@ void Renderer::Render(void) {
 
     // if we've got a skeleton on this mesh
     if (mesh->hasSkeleton) {
-      // TODO: run the animation and mark bones as dirty
+      SkeletonController::PlayAnimation(&mesh->skeleton, deltaTime);
 
       // update the bone/rotation matrices
       SkeletonController::UpdateSkeletonBoneMatrices(&mesh->skeleton);
@@ -160,7 +162,7 @@ void Renderer::Render(void) {
         }
       }
 
-      // should the animation do this? maybe.
+      // mark all bones as clean
       SkeletonController::MarkBonesClean(&mesh->skeleton);
     }
 

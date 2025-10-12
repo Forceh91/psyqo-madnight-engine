@@ -45,9 +45,9 @@
 
 | Offset (relative) | Size     | Field        | Type      | Description / Notes                           |
 |-----------------|---------|-------------|----------|-----------------------------------------------|
-| 0x00            | 4 bytes | frame       | uint32_t | Frame number of this key                      |
-| 0x04            | 1 byte  | keyType     | uint8_t  | 0 = rotation, 1 = translation                 |
-| 0x05            | 8 or 12 bytes | value   | Quaternion (8 bytes) or Vec3 (12 bytes) | Rotation or translation (fixed-point FP12) |
+| 0x00            | 2 bytes | frame       | uint16_t | Frame number of this key                      |
+| 0x02            | 1 byte  | keyType     | uint8_t  | 0 = rotation, 1 = translation                 |
+| 0x03            | 8 or 12 bytes | value   | Quaternion (8 bytes) or Vec3 (12 bytes) | Rotation or translation (fixed-point FP12) |
 
 - **Quaternion:** `[w, x, y, z]` each `int16_t` FP12 → total 8 bytes  
 - **Vec3:** `[x, y, z]` each `int32_t` FP12 → total 12 bytes
@@ -59,7 +59,7 @@
 | Offset (relative) | Size     | Field  | Type           | Description / Notes                          |
 |-----------------|---------|--------|---------------|-----------------------------------------------|
 | 0x00            | 32 bytes| name   | char[32]      | Marker name                                   |
-| 0x20            | 4 bytes | frame  | uint32_t      | Frame this marker occurs                       |
+| 0x20            | 2 bytes | frame  | uint16_t      | Frame this marker occurs                       |
 
 ---
 

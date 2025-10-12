@@ -23,9 +23,9 @@ bones = [
 ROTATION = 0
 TRANSLATION = 1
 
-def float_to_fp16(val):
+def float_to_fp12_short(val):
     """Convert [-1,1] float to int16 fixed point"""
-    return int(max(min(val * 32767, 32767), -32768))
+    return int(max(min(val * 4096, 32767), -32768))
 
 def quat_from_axis_angle(axis, angle_rad):
     """Simple rotation around axis (x,y,z), returns (w,x,y,z)"""
@@ -43,6 +43,7 @@ with open(filepath, "wb") as f:
     f.write(struct.pack("<I", flags))
     f.write(struct.pack("<H", length))
     f.write(struct.pack("<H", numTracks))
+    f.write(struct.pack("<H", numMarkers))
 
     # Tracks (one per bone)
     for bone_id, name, parent in bones:
@@ -57,15 +58,14 @@ with open(filepath, "wb") as f:
             angle_rad = math.radians(30) * math.sin(frame / length * 2 * math.pi + offset)
             w, x, y, z = quat_from_axis_angle((0,0,1), angle_rad)
             
-            f.write(struct.pack("<I", frame))
+            f.write(struct.pack("<H", frame))
             f.write(struct.pack("<B", ROTATION))
             f.write(struct.pack("<hhhh",
-                                float_to_fp16(w),
-                                float_to_fp16(x),
-                                float_to_fp16(y),
-                                float_to_fp16(z)))
+                                float_to_fp12_short(w),
+                                float_to_fp12_short(x),
+                                float_to_fp12_short(y),
+                                float_to_fp12_short(z)))
 
     # No markers
-    f.write(struct.pack("<H", numMarkers))
 
 print("Dynamic arm waving ANIMBIN created:", filepath)

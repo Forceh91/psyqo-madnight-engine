@@ -1,6 +1,7 @@
 #ifndef _SKELETON_H
 #define _SKELETON_H
 
+#include "../../animation/animation.hh"
 #include "../../quaternion.hh"
 #include "psyqo/matrix.hh"
 #include "psyqo/vector.hh"
@@ -26,12 +27,16 @@ struct SkeletonBone {
 struct Skeleton {
   uint8_t numBones;
   SkeletonBone bones[MAX_BONES];
+  Animation *animation;
+  uint16_t animationCurrentFrame = 0;
 };
 
 class SkeletonController {
 public:
   static void UpdateSkeletonBoneMatrices(Skeleton *skeleton);
   static void MarkBonesClean(Skeleton *skeleton);
+  static void SetAnimation(Skeleton *skeleton, Animation *animation);
+  static void PlayAnimation(Skeleton *skeleton, uint32_t deltaTime);
 };
 
 #endif

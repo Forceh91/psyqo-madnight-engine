@@ -53,6 +53,7 @@ public:
   // and not go any further with your rendering
   uint32_t Process(void);
   void Render(void);
+  void Render(uint32_t deltaTime);
   void Clear(void);
   void RenderLoadingScreen(uint16_t loadPercentage);
   void RenderSprite(const TimFile *tim, const psyqo::Rect rect, const psyqo::PrimPieces::UVCoords uv);

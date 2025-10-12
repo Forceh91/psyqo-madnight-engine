@@ -10,6 +10,7 @@ class AnimationManager final {
 
 public:
   static psyqo::Coroutine<> LoadAnimationFromCDRom(const char *animationsFile);
+  static Animation *GetAnimationFromName(const eastl::fixed_string<char, MAX_ANIMATION_NAME_LENGTH> &animationName);
 };
 
 #endif
