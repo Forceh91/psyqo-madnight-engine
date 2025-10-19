@@ -220,6 +220,9 @@ psyqo::Coroutine<> MeshManager::LoadMeshFromCDROM(const char *meshName, MeshBin 
   // store in loaded meshes
   mLoadedMeshes[meshIx] = loaded_mesh;
 
+  // now generate the skeleton bones matrix's + bindpose etc.
+  SkeletonController::UpdateSkeletonBoneMatrices(&mLoadedMeshes[meshIx].mesh.skeleton);
+
   // free the data
   buffer.clear();
 

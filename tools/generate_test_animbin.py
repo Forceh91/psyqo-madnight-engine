@@ -13,6 +13,7 @@ numMarkers = 0
 
 # Bones: id, name, parent
 bones = [
+    (5, "Head", 4),
     (7, "LeftShoulder", 3),
     (8, "LeftArm", 7),
     (9, "LeftForeArm", 8),
@@ -52,7 +53,7 @@ with open(filepath, "wb") as f:
         f.write(struct.pack("<H", length))    # numKeys
 
         # Each bone has slightly offset oscillation
-        offset = (bone_id - 7) * math.pi / 8
+        offset = (bone_id - 5) * math.pi / 8
 
         for frame in range(length):
             angle_rad = math.radians(30) * math.sin(frame / length * 2 * math.pi + offset)

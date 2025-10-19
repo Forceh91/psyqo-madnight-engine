@@ -8,10 +8,13 @@
 #include "../math/matrix.hh"
 
 #include "psyqo/fixed-point.hh"
+#include "psyqo/fragments.hh"
 #include "psyqo/gte-kernels.hh"
 #include "psyqo/gte-registers.hh"
 #include "psyqo/matrix.hh"
 #include "psyqo/primitives/control.hh"
+#include "psyqo/primitives/lines.hh"
+#include "psyqo/vector.hh"
 #include "psyqo/xprintf.h"
 
 Renderer *Renderer::m_instance = nullptr;
@@ -147,18 +150,37 @@ void Renderer::Render(uint32_t deltaTime) {
 
       // adjust pos of verts that are attached to bones
       for (int i = 0; i < mesh->vertexCount; i++) {
-        auto *bone = &mesh->skeleton.bones[mesh->boneForVertex[i]];
-        auto vertexPos = mesh->vertices[i];
-
+        auto &bone = mesh->skeleton.bones[mesh->boneForVertex[i]];
         // if the bone is dirty then readjust the vert pos
-        if (bone->isDirty) {
-          psyqo::Vec3 adjustedVertPos = vertexPos;
-          auto vertRelativeToBind = adjustedVertPos - bone->bindPose.translation;
-          psyqo::Matrix33 deltaRot;
-          GTEMath::MultiplyMatrix33(bone->worldMatrix.rotationMatrix, TransposeMatrix33(bone->bindPose.rotationMatrix),
-                                    &deltaRot);
-          GTEMath::MultiplyMatrixVec3(deltaRot, vertRelativeToBind, &adjustedVertPos);
-          mesh->verticesOnBonePos[i] = adjustedVertPos + bone->worldMatrix.translation;
+        if (bone.isDirty) {
+          // we need to compute vertices based on its connected bone's world matrix
+          // rotation
+          // psyqo::Matrix33 rotationOffset;
+          // GTEMath::MultiplyMatrix33(bone.worldMatrix.rotationMatrix, bone.bindPoseInverse.rotationMatrix,
+          //                           &rotationOffset);
+
+          // // translation
+          // auto vertPosRelativeToBind = mesh->vertices[i] - bone.bindPose.translation;
+          // psyqo::Vec3 rotatedVert;
+          // GTEMath::MultiplyMatrixVec3(rotationOffset, vertPosRelativeToBind, &rotatedVert);
+
+          // // put it together
+          // mesh->verticesOnBonePos[i] = rotatedVert + bone.worldMatrix.translation;
+
+          psyqo::Matrix33 rotationOffset;
+          GTEMath::MultiplyMatrix33(bone.worldMatrix.rotationMatrix, bone.bindPoseInverse.rotationMatrix,
+                                    &rotationOffset);
+
+          // translation offset = world_T + (R_world * bindPoseInverse.translation)
+          psyqo::Vec3 translationOffset;
+          GTEMath::MultiplyMatrixVec3(bone.worldMatrix.rotationMatrix, bone.bindPoseInverse.translation,
+                                      &translationOffset);
+          translationOffset += bone.worldMatrix.translation;
+
+          // final position
+          psyqo::Vec3 rotatedVert;
+          GTEMath::MultiplyMatrixVec3(rotationOffset, mesh->vertices[i], &rotatedVert);
+          mesh->verticesOnBonePos[i] = rotatedVert + translationOffset;
         }
       }
 
