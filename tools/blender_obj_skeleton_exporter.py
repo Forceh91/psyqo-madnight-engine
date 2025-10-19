@@ -72,22 +72,33 @@ def export_obj_skel(context, filepath, apply_modifiers=True, export_selected=Tru
                     if not bone.use_deform:
                         continue
 
-                    parent_index = bones.find(bone.parent.name) if bone.parent else -1
+                    # parent index
+                    parent = bones.find(bone.parent.name) if bone.parent else -1
 
-                    # Transform head position to match axis/scale
-                    head = global_matrix @ bone.head_local.to_4d()
-                    head = head.xyz
+                    # Axis conversion for engine convention
+                    axis_mat = axis_conversion(
+                        from_forward='Y', from_up='Z',
+                        to_forward=forward_axis, to_up=up_axis
+                    ).to_4x4()
 
-                    # Bone rotation as quaternion
-                    rot = bone.matrix_local.to_quaternion()
-                    # Apply global axis rotation
-                    rot = global_matrix.to_quaternion() @ rot
-                    rot.normalize()
+                    # Get bone head in world space
+                    head = (axis_mat @ arm.matrix_world @ bone.matrix_local @ mathutils.Vector((0, 0, 0, 1))).xyz
+                    head *= global_scale
 
+                    # Get bone rotation in world space
+                    rot = bone.matrix_local.to_quaternion()               # bone local rotation
+                    rot_world = (arm.matrix_world.to_quaternion() @ rot) # move to world space
+                    rot_world = axis_mat.to_3x3() @ rot_world.to_matrix() # apply axis conversion
+                    rot_world = rot_world.to_quaternion()
+
+                    # Normalize quaternion to be safe
+                    rot_world.normalize()
+
+                    # Export
                     f.write(
-                        f"bone {i} {bone.name} {parent_index} "
+                        f"bone {i} {bone.name} {parent} "
                         f"{head.x:.6f} {head.y:.6f} {head.z:.6f} "
-                        f"{rot.x:.6f} {rot.y:.6f} {rot.z:.6f} {rot.w:.6f}\n"
+                        f"{rot_world.x:.6f} {rot_world.y:.6f} {rot_world.z:.6f} {rot_world.w:.6f}\n"
                     )
 
             # Vertex → Bone mapping
