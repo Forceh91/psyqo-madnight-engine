@@ -1,72 +1,106 @@
 bl_info = {
     "name": "Export OBJ+SKEL (.objskel)",
     "author": "Madnight & ChatGPT",
-    "version": (1, 0),
+    "version": (1, 1),
     "blender": (3, 0, 0),
     "location": "File > Export > OBJ+SKEL",
-    "description": "Exports mesh with skeleton & vertex-bone mapping",
+    "description": "Exports mesh with skeleton & vertex-bone mapping, with standard OBJ export options",
     "category": "Import-Export",
 }
 
 import bpy
 import mathutils
-from bpy_extras.io_utils import ExportHelper
-from bpy.props import StringProperty
+from bpy_extras.io_utils import ExportHelper, axis_conversion
+from bpy.props import StringProperty, BoolProperty, FloatProperty, EnumProperty
 
 
-def export_obj_skel(context, filepath):
-    obj = context.object
-    if not obj or obj.type != "MESH":
-        raise Exception("Select a mesh object with an armature parent.")
+def export_obj_skel(context, filepath, apply_modifiers=True, export_selected=True,
+                    global_scale=1.0, forward_axis='Z', up_axis='-Y'):
 
-    arm = obj.find_armature()
-    mesh = obj.to_mesh()
+    # Axis conversion + scale
+    global_matrix = axis_conversion(from_forward='Y', from_up='Z',
+                                    to_forward=forward_axis, to_up=up_axis).to_4x4()
+    global_matrix @= mathutils.Matrix.Scale(global_scale, 4)
+
+    objs = [context.object]
+    if export_selected:
+        objs = context.selected_objects
 
     with open(filepath, "w", encoding="utf-8") as f:
-        f.write(f"# Exported from Blender OBJ+SKEL exporter\n")
+        f.write("# Exported from Blender OBJ+SKEL exporter\n")
 
-        # Vertices
-        for v in mesh.vertices:
-            f.write(f"v {v.co.x:.6f} {v.co.y:.6f} {v.co.z:.6f}\n")
+        for obj in objs:
+            if obj.type != "MESH":
+                continue
 
-        # UVs (if any)
-        if mesh.uv_layers.active:
-            for uv in mesh.uv_layers.active.data:
-                f.write(f"vt {uv.uv.x:.6f} {uv.uv.y:.6f}\n")
+            arm = obj.find_armature()
+            depsgraph = context.evaluated_depsgraph_get()
+            mesh_eval = obj.evaluated_get(depsgraph).to_mesh() if apply_modifiers else obj.to_mesh()
 
-        # Faces (assuming one UV per vertex)
-        for poly in mesh.polygons:
-            indices = [f"{i+1}/{i+1}" for i in poly.vertices]
-            f.write(f"f {' '.join(indices)}\n")
+            # Apply transforms
+            mesh_eval.transform(global_matrix @ obj.matrix_world)
 
-        # Skeleton
-        if arm:
-            bones = arm.data.bones
-            f.write(f"skel {len(bones)}\n")
-            for i, bone in enumerate(bones):
-                if not bone.use_deform:
-                    continue
-                
-                parent = bones.find(bone.parent.name) if bone.parent else -1
-                head = bone.head_local
-                rot = bone.matrix_local.to_quaternion()
-                f.write(
-                    f"bone {i} {bone.name} {parent} "
-                    f"{head.x:.6f} {head.y:.6f} {head.z:.6f} "
-                    f"{rot.x:.6f} {rot.y:.6f} {rot.z:.6f} {rot.w:.6f}\n"
-                )
+            f.write(f"o {obj.name}\n")
 
-        # Vertex → Bone mapping
-        if arm:
-            for v in mesh.vertices:
+            # Vertices
+            for v in mesh_eval.vertices:
+                f.write(f"v {v.co.x:.6f} {v.co.y:.6f} {v.co.z:.6f}\n")
+
+            # UVs
+            uv_layer = mesh_eval.uv_layers.active
+            if uv_layer:
+                uvs = [None] * len(mesh_eval.loops)
+                for li, loop in enumerate(mesh_eval.loops):
+                    uvs[li] = uv_layer.data[li].uv
+                for uv in uvs:
+                    f.write(f"vt {uv.x:.6f} {uv.y:.6f}\n")
+
+            # Faces
+            for poly in mesh_eval.polygons:
+                f.write("f")
+                for loop_index in poly.loop_indices:
+                    vertex_index = mesh_eval.loops[loop_index].vertex_index
+                    f.write(f" {vertex_index + 1}/{loop_index + 1}")
+                f.write("\n")
+
+            # Skeleton
+            if arm:
+                bones = arm.data.bones
+                f.write(f"skel {len(bones)}\n")
+
+                for i, bone in enumerate(bones):
+                    if not bone.use_deform:
+                        continue
+
+                    parent_index = bones.find(bone.parent.name) if bone.parent else -1
+
+                    # Transform head position to match axis/scale
+                    head = global_matrix @ bone.head_local.to_4d()
+                    head = head.xyz
+
+                    # Bone rotation as quaternion
+                    rot = bone.matrix_local.to_quaternion()
+                    # Apply global axis rotation
+                    rot = global_matrix.to_quaternion() @ rot
+                    rot.normalize()
+
+                    f.write(
+                        f"bone {i} {bone.name} {parent_index} "
+                        f"{head.x:.6f} {head.y:.6f} {head.z:.6f} "
+                        f"{rot.x:.6f} {rot.y:.6f} {rot.z:.6f} {rot.w:.6f}\n"
+                    )
+
+            # Vertex → Bone mapping
+            for v in mesh_eval.vertices:
                 if v.groups:
-                    # Use strongest weight (first in list)
                     g = max(v.groups, key=lambda gr: gr.weight)
                     vg_name = obj.vertex_groups[g.group].name
                     bone_index = list(bones).index(arm.pose.bones[vg_name].bone)
-                    f.write(f"vw {v.index+1} {bone_index}\n")
+                    f.write(f"vw {v.index + 1} {bone_index}\n")
                 else:
-                    f.write(f"vw {v.index+1} -1\n")
+                    f.write(f"vw {v.index + 1} -1\n")
+
+            obj.to_mesh_clear()
 
     print(f"Exported {filepath}")
 
@@ -74,18 +108,49 @@ def export_obj_skel(context, filepath):
 class ExportObjSkel(bpy.types.Operator, ExportHelper):
     """Export OBJ+SKEL format"""
     bl_idname = "export_scene.obj_skel"
-    bl_label = "Export OBJ+SKEL"
-
+    bl_label = ".obj with skeleton"
     filename_ext = ".obj"
     filter_glob: StringProperty(default="*.obj", options={'HIDDEN'})
 
+    apply_modifiers: BoolProperty(
+        name="Apply Modifiers",
+        description="Apply object modifiers before exporting",
+        default=True,
+    )
+    use_selection: BoolProperty(
+        name="Selected Objects Only",
+        description="Export only selected objects",
+        default=True,
+    )
+    global_scale: FloatProperty(
+        name="Scale",
+        description="Scale all data",
+        default=1.0,
+    )
+    forward_axis: EnumProperty(
+        name="Forward",
+        items=(('X', "X Forward", ""), ('Y', "Y Forward", ""), ('Z', "Z Forward", ""),
+               ('-X', "-X Forward", ""), ('-Y', "-Y Forward", ""), ('-Z', "-Z Forward", "")),
+        default='Z',
+    )
+    up_axis: EnumProperty(
+        name="Up",
+        items=(('X', "X Up", ""), ('Y', "Y Up", ""), ('Z', "Z Up", ""),
+               ('-X', "-X Up", ""), ('-Y', "-Y Up", ""), ('-Z', "-Z Up", "")),
+        default='-Y',
+    )
+
     def execute(self, context):
-        export_obj_skel(context, self.filepath)
+        export_obj_skel(
+            context, self.filepath,
+            self.apply_modifiers, self.use_selection,
+            self.global_scale, self.forward_axis, self.up_axis
+        )
         return {'FINISHED'}
 
 
 def menu_func_export(self, context):
-    self.layout.operator(ExportObjSkel.bl_idname, text="OBJ+SKEL (.obj)")
+    self.layout.operator(ExportObjSkel.bl_idname, text="Wavefront with skeleton (.obj)")
 
 
 def register():
