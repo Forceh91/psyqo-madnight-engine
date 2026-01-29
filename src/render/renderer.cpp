@@ -101,6 +101,7 @@ void Renderer::Render(uint32_t deltaTime) {
   auto &ot = m_orderingTables[frameBuffer];
   auto &clear = m_clear[frameBuffer];
   auto &quads = m_quads[frameBuffer];
+  auto &lines = m_lines[frameBuffer];
 
   // chain the fill command to clear the buffer
   m_gpu.getNextClear(clear.primitive, c_backgroundColour);
@@ -151,37 +152,35 @@ void Renderer::Render(uint32_t deltaTime) {
       // adjust pos of verts that are attached to bones
       for (int i = 0; i < mesh->vertexCount; i++) {
         auto &bone = mesh->skeleton.bones[mesh->boneForVertex[i]];
-        // if the bone is dirty then readjust the vert pos
-        if (bone.isDirty) {
-          // we need to compute vertices based on its connected bone's world matrix
-          // rotation
-          // psyqo::Matrix33 rotationOffset;
-          // GTEMath::MultiplyMatrix33(bone.worldMatrix.rotationMatrix, bone.bindPoseInverse.rotationMatrix,
-          //                           &rotationOffset);
 
-          // // translation
-          // auto vertPosRelativeToBind = mesh->vertices[i] - bone.bindPose.translation;
-          // psyqo::Vec3 rotatedVert;
-          // GTEMath::MultiplyMatrixVec3(rotationOffset, vertPosRelativeToBind, &rotatedVert);
+        if (!bone.isDirty) continue;
 
-          // // put it together
-          // mesh->verticesOnBonePos[i] = rotatedVert + bone.worldMatrix.translation;
+        // // Compute: worldMatrix * bindPoseInverse
+        // psyqo::Matrix33 skinMatrix;
+        // GTEMath::MultiplyMatrix33(bone.worldMatrix.rotationMatrix, bone.bindPoseInverse.rotationMatrix, &skinMatrix);
 
-          psyqo::Matrix33 rotationOffset;
-          GTEMath::MultiplyMatrix33(bone.worldMatrix.rotationMatrix, bone.bindPoseInverse.rotationMatrix,
-                                    &rotationOffset);
+        // // Transform vertex
+        // psyqo::Vec3 rotatedVert;
+        // GTEMath::MultiplyMatrixVec3(skinMatrix, mesh->vertices[i], &rotatedVert);
 
-          // translation offset = world_T + (R_world * bindPoseInverse.translation)
-          psyqo::Vec3 translationOffset;
-          GTEMath::MultiplyMatrixVec3(bone.worldMatrix.rotationMatrix, bone.bindPoseInverse.translation,
-                                      &translationOffset);
-          translationOffset += bone.worldMatrix.translation;
+        // // Compute final translation: world_T + (world_R * bindPoseInverse_T)
+        // psyqo::Vec3 translationOffset;
+        // GTEMath::MultiplyMatrixVec3(bone.worldMatrix.rotationMatrix, bone.bindPoseInverse.translation, &translationOffset);
 
-          // final position
-          psyqo::Vec3 rotatedVert;
-          GTEMath::MultiplyMatrixVec3(rotationOffset, mesh->vertices[i], &rotatedVert);
-          mesh->verticesOnBonePos[i] = rotatedVert + translationOffset;
-        }
+        // mesh->verticesOnBonePos[i] = rotatedVert + bone.worldMatrix.translation + translationOffset;
+        // Vertex relative to bind pose bone position
+        psyqo::Vec3 vertRelative = mesh->vertices[i] - bone.bindPose.translation;
+        
+        // Transform by bind pose inverse rotation
+        psyqo::Vec3 vertInBoneSpace;
+        GTEMath::MultiplyMatrixVec3(bone.bindPoseInverse.rotationMatrix, vertRelative, &vertInBoneSpace);
+        
+        // Transform by current world matrix
+        psyqo::Vec3 rotatedVert;
+        GTEMath::MultiplyMatrixVec3(bone.worldMatrix.rotationMatrix, vertInBoneSpace, &rotatedVert);
+        
+        // Add current world position
+        mesh->verticesOnBonePos[i] = rotatedVert + bone.worldMatrix.translation;
       }
 
       // mark all bones as clean

@@ -8,6 +8,7 @@
 #include "psyqo/fragments.hh"
 #include "psyqo/gpu.hh"
 #include "psyqo/primitives.hh"
+#include "psyqo/primitives/lines.hh"
 
 static constexpr uint16_t ORDERING_TABLE_SIZE = 1024;
 static constexpr uint16_t QUAD_FRAGMENT_SIZE = 1024;
@@ -31,6 +32,7 @@ class Renderer final {
 
   // we need a more permanent place to keep our quad info too
   eastl::array<psyqo::Fragments::SimpleFragment<psyqo::Prim::GouraudTexturedQuad>, QUAD_FRAGMENT_SIZE> m_quads[2];
+  eastl::array<psyqo::Fragments::SimpleFragment<psyqo::Prim::GouraudLine>, QUAD_FRAGMENT_SIZE> m_lines[2];
 
   // texture page + sprite info
   eastl::array<psyqo::Fragments::SimpleFragment<psyqo::Prim::TPage>, 40> m_tpages[2];

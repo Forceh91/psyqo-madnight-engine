@@ -42,9 +42,10 @@ def export_obj_skel(context, filepath, apply_modifiers=True, export_selected=Tru
 
             f.write(f"o {obj.name}\n")
 
-            # Vertices
+            # Vertices - DO NOT MAKE THEM BONE-RELATIVE
+            # The mesh has already been transformed by global_matrix
             for v in mesh_eval.vertices:
-                f.write(f"v {v.co.x:.6f} {v.co.y:.6f} {v.co.z:.6f}\n")
+                f.write(f"v {v.co.x:.6f} {v.co.y:.6f} {v.co.z:.6f}\n")            
 
             # UVs
             uv_layer = mesh_eval.uv_layers.active
@@ -63,53 +64,48 @@ def export_obj_skel(context, filepath, apply_modifiers=True, export_selected=Tru
                     f.write(f" {vertex_index + 1}/{loop_index + 1}")
                 f.write("\n")
 
-            # Skeleton
+            # Skeleton - bone positions transformed same as mesh
             if arm:
-                bones = arm.data.bones
-                f.write(f"skel {len(bones)}\n")
+                deform_bones = [b for b in arm.data.bones if b.use_deform]
+                bone_index_map = {b.name: i for i, b in enumerate(deform_bones)}
 
-                for i, bone in enumerate(bones):
-                    if not bone.use_deform:
-                        continue
+                f.write(f"skel {len(deform_bones)}\n")
 
-                    # parent index
-                    parent = bones.find(bone.parent.name) if bone.parent else -1
+                for i, bone in enumerate(deform_bones):
+                    parent_idx = bone_index_map[bone.parent.name] if bone.parent else -1
 
-                    # Axis conversion for engine convention
-                    axis_mat = axis_conversion(
-                        from_forward='Y', from_up='Z',
-                        to_forward=forward_axis, to_up=up_axis
-                    ).to_4x4()
+                    # LOCAL-TO-PARENT BONE HEAD OFFSET
+                    if bone.parent:
+                        local_head = bone.head_local - bone.parent.head_local
+                    else:
+                        local_head = bone.head_local.copy()
 
-                    # Get bone head in world space
-                    head = (axis_mat @ arm.matrix_world @ bone.matrix_local @ mathutils.Vector((0, 0, 0, 1))).xyz
-                    head *= global_scale
+                    # Apply same transform as mesh (axis conversion + scale)
+                    local_head = global_matrix.to_3x3() @ local_head
 
-                    # Get bone rotation in world space
-                    rot = bone.matrix_local.to_quaternion()               # bone local rotation
-                    rot_world = (arm.matrix_world.to_quaternion() @ rot) # move to world space
-                    rot_world = axis_mat.to_3x3() @ rot_world.to_matrix() # apply axis conversion
-                    rot_world = rot_world.to_quaternion()
+                    print(f"bone {bone.name} relative: {local_head.x:.2f}, {local_head.y:.2f}, {local_head.z:.2f}")
 
-                    # Normalize quaternion to be safe
-                    rot_world.normalize()
+                    # Identity rotation (rest pose)
+                    rot_w = 1.0
+                    rot_x = 0.0
+                    rot_y = 0.0
+                    rot_z = 0.0
 
-                    # Export
                     f.write(
-                        f"bone {i} {bone.name} {parent} "
-                        f"{head.x:.6f} {head.y:.6f} {head.z:.6f} "
-                        f"{rot_world.x:.6f} {rot_world.y:.6f} {rot_world.z:.6f} {rot_world.w:.6f}\n"
+                        f"bone {i} {bone.name} {parent_idx} "
+                        f"{local_head.x:.6f} {local_head.y:.6f} {local_head.z:.6f} "
+                        f"{rot_w:.6f} {rot_x:.6f} {rot_y:.6f} {rot_z:.6f}\n"
                     )
 
-            # Vertex → Bone mapping
-            for v in mesh_eval.vertices:
-                if v.groups:
-                    g = max(v.groups, key=lambda gr: gr.weight)
-                    vg_name = obj.vertex_groups[g.group].name
-                    bone_index = list(bones).index(arm.pose.bones[vg_name].bone)
-                    f.write(f"vw {v.index + 1} {bone_index}\n")
-                else:
-                    f.write(f"vw {v.index + 1} -1\n")
+                # Vertex → Bone mapping
+                for v in mesh_eval.vertices:
+                    if v.groups:
+                        g = max(v.groups, key=lambda gr: gr.weight)
+                        vg_name = obj.vertex_groups[g.group].name
+                        bone_idx = list(deform_bones).index(arm.pose.bones[vg_name].bone)
+                        f.write(f"vw {v.index + 1} {bone_idx}\n")
+                    else:
+                        f.write(f"vw {v.index + 1} -1\n")
 
             obj.to_mesh_clear()
 

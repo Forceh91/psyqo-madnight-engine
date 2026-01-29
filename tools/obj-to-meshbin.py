@@ -149,9 +149,22 @@ def parse_obj_file_with_collision_data(path,texture_size):
                 has_skeleton = True
                 skeleton_bone_count = int(line.strip().split()[1])
 
+            # elif line.startswith("bone ") and has_skeleton:
+            #     bone_id, name, parent, x, y, z, rotW, rotX, rotY, rotZ = line.strip().split()[1:]
+            #     skeleton_bones.append((int(parent), int(float(x)), int(float(y)), int(float(z)), int(float(rotW)), int(float(rotX)), int(float(rotY)), int(float(rotZ))))
+
             elif line.startswith("bone ") and has_skeleton:
                 bone_id, name, parent, x, y, z, rotW, rotX, rotY, rotZ = line.strip().split()[1:]
-                skeleton_bones.append((int(parent), int(float(x)*ONE_ENGINE_METRE), int(float(y)*ONE_ENGINE_METRE), int(float(z)*ONE_ENGINE_METRE), int(float(rotW)*ONE_FP12), int(float(rotX)*ONE_FP12), int(float(rotY)*ONE_FP12), int(float(rotZ)*ONE_FP12)))
+                skeleton_bones.append((
+                    int(parent), 
+                    int(float(x) * ONE_ENGINE_METRE),  # ADD THIS
+                    int(float(y) * ONE_ENGINE_METRE),  # ADD THIS
+                    int(float(z) * ONE_ENGINE_METRE),  # ADD THIS
+                    int(float(rotW) * ONE_FP12), 
+                    int(float(rotX) * ONE_FP12), 
+                    int(float(rotY) * ONE_FP12), 
+                    int(float(rotZ) * ONE_FP12)
+                ))            
 
             elif line.startswith("vw ") and has_skeleton:
                 bone_id = line.strip().split()[2]

@@ -8,16 +8,16 @@ numAnimations = 1
 anim_name = b"WaveArm".ljust(32, b"\0")
 flags = 1        # looped
 length = 60      # frames
-numTracks = 4    # LeftShoulder, LeftArm, LeftForeArm, LeftHand
+numTracks = 1    # LeftShoulder, LeftArm, LeftForeArm, LeftHand
 numMarkers = 0
 
 # Bones: id, name, parent
 bones = [
     (5, "Head", 4),
-    (7, "LeftShoulder", 3),
-    (8, "LeftArm", 7),
-    (9, "LeftForeArm", 8),
-    (10, "LeftHand", 9),
+    # (7, "LeftShoulder", 3),
+    # (8, "LeftArm", 7),
+    # (9, "LeftForeArm", 8),
+    # (10, "LeftHand", 9),
 ]
 
 # KeyType constants
@@ -53,7 +53,8 @@ with open(filepath, "wb") as f:
         f.write(struct.pack("<H", length))    # numKeys
 
         # Each bone has slightly offset oscillation
-        offset = (bone_id - 5) * math.pi / 8
+        # offset = (bone_id - 1) * math.pi / 8
+        offset = 0
 
         for frame in range(length):
             angle_rad = math.radians(30) * math.sin(frame / length * 2 * math.pi + offset)

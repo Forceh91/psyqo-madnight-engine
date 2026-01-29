@@ -212,6 +212,11 @@ psyqo::Coroutine<> MeshManager::LoadMeshFromCDROM(const char *meshName, MeshBin 
     loaded_mesh.mesh.boneForVertex = (uint8_t *)psyqo_malloc(boneForVertexSize);
     __builtin_memcpy(loaded_mesh.mesh.boneForVertex, ptr, boneForVertexSize);
     ptr += boneForVertexSize;
+
+    // In your mesh loading, after loading boneForVertex:
+    for (int i = 0; i < loaded_mesh.mesh.vertexCount; i++) {  // First 10 vertices
+        printf("Vertex %d assigned to bone %d\n", i, loaded_mesh.mesh.boneForVertex[i]);
+    }    
   }
 
   // mark mesh as loaded
@@ -222,6 +227,23 @@ psyqo::Coroutine<> MeshManager::LoadMeshFromCDROM(const char *meshName, MeshBin 
 
   // now generate the skeleton bones matrix's + bindpose etc.
   SkeletonController::UpdateSkeletonBoneMatrices(&mLoadedMeshes[meshIx].mesh.skeleton);
+
+  // After UpdateSkeletonBoneMatrices in mesh loading
+  printf("Bone 0 localPos: %d, %d, %d\n", 
+      mLoadedMeshes[meshIx].mesh.skeleton.bones[0].localPos.x.value,
+      mLoadedMeshes[meshIx].mesh.skeleton.bones[0].localPos.y.value,
+      mLoadedMeshes[meshIx].mesh.skeleton.bones[0].localPos.z.value);
+  printf("Bone 0 worldMatrix.translation: %d, %d, %d\n",
+      mLoadedMeshes[meshIx].mesh.skeleton.bones[0].worldMatrix.translation.x.value,
+      mLoadedMeshes[meshIx].mesh.skeleton.bones[0].worldMatrix.translation.y.value,
+      mLoadedMeshes[meshIx].mesh.skeleton.bones[0].worldMatrix.translation.z.value);
+  printf("Vertex 0: %d, %d, %d\n",
+      mLoadedMeshes[meshIx].mesh.vertices[0].x.value,
+      mLoadedMeshes[meshIx].mesh.vertices[0].y.value,
+      mLoadedMeshes[meshIx].mesh.vertices[0].z.value);
+      
+  printf("Bone 0 parent: %d\n", mLoadedMeshes[meshIx].mesh.skeleton.bones[0].parent);
+  printf("Bone 0 isDirty: %d\n", mLoadedMeshes[meshIx].mesh.skeleton.bones[0].isDirty);      
 
   // free the data
   buffer.clear();

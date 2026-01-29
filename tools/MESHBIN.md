@@ -33,10 +33,10 @@
 | vertices             | int32_t[3]      | 12 * vertexCount                  | Vertex positions (x, y, z)                  |
 | vertexColours        | int8_t[3]      | 3 * vertexCount                   | Vertex colors (r, g, b)                     |
 | vertexIndices              | int16_t[4]      | 8 * indicesCount                  | Vertex indices per face                      |
-| normals              | int32_t[3]      | 12 * normalsCount                 | Normal vectors                               |
+| normals              | int16_t[3]      | 6 * normalsCount                 | Normal vectors                               |
 | normalsIndices       | int16_t[4]      | 8 * indicesCount                  | Normal indices per face                      |
 | uvCoords            | uint8_t[2]      | 2 * uvCount                        | Texture coordinates (u, v)                  |
-| uvIndices           | int16_t[3]      | 6 * indicesCount                  | UV indices per face                          |
+| uvIndices           | int16_t[4]      | 8 * indicesCount                  | UV indices per face                          |
 | AABBMin           | int16_t[3]      | 6 bytes                  | Min coords (x,y,z) for AABB box |
 | AABBMax           | int16_t[3]      | 6 bytes                  | Max coords (x,y,z) for AABB box |
 | bones           | `SkeletonBone`      | 24 * boneCount                | Bone data including parent, local pos, and local rotation (quaternion) |

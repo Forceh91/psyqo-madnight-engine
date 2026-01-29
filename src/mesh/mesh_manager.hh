@@ -61,6 +61,7 @@ struct MeshBin {
 
   // TODO: make this a proper value so it can handle the right amount of verts
   psyqo::Vec3 verticesOnBonePos[MAX_FACES_PER_MESH];
+  psyqo::Vec3 bonePos[MAX_FACES_PER_MESH];
 };
 
 struct LoadedMeshBin {
