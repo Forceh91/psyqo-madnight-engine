@@ -103,6 +103,10 @@ psyqo::Coroutine<> MeshManager::LoadMeshFromCDROM(const char *meshName, MeshBin 
     ptr += sizeof(int32_t);
   }
 
+  for (int i = 0; i < loaded_mesh.mesh.vertexCount; i++) {
+    loaded_mesh.mesh.verticesOnBonePos[i] = loaded_mesh.mesh.vertices[i];
+  }
+
   // read the vert colours data
   size_t verticesPaintSize = sizeof(MeshBinVertexColours) * loaded_mesh.mesh.vertexCount;
   loaded_mesh.mesh.vertexColours = (MeshBinVertexColours *)psyqo_malloc(verticesPaintSize);
@@ -211,12 +215,7 @@ psyqo::Coroutine<> MeshManager::LoadMeshFromCDROM(const char *meshName, MeshBin 
     size_t boneForVertexSize = sizeof(uint8_t) * loaded_mesh.mesh.vertexCount;
     loaded_mesh.mesh.boneForVertex = (uint8_t *)psyqo_malloc(boneForVertexSize);
     __builtin_memcpy(loaded_mesh.mesh.boneForVertex, ptr, boneForVertexSize);
-    ptr += boneForVertexSize;
-
-    // In your mesh loading, after loading boneForVertex:
-    for (int i = 0; i < loaded_mesh.mesh.vertexCount; i++) {  // First 10 vertices
-        printf("Vertex %d assigned to bone %d\n", i, loaded_mesh.mesh.boneForVertex[i]);
-    }    
+    ptr += boneForVertexSize;  
   }
 
   // mark mesh as loaded
