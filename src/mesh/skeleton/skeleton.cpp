@@ -2,10 +2,8 @@
 #include "../../math/gte-math.hh"
 #include "../../math/matrix.hh"
 #include "psyqo/fixed-point.hh"
-#include "psyqo/gte-registers.hh"
 #include "psyqo/matrix.hh"
 #include "psyqo/vector.hh"
-#include "psyqo/xprintf.h"
 
 void SkeletonController::UpdateSkeletonBoneMatrices(Skeleton *skeleton) {
   if (skeleton == nullptr)
@@ -37,11 +35,6 @@ void SkeletonController::UpdateSkeletonBoneMatrices(Skeleton *skeleton) {
     // store local translation matrix
     bone->localMatrix = {localRotMatrix, localTrans};
 
-    printf("Bone %d localMatrix.translation after set: %d, %d, %d\n", i,
-    bone->localMatrix.translation.x.value,
-    bone->localMatrix.translation.y.value,
-    bone->localMatrix.translation.z.value);
-
     // next we need to compute its world matrix.
     // if we have no parent then just use the local matrix for this
     if (bone->parent == -1)
@@ -69,14 +62,6 @@ void SkeletonController::UpdateSkeletonBoneMatrices(Skeleton *skeleton) {
       // final world matrix (parent + rotated local)
       bone->worldMatrix = {worldRot, parent->worldMatrix.translation + worldTrans};
     }
-
-    // After setting bone->worldMatrix
-    if (i == 0 || i == 5 || i == 6) {
-        printf("Bone %d worldMatrix.translation: %d, %d, %d\n", i,
-            bone->worldMatrix.translation.x.value,
-            bone->worldMatrix.translation.y.value,
-            bone->worldMatrix.translation.z.value);
-    }  
 
     // if we dont have a bindpose + bindpose inverse stored. then do that
     if (!bone->hasDoneBindPose) {
@@ -162,15 +147,6 @@ void SkeletonController::PlayAnimation(Skeleton *skeleton, uint32_t deltaTime) {
       bone.localRotation = Slerp(prev->rotation, next->rotation, slerpFactor);
     }
     // TODO: translation
-
-    // In PlayAnimation, after setting bone.localRotation:
-    if (track.jointId == 5) {
-        printf("Bone 5 localRotation: w=%d x=%d y=%d z=%d\n",
-            bone.localRotation.w.value,
-            bone.localRotation.x.value,
-            bone.localRotation.y.value,
-            bone.localRotation.z.value);
-    }
 
     bone.isDirty = true;
   }

@@ -42,8 +42,7 @@ def export_obj_skel(context, filepath, apply_modifiers=True, export_selected=Tru
 
             f.write(f"o {obj.name}\n")
 
-            # Vertices - DO NOT MAKE THEM BONE-RELATIVE
-            # The mesh has already been transformed by global_matrix
+            # Vertices - export in model space (transformed by global_matrix)
             for v in mesh_eval.vertices:
                 f.write(f"v {v.co.x:.6f} {v.co.y:.6f} {v.co.z:.6f}\n")            
 
@@ -71,19 +70,26 @@ def export_obj_skel(context, filepath, apply_modifiers=True, export_selected=Tru
 
                 f.write(f"skel {len(deform_bones)}\n")
 
+                arm_obj = arm  # the armature object
+
+                arm_world = global_matrix @ arm_obj.matrix_world
+
                 for i, bone in enumerate(deform_bones):
                     parent_idx = bone_index_map[bone.parent.name] if bone.parent else -1
 
-                    # LOCAL-TO-PARENT BONE HEAD OFFSET
+                    # World-space head positions
+                    bone_head_ws = arm_world @ bone.head_local
                     if bone.parent:
-                        local_head = bone.head_local - bone.parent.head_local
+                        parent_head_ws = arm_world @ bone.parent.head_local
+                        local_head = bone_head_ws - parent_head_ws
                     else:
-                        local_head = bone.head_local.copy()
+                        local_head = bone_head_ws.copy()
 
-                    # Apply same transform as mesh (axis conversion + scale)
-                    local_head = global_matrix.to_3x3() @ local_head
-
-                    print(f"bone {bone.name} relative: {local_head.x:.2f}, {local_head.y:.2f}, {local_head.z:.2f}")
+                    # DEBUG sanity check
+                    print(
+                        f"bone {bone.name} local offset: "
+                        f"{local_head.x:.3f}, {local_head.y:.3f}, {local_head.z:.3f}"
+                    )
 
                     # Identity rotation (rest pose)
                     rot_w = 1.0
