@@ -18,6 +18,7 @@ struct Quaternion {
 };
 
 Quaternion operator*(const Quaternion &q1, const Quaternion &q2);
+Quaternion operator-(const Quaternion &q);
 
 psyqo::GTE::Short DotProduct(const Quaternion &a, const Quaternion &b);
 

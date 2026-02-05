@@ -4,6 +4,7 @@
 #include "psyqo/fixed-point.hh"
 #include "psyqo/matrix.hh"
 #include "psyqo/vector.hh"
+#include "psyqo/xprintf.h"
 
 void SkeletonController::UpdateSkeletonBoneMatrices(Skeleton *skeleton) {
   if (skeleton == nullptr)
@@ -22,7 +23,7 @@ void SkeletonController::UpdateSkeletonBoneMatrices(Skeleton *skeleton) {
 
     // parent isnt dirty, and this bone isn't dirty, continue
     if (bone->parent != -1 && !skeleton->bones[bone->parent].isDirty && !bone->isDirty)
-      continue;   
+      continue;
 
     // normalize quat rotation
     auto localRot = bone->localRotation;
@@ -136,15 +137,15 @@ void SkeletonController::PlayAnimation(Skeleton *skeleton, uint32_t deltaTime) {
     if (currentFrame >= track.keys[track.numKeys - 1].frame) {
       prev = &track.keys[track.numKeys - 1];
       next = prev; // stay fixed on last key, no interpolation
-    }
+    } 
 
-    // need to sleep
+    // need to slerp
     auto frameDiff = next->frame - prev->frame;
-    auto slerpFactor = frameDiff > 0 ? ((skeleton->animationCurrentFrame - prev->frame) / frameDiff) * 1.0_fp : 0;
+    auto slerpFactor = frameDiff > 0 ? ((skeleton->animationCurrentFrame - prev->frame) / frameDiff * 1.0_fp) : 0;
 
     auto &bone = skeleton->bones[track.jointId];
     if (next->keyType == KeyType::ROTATION) {
-      bone.localRotation = Slerp(prev->rotation, next->rotation, slerpFactor);
+      bone.localRotation = -bone.initialLocalRotation * Slerp(prev->rotation, next->rotation, slerpFactor);
     }
     // TODO: translation
 

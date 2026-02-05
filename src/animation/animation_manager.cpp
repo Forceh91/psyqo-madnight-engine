@@ -135,8 +135,7 @@ psyqo::Coroutine<> AnimationManager::LoadAnimationFromCDRom(const char *animatio
   printf("ANIMATIONS: Successfully loaded animations file of %d bytes into memory.\n", size);
 }
 
-Animation *
-AnimationManager::GetAnimationFromName(const eastl::fixed_string<char, MAX_ANIMATION_NAME_LENGTH> &animationName) {
+Animation * AnimationManager::GetAnimationFromName(const eastl::fixed_string<char, MAX_ANIMATION_NAME_LENGTH> &animationName) {
   for (int32_t i = 0; i < m_loadedAnimBin.numAnimations; i++) {
     auto *anim = &m_loadedAnimBin.animations[i];
     if (anim == nullptr)

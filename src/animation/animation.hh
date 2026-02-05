@@ -6,9 +6,9 @@
 #include "psyqo/vector.hh"
 
 static constexpr uint8_t MAX_ANIMATIONS = 5;
-static constexpr uint8_t MAX_TRACKS = 5;
+static constexpr uint8_t MAX_TRACKS = 50;
 static constexpr uint8_t MAX_MARKERS = 5;
-static constexpr uint8_t MAX_KEYS = 60;
+static constexpr uint8_t MAX_KEYS = 30;
 static constexpr uint8_t MAX_ANIMATION_NAME_LENGTH = 32;
 static constexpr uint8_t MAX_MARKER_NAME_LENGTH = 32;
 
@@ -22,7 +22,7 @@ struct Key {
   };
 
   uint16_t frame;
-  KeyType keyType; // 0 = quat, 1 = rotation
+  KeyType keyType; // 0 = quat, 1 = translation
 };
 
 // a track is basically "for this bone. do this"

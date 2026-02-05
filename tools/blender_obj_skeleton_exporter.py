@@ -91,16 +91,20 @@ def export_obj_skel(context, filepath, apply_modifiers=True, export_selected=Tru
                         f"{local_head.x:.3f}, {local_head.y:.3f}, {local_head.z:.3f}"
                     )
 
-                    # Identity rotation (rest pose)
-                    rot_w = 1.0
-                    rot_x = 0.0
-                    rot_y = 0.0
-                    rot_z = 0.0
+                    # Get bone's rest rotation relative to parent
+                    if bone.parent:
+                        # Local rotation = bone's matrix relative to parent's matrix
+                        parent_matrix_inv = bone.parent.matrix_local.inverted()
+                        local_matrix = parent_matrix_inv @ bone.matrix_local
+                        rest_quat = local_matrix.to_quaternion()
+                    else:
+                        # Root bone - use armature space rotation
+                        rest_quat = bone.matrix_local.to_quaternion()
 
                     f.write(
                         f"bone {i} {bone.name} {parent_idx} "
                         f"{local_head.x:.6f} {local_head.y:.6f} {local_head.z:.6f} "
-                        f"{rot_w:.6f} {rot_x:.6f} {rot_y:.6f} {rot_z:.6f}\n"
+                        f"{rest_quat.w:.6f} {rest_quat.x:.6f} {rest_quat.y:.6f} {rest_quat.z:.6f}\n"
                     )
 
                 # Vertex → Bone mapping

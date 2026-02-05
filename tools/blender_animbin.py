@@ -1,7 +1,7 @@
 bl_info = {
     "name": "Export ANIMBIN (.animbin)",
     "author": "Madnight & ChatGPT",
-    "version": (1, 0),
+    "version": (1, 1),
     "blender": (3, 0, 0),
     "location": "File > Export > ANIMBIN",
     "description": "Exports armature animations into ANIMBIN format",
@@ -9,63 +9,163 @@ bl_info = {
 }
 
 import bpy
-import mathutils
-from bpy_extras.io_utils import ExportHelper
-from bpy.props import StringProperty, BoolProperty, IntProperty
 import struct
+from bpy_extras.io_utils import ExportHelper
+from bpy.props import StringProperty, IntProperty
 
-def bake_action(armature, action, start_frame, end_frame):
-    bpy.context.view_layer.objects.active = armature
-    bpy.ops.object.mode_set(mode='POSE')
-    armature.animation_data.action = action
+FP12_SCALE = 4096
 
-    bpy.ops.nla.bake(
-        frame_start=start_frame,
-        frame_end=end_frame,
-        step=1,
-        only_selected=False,
-        visual_keying=True,
-        clear_constraints=False,
-        clear_parents=False,
-        use_current_action=True,
-        clean_curves=True,
-        bake_types={'POSE'},
-        channel_types={'LOCATION', 'ROTATION'},
-    )
+# ------------------------------------------------------------
+# Fixed-point helper
+# ------------------------------------------------------------
 
-def export_animbin(context, filepath, start_frame, end_frame, fps=30):
-    armature = context.object
-    if armature.type != 'ARMATURE':
-        raise Exception("Select an armature object")
+def fp12_16(v):
+    i = int(v * FP12_SCALE)
+    return max(-32768, min(32767, i))
+    
+def quat_ensure_shortest(prev, curr):
+    # If dot < 0, flip quaternion
+    if prev.dot(curr) < 0.0:
+        return -curr
+    return curr
 
-    # Bake the current action first
-    action = armature.animation_data.action
-    bake_action(armature, action, start_frame, end_frame)
 
-    bones = [pbone for pbone in armature.pose.bones]
+# ------------------------------------------------------------
+# Blender 3.x / 4.x safe F-curve iterator
+# ------------------------------------------------------------
 
-    with open(filepath, 'wb') as f:
-        # Write header
-        f.write(b"ANIMBIN")               # 7 bytes magic
-        f.write(struct.pack("<B", 1))     # version
-        f.write(struct.pack("<I", len(bones)))  # number of bones
-        f.write(struct.pack("<I", end_frame - start_frame + 1))  # frames per bone
+def iter_fcurves(action):
+    # Blender 3.x
+    if hasattr(action, "fcurves"):
+        for fc in action.fcurves:
+            yield fc
 
-        # Write per-bone tracks
-        for b, bone in enumerate(bones):
-            for frame in range(start_frame, end_frame + 1):
-                bpy.context.scene.frame_set(frame)
-                mat = bone.matrix
-                loc = mat.to_translation()
-                rot = mat.to_quaternion()
+    # Blender 4.x
+    elif hasattr(action, "layers"):
+        for layer in action.layers:
+            for strip in layer.strips:
+                if not hasattr(strip, "channels"):
+                    continue
+                for channel in strip.channels:
+                    for fc in channel.fcurves:
+                        yield fc
 
-                # convert to FP12
-                def to_fp12(x):
-                    val = int(x * 4096)
-                    return max(-32768, min(32767, val))
+def bone_has_rotation_change(pbone, scene, start_frame, end_frame, eps=1e-5):
+    scene.frame_set(start_frame)
+    q_prev = pbone.matrix.to_quaternion()
 
-                f.write(struct.pack("<hhh", to_fp12(loc.x), to_fp12(loc.y), to_fp12(loc.z)))
-                f.write(struct.pack("<hhhh", to_fp12(rot.w), to_fp12(rot.x), to_fp12(rot.y), to_fp12(rot.z)))
+    for frame in range(start_frame + 1, end_frame + 1):
+        scene.frame_set(frame)
+        q = pbone.matrix.to_quaternion()
+        if q_prev.rotation_difference(q).angle > eps:
+            return True
+        q_prev = q
+
+    return False                        
+
+# ------------------------------------------------------------
+# Export
+# ------------------------------------------------------------
+
+def export_animbin(context, filepath, start_frame, end_frame):
+    arm = context.object
+    if not arm or arm.type != "ARMATURE":
+        raise RuntimeError("Select an armature object")
+
+    if not arm.animation_data or not arm.animation_data.action:
+        raise RuntimeError("Armature has no active action")
+
+    action = arm.animation_data.action
+    scene = context.scene
+    frame_count = end_frame - start_frame + 1
+
+    # ============================================================
+    # Collect bones that actually have rotation keyframes
+    # ============================================================
+    bone_names = []
+
+    for b in arm.data.bones:
+        if not b.use_deform:
+            continue
+
+        pbone = arm.pose.bones.get(b.name)
+        if not pbone:
+            continue
+
+        if bone_has_rotation_change(
+            pbone, scene, start_frame, end_frame
+        ):
+            bone_names.append(b.name)
+
+
+    if not bone_names:
+        raise RuntimeError("No deform bones with rotation keys found")
+
+    num_tracks = len(bone_names)
+
+    with open(filepath, "wb") as f:
+        # =========================
+        # FILE HEADER
+        # =========================
+        f.write(b"ANIMBIN")                 # char[7]
+        f.write(struct.pack("<B", 1))       # version
+        f.write(struct.pack("<B", 1))       # numAnimations
+
+        # =========================
+        # ANIMATION HEADER
+        # =========================
+        name_bytes = action.name.encode("ascii", errors="ignore")[:32]
+        name_bytes = name_bytes.ljust(32, b"\0")
+        f.write(name_bytes)
+
+        flags = 1  # looped
+        f.write(struct.pack("<I", flags))
+        f.write(struct.pack("<H", frame_count))
+        f.write(struct.pack("<H", num_tracks))
+        f.write(struct.pack("<H", 0))       # numMarkers
+
+        # =========================
+        # TRACKS (ROTATION ONLY)
+        # =========================
+        for joint_id, bone_name in enumerate(bone_names):
+            pbone = arm.pose.bones.get(bone_name)
+            if not pbone:
+                raise RuntimeError(f"Missing pose bone: {bone_name}")
+
+            # Track header
+            f.write(struct.pack("<B", 0))            # type = ROTATION
+            f.write(struct.pack("<B", joint_id))     # jointId
+            f.write(struct.pack("<H", frame_count))  # numKeys
+
+            # Keys
+            prev_q = None
+            for i, frame in enumerate(range(start_frame, end_frame + 1)):
+                scene.frame_set(frame)
+
+                q = pbone.matrix.to_quaternion()
+                q.normalize()
+                
+                if i > 0:
+                    q = quat_ensure_shortest(prev_q, q)
+
+                prev_q = q.copy()                
+
+                f.write(struct.pack("<H", i))  # frame
+                f.write(struct.pack("<B", 0))  # keyType = ROTATION
+                f.write(struct.pack(
+                    "<hhhh",
+                    fp12_16(q.w),
+                    fp12_16(q.x),
+                    fp12_16(q.y),
+                    fp12_16(q.z),
+                ))
+
+    print(f"ANIMBIN exported: {filepath}")
+    print(f"Frames: {frame_count}, Tracks: {num_tracks}")
+
+# ------------------------------------------------------------
+# Blender Operator
+# ------------------------------------------------------------
 
 class ExportAnimBin(bpy.types.Operator, ExportHelper):
     bl_idname = "export_anim.animbin"
@@ -74,7 +174,7 @@ class ExportAnimBin(bpy.types.Operator, ExportHelper):
     filename_ext = ".animbin"
     filter_glob: StringProperty(default="*.animbin", options={'HIDDEN'})
     start_frame: IntProperty(name="Start Frame", default=1)
-    end_frame: IntProperty(name="End Frame", default=250)
+    end_frame: IntProperty(name="End Frame", default=30)
 
     def execute(self, context):
         export_animbin(context, self.filepath, self.start_frame, self.end_frame)
@@ -93,143 +193,3 @@ def unregister():
 
 if __name__ == "__main__":
     register()
-
-# bl_info = {
-#     "name": "Export ANIMBIN (.animbin)",
-#     "author": "Madnight & ChatGPT",
-#     "version": (1, 1),
-#     "blender": (3, 0, 0),
-#     "location": "File > Export > ANIMBIN",
-#     "description": "Exports armature animations in ANIMBIN format with rotation, translation, and markers",
-#     "category": "Import-Export",
-# }
-
-# import bpy
-# import struct
-# import mathutils
-# from bpy_extras.io_utils import ExportHelper
-# from bpy.props import StringProperty
-
-# # Helpers
-# def float_to_fp16(val):
-#     return int(max(min(val * 32767, 32767), -32768))
-
-# def float_to_fp32(val):
-#     return int(val * 4096)
-
-# def bake_action(armature, action, start_frame, end_frame):
-#     bpy.context.view_layer.objects.active = armature
-#     bpy.ops.object.mode_set(mode='POSE')
-#     armature.animation_data.action = action
-#     bpy.ops.nla.bake(
-#         frame_start=start_frame,
-#         frame_end=end_frame,
-#         step=1,
-#         only_selected=False,
-#         visual_keying=True,
-#         clear_constraints=False,
-#         clear_parents=False,
-#         use_current_action=True,
-#         clean_curves=True,
-#         bake_types={'POSE'},
-#         channel_types={'LOCATION', 'ROTATION'},
-#     )
-
-# def export_animbin(context, filepath):
-#     armature = context.object
-#     if not armature or armature.type != 'ARMATURE':
-#         raise Exception("Select an armature to export animations.")
-
-#     actions = bpy.data.actions
-#     with open(filepath, 'wb') as f:
-#         # Magic
-#         f.write(b'ANIMBIN')
-#         # Number of animations
-#         f.write(struct.pack("<I", len(actions)))
-
-#         for action in actions:
-#             start_frame = int(action.frame_range[0])
-#             end_frame = int(action.frame_range[1])
-#             length = end_frame - start_frame + 1
-
-#             bake_action(armature, action, start_frame, end_frame)
-
-#             # Animation header
-#             name_bytes = action.name.encode('utf-8')[:32].ljust(32, b'\0')
-#             f.write(name_bytes)
-
-#             flags = 1  # example: looped
-#             f.write(struct.pack("<I", flags))
-#             f.write(struct.pack("<H", length))
-
-#             bones = [b for b in armature.pose.bones]
-#             numTracks = len(bones) * 2  # rotation + translation
-#             f.write(struct.pack("<H", numTracks))
-
-#             for bone_index, bone in enumerate(bones):
-#                 # Rotation track
-#                 f.write(struct.pack("<B", 0))  # track type 0 = rotation
-#                 f.write(struct.pack("<B", bone_index))
-#                 f.write(struct.pack("<H", length))  # numKeys
-
-#                 for frame in range(start_frame, end_frame+1):
-#                     bpy.context.scene.frame_set(frame)
-#                     rot = bone.rotation_quaternion
-#                     f.write(struct.pack("<I", frame))
-#                     f.write(struct.pack("<B", 0))  # keyType 0 = rotation
-#                     f.write(struct.pack("<hhhh",
-#                         float_to_fp16(rot.w),
-#                         float_to_fp16(rot.x),
-#                         float_to_fp16(rot.y),
-#                         float_to_fp16(rot.z),
-#                     ))
-
-#                 # Translation track
-#                 f.write(struct.pack("<B", 1))  # track type 1 = translation
-#                 f.write(struct.pack("<B", bone_index))
-#                 f.write(struct.pack("<H", length))  # numKeys
-
-#                 for frame in range(start_frame, end_frame+1):
-#                     bpy.context.scene.frame_set(frame)
-#                     loc = bone.location
-#                     f.write(struct.pack("<I", frame))
-#                     f.write(struct.pack("<B", 1))  # keyType 1 = translation
-#                     f.write(struct.pack("<iii",
-#                         float_to_fp32(loc.x),
-#                         float_to_fp32(loc.y),
-#                         float_to_fp32(loc.z),
-#                     ))
-
-#             # Export markers from Blender scene
-#             markers = [m for m in bpy.context.scene.timeline_markers]
-#             f.write(struct.pack("<H", len(markers)))
-#             for marker in markers:
-#                 name_bytes = marker.name.encode('utf-8')[:32].ljust(32, b'\0')
-#                 f.write(name_bytes)
-#                 f.write(struct.pack("<I", int(marker.frame)))
-
-# class ExportAnimBin(bpy.types.Operator, ExportHelper):
-#     """Export ANIMBIN format"""
-#     bl_idname = "export_anim.animbin"
-#     bl_label = "Export ANIMBIN"
-
-#     filename_ext = ".animbin"
-#     filter_glob: StringProperty(default="*.animbin", options={'HIDDEN'})
-
-#     def execute(self, context):
-#         export_animbin(context, self.filepath)
-#         return {'FINISHED'}
-
-# def menu_func_export(self, context):
-#     self.layout.operator(ExportAnimBin.bl_idname, text="ANIMBIN (.animbin)")
-
-# def register():
-#     bpy.utils.register_class(ExportAnimBin)
-#     bpy.types.TOPBAR_MT_file_export.append(menu_func_export)
-
-# def unregister():
-#     bpy.utils.unregister_class(ExportAnimBin)
-#     bpy.types.TOPBAR_MT_file_export.remove(menu_func_export)
-
-# if __name__ == "__main__":
-#     register()

@@ -103,6 +103,16 @@ Quaternion operator*(const Quaternion &q1, const Quaternion &q2) {
   };
 }
 
+Quaternion operator-(const Quaternion &q) {
+    return Quaternion{
+        q.w,     // w stays the same
+        -q.x,    // negate vector part
+        -q.y,
+        -q.z
+    };
+}
+
 psyqo::GTE::Short DotProduct(const Quaternion &a, const Quaternion &b) {
   return a.w * b.w + a.x * b.x + a.y * b.y + a.z * b.z;
 }
+
