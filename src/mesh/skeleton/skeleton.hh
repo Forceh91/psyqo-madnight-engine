@@ -25,6 +25,8 @@ struct SkeletonBone {
   SkeletonBoneMatrix bindPoseInverse; // inverse bind pose matrix
   bool isDirty = true;                // set by the animation to determine if we need to regenrate the above
   bool hasDoneBindPose = false;
+  psyqo::Vec3 startPos = {0,0,0};
+  psyqo::Vec3 endPos = {0,0,0};
 };
 
 struct Skeleton {

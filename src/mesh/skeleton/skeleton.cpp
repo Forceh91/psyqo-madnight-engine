@@ -80,6 +80,32 @@ void SkeletonController::UpdateSkeletonBoneMatrices(Skeleton *skeleton) {
       bone->hasDoneBindPose = true;
     }
   }
+
+  for (int j = 0; j < skeleton->numBones; j++) {
+    auto *bone = &skeleton->bones[j];
+    
+    // find first child of this bone
+    int childIndex = -1;
+    for (int k = 0; k < skeleton->numBones; k++) {
+      if (skeleton->bones[k].parent == j) {
+        childIndex = k;
+        break;
+      }
+    }
+
+    bone->startPos = bone->worldMatrix.translation;
+
+    if (childIndex != -1) {
+      bone->endPos = skeleton->bones[childIndex].worldMatrix.translation;
+    } else {
+      // fallback stub for leaf bones - point along bone's local Z axis
+      psyqo::Vec3 stubDir = {0, -0.0001_fp, 0}; // adjust length as needed
+      psyqo::Vec3 worldDir;
+      GTEMath::MultiplyMatrixVec3(bone->worldMatrix.rotationMatrix, stubDir, &worldDir);
+      
+      bone->endPos = bone->startPos + worldDir;
+    }
+  }
 }
 
 void SkeletonController::MarkBonesClean(Skeleton *skeleton) {

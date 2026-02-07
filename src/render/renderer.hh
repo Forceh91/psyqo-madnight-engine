@@ -7,7 +7,6 @@
 #include "psyqo/font.hh"
 #include "psyqo/fragments.hh"
 #include "psyqo/gpu.hh"
-#include "psyqo/primitives.hh"
 #include "psyqo/primitives/lines.hh"
 
 static constexpr uint16_t ORDERING_TABLE_SIZE = 1024;

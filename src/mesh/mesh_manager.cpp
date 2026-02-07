@@ -181,6 +181,8 @@ psyqo::Coroutine<> MeshManager::LoadMeshFromCDROM(const char *meshName, MeshBin 
 
     // individual bone data
     for (int32_t i = 0; i < loaded_mesh.mesh.numBones; i++) {
+      loaded_mesh.mesh.skeleton.bones[i].id = i;
+
       // parent bone
       __builtin_memcpy(&loaded_mesh.mesh.skeleton.bones[i].parent, ptr++, sizeof(int8_t)); // 1 byte
 
@@ -193,6 +195,7 @@ psyqo::Coroutine<> MeshManager::LoadMeshFromCDROM(const char *meshName, MeshBin 
 
       __builtin_memcpy(&loaded_mesh.mesh.skeleton.bones[i].localPos.z.value, ptr, sizeof(int32_t)); // 4 bytes
       ptr += sizeof(int32_t);
+      printf("bone id=%d, LOCAL pos=%f,%f,%f\n", loaded_mesh.mesh.skeleton.bones[i].id, loaded_mesh.mesh.skeleton.bones[i].startPos.x, loaded_mesh.mesh.skeleton.bones[i].startPos.y, loaded_mesh.mesh.skeleton.bones[i].startPos.z);
 
       // local rotation
       __builtin_memcpy(&loaded_mesh.mesh.skeleton.bones[i].localRotation.w.value, ptr, sizeof(int16_t)); // 2 bytes

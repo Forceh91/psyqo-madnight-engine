@@ -12,6 +12,7 @@
 #include "psyqo/gte-kernels.hh"
 #include "psyqo/gte-registers.hh"
 #include "psyqo/matrix.hh"
+#include "psyqo/primitives/common.hh"
 #include "psyqo/primitives/control.hh"
 #include "psyqo/primitives/lines.hh"
 #include "psyqo/vector.hh"
@@ -21,6 +22,60 @@ Renderer *Renderer::m_instance = nullptr;
 psyqo::Font<> Renderer::m_kromFont;
 psyqo::Font<> Renderer::m_systemFont;
 static constexpr psyqo::Rect screen_space = {.pos = {0, 0}, .size = {320, 240}};
+static constexpr psyqo::Color boneColours[MAX_BONES] = {
+    // Spine + neck
+    {255, 255, 100}, // 0: Hips
+    {255, 255, 120}, // 1: Spine
+    {255, 255, 140}, // 2: Spine1
+    {255, 255, 160}, // 3: Spine2
+    {255, 255, 180}, // 4: Neck
+
+    // Head
+    {64, 224, 208},  // 5: Head (turquoise)
+    {72, 239, 223},  // 6: HeadTop_End
+
+    // Left Arm (blue-heavy)
+    {0, 100, 255},   // 7: LeftShoulder
+    {0, 120, 255},   // 8: LeftArm
+    {0, 140, 255},   // 9: LeftForeArm
+    {0, 160, 255},   // 10: LeftHand
+    {0, 180, 255},   // 11: LeftHandThumb1
+    {0, 200, 255},   // 12: LeftHandThumb2
+    {0, 220, 255},   // 13: LeftHandThumb3
+    {0, 240, 255},   // 14: LeftHandThumb4
+    {0, 255, 220},   // 15: LeftHandIndex1
+    {0, 255, 200},   // 16: LeftHandIndex2
+    {0, 255, 180},   // 17: LeftHandIndex3
+    {0, 255, 160},   // 18: LeftHandIndex4
+
+    // Right Arm (green-heavy)
+    {0, 255, 120},   // 19: RightShoulder
+    {0, 255, 100},   // 20: RightArm
+    {0, 220, 100},   // 21: RightForeArm
+    {0, 200, 100},   // 22: RightHand
+    {0, 180, 120},   // 23: RightHandThumb1
+    {0, 160, 140},   // 24: RightHandThumb2
+    {0, 140, 160},   // 25: RightHandThumb3
+    {0, 120, 180},   // 26: RightHandThumb4
+    {0, 100, 200},   // 27: RightHandIndex1
+    {0, 100, 220},   // 28: RightHandIndex2
+    {0, 100, 240},   // 29: RightHandIndex3
+    {0, 120, 255},   // 30: RightHandIndex4
+
+    // Left Leg (red/orange)
+    {255, 100, 0},   // 31: LeftUpLeg
+    {255, 120, 0},   // 32: LeftLeg
+    {255, 140, 0},   // 33: LeftFoot
+    {255, 160, 0},   // 34: LeftToeBase
+    {255, 180, 0},   // 35: LeftToe_End
+
+    // Right Leg (red/orange variant)
+    {255, 100, 50},  // 36: RightUpLeg
+    {255, 120, 50},  // 37: RightLeg
+    {255, 140, 50},  // 38: RightFoot
+    {255, 160, 50},  // 39: RightToeBase
+    {255, 180, 50}   // 40: RightToe_End
+};
 
 void Renderer::Init(psyqo::GPU &gpuInstance) {
   if (m_instance != nullptr)
@@ -128,6 +183,7 @@ void Renderer::Render(uint32_t deltaTime) {
 
   // now for each object...
   int quadFragment = 0;
+  int lineFragment = 0;
   uint32_t zIndex = 0;
   psyqo::PrimPieces::TPageAttr tpage;
   psyqo::Rect offset = {0};
@@ -298,6 +354,30 @@ void Renderer::Render(uint32_t deltaTime) {
       // finally we can insert the quad fragment into the ordering table at the calculated z-index
       ot.insert(quad, zIndex);
     };
+
+    if (mesh->hasSkeleton && mesh->skeleton.numBones > 0) {
+      for (int j = 0; j < mesh->skeleton.numBones; j++) {
+        if (lineFragment >= QUAD_FRAGMENT_SIZE) break;
+        
+        auto &bone = mesh->skeleton.bones[j];
+        psyqo::GTE::writeSafe<psyqo::GTE::PseudoRegister::V0>(bone.startPos);
+        psyqo::GTE::writeSafe<psyqo::GTE::PseudoRegister::V1>(bone.endPos);
+        psyqo::GTE::Kernels::rtpt();
+      
+        psyqo::GTE::read<psyqo::GTE::Register::SXY0>(&projected[0].packed);
+        psyqo::GTE::read<psyqo::GTE::Register::SXY1>(&projected[1].packed);
+
+        auto &line = lines[lineFragment++];
+        line.primitive.pointA = projected[0];
+        line.primitive.pointB = projected[1];
+
+        line.primitive.setColorA(boneColours[j]);
+        line.primitive.setColorB(boneColours[j]);
+        line.primitive.setOpaque();
+
+        ot.insert(line, 1);
+      }
+    }
   }
 
   // send the entire ordering table as a DMA chain to the gpu

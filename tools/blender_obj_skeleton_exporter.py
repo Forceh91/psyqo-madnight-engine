@@ -65,7 +65,7 @@ def export_obj_skel(context, filepath, apply_modifiers=True, export_selected=Tru
 
             # Skeleton - bone positions transformed same as mesh
             if arm:
-                deform_bones = [b for b in arm.data.bones if b.use_deform]
+                deform_bones = [b for b in arm.pose.bones if b.bone.use_deform]
                 bone_index_map = {b.name: i for i, b in enumerate(deform_bones)}
 
                 f.write(f"skel {len(deform_bones)}\n")
@@ -78,9 +78,9 @@ def export_obj_skel(context, filepath, apply_modifiers=True, export_selected=Tru
                     parent_idx = bone_index_map[bone.parent.name] if bone.parent else -1
 
                     # World-space head positions
-                    bone_head_ws = arm_world @ bone.head_local
+                    bone_head_ws = arm_world @ bone.head
                     if bone.parent:
-                        parent_head_ws = arm_world @ bone.parent.head_local
+                        parent_head_ws = arm_world @ bone.parent.head
                         local_head = bone_head_ws - parent_head_ws
                     else:
                         local_head = bone_head_ws.copy()
@@ -92,14 +92,14 @@ def export_obj_skel(context, filepath, apply_modifiers=True, export_selected=Tru
                     )
 
                     # Get bone's rest rotation relative to parent
-                    if bone.parent:
-                        # Local rotation = bone's matrix relative to parent's matrix
-                        parent_matrix_inv = bone.parent.matrix_local.inverted()
-                        local_matrix = parent_matrix_inv @ bone.matrix_local
-                        rest_quat = local_matrix.to_quaternion()
-                    else:
-                        # Root bone - use armature space rotation
-                        rest_quat = bone.matrix_local.to_quaternion()
+                    # if bone.parent:
+                    #     # Local rotation = bone's matrix relative to parent's matrix
+                    #     parent_matrix_inv = bone.parent.matrix.inverted()
+                    #     local_matrix = parent_matrix_inv @ bone.matrix
+                    #     rest_quat = local_matrix.to_quaternion()
+                    # else:
+                    # Root bone - use armature space rotation
+                    rest_quat = bone.matrix.to_quaternion()
 
                     f.write(
                         f"bone {i} {bone.name} {parent_idx} "
@@ -112,7 +112,7 @@ def export_obj_skel(context, filepath, apply_modifiers=True, export_selected=Tru
                     if v.groups:
                         g = max(v.groups, key=lambda gr: gr.weight)
                         vg_name = obj.vertex_groups[g.group].name
-                        bone_idx = list(deform_bones).index(arm.pose.bones[vg_name].bone)
+                        bone_idx = next((i for i, pb in enumerate(deform_bones) if pb.name == vg_name), -1)
                         f.write(f"vw {v.index + 1} {bone_idx}\n")
                     else:
                         f.write(f"vw {v.index + 1} -1\n")

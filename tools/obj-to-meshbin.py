@@ -157,14 +157,15 @@ def parse_obj_file_with_collision_data(path,texture_size):
                 bone_id, name, parent, x, y, z, rotW, rotX, rotY, rotZ = line.strip().split()[1:]
                 skeleton_bones.append((
                     int(parent), 
-                    int(float(x) * ONE_ENGINE_METRE),  # ADD THIS
-                    int(float(y) * ONE_ENGINE_METRE),  # ADD THIS
-                    int(float(z) * ONE_ENGINE_METRE),  # ADD THIS
+                    int(float(x) * ONE_ENGINE_METRE),
+                    int(float(y) * ONE_ENGINE_METRE),
+                    int(float(z) * ONE_ENGINE_METRE),
                     int(float(rotW) * ONE_FP12), 
                     int(float(rotX) * ONE_FP12), 
                     int(float(rotY) * ONE_FP12), 
                     int(float(rotZ) * ONE_FP12)
-                ))            
+                ))
+                print(f"bone: {bone_id}. x={x} ({int(float(x) * ONE_ENGINE_METRE)}), y={y} ({int(float(y) * ONE_ENGINE_METRE)}) z={z} ({int(float(z) * ONE_ENGINE_METRE)})")
 
             elif line.startswith("vw ") and has_skeleton:
                 bone_id = line.strip().split()[2]
