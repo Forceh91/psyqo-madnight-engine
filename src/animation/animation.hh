@@ -4,6 +4,7 @@
 #include "../quaternion.hh"
 #include "EASTL/fixed_string.h"
 #include "psyqo/vector.hh"
+#include <cstdint>
 
 static constexpr uint8_t MAX_ANIMATIONS = 5;
 static constexpr uint8_t MAX_TRACKS = 50;
@@ -12,7 +13,7 @@ static constexpr uint8_t MAX_KEYS = 30;
 static constexpr uint8_t MAX_ANIMATION_NAME_LENGTH = 32;
 static constexpr uint8_t MAX_MARKER_NAME_LENGTH = 32;
 
-enum KeyType { ROTATION, TRANSLATION };
+enum KeyType : uint8_t { ROTATION, TRANSLATION };
 
 // what the frame should do. rotate or translate the bone/joint
 struct Key {

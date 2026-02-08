@@ -171,7 +171,7 @@ void SkeletonController::PlayAnimation(Skeleton *skeleton, uint32_t deltaTime) {
 
     auto &bone = skeleton->bones[track.jointId];
     if (next->keyType == KeyType::ROTATION) {
-      bone.localRotation = -bone.initialLocalRotation * Slerp(prev->rotation, next->rotation, slerpFactor);
+      bone.localRotation = bone.initialLocalRotation * Slerp(prev->rotation, next->rotation, slerpFactor);
     }
     // TODO: translation
 

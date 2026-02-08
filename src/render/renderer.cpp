@@ -352,7 +352,7 @@ void Renderer::Render(uint32_t deltaTime) {
       }
 
       // finally we can insert the quad fragment into the ordering table at the calculated z-index
-      ot.insert(quad, zIndex);
+      // ot.insert(quad, zIndex);
     };
 
     if (mesh->hasSkeleton && mesh->skeleton.numBones > 0) {
