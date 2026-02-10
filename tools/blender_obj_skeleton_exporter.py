@@ -99,7 +99,7 @@ def export_obj_skel(context, filepath, apply_modifiers=True, export_selected=Tru
                     #     rest_quat = local_matrix.to_quaternion()
                     # else:
                     # Root bone - use armature space rotation
-                    rest_quat = bone.matrix.to_quaternion()
+                    rest_quat = bone.rotation_quaternion.copy()
 
                     f.write(
                         f"bone {i} {bone.name} {parent_idx} "
