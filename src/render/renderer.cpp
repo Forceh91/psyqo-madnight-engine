@@ -36,8 +36,8 @@ static constexpr psyqo::Color boneColours[MAX_BONES] = {
 
     // Left Arm (blue-heavy)
     {0, 100, 255},   // 7: LeftShoulder
-    {0, 120, 255},   // 8: LeftArm
-    {0, 140, 255},   // 9: LeftForeArm
+    {255, 120, 255},   // 8: LeftArm
+    {125, 140, 255},   // 9: LeftForeArm
     {0, 160, 255},   // 10: LeftHand
     {0, 180, 255},   // 11: LeftHandThumb1
     {0, 200, 255},   // 12: LeftHandThumb2
@@ -352,7 +352,7 @@ void Renderer::Render(uint32_t deltaTime) {
       }
 
       // finally we can insert the quad fragment into the ordering table at the calculated z-index
-      // ot.insert(quad, zIndex);
+      ot.insert(quad, zIndex);
     };
 
     if (mesh->hasSkeleton && mesh->skeleton.numBones > 0) {

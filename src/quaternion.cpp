@@ -34,20 +34,23 @@ psyqo::Matrix33 Quaternion::ToRotationMatrix() const {
   auto wy = w * y;
   auto wz = w * z;
 
+  auto one = psyqo::GTE::Short(1);
+  auto two = psyqo::GTE::Short(2);
+
   return psyqo::Matrix33{{{
-                              .x = psyqo::FixedPoint<>(1 - 2 * (yy + zz)),
-                              .y = psyqo::FixedPoint<>(2 * (xy - wz)),
-                              .z = psyqo::FixedPoint<>(2 * (xz + wy)),
+                              .x = psyqo::FixedPoint<>(one - two * (yy + zz)),
+                              .y = psyqo::FixedPoint<>(two * (xy - wz)),
+                              .z = psyqo::FixedPoint<>(two * (xz + wy)),
                           },
                           {
-                              .x = psyqo::FixedPoint<>(2 * (xy + wz)),
-                              .y = psyqo::FixedPoint<>(1 - 2 * (xx + zz)),
-                              .z = psyqo::FixedPoint<>(2 * (yz - wx)),
+                              .x = psyqo::FixedPoint<>(two * (xy + wz)),
+                              .y = psyqo::FixedPoint<>(one - two * (xx + zz)),
+                              .z = psyqo::FixedPoint<>(two * (yz - wx)),
                           },
                           {
-                              .x = psyqo::FixedPoint<>(2 * (xz - wy)),
-                              .y = psyqo::FixedPoint<>(2 * (yz + wx)),
-                              .z = psyqo::FixedPoint<>(1 - 2 * (xx + yy)),
+                              .x = psyqo::FixedPoint<>(two * (xz - wy)),
+                              .y = psyqo::FixedPoint<>(two * (yz + wx)),
+                              .z = psyqo::FixedPoint<>(one - two * (xx + yy)),
                           }}};
 }
 
