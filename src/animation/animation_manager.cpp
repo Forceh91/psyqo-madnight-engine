@@ -42,8 +42,9 @@ psyqo::Coroutine<> AnimationManager::LoadAnimationFromCDRom(const char *animatio
   // for the number of animations...
   for (int32_t i = 0; i < m_loadedAnimBin.numAnimations; i++) {
     auto *anim = &m_loadedAnimBin.animations[i];
+    
     // load the name
-    anim->name.assign(reinterpret_cast<char *>(ptr), MAX_ANIMATION_NAME_LENGTH);
+    anim->name.assign(reinterpret_cast<char *>(ptr));
     ptr += MAX_ANIMATION_NAME_LENGTH;
 
     // load any flags it has
@@ -144,8 +145,8 @@ Animation * AnimationManager::GetAnimationFromName(const eastl::fixed_string<cha
     printf("name=%s. to find=%s. comparison=%d\n", anim->name.c_str(), animationName.c_str(),
            anim->name.compare(animationName));
 
-    // if (anim->name.compare(animationName) == 0)
-    return anim;
+    if (anim->name == animationName)
+      return anim;
   }
 
   return nullptr;
