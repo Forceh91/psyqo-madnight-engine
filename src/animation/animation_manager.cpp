@@ -142,9 +142,6 @@ Animation * AnimationManager::GetAnimationFromName(const eastl::fixed_string<cha
     if (anim == nullptr)
       continue;
 
-    printf("name=%s. to find=%s. comparison=%d\n", anim->name.c_str(), animationName.c_str(),
-           anim->name.compare(animationName));
-
     if (anim->name == animationName)
       return anim;
   }
