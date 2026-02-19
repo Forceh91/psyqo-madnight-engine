@@ -16,6 +16,14 @@ from bpy.props import StringProperty, IntProperty
 
 FP12_SCALE = 4096
 
+# Go from Blender's coordinate system into PS1's coordinate system:
+axis_basis_change = mathutils.Matrix(
+    ((1.0,  0.0,  0.0, 0.0),
+     (0.0,  -1.0,  0.0, 0.0),
+     (0.0, 0.0,  -1.0, 0.0),
+     (0.0,  0.0,  0.0, 1.0))
+)
+
 # ------------------------------------------------------------
 # Fixed-point helper
 # ------------------------------------------------------------
@@ -30,16 +38,7 @@ def quat_ensure_shortest(prev, curr):
         return -curr
     return curr
 
-def get_axis_conversion_quat():
-    mat = axis_conversion(
-        from_forward='Y', from_up='Z',
-        to_forward='Z', to_up='-Y'
-    ).to_4x4().to_3x3()
-    return mat.to_quaternion()
 
-def convert_quat_to_ps1(q):
-    axis_quat = get_axis_conversion_quat()
-    return axis_quat.inverted() @ q @ axis_quat
 
 # ------------------------------------------------------------
 # Get bone rotation as quaternion
@@ -188,26 +187,17 @@ def export_animbin(context, filepath, start_frame, end_frame):
                 print(f"{pbone.name} REST: w={q_rest.w:.4f} x={q_rest.x:.4f} y={q_rest.y:.4f} z={q_rest.z:.4f}")            
 
             # Keys - absolute rotations
-            prev_q = None
             for i, frame in enumerate(range(start_frame, end_frame + 1)):
                 scene.frame_set(frame)
                 bpy.context.view_layer.update()
 
-                # Get absolute rotation (works with Mixamo animations)
                 if pbone.parent is None:
-                    q = mathutils.Quaternion((1, 0, 0, 0))  # identity for root
+                    transform = axis_basis_change @ pbone.matrix
                 else:
-                    q = pbone.rotation_quaternion.copy()
-                    if q.z >= 0:
-                        q = mathutils.Quaternion((q.w, -q.z, -q.y, q.x))
-                    else:
-                        q = mathutils.Quaternion((q.w, q.z, -q.y, -q.x))
-                    
-                if joint_id == 8:
-                    print(f"{pbone.name} frame {frame}:")
-                    print(f"  quatRotation:        w={q.w:.4f} x={q.x:.4f} y={q.y:.4f} z={q.z:.4f}")
-
-                prev_q = q.copy()
+                    transform = pbone.parent.matrix.inverted_safe() @ pbone.matrix
+                
+                translation, rotation, scale = transform.decompose()
+                q = rotation
 
                 f.write(struct.pack("<H", i))  # frame
                 f.write(struct.pack("<B", 0))  # keyType = ROTATION

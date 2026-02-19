@@ -13,6 +13,31 @@ import mathutils
 from bpy_extras.io_utils import ExportHelper, axis_conversion
 from bpy.props import StringProperty, BoolProperty, FloatProperty, EnumProperty
 
+# Go from Blender's coordinate system into PS1's coordinate system:
+axis_basis_change = mathutils.Matrix(
+    ((1.0,  0.0,  0.0, 0.0),
+     (0.0,  -1.0,  0.0, 0.0),
+     (0.0, 0.0,  -1.0, 0.0),
+     (0.0,  0.0,  0.0, 1.0))
+)
+
+def scale_bone_translation(bone, translation, global_matrix, arm_world):
+    # Get actual bone length in world space
+    bone_head_ws = arm_world @ bone.head
+    if bone.parent:
+        parent_head_ws = arm_world @ bone.parent.head
+        actual_offset = bone_head_ws - parent_head_ws
+    else:
+        actual_offset = bone_head_ws
+    
+    # Scale the decomposed translation to match actual bone length
+    decomposed_length = translation.length
+    if decomposed_length > 0.0001:
+        actual_length = actual_offset.length
+        scale_factor = actual_length / decomposed_length
+        return translation.normalized() * actual_length
+    else:
+        return actual_offset
 
 def export_obj_skel(context, filepath, apply_modifiers=True, export_selected=True,
                     global_scale=1.0, forward_axis='Z', up_axis='-Y'):
@@ -67,49 +92,34 @@ def export_obj_skel(context, filepath, apply_modifiers=True, export_selected=Tru
             if arm:
                 deform_bones = [b for b in arm.pose.bones if b.bone.use_deform]
                 bone_index_map = {b.name: i for i, b in enumerate(deform_bones)}
-
                 f.write(f"skel {len(deform_bones)}\n")
 
-                arm_obj = arm  # the armature object
-
-                arm_world = global_matrix @ arm_obj.matrix_world
-
+                arm_world = global_matrix @ arm.matrix_world
                 for i, bone in enumerate(deform_bones):
                     parent_idx = bone_index_map[bone.parent.name] if bone.parent else -1
-
-                    # World-space head positions
-                    bone_head_ws = arm_world @ bone.head
-                    if bone.parent:
-                        parent_head_ws = arm_world @ bone.parent.head
-                        local_head = bone_head_ws - parent_head_ws
+                    
+                    # Get transform in PS1 coordinate system
+                    if bone.parent is None:
+                        transform = axis_basis_change @ bone.matrix
                     else:
-                        local_head = bone_head_ws.copy()
-
-                    # DEBUG sanity check
-                    print(
-                        f"bone {bone.name} local offset: "
-                        f"{local_head.x:.3f}, {local_head.y:.3f}, {local_head.z:.3f}"
-                    )
-
-                    # Get bone's rest rotation relative to parent
-                    # if bone.parent:
-                    #     # Local rotation = bone's matrix relative to parent's matrix
-                    #     parent_matrix_inv = bone.parent.matrix.inverted()
-                    #     local_matrix = parent_matrix_inv @ bone.matrix
-                    #     rest_quat = local_matrix.to_quaternion()
-                    # else:
-                    # Root bone - use armature space rotation
-                    if parent_idx == -1:
-                        rest_quat = mathutils.Quaternion((1, 0, 0, 0))
-                    else:
-                        rest_quat = bone.rotation_quaternion.copy()
-
+                        transform = bone.parent.matrix.inverted_safe() @ bone.matrix
+                    
+                    translation, rotation, scale = transform.decompose()
+                    translation = scale_bone_translation(bone, translation, global_matrix, arm_world)
+                    
+                    # Apply global_scale if needed
+                    if global_scale > 0.0:
+                        translation.x *= global_scale
+                        translation.y *= global_scale
+                        translation.z *= global_scale
+                    
+                    rest_quat = rotation
                     f.write(
                         f"bone {i} {bone.name} {parent_idx} "
-                        f"{local_head.x:.6f} {local_head.y:.6f} {local_head.z:.6f} "
+                        f"{translation.x:.6f} {translation.y:.6f} {translation.z:.6f} "
                         f"{rest_quat.w:.6f} {rest_quat.x:.6f} {rest_quat.y:.6f} {rest_quat.z:.6f}\n"
                     )
-
+                
                 # Vertex → Bone mapping
                 for v in mesh_eval.vertices:
                     if v.groups:

@@ -38,7 +38,7 @@ static constexpr psyqo::Color boneColours[MAX_BONES] = {
     {0, 100, 255},   // 7: LeftShoulder
     {255, 120, 255},   // 8: LeftArm
     {125, 140, 255},   // 9: LeftForeArm
-    {0, 160, 255},   // 10: LeftHand
+    {80, 160, 255},   // 10: LeftHand
     {0, 180, 255},   // 11: LeftHandThumb1
     {0, 200, 255},   // 12: LeftHandThumb2
     {0, 220, 255},   // 13: LeftHandThumb3
@@ -50,9 +50,9 @@ static constexpr psyqo::Color boneColours[MAX_BONES] = {
 
     // Right Arm (green-heavy)
     {0, 255, 120},   // 19: RightShoulder
-    {0, 255, 100},   // 20: RightArm
-    {0, 220, 100},   // 21: RightForeArm
-    {0, 200, 100},   // 22: RightHand
+    {255, 255, 100},   // 20: RightArm
+    {125, 220, 100},   // 21: RightForeArm
+    {80, 200, 100},   // 22: RightHand
     {0, 180, 120},   // 23: RightHandThumb1
     {0, 160, 140},   // 24: RightHandThumb2
     {0, 140, 160},   // 25: RightHandThumb3
@@ -256,7 +256,7 @@ void Renderer::Render(uint32_t deltaTime) {
     // if its not a nullptr fill out some data so we don't have to do it every face
     // NOTE: the nullptr check here is a free 0.2ms if you want it but it really should be done
     const auto texture = gameObject->texture();
-    if (texture != nullptr) {
+    if (texture) {
       // get the tpage and uv offset info
       tpage = TextureManager::GetTPageAttr(texture);
       offset = TextureManager::GetTPageUVForTim(texture);
@@ -325,7 +325,7 @@ void Renderer::Render(uint32_t deltaTime) {
       quad.primitive.setOpaque();
 
       // do we have a texture for this?
-      if (texture != nullptr) {
+      if (texture) {
         // set its tpage
         quad.primitive.tpage = tpage;
 
