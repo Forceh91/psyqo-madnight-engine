@@ -5,7 +5,7 @@
 #include "psyqo/gte-registers.hh"
 #include "psyqo/matrix.hh"
 #include "psyqo/vector.hh"
-#include "psyqo/xprintf.h"
+#include "../../defs.hh"
 
 void SkeletonController::UpdateSkeletonBoneMatrices(Skeleton *skeleton) {
 	if (!skeleton)
@@ -82,6 +82,7 @@ void SkeletonController::UpdateSkeletonBoneMatrices(Skeleton *skeleton) {
 		}
 	}
  
+	#if ENABLE_BONE_DEBUG
 	for (int j = 0; j < skeleton->numBones; j++) {
 		auto *bone = &skeleton->bones[j];
 
@@ -107,6 +108,7 @@ void SkeletonController::UpdateSkeletonBoneMatrices(Skeleton *skeleton) {
 			bone->endPos = bone->startPos + worldDir;
 		}
 	}
+	#endif
 }
 
 void SkeletonController::MarkBonesClean(Skeleton *skeleton) {

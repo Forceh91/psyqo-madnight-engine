@@ -16,12 +16,15 @@
 #include "psyqo/primitives/control.hh"
 #include "psyqo/primitives/lines.hh"
 #include "psyqo/vector.hh"
-#include "psyqo/xprintf.h"
+#include "../defs.hh"
+
 
 Renderer *Renderer::m_instance = nullptr;
 psyqo::Font<> Renderer::m_kromFont;
 psyqo::Font<> Renderer::m_systemFont;
 static constexpr psyqo::Rect screen_space = {.pos = {0, 0}, .size = {320, 240}};
+
+#if ENABLE_BONE_DEBUG
 static constexpr psyqo::Color boneColours[MAX_BONES] = {
     // Spine + neck
     {255, 255, 100}, // 0: Hips
@@ -76,6 +79,7 @@ static constexpr psyqo::Color boneColours[MAX_BONES] = {
     {255, 160, 50},  // 39: RightToeBase
     {255, 180, 50}   // 40: RightToe_End
 };
+#endif
 
 void Renderer::Init(psyqo::GPU &gpuInstance) {
   if (m_instance != nullptr)
@@ -355,6 +359,7 @@ void Renderer::Render(uint32_t deltaTime) {
       ot.insert(quad, zIndex);
     };
 
+#if ENABLE_BONE_DEBUG
     if (mesh->hasSkeleton && mesh->skeleton.numBones > 0) {
       for (int j = 0; j < mesh->skeleton.numBones; j++) {
         if (lineFragment >= QUAD_FRAGMENT_SIZE) break;
@@ -378,6 +383,7 @@ void Renderer::Render(uint32_t deltaTime) {
         ot.insert(line, 1);
       }
     }
+#endif
   }
 
   // send the entire ordering table as a DMA chain to the gpu
