@@ -1,10 +1,12 @@
 #include "camera.hh"
 #include "../madnight.hh"
+#include "../math/vector.hh"
 #include "EASTL/algorithm.h"
 #include "psyqo/fixed-point.hh"
 #include "psyqo/soft-math.hh"
 #include "psyqo/trigonometry.hh"
 #include "psyqo/vector.hh"
+#include "psyqo/xprintf.h"
 
 void Camera::Process(uint32_t deltaTime) {
   // TODO: should first/third person camera perspective affect things?
@@ -102,17 +104,28 @@ void Camera::ClearFreeLook(void) { m_cameraMode = CameraMode::FIXED; }
 // TODO: watch for stuff getting in the way, force the distance to be lower if needed
 psyqo::Vec3 Camera::CalculateOrbitPosition(void) {
   psyqo::Trig trig = g_madnightEngine.m_trig;
+  auto const currentPos = *m_tracking.pos;
 
   psyqo::Vec3 forward = {trig.cos(m_orbitAngle.x) * trig.sin(m_orbitAngle.y), trig.sin(m_orbitAngle.x),
                          trig.cos(m_orbitAngle.x) * trig.cos(m_orbitAngle.y)};
+  if (IsVector3Zero(forward))
+    return currentPos;
+
+  psyqo::SoftMath::normalizeVec3(&forward);
 
   auto worldUp = psyqo::Vec3::UP();
   auto forwardUpCross = psyqo::SoftMath::crossProductVec3(forward, worldUp);
+  if (IsVector3Zero(forwardUpCross))
+    return currentPos;
+
   auto right = forwardUpCross;
   psyqo::SoftMath::normalizeVec3(&right);
 
   auto rightForwardCross = psyqo::SoftMath::crossProductVec3(right, forward);
   auto up = rightForwardCross;
+  if (IsVector3Zero(up))
+    return currentPos;
+
   psyqo::SoftMath::normalizeVec3(&up);
 
   if (m_orbitAngle.z < 0 || m_orbitAngle.z > 0) {
@@ -132,17 +145,33 @@ void Camera::LookAt(const psyqo::Vec3 *target) {
   // calculate forward axis direction
   auto forwardVector = *target - m_pos;
   auto forwardVectorNormal = forwardVector;
+  if (IsVector3Zero(forwardVector))
+    return;
+
   psyqo::SoftMath::normalizeVec3(&forwardVectorNormal);
 
   // calculate right axis direction
   auto up = psyqo::Vec3::UP();
   auto crossProduct = psyqo::SoftMath::crossProductVec3(forwardVectorNormal, up);
+  if (IsVector3Zero(crossProduct))
+    return;
+
   auto rightVectorNormal = crossProduct;
+  if (IsVector3Zero(rightVectorNormal))
+    return;
+
   psyqo::SoftMath::normalizeVec3(&rightVectorNormal);
 
   // calculate up axis direction
   auto rightForwardCrossProduct = psyqo::SoftMath::crossProductVec3(rightVectorNormal, forwardVectorNormal);
+
+  if (IsVector3Zero(rightForwardCrossProduct))
+    return;
+
   auto upVectorNormal = rightForwardCrossProduct;
+  if (IsVector3Zero(upVectorNormal))
+    return;
+  
   psyqo::SoftMath::normalizeVec3(&upVectorNormal);
 
   m_rotationMatrix = {{{rightVectorNormal.x, rightVectorNormal.y, rightVectorNormal.z},
