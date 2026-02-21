@@ -14,8 +14,13 @@ void Billboard::Destroy(void) {
     m_id = INVALID_BILLBOARD_ID;
 }
 
-void Billboard::SetTexture(const eastl::fixed_string<char, MAX_BILLBOARD_NAME_LENGTH> &textureName) {
+void Billboard::SetTexture(const eastl::fixed_string<char, MAX_BILLBOARD_NAME_LENGTH> &textureName, const eastl::array<psyqo::PrimPieces::UVCoords, 4> &uv) {
     TextureManager::GetTextureFromName(textureName.c_str(), &m_texture);
+    m_uvCoords = uv;
+}
+
+void Billboard::SetUVCoords(const eastl::array<psyqo::PrimPieces::UVCoords, 4> &uv) {
+    m_uvCoords = uv;
 }
 
 void Billboard::SetPosition(const psyqo::Vec3 pos) {

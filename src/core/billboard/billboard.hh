@@ -37,9 +37,12 @@ public:
     void SetColour(const psyqo::Color colour);
 
     const TimFile *pTexture() const { return m_texture; }
-    void SetTexture(const eastl::fixed_string<char, MAX_CDROM_FILE_NAME_LEN> &textureName);
+    void SetTexture(const eastl::fixed_string<char, MAX_CDROM_FILE_NAME_LEN> &textureName, const eastl::array<psyqo::PrimPieces::UVCoords, 4> &uv);
 
     const eastl::array<psyqo::Vec3, 4> &corners() const { return m_quadCorners; }
+
+    const eastl::array<psyqo::PrimPieces::UVCoords, 4> &uv() const { return m_uvCoords; }
+    void SetUVCoords(const eastl::array<psyqo::PrimPieces::UVCoords, 4> &uv);
 private:
     eastl::fixed_string<char, MAX_BILLBOARD_NAME_LENGTH> m_name = "";
     uint8_t m_id = INVALID_BILLBOARD_ID;
@@ -48,6 +51,7 @@ private:
     psyqo::Color m_colour = {128,128,128};
     TimFile * m_texture = nullptr;
     eastl::array<psyqo::Vec3, 4> m_quadCorners;
+    eastl::array<psyqo::PrimPieces::UVCoords, 4> m_uvCoords;
 
     void SetQuadCorners(void);
 };
