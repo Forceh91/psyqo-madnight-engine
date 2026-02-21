@@ -4,15 +4,15 @@
 #include "../textures/texture_manager.hh"
 
 #include "camera.hh"
+#include "psyqo/bump-allocator.hh"
 #include "psyqo/font.hh"
 #include "psyqo/fragments.hh"
 #include "psyqo/gpu.hh"
 #include "psyqo/matrix.hh"
-#include "psyqo/primitives/lines.hh"
 
 static constexpr uint16_t ORDERING_TABLE_SIZE = 1024;
-static constexpr uint16_t QUAD_FRAGMENT_SIZE = 1024;
-static constexpr psyqo::Color c_backgroundColour = {.r = 63, .g = 63, .b = 63};
+static constexpr uint32_t BUMP_ALLOCATOR_BYTES = 75000; // 75,000 bytes/75kb for each frame buffer, 150k total
+static constexpr psyqo::Color c_backgroundColour = {.r = 10, .g = 10, .b = 10};
 static constexpr psyqo::Color c_loadingBackgroundColour = {.r = 0, .g = 0, .b = 0};
 
 class Renderer final {
@@ -30,11 +30,11 @@ class Renderer final {
   // when using ordering tables we also need to sort fill commands as well
   psyqo::Fragments::SimpleFragment<psyqo::Prim::FastFill> m_clear[2];
 
-  // we need a more permanent place to keep our quad info too
-  eastl::array<psyqo::Fragments::SimpleFragment<psyqo::Prim::GouraudTexturedQuad>, QUAD_FRAGMENT_SIZE> m_quads[2];
-  eastl::array<psyqo::Fragments::SimpleFragment<psyqo::Prim::GouraudLine>, QUAD_FRAGMENT_SIZE> m_lines[2];
+  // bump allocator so we're not guessing at runtime how many quads/lines/etc/etc/etc we're gonna have
+  psyqo::BumpAllocator<BUMP_ALLOCATOR_BYTES> m_allocators[2];
 
   // texture page + sprite info
+  // TODO: move to bump allocator?
   eastl::array<psyqo::Fragments::SimpleFragment<psyqo::Prim::TPage>, 40> m_tpages[2];
   eastl::array<psyqo::Fragments::SimpleFragment<psyqo::Prim::Sprite>, 40> m_sprites[2];
   uint8_t m_currentSpriteFragment = 0;
@@ -43,9 +43,9 @@ class Renderer final {
   ~Renderer(){};
 
   psyqo::Vec3 SetupCamera(const psyqo::Matrix33 &camRotationMatrix, const psyqo::Vec3 &negativeCamPos);
-  
-  uint32_t m_currentQuadFragment = 0;
-  void RenderBillboards(const psyqo::Vec3 gteCameraPos, const psyqo::Matrix33 &cameraRotationMatrix);
+
+  void RenderGameObjects(uint32_t deltaTime, const psyqo::Vec3 gteCameraPos, const psyqo::Matrix33 &cameraRotationMatrix);
+  void RenderBillboards(uint32_t deltaTime, const psyqo::Vec3 gteCameraPos, const psyqo::Matrix33 &cameraRotationMatrix);
 public:
   static void Init(psyqo::GPU &gpuInstance);
 

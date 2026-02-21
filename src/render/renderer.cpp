@@ -13,9 +13,11 @@
 #include "psyqo/gte-kernels.hh"
 #include "psyqo/gte-registers.hh"
 #include "psyqo/matrix.hh"
+#include "psyqo/primitive-concept.hh"
 #include "psyqo/primitives/common.hh"
 #include "psyqo/primitives/control.hh"
 #include "psyqo/primitives/lines.hh"
+#include "psyqo/primitives/quads.hh"
 #include "psyqo/vector.hh"
 #include "psyqo/xprintf.h"
 #include "../defs.hh"
@@ -158,13 +160,12 @@ void Renderer::Render(uint32_t deltaTime) {
   // get the frame buffer we're currently rendering
   int frameBuffer = m_gpu.getParity();
 
-  // current ordering tables and fill command
-  auto &ot = m_orderingTables[frameBuffer];
-  auto &clear = m_clear[frameBuffer];
-  auto &quads = m_quads[frameBuffer];
-  auto &lines = m_lines[frameBuffer];
-
+  // get the current allocator so we can reset it
+  auto &allocator = m_allocators[frameBuffer];
+  allocator.reset();
+  
   // chain the fill command to clear the buffer
+  auto &clear = m_clear[frameBuffer];
   m_gpu.getNextClear(clear.primitive, c_backgroundColour);
   m_gpu.chain(clear);
 
@@ -182,21 +183,37 @@ void Renderer::Render(uint32_t deltaTime) {
     gteCameraPos = SetupCamera(cameraRotationMatrix, -m_activeCamera->pos());
   }
 
+  RenderGameObjects(deltaTime, gteCameraPos, cameraRotationMatrix);
+
+  RenderBillboards(deltaTime, gteCameraPos, cameraRotationMatrix);
+
+  // send the entire ordering table as a DMA chain to the gpu
+  m_gpu.chain(m_orderingTables[frameBuffer]);
+
+  // do this last incase it gets more complex and needs to go on top
+  DebugMenu::Draw(m_gpu);
+}
+
+void Renderer::RenderGameObjects(uint32_t deltaTime, const psyqo::Vec3 gteCameraPos, const psyqo::Matrix33 &cameraRotationMatrix) {
+  eastl::array<psyqo::Vertex, 4> projected;
+  uint32_t zIndex = 0;
+  psyqo::PrimPieces::TPageAttr tpage;
+  psyqo::Rect offset = {0,0};
+
+  auto frameBuffer = m_gpu.getParity();
+  auto &allocator = m_allocators[frameBuffer];
+  auto &ot = m_orderingTables[frameBuffer];
+
   // get game objects. if there's nothing to render then just early return
   const auto &gameObjects = GameObjectManager::GetActiveGameObjects();
   if (!gameObjects.empty()) {
     // now for each object...
-    m_currentQuadFragment = 0;
     int lineFragment = 0;
     uint32_t zIndex = 0;
     psyqo::PrimPieces::TPageAttr tpage;
     psyqo::Rect offset = {0};
 
     for (const auto &gameObject : gameObjects) {
-      // dont overflow our quads/faces/whatever
-      if (m_currentQuadFragment >= QUAD_FRAGMENT_SIZE)
-        break;
-
       // we dont need to get mesh data for every single vert since it wont change, so lets only do that once
       const auto mesh = gameObject->mesh();
       if (mesh == nullptr)
@@ -268,10 +285,6 @@ void Renderer::Render(uint32_t deltaTime) {
       }
 
       for (int i = 0; i < mesh->facesCount; i++) {
-        // dont overflow our quads/faces/whatever
-        if (m_currentQuadFragment >= QUAD_FRAGMENT_SIZE)
-          break;
-
         // load the first 3 verts into the GTE. remember it can only handle 3 at a time
         psyqo::GTE::writeSafe<psyqo::GTE::PseudoRegister::V0>(mesh->verticesOnBonePos[mesh->vertexIndices[i].i1]);
         psyqo::GTE::writeSafe<psyqo::GTE::PseudoRegister::V1>(mesh->verticesOnBonePos[mesh->vertexIndices[i].i2]);
@@ -313,7 +326,7 @@ void Renderer::Render(uint32_t deltaTime) {
 
         // now take a quad fragment from our array and:
         // set its vertices
-        auto &quad = quads[m_currentQuadFragment++];
+        auto &quad = allocator.allocateFragment<psyqo::Prim::GouraudTexturedQuad>();
         quad.primitive.pointA = projected[0];
         quad.primitive.pointB = projected[1];
         quad.primitive.pointC = projected[2];
@@ -361,9 +374,7 @@ void Renderer::Render(uint32_t deltaTime) {
 
   #if ENABLE_BONE_DEBUG
       if (mesh->hasSkeleton && mesh->skeleton.numBones > 0) {
-        for (int j = 0; j < mesh->skeleton.numBones; j++) {
-          if (lineFragment >= QUAD_FRAGMENT_SIZE) break;
-          
+        for (int j = 0; j < mesh->skeleton.numBones; j++) {         
           auto &bone = mesh->skeleton.bones[j];
           psyqo::GTE::writeSafe<psyqo::GTE::PseudoRegister::V0>(bone.startPos);
           psyqo::GTE::writeSafe<psyqo::GTE::PseudoRegister::V1>(bone.endPos);
@@ -372,7 +383,7 @@ void Renderer::Render(uint32_t deltaTime) {
           psyqo::GTE::read<psyqo::GTE::Register::SXY0>(&projected[0].packed);
           psyqo::GTE::read<psyqo::GTE::Register::SXY1>(&projected[1].packed);
 
-          auto &line = lines[lineFragment++];
+          auto &line = allocator.allocateFragment<psyqo::Prim::Line>();
           line.primitive.pointA = projected[0];
           line.primitive.pointB = projected[1];
 
@@ -386,34 +397,23 @@ void Renderer::Render(uint32_t deltaTime) {
   #endif
     }
   }
-
-  RenderBillboards(gteCameraPos, cameraRotationMatrix);
-
-  // send the entire ordering table as a DMA chain to the gpu
-  m_gpu.chain(ot);
-
-  // do this last incase it gets more complex and needs to go on top
-  DebugMenu::Draw(m_gpu);
 }
 
-void Renderer::RenderBillboards(const psyqo::Vec3 gteCameraPos, const psyqo::Matrix33 &cameraRotationMatrix) {
+void Renderer::RenderBillboards(uint32_t deltaTime, const psyqo::Vec3 gteCameraPos, const psyqo::Matrix33 &cameraRotationMatrix) {
   eastl::array<psyqo::Vertex, 4> projected;
   uint32_t zIndex = 0;
   psyqo::PrimPieces::TPageAttr tpage;
   psyqo::Rect offset = {0,0};
 
   auto frameBuffer = m_gpu.getParity();
-  auto &quads = m_quads[frameBuffer];
+  auto &allocator = m_allocators[frameBuffer];
   auto &ot = m_orderingTables[frameBuffer];
-
+  
   auto const &billboards = BillboardManager::GetActiveBillboards();
   if (billboards.empty())
     return;
 
   for (auto const &billboard : billboards) {
-    if (m_currentQuadFragment >= QUAD_FRAGMENT_SIZE)
-      break;
-
     // clear TRX/Y/Z safely
     psyqo::GTE::clear<psyqo::GTE::Register::TRX, psyqo::GTE::Safe>();
     psyqo::GTE::clear<psyqo::GTE::Register::TRY, psyqo::GTE::Safe>();
@@ -473,7 +473,7 @@ void Renderer::RenderBillboards(const psyqo::Vec3 gteCameraPos, const psyqo::Mat
       continue;
 
     // generate its points
-    auto &quad = quads[m_currentQuadFragment++];
+    auto &quad = allocator.allocateFragment<psyqo::Prim::GouraudQuad>();
     quad.primitive.pointA = projected[0];
     quad.primitive.pointB = projected[1];
     quad.primitive.pointC = projected[2];
