@@ -69,7 +69,17 @@ public:
   const psyqo::Vec3 forwardVector(void) {
     return {-m_rotationMatrix.vs[0].z, m_rotationMatrix.vs[1].z, m_rotationMatrix.vs[2].z};
   }
+
+  const psyqo::Vec3 rightVector(void) {
+    return {m_rotationMatrix.vs[0].x, m_rotationMatrix.vs[1].x, m_rotationMatrix.vs[2].x};
+  }
+
+  const psyqo::Vec3 upVector(void) {
+    return {m_rotationMatrix.vs[0].y, m_rotationMatrix.vs[1].y, m_rotationMatrix.vs[2].y};
+  }
+
   const psyqo::Matrix33 &rotationMatrix(void) { return m_rotationMatrix; }
+  psyqo::Matrix33 inverseRotationMatrix(void);
 
   void Process(uint32_t deltaTime);
   void SetPosition(psyqo::FixedPoint<> x, psyqo::FixedPoint<> y, psyqo::FixedPoint<> z);

@@ -7,6 +7,7 @@
 #include "psyqo/font.hh"
 #include "psyqo/fragments.hh"
 #include "psyqo/gpu.hh"
+#include "psyqo/matrix.hh"
 #include "psyqo/primitives/lines.hh"
 
 static constexpr uint16_t ORDERING_TABLE_SIZE = 1024;
@@ -42,7 +43,9 @@ class Renderer final {
   ~Renderer(){};
 
   psyqo::Vec3 SetupCamera(const psyqo::Matrix33 &camRotationMatrix, const psyqo::Vec3 &negativeCamPos);
-
+  
+  uint32_t m_currentQuadFragment = 0;
+  void RenderBillboards(const psyqo::Vec3 gteCameraPos, const psyqo::Matrix33 &cameraRotationMatrix);
 public:
   static void Init(psyqo::GPU &gpuInstance);
 

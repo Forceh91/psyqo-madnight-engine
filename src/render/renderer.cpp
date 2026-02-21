@@ -4,6 +4,7 @@
 
 #include "../core/debug/debug_menu.hh"
 #include "../core/object/gameobject_manager.hh"
+#include "../core/billboard/billboard_manager.hh"
 #include "../math/gte-math.hh"
 #include "../math/matrix.hh"
 
@@ -16,6 +17,7 @@
 #include "psyqo/primitives/control.hh"
 #include "psyqo/primitives/lines.hh"
 #include "psyqo/vector.hh"
+#include "psyqo/xprintf.h"
 #include "../defs.hh"
 
 
@@ -166,11 +168,6 @@ void Renderer::Render(uint32_t deltaTime) {
   m_gpu.getNextClear(clear.primitive, c_backgroundColour);
   m_gpu.chain(clear);
 
-  // get game objects. if there's nothing to render then just early return
-  const auto &gameObjects = GameObjectManager::GetActiveGameObjects();
-  if (gameObjects.empty())
-    return;
-
   // make use of `gpu.pumpCallbacks` at some point in here
   // so that the gpu timers, and subsequently the modplayer
   // are able to get their timer ticks fired off on time
@@ -185,212 +182,318 @@ void Renderer::Render(uint32_t deltaTime) {
     gteCameraPos = SetupCamera(cameraRotationMatrix, -m_activeCamera->pos());
   }
 
-  // now for each object...
-  int quadFragment = 0;
-  int lineFragment = 0;
-  uint32_t zIndex = 0;
-  psyqo::PrimPieces::TPageAttr tpage;
-  psyqo::Rect offset = {0};
+  // get game objects. if there's nothing to render then just early return
+  const auto &gameObjects = GameObjectManager::GetActiveGameObjects();
+  if (!gameObjects.empty()) {
+    // now for each object...
+    m_currentQuadFragment = 0;
+    int lineFragment = 0;
+    uint32_t zIndex = 0;
+    psyqo::PrimPieces::TPageAttr tpage;
+    psyqo::Rect offset = {0};
 
-  for (const auto &gameObject : gameObjects) {
-    // dont overflow our quads/faces/whatever
-    if (quadFragment >= QUAD_FRAGMENT_SIZE)
-      break;
-
-    // we dont need to get mesh data for every single vert since it wont change, so lets only do that once
-    const auto mesh = gameObject->mesh();
-    if (mesh == nullptr)
-      continue;
-
-    // if we've got a skeleton on this mesh
-    if (mesh->hasSkeleton) {
-      SkeletonController::PlayAnimation(&mesh->skeleton, deltaTime);
-
-      // update the bone/rotation matrices
-      SkeletonController::UpdateSkeletonBoneMatrices(&mesh->skeleton);
-
-      // adjust pos of verts that are attached to bones
-      for (int i = 0; i < mesh->vertexCount; i++) {
-        auto &bone = mesh->skeleton.bones[mesh->boneForVertex[i]];
-
-        if (!bone.isDirty) continue;
-
-        psyqo::Matrix33 rotationOffset;
-        GTEMath::MultiplyMatrix33(bone.worldMatrix.rotationMatrix, bone.bindPoseInverse.rotationMatrix,
-                                  &rotationOffset);
-
-        // translation offset = world_T + (R_world * bindPoseInverse.translation)
-        psyqo::Vec3 translationOffset;
-        GTEMath::MultiplyMatrixVec3(bone.worldMatrix.rotationMatrix, bone.bindPoseInverse.translation,
-                                    &translationOffset);
-        translationOffset += bone.worldMatrix.translation;
-
-        // final position
-        psyqo::Vec3 rotatedVert;
-        GTEMath::MultiplyMatrixVec3(rotationOffset, mesh->vertices[i], &rotatedVert);
-        mesh->verticesOnBonePos[i] = rotatedVert + translationOffset;
-      }
-
-      // mark all bones as clean
-      SkeletonController::MarkBonesClean(&mesh->skeleton);
-    }
-
-    // clear TRX/Y/Z safely
-    psyqo::GTE::clear<psyqo::GTE::Register::TRX, psyqo::GTE::Safe>();
-    psyqo::GTE::clear<psyqo::GTE::Register::TRY, psyqo::GTE::Safe>();
-    psyqo::GTE::clear<psyqo::GTE::Register::TRZ, psyqo::GTE::Safe>();
-
-    psyqo::GTE::writeSafe<psyqo::GTE::PseudoRegister::V0>(gameObject->pos());
-    psyqo::GTE::Kernels::rt();
-    psyqo::Vec3 objectPos = psyqo::GTE::readSafe<psyqo::GTE::PseudoRegister::SV>();
-
-    // adjust object position by camera position
-    objectPos += gteCameraPos;
-
-    // get the rotation matrix for the game object and then combine with the camera rotations
-    psyqo::Matrix33 finalMatrix = {0};
-    GTEMath::MultiplyMatrix33(cameraRotationMatrix, gameObject->rotationMatrix(), &finalMatrix);
-
-    // write the object position and final matrix to the GTE
-    psyqo::GTE::writeSafe<psyqo::GTE::PseudoRegister::Translation>(objectPos);
-    psyqo::GTE::writeSafe<psyqo::GTE::PseudoRegister::Rotation>(finalMatrix);
-
-    // now we've done all this we can render the mesh and apply texture (if needed)
-    // we dont need to get texture data for every single vert since it wont change, so lets only do that once
-    // if its not a nullptr fill out some data so we don't have to do it every face
-    // NOTE: the nullptr check here is a free 0.2ms if you want it but it really should be done
-    const auto texture = gameObject->texture();
-    if (texture) {
-      // get the tpage and uv offset info
-      tpage = TextureManager::GetTPageAttr(texture);
-      offset = TextureManager::GetTPageUVForTim(texture);
-      offset.pos.y += (texture->height - 1);
-    }
-
-    for (int i = 0; i < mesh->facesCount; i++) {
+    for (const auto &gameObject : gameObjects) {
       // dont overflow our quads/faces/whatever
-      if (quadFragment >= QUAD_FRAGMENT_SIZE)
+      if (m_currentQuadFragment >= QUAD_FRAGMENT_SIZE)
         break;
 
-      // load the first 3 verts into the GTE. remember it can only handle 3 at a time
-      psyqo::GTE::writeSafe<psyqo::GTE::PseudoRegister::V0>(mesh->verticesOnBonePos[mesh->vertexIndices[i].i1]);
-      psyqo::GTE::writeSafe<psyqo::GTE::PseudoRegister::V1>(mesh->verticesOnBonePos[mesh->vertexIndices[i].i2]);
-      psyqo::GTE::writeSafe<psyqo::GTE::PseudoRegister::V2>(mesh->verticesOnBonePos[mesh->vertexIndices[i].i3]);
-
-      // perform the rtpt (perspective transformation) on these three
-      psyqo::GTE::Kernels::rtpt();
-
-      // nclip determines the winding order of the vertices. if they are clockwise then it is facing towards us
-      psyqo::GTE::Kernels::nclip();
-
-      // read the result of this and skip rendering if its backfaced
-      if (psyqo::GTE::readRaw<psyqo::GTE::Register::MAC0>() == 0)
+      // we dont need to get mesh data for every single vert since it wont change, so lets only do that once
+      const auto mesh = gameObject->mesh();
+      if (mesh == nullptr)
         continue;
 
-      // store these verts so we can read the last one in
-      psyqo::GTE::read<psyqo::GTE::Register::SXY0>(&projected[0].packed);
-      psyqo::GTE::writeSafe<psyqo::GTE::PseudoRegister::V0>(mesh->verticesOnBonePos[mesh->vertexIndices[i].i4]);
+      // if we've got a skeleton on this mesh
+      if (mesh->hasSkeleton) {
+        SkeletonController::PlayAnimation(&mesh->skeleton, deltaTime);
 
-      // again we need to rtps it
-      psyqo::GTE::Kernels::rtps();
+        // update the bone/rotation matrices
+        SkeletonController::UpdateSkeletonBoneMatrices(&mesh->skeleton);
 
-      // average z index for ordering
-      psyqo::GTE::Kernels::avsz4();
-      zIndex = psyqo::GTE::readRaw<psyqo::GTE::Register::OTZ>();
+        // adjust pos of verts that are attached to bones
+        for (int i = 0; i < mesh->vertexCount; i++) {
+          auto &bone = mesh->skeleton.bones[mesh->boneForVertex[i]];
 
-      // make sure we dont go out of bounds
-      if (zIndex == 0 || zIndex >= ORDERING_TABLE_SIZE)
-        continue;
+          if (!bone.isDirty) continue;
 
-      // get the three remaining verts from the GTE
-      psyqo::GTE::read<psyqo::GTE::Register::SXY0>(&projected[1].packed);
-      psyqo::GTE::read<psyqo::GTE::Register::SXY1>(&projected[2].packed);
-      psyqo::GTE::read<psyqo::GTE::Register::SXY2>(&projected[3].packed);
+          psyqo::Matrix33 rotationOffset;
+          GTEMath::MultiplyMatrix33(bone.worldMatrix.rotationMatrix, bone.bindPoseInverse.rotationMatrix,
+                                    &rotationOffset);
 
-      // if its out of the screen space we can clip too
-      if (quad_clip(&screen_space, &projected[0], &projected[1], &projected[2], &projected[3]))
-        continue;
+          // translation offset = world_T + (R_world * bindPoseInverse.translation)
+          psyqo::Vec3 translationOffset;
+          GTEMath::MultiplyMatrixVec3(bone.worldMatrix.rotationMatrix, bone.bindPoseInverse.translation,
+                                      &translationOffset);
+          translationOffset += bone.worldMatrix.translation;
 
-      // now take a quad fragment from our array and:
-      // set its vertices
-      auto &quad = quads[quadFragment++];
-      quad.primitive.pointA = projected[0];
-      quad.primitive.pointB = projected[1];
-      quad.primitive.pointC = projected[2];
-      quad.primitive.pointD = projected[3];
+          // final position
+          psyqo::Vec3 rotatedVert;
+          GTEMath::MultiplyMatrixVec3(rotationOffset, mesh->vertices[i], &rotatedVert);
+          mesh->verticesOnBonePos[i] = rotatedVert + translationOffset;
+        }
 
-      // set its colour, and make it opaque
-      // TODO: make objects decide if they are gouraud shaded or not? saves processing time
-      quad.primitive.setColorA({128, 128, 128});
-      quad.primitive.setColorB({128, 128, 128});
-      quad.primitive.setColorC({128, 128, 128});
-      quad.primitive.setColorD({128, 128, 128});
+        // mark all bones as clean
+        SkeletonController::MarkBonesClean(&mesh->skeleton);
+      }
 
-      quad.primitive.setOpaque();
+      // clear TRX/Y/Z safely
+      psyqo::GTE::clear<psyqo::GTE::Register::TRX, psyqo::GTE::Safe>();
+      psyqo::GTE::clear<psyqo::GTE::Register::TRY, psyqo::GTE::Safe>();
+      psyqo::GTE::clear<psyqo::GTE::Register::TRZ, psyqo::GTE::Safe>();
 
-      // do we have a texture for this?
+      psyqo::GTE::writeSafe<psyqo::GTE::PseudoRegister::V0>(gameObject->pos());
+      psyqo::GTE::Kernels::rt();
+      psyqo::Vec3 objectPos = psyqo::GTE::readSafe<psyqo::GTE::PseudoRegister::SV>();
+
+      // adjust object position by camera position
+      objectPos += gteCameraPos;
+
+      // get the rotation matrix for the game object and then combine with the camera rotations
+      psyqo::Matrix33 finalMatrix = {0};
+      GTEMath::MultiplyMatrix33(cameraRotationMatrix, gameObject->rotationMatrix(), &finalMatrix);
+
+      // write the object position and final matrix to the GTE
+      psyqo::GTE::writeSafe<psyqo::GTE::PseudoRegister::Translation>(objectPos);
+      psyqo::GTE::writeSafe<psyqo::GTE::PseudoRegister::Rotation>(finalMatrix);
+
+      // now we've done all this we can render the mesh and apply texture (if needed)
+      // we dont need to get texture data for every single vert since it wont change, so lets only do that once
+      // if its not a nullptr fill out some data so we don't have to do it every face
+      // NOTE: the nullptr check here is a free 0.2ms if you want it but it really should be done
+      const auto texture = gameObject->texture();
       if (texture) {
-        // set its tpage
-        quad.primitive.tpage = tpage;
-
-        // set its clut if it has one
-        if (texture->hasClut)
-          quad.primitive.clutIndex = {texture->clutX, texture->clutY};
-
-        // set its uv coords
-        auto uvA = mesh->uvs[mesh->uvIndices[i].i1];
-        quad.primitive.uvA.u = offset.pos.x + uvA.u;
-        quad.primitive.uvA.v = offset.pos.y - uvA.v;
-
-        auto uvB = mesh->uvs[mesh->uvIndices[i].i2];
-        quad.primitive.uvB.u = offset.pos.x + uvB.u;
-        quad.primitive.uvB.v = offset.pos.y - uvB.v;
-
-        auto uvC = mesh->uvs[mesh->uvIndices[i].i3];
-        quad.primitive.uvC.u = offset.pos.x + uvC.u;
-        quad.primitive.uvC.v = offset.pos.y - uvC.v;
-
-        auto uvD = mesh->uvs[mesh->uvIndices[i].i4];
-        quad.primitive.uvD.u = offset.pos.x + uvD.u;
-        quad.primitive.uvD.v = offset.pos.y - uvD.v;
+        // get the tpage and uv offset info
+        tpage = TextureManager::GetTPageAttr(texture);
+        offset = TextureManager::GetTPageUVForTim(texture);
+        offset.pos.y += (texture->height - 1);
       }
 
-      // finally we can insert the quad fragment into the ordering table at the calculated z-index
-      ot.insert(quad, zIndex);
-    };
+      for (int i = 0; i < mesh->facesCount; i++) {
+        // dont overflow our quads/faces/whatever
+        if (m_currentQuadFragment >= QUAD_FRAGMENT_SIZE)
+          break;
 
-#if ENABLE_BONE_DEBUG
-    if (mesh->hasSkeleton && mesh->skeleton.numBones > 0) {
-      for (int j = 0; j < mesh->skeleton.numBones; j++) {
-        if (lineFragment >= QUAD_FRAGMENT_SIZE) break;
-        
-        auto &bone = mesh->skeleton.bones[j];
-        psyqo::GTE::writeSafe<psyqo::GTE::PseudoRegister::V0>(bone.startPos);
-        psyqo::GTE::writeSafe<psyqo::GTE::PseudoRegister::V1>(bone.endPos);
+        // load the first 3 verts into the GTE. remember it can only handle 3 at a time
+        psyqo::GTE::writeSafe<psyqo::GTE::PseudoRegister::V0>(mesh->verticesOnBonePos[mesh->vertexIndices[i].i1]);
+        psyqo::GTE::writeSafe<psyqo::GTE::PseudoRegister::V1>(mesh->verticesOnBonePos[mesh->vertexIndices[i].i2]);
+        psyqo::GTE::writeSafe<psyqo::GTE::PseudoRegister::V2>(mesh->verticesOnBonePos[mesh->vertexIndices[i].i3]);
+
+        // perform the rtpt (perspective transformation) on these three
         psyqo::GTE::Kernels::rtpt();
-      
+
+        // nclip determines the winding order of the vertices. if they are clockwise then it is facing towards us
+        psyqo::GTE::Kernels::nclip();
+
+        // read the result of this and skip rendering if its backfaced
+        if (psyqo::GTE::readRaw<psyqo::GTE::Register::MAC0>() == 0)
+          continue;
+
+        // store these verts so we can read the last one in
         psyqo::GTE::read<psyqo::GTE::Register::SXY0>(&projected[0].packed);
-        psyqo::GTE::read<psyqo::GTE::Register::SXY1>(&projected[1].packed);
+        psyqo::GTE::writeSafe<psyqo::GTE::PseudoRegister::V0>(mesh->verticesOnBonePos[mesh->vertexIndices[i].i4]);
 
-        auto &line = lines[lineFragment++];
-        line.primitive.pointA = projected[0];
-        line.primitive.pointB = projected[1];
+        // again we need to rtps it
+        psyqo::GTE::Kernels::rtps();
 
-        line.primitive.setColorA(boneColours[j]);
-        line.primitive.setColorB(boneColours[j]);
-        line.primitive.setOpaque();
+        // average z index for ordering
+        psyqo::GTE::Kernels::avsz4();
+        zIndex = psyqo::GTE::readRaw<psyqo::GTE::Register::OTZ>();
 
-        ot.insert(line, 1);
+        // make sure we dont go out of bounds
+        if (zIndex == 0 || zIndex >= ORDERING_TABLE_SIZE)
+          continue;
+
+        // get the three remaining verts from the GTE
+        psyqo::GTE::read<psyqo::GTE::Register::SXY0>(&projected[1].packed);
+        psyqo::GTE::read<psyqo::GTE::Register::SXY1>(&projected[2].packed);
+        psyqo::GTE::read<psyqo::GTE::Register::SXY2>(&projected[3].packed);
+
+        // if its out of the screen space we can clip too
+        if (quad_clip(&screen_space, &projected[0], &projected[1], &projected[2], &projected[3]))
+          continue;
+
+        // now take a quad fragment from our array and:
+        // set its vertices
+        auto &quad = quads[m_currentQuadFragment++];
+        quad.primitive.pointA = projected[0];
+        quad.primitive.pointB = projected[1];
+        quad.primitive.pointC = projected[2];
+        quad.primitive.pointD = projected[3];
+
+        // set its colour, and make it opaque
+        // TODO: make objects decide if they are gouraud shaded or not? saves processing time
+        quad.primitive.setColorA({128, 128, 128});
+        quad.primitive.setColorB({128, 128, 128});
+        quad.primitive.setColorC({128, 128, 128});
+        quad.primitive.setColorD({128, 128, 128});
+
+        quad.primitive.setOpaque();
+
+        // do we have a texture for this?
+        if (texture) {
+          // set its tpage
+          quad.primitive.tpage = tpage;
+
+          // set its clut if it has one
+          if (texture->hasClut)
+            quad.primitive.clutIndex = {texture->clutX, texture->clutY};
+
+          // set its uv coords
+          auto uvA = mesh->uvs[mesh->uvIndices[i].i1];
+          quad.primitive.uvA.u = offset.pos.x + uvA.u;
+          quad.primitive.uvA.v = offset.pos.y - uvA.v;
+
+          auto uvB = mesh->uvs[mesh->uvIndices[i].i2];
+          quad.primitive.uvB.u = offset.pos.x + uvB.u;
+          quad.primitive.uvB.v = offset.pos.y - uvB.v;
+
+          auto uvC = mesh->uvs[mesh->uvIndices[i].i3];
+          quad.primitive.uvC.u = offset.pos.x + uvC.u;
+          quad.primitive.uvC.v = offset.pos.y - uvC.v;
+
+          auto uvD = mesh->uvs[mesh->uvIndices[i].i4];
+          quad.primitive.uvD.u = offset.pos.x + uvD.u;
+          quad.primitive.uvD.v = offset.pos.y - uvD.v;
+        }
+
+        // finally we can insert the quad fragment into the ordering table at the calculated z-index
+        ot.insert(quad, zIndex);
+      };
+
+  #if ENABLE_BONE_DEBUG
+      if (mesh->hasSkeleton && mesh->skeleton.numBones > 0) {
+        for (int j = 0; j < mesh->skeleton.numBones; j++) {
+          if (lineFragment >= QUAD_FRAGMENT_SIZE) break;
+          
+          auto &bone = mesh->skeleton.bones[j];
+          psyqo::GTE::writeSafe<psyqo::GTE::PseudoRegister::V0>(bone.startPos);
+          psyqo::GTE::writeSafe<psyqo::GTE::PseudoRegister::V1>(bone.endPos);
+          psyqo::GTE::Kernels::rtpt();
+        
+          psyqo::GTE::read<psyqo::GTE::Register::SXY0>(&projected[0].packed);
+          psyqo::GTE::read<psyqo::GTE::Register::SXY1>(&projected[1].packed);
+
+          auto &line = lines[lineFragment++];
+          line.primitive.pointA = projected[0];
+          line.primitive.pointB = projected[1];
+
+          line.primitive.setColorA(boneColours[j]);
+          line.primitive.setColorB(boneColours[j]);
+          line.primitive.setOpaque();
+
+          ot.insert(line, 1);
+        }
       }
+  #endif
     }
-#endif
   }
+
+  RenderBillboards(gteCameraPos, cameraRotationMatrix);
 
   // send the entire ordering table as a DMA chain to the gpu
   m_gpu.chain(ot);
 
   // do this last incase it gets more complex and needs to go on top
   DebugMenu::Draw(m_gpu);
+}
+
+void Renderer::RenderBillboards(const psyqo::Vec3 gteCameraPos, const psyqo::Matrix33 &cameraRotationMatrix) {
+  eastl::array<psyqo::Vertex, 4> projected;
+  uint32_t zIndex = 0;
+  psyqo::PrimPieces::TPageAttr tpage;
+  psyqo::Rect offset = {0,0};
+
+  auto frameBuffer = m_gpu.getParity();
+  auto &quads = m_quads[frameBuffer];
+  auto &ot = m_orderingTables[frameBuffer];
+
+  auto const &billboards = BillboardManager::GetActiveBillboards();
+  if (billboards.empty())
+    return;
+
+  for (auto const &billboard : billboards) {
+    if (m_currentQuadFragment >= QUAD_FRAGMENT_SIZE)
+      break;
+
+    // clear TRX/Y/Z safely
+    psyqo::GTE::clear<psyqo::GTE::Register::TRX, psyqo::GTE::Safe>();
+    psyqo::GTE::clear<psyqo::GTE::Register::TRY, psyqo::GTE::Safe>();
+    psyqo::GTE::clear<psyqo::GTE::Register::TRZ, psyqo::GTE::Safe>();
+
+    psyqo::GTE::writeSafe<psyqo::GTE::PseudoRegister::V0>(billboard->pos());
+    psyqo::GTE::Kernels::rt();
+    psyqo::Vec3 billboardPos = psyqo::GTE::readSafe<psyqo::GTE::PseudoRegister::SV>();
+
+    billboardPos += gteCameraPos;
+
+    // billboards just use the inverse of the camera rotation matrix as rotation
+    psyqo::Matrix33 finalMatrix = {0};
+    GTEMath::MultiplyMatrix33(cameraRotationMatrix, m_activeCamera->inverseRotationMatrix(), &finalMatrix);
+
+    // write the object position and camera rotation matrix
+    psyqo::GTE::writeSafe<psyqo::GTE::PseudoRegister::Translation>(billboardPos);
+    psyqo::GTE::writeSafe<psyqo::GTE::PseudoRegister::Rotation>(finalMatrix);
+
+    const auto texture = billboard->pTexture();
+    if (texture) {
+      tpage = TextureManager::GetTPageAttr(texture);
+      offset = TextureManager::GetTPageUVForTim(texture);
+      offset.pos.y += (texture->height - 1);
+    }
+
+    // load first 3 verts into GTE
+    auto const one = 0.002_fp;
+    psyqo::GTE::writeSafe<psyqo::GTE::PseudoRegister::V0>(psyqo::Vec3{-billboard->pSize()->x/2,billboard->pSize()->y/2,0});
+    psyqo::GTE::writeSafe<psyqo::GTE::PseudoRegister::V1>(psyqo::Vec3{billboard->pSize()->x/2,billboard->pSize()->y/2,0});
+    psyqo::GTE::writeSafe<psyqo::GTE::PseudoRegister::V2>(psyqo::Vec3{-billboard->pSize()->x/2,-billboard->pSize()->y/2,0});
+
+    psyqo::GTE::Kernels::rtpt();
+    psyqo::GTE::Kernels::nclip();
+
+    if (!psyqo::GTE::readRaw<psyqo::GTE::Register::MAC0>())
+      continue;
+
+    // store the first vert so we can read the last one in
+    psyqo::GTE::read<psyqo::GTE::Register::SXY0>(&projected[0].packed);
+    psyqo::GTE::writeSafe<psyqo::GTE::PseudoRegister::V0>(psyqo::Vec3{billboard->pSize()->x/2,-billboard->pSize()->y/2,0});
+
+    psyqo::GTE::Kernels::rtps();
+
+    psyqo::GTE::Kernels::avsz4();
+    zIndex = psyqo::GTE::readRaw<psyqo::GTE::Register::OTZ>();
+
+    if (zIndex == 0 || zIndex >= ORDERING_TABLE_SIZE)
+      continue;
+
+    // read the last three verts from GTE
+    psyqo::GTE::read<psyqo::GTE::Register::SXY0>(&projected[1].packed);
+    psyqo::GTE::read<psyqo::GTE::Register::SXY1>(&projected[2].packed);
+    psyqo::GTE::read<psyqo::GTE::Register::SXY2>(&projected[3].packed);
+
+    // out of screen space, it can be clipped
+    if (quad_clip(&screen_space, &projected[0], &projected[1], &projected[2], &projected[3]))
+      continue;
+
+    // generate its points
+    auto &quad = quads[m_currentQuadFragment++];
+    quad.primitive.pointA = projected[0];
+    quad.primitive.pointB = projected[1];
+    quad.primitive.pointC = projected[2];
+    quad.primitive.pointD = projected[3];
+
+    // set colour
+    quad.primitive.setColorA(billboard->colour());
+    quad.primitive.setColorB(billboard->colour());
+    quad.primitive.setColorC(billboard->colour());
+    quad.primitive.setColorD(billboard->colour());
+    
+    // make opaque
+    quad.primitive.setOpaque();
+
+    // TODO: texture
+
+    // insert into OT
+    ot.insert(quad, zIndex);
+  }
 }
 
 void Renderer::RenderLoadingScreen(uint16_t loadPercentage) {

@@ -39,7 +39,7 @@ public:
     static psyqo::Rect GetTPageUVForTim(const TimFile &tim);
     static psyqo::Rect GetTPageUVForTim(const TimFile *tim);
 
-    static void GetTextureFromName(const char *meshName, TimFile **timOut);
+    static void GetTextureFromName(const char *textureName, TimFile **timOut);
 
     // dump all textures in memory and start fresh
     // this is used when switching to a loading screen for instance.

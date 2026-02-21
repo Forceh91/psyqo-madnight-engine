@@ -1,12 +1,13 @@
 #include "camera.hh"
 #include "../madnight.hh"
 #include "../math/vector.hh"
+#include "../math/matrix.hh"
 #include "EASTL/algorithm.h"
 #include "psyqo/fixed-point.hh"
+#include "psyqo/matrix.hh"
 #include "psyqo/soft-math.hh"
 #include "psyqo/trigonometry.hh"
 #include "psyqo/vector.hh"
-#include "psyqo/xprintf.h"
 
 void Camera::Process(uint32_t deltaTime) {
   // TODO: should first/third person camera perspective affect things?
@@ -204,4 +205,8 @@ void Camera::UpdateAngles(psyqo::Angle xAmount, psyqo::Angle yAmount, psyqo::Ang
   m_angle.y = eastl::clamp(m_angle.y + yAmount * deltaTime, -m_maxFreeLookAngles.maxY, m_maxFreeLookAngles.maxY);
   m_angle.z = eastl::clamp(m_angle.z + zAmount * deltaTime, -m_maxFreeLookAngles.maxZ, m_maxFreeLookAngles.maxZ);
   SetRotationMatrix();
+}
+
+psyqo::Matrix33 Camera::inverseRotationMatrix(void) {
+  return InverseMatrix33(m_rotationMatrix);
 }
