@@ -1,4 +1,5 @@
 #include "billboard.hh"
+#include "EASTL/array.h"
 #include "EASTL/fixed_string.h"
 #include "defs.hh"
 #include "psyqo/primitives/common.hh"
@@ -23,8 +24,16 @@ void Billboard::SetPosition(const psyqo::Vec3 pos) {
 
 void Billboard::setSize(const psyqo::Vec2 size) {
     m_size = size;
+    SetQuadCorners();
 }
 
 void Billboard::SetColour(const psyqo::Color colour) {
     m_colour = colour;
+}
+
+void Billboard::SetQuadCorners(void) {
+    m_quadCorners[0] = {-m_size.x / 2, m_size.y / 2, 0};
+    m_quadCorners[1] = {m_size.x / 2, m_size.y / 2, 0};
+    m_quadCorners[2] = {-m_size.x / 2, -m_size.y / 2, 0};
+    m_quadCorners[3] = {m_size.x / 2, -m_size.y / 2, 0};
 }

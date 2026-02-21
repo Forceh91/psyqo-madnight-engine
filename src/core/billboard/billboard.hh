@@ -1,6 +1,7 @@
 #ifndef _BILLBOARD_HH
 #define _BILLBOARD_HH
 
+#include "EASTL/array.h"
 #include "defs.hh"
 #include "EASTL/fixed_string.h"
 #include "../../textures/texture_manager.hh"
@@ -14,6 +15,8 @@ public:
         m_pos = pos;
         m_size = size;
         m_id = id;
+
+        SetQuadCorners();
     }
 
     void Destroy(void);
@@ -36,6 +39,7 @@ public:
     const TimFile *pTexture() const { return m_texture; }
     void SetTexture(const eastl::fixed_string<char, MAX_CDROM_FILE_NAME_LEN> &textureName);
 
+    const eastl::array<psyqo::Vec3, 4> &corners() const { return m_quadCorners; }
 private:
     eastl::fixed_string<char, MAX_BILLBOARD_NAME_LENGTH> m_name = "";
     uint8_t m_id = INVALID_BILLBOARD_ID;
@@ -43,6 +47,9 @@ private:
     psyqo::Vec2 m_size = {0,0};
     psyqo::Color m_colour = {128,128,128};
     TimFile * m_texture = nullptr;
+    eastl::array<psyqo::Vec3, 4> m_quadCorners;
+
+    void SetQuadCorners(void);
 };
 
 #endif

@@ -441,10 +441,9 @@ void Renderer::RenderBillboards(const psyqo::Vec3 gteCameraPos, const psyqo::Mat
     }
 
     // load first 3 verts into GTE
-    auto const one = 0.002_fp;
-    psyqo::GTE::writeSafe<psyqo::GTE::PseudoRegister::V0>(psyqo::Vec3{-billboard->pSize()->x/2,billboard->pSize()->y/2,0});
-    psyqo::GTE::writeSafe<psyqo::GTE::PseudoRegister::V1>(psyqo::Vec3{billboard->pSize()->x/2,billboard->pSize()->y/2,0});
-    psyqo::GTE::writeSafe<psyqo::GTE::PseudoRegister::V2>(psyqo::Vec3{-billboard->pSize()->x/2,-billboard->pSize()->y/2,0});
+    psyqo::GTE::writeSafe<psyqo::GTE::PseudoRegister::V0>(billboard->corners()[0]);
+    psyqo::GTE::writeSafe<psyqo::GTE::PseudoRegister::V1>(billboard->corners()[1]);
+    psyqo::GTE::writeSafe<psyqo::GTE::PseudoRegister::V2>(billboard->corners()[2]);
 
     psyqo::GTE::Kernels::rtpt();
     psyqo::GTE::Kernels::nclip();
@@ -454,7 +453,7 @@ void Renderer::RenderBillboards(const psyqo::Vec3 gteCameraPos, const psyqo::Mat
 
     // store the first vert so we can read the last one in
     psyqo::GTE::read<psyqo::GTE::Register::SXY0>(&projected[0].packed);
-    psyqo::GTE::writeSafe<psyqo::GTE::PseudoRegister::V0>(psyqo::Vec3{billboard->pSize()->x/2,-billboard->pSize()->y/2,0});
+    psyqo::GTE::writeSafe<psyqo::GTE::PseudoRegister::V0>(billboard->corners()[3]);
 
     psyqo::GTE::Kernels::rtps();
 
