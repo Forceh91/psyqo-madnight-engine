@@ -639,6 +639,48 @@ void Renderer::RenderParticles(uint32_t deltaTime, const psyqo::Vec3 gteCameraPo
 
         // insert into OT
         ot.insert(quad, zIndex);
+      } else {
+        auto &quad = allocator.allocateFragment<psyqo::Prim::GouraudTexturedQuad>();
+        quad.primitive.pointA = projected[0];
+        quad.primitive.pointB = projected[1];
+        quad.primitive.pointC = projected[2];
+        quad.primitive.pointD = projected[3];
+
+        // set colour
+        quad.primitive.setColorA(particle.colour());
+        quad.primitive.setColorB(particle.colour());
+        quad.primitive.setColorC(particle.colour());
+        quad.primitive.setColorD(particle.colour());
+        
+        // make opaque
+        quad.primitive.setOpaque();
+
+        // set its tpage
+        quad.primitive.tpage = tpage;
+
+        // set its clut if it has one
+        if (texture->hasClut)
+          quad.primitive.clutIndex = {texture->clutX, texture->clutY};
+
+        // set its uv coords
+        auto uvA = particle.uv()[0];
+        quad.primitive.uvA.u = offset.pos.x + uvA.u;
+        quad.primitive.uvA.v = offset.pos.y - uvA.v;
+
+        auto uvB = particle.uv()[1];
+        quad.primitive.uvB.u = offset.pos.x + uvB.u;
+        quad.primitive.uvB.v = offset.pos.y - uvB.v;
+
+        auto uvC = particle.uv()[2];
+        quad.primitive.uvC.u = offset.pos.x + uvC.u;
+        quad.primitive.uvC.v = offset.pos.y - uvC.v;
+
+        auto uvD = particle.uv()[3];
+        quad.primitive.uvD.u = offset.pos.x + uvD.u;
+        quad.primitive.uvD.v = offset.pos.y - uvD.v;
+
+        // insert into OT
+        ot.insert(quad, zIndex);
       }
     }
   }

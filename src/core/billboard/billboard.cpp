@@ -19,6 +19,11 @@ void Billboard::SetTexture(const eastl::fixed_string<char, MAX_BILLBOARD_NAME_LE
     m_uvCoords = uv;
 }
 
+void Billboard::SetTexture(TimFile *texture, const eastl::array<psyqo::PrimPieces::UVCoords, 4> &uv) {
+    m_texture = texture;
+    m_uvCoords = uv;
+}
+
 void Billboard::SetUVCoords(const eastl::array<psyqo::PrimPieces::UVCoords, 4> &uv) {
     m_uvCoords = uv;
 }

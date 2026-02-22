@@ -39,6 +39,9 @@ public:
 
     void SetParticleColour(const psyqo::Color &particleColour);
     void SetParticleColour(const psyqo::Color &particleColour, const psyqo::Color &particleEndColour);
+
+    void SetParticleTexture(const eastl::fixed_string<char, MAX_CDROM_FILE_NAME_LEN> &textureName, const eastl::array<psyqo::PrimPieces::UVCoords, 4> &uv);
+    void SetParticleUVCoords(const eastl::array<psyqo::PrimPieces::UVCoords, 4> &uv);
 private:
     bool m_isEnabled = false;
     eastl::fixed_string<char, MAX_PARTICLE_EMITTER_NAME_LENGTH> m_name;
@@ -57,6 +60,8 @@ private:
     psyqo::Vec3 m_particleStartVelocity;
     psyqo::Vec3 m_particleEndVelocity;
     psyqo::FixedPoint<> m_particleLifeTime;
+    eastl::array<psyqo::PrimPieces::UVCoords, 4> m_particleUVCoords;
+    TimFile *m_particleTexture = nullptr;
 
     psyqo::Vec2 GenerateRandomPointOnCircumfrence(void);
 };

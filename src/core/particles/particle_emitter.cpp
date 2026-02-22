@@ -4,7 +4,6 @@
 #include "../../madnight.hh"
 #include "psyqo/fixed-point.hh"
 #include "psyqo/trigonometry.hh"
-#include "psyqo/xprintf.h"
 
 using namespace psyqo::fixed_point_literals;
 
@@ -63,7 +62,11 @@ void ParticleEmitter::Process(const uint32_t &deltaTime) {
             m_pos.z + pos.y
         };
 
-        m_spawnedParticles.push_back(Particle(spawnPos, m_particleStartSize, m_particleEndSize, m_particleStartColour, m_particleEndColour, m_particleStartVelocity, m_particleEndVelocity, m_particleLifeTime));
+        auto particle = Particle(spawnPos, m_particleStartSize, m_particleEndSize, m_particleStartColour, m_particleEndColour, m_particleStartVelocity, m_particleEndVelocity, m_particleLifeTime);
+        if (m_particleTexture)
+            particle.SetTexture(m_particleTexture, m_particleUVCoords);
+
+        m_spawnedParticles.push_back(particle);
     }
 
     // reset how long its been since last spawn
@@ -95,4 +98,13 @@ void ParticleEmitter::SetParticleColour(const psyqo::Color &particleColour) {
 void ParticleEmitter::SetParticleColour(const psyqo::Color &particleColour, const psyqo::Color &particleEndColour) {
     m_particleStartColour = particleColour;
     m_particleEndColour = particleEndColour;
+}
+
+void ParticleEmitter::SetParticleTexture(const eastl::fixed_string<char, MAX_CDROM_FILE_NAME_LEN> &textureName, const eastl::array<psyqo::PrimPieces::UVCoords, 4> &uv) {
+    TextureManager::GetTextureFromName(textureName.c_str(), &m_particleTexture);
+    m_particleUVCoords = uv;
+}
+
+void ParticleEmitter::SetParticleUVCoords(const eastl::array<psyqo::PrimPieces::UVCoords, 4> &uv) {
+    m_particleUVCoords = uv;
 }
