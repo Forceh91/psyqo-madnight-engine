@@ -2,6 +2,7 @@
 #define _RENDERER_H
 
 #include "../textures/texture_manager.hh"
+#include "../core/particles/particle.hh"
 
 #include "camera.hh"
 #include "psyqo/bump-allocator.hh"
@@ -46,6 +47,7 @@ class Renderer final {
 
   void RenderGameObjects(uint32_t deltaTime, const psyqo::Vec3 gteCameraPos, const psyqo::Matrix33 &cameraRotationMatrix);
   void RenderBillboards(uint32_t deltaTime, const psyqo::Vec3 gteCameraPos, const psyqo::Matrix33 &cameraRotationMatrix);
+  void RenderParticles(uint32_t deltaTime, const psyqo::Vec3 gteCameraPos, const psyqo::Matrix33 &cameraRotationMatrix);
 public:
   static void Init(psyqo::GPU &gpuInstance);
 
