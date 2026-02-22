@@ -1,6 +1,9 @@
 #include "particle_emitter.hh"
 #include "defs.hh"
 #include "particle.hh"
+#include "../../madnight.hh"
+#include "psyqo/fixed-point.hh"
+#include "psyqo/trigonometry.hh"
 #include "psyqo/xprintf.h"
 
 using namespace psyqo::fixed_point_literals;
@@ -16,10 +19,18 @@ void ParticleEmitter::Stop(void) {
 void ParticleEmitter::Destroy(void) {
     m_name.clear();
     m_pos = {0,0,0};
-    m_size = {0,0};
+    m_radius = 0;
     m_id = INVALID_BILLBOARD_ID;
     m_isEnabled = false;
     m_spawnedParticles.clear();
+}
+
+psyqo::Vec2 ParticleEmitter::GenerateRandomPointOnCircumfrence(void) {
+    auto angle = g_madnightEngine.m_rand.rand<360>() * psyqo::Angle(3.14 * 2);
+    return {
+        g_madnightEngine.m_trig.cos(angle) * m_radius,
+        g_madnightEngine.m_trig.sin(angle) * m_radius,
+    };
 }
 
 void ParticleEmitter::Process(const uint32_t &deltaTime) {
@@ -45,8 +56,14 @@ void ParticleEmitter::Process(const uint32_t &deltaTime) {
 
     // it has so spam particles whilst we can
     for (int i = 0; i < m_particlesPerSecond; i++) {
-        // TODO: pick a random point in the emitter area to spawn it at
-        m_spawnedParticles.push_back(Particle(m_pos, m_particleStartSize, m_particleEndSize, m_particleStartColour, m_particleEndColour, m_particleStartVelocity, m_particleEndVelocity, m_particleLifeTime));
+        auto pos = GenerateRandomPointOnCircumfrence();
+        auto spawnPos = psyqo::Vec3{
+            m_pos.x + pos.x,
+            m_pos.y,
+            m_pos.z + pos.y
+        };
+
+        m_spawnedParticles.push_back(Particle(spawnPos, m_particleStartSize, m_particleEndSize, m_particleStartColour, m_particleEndColour, m_particleStartVelocity, m_particleEndVelocity, m_particleLifeTime));
     }
 
     // reset how long its been since last spawn

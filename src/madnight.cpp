@@ -13,9 +13,6 @@
 
 using namespace psyqo::fixed_point_literals;
 
-static constexpr psyqo::Matrix33 identity = {
-    {{1.0_fp, 0.0_fp, 0.0_fp}, {0.0_fp, 1.0_fp, 0.0_fp}, {0.0_fp, 0.0_fp, 1.0_fp}}};
-
 // Our global application object. This is the only global
 // object in this whole example. It will hold all of the
 // other necessary classes.

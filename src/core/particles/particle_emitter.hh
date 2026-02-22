@@ -11,11 +11,11 @@
 class ParticleEmitter final {
 public:
     ParticleEmitter() = default;
-    ParticleEmitter(const eastl::fixed_string<char, MAX_PARTICLE_EMITTER_NAME_LENGTH> &name, const uint8_t &id, const psyqo::Vec3 &pos, const psyqo::Vec3& size, const uint8_t &maxParticles, const uint8_t &particlesPerSecond, const psyqo::FixedPoint<> &particleLifeTime) {
+    ParticleEmitter(const eastl::fixed_string<char, MAX_PARTICLE_EMITTER_NAME_LENGTH> &name, const uint8_t &id, const psyqo::Vec3 &pos, const psyqo::FixedPoint<> radius, const uint8_t &maxParticles, const uint8_t &particlesPerSecond, const psyqo::FixedPoint<> &particleLifeTime) {
         m_id = id;
         m_name = name;
         m_pos = pos;
-        m_size = size;
+        m_radius = radius;
         m_maxParticles = maxParticles;
         m_particlesPerSecond = particlesPerSecond;
         m_particleLifeTime = particleLifeTime;
@@ -44,7 +44,7 @@ private:
     eastl::fixed_string<char, MAX_PARTICLE_EMITTER_NAME_LENGTH> m_name;
     uint8_t m_id = INVALID_PARTICLE_EMITTER_ID;
     psyqo::Vec3 m_pos = {0,0,0};
-    psyqo::Vec3 m_size = {0,0,0};
+    psyqo::FixedPoint<> m_radius = 0;
     uint8_t m_maxParticles = 0;
     uint8_t m_particlesPerSecond = 0;
     eastl::vector<Particle> m_spawnedParticles;
@@ -57,6 +57,8 @@ private:
     psyqo::Vec3 m_particleStartVelocity;
     psyqo::Vec3 m_particleEndVelocity;
     psyqo::FixedPoint<> m_particleLifeTime;
+
+    psyqo::Vec2 GenerateRandomPointOnCircumfrence(void);
 };
 
 #endif
