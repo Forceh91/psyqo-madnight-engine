@@ -5,21 +5,18 @@
 #include "../core/debug/debug_menu.hh"
 #include "../core/object/gameobject_manager.hh"
 #include "../core/billboard/billboard_manager.hh"
+#include "../core/particles/particle_manager.hh"
 #include "../math/gte-math.hh"
-#include "../math/matrix.hh"
 
 #include "psyqo/fixed-point.hh"
 #include "psyqo/fragments.hh"
 #include "psyqo/gte-kernels.hh"
 #include "psyqo/gte-registers.hh"
 #include "psyqo/matrix.hh"
-#include "psyqo/primitive-concept.hh"
 #include "psyqo/primitives/common.hh"
 #include "psyqo/primitives/control.hh"
-#include "psyqo/primitives/lines.hh"
 #include "psyqo/primitives/quads.hh"
 #include "psyqo/vector.hh"
-#include "psyqo/xprintf.h"
 #include "../defs.hh"
 
 
@@ -539,8 +536,8 @@ void Renderer::RenderBillboards(uint32_t deltaTime, const psyqo::Vec3 gteCameraP
   }
 }
 
+// TODO: somethings not quite right with rotation?
 void Renderer::RenderParticles(uint32_t deltaTime, const psyqo::Vec3 gteCameraPos, const psyqo::Matrix33 &cameraRotationMatrix) {
-/*
   eastl::array<psyqo::Vertex, 4> projected;
   uint32_t zIndex = 0;
   psyqo::PrimPieces::TPageAttr tpage;
@@ -550,92 +547,96 @@ void Renderer::RenderParticles(uint32_t deltaTime, const psyqo::Vec3 gteCameraPo
   auto &allocator = m_allocators[frameBuffer];
   auto &ot = m_orderingTables[frameBuffer];
   
-  // auto const &billboards = BillboardManager::GetActiveBillboards();
-  // if (billboards.empty())
-  //   return;
+  auto const &emitters = ParticleEmitterManager::GetActiveEmitters();
+  if (emitters.empty())
+    return;
 
-  // for (auto const &billboard : billboards) {
-    // clear TRX/Y/Z safely
-    psyqo::GTE::clear<psyqo::GTE::Register::TRX, psyqo::GTE::Safe>();
-    psyqo::GTE::clear<psyqo::GTE::Register::TRY, psyqo::GTE::Safe>();
-    psyqo::GTE::clear<psyqo::GTE::Register::TRZ, psyqo::GTE::Safe>();
+  for (auto const &emitter : emitters) {
+    auto const particles = emitter->particles();
+    for (auto const &particle : particles) {
+      if (particle.IsDead())
+        continue;
 
-    psyqo::GTE::writeSafe<psyqo::GTE::PseudoRegister::V0>(m_testParticle.pos());
-    psyqo::GTE::Kernels::rt();
-    psyqo::Vec3 particlePos = psyqo::GTE::readSafe<psyqo::GTE::PseudoRegister::SV>();
+      // clear TRX/Y/Z safely
+      psyqo::GTE::clear<psyqo::GTE::Register::TRX, psyqo::GTE::Safe>();
+      psyqo::GTE::clear<psyqo::GTE::Register::TRY, psyqo::GTE::Safe>();
+      psyqo::GTE::clear<psyqo::GTE::Register::TRZ, psyqo::GTE::Safe>();
 
-    particlePos += gteCameraPos;
+      psyqo::GTE::writeSafe<psyqo::GTE::PseudoRegister::V0>(particle.pos());
+      psyqo::GTE::Kernels::rt();
+      psyqo::Vec3 particlePos = psyqo::GTE::readSafe<psyqo::GTE::PseudoRegister::SV>();
 
-    // billboards just use the inverse of the camera rotation matrix as rotation
-    psyqo::Matrix33 finalMatrix = {0};
-    GTEMath::MultiplyMatrix33(cameraRotationMatrix, m_activeCamera->inverseRotationMatrix(), &finalMatrix);
+      particlePos += gteCameraPos;
 
-    // write the object position and camera rotation matrix
-    psyqo::GTE::writeSafe<psyqo::GTE::PseudoRegister::Translation>(particlePos);
-    psyqo::GTE::writeSafe<psyqo::GTE::PseudoRegister::Rotation>(finalMatrix);
+      // billboards just use the inverse of the camera rotation matrix as rotation
+      psyqo::Matrix33 finalMatrix = {0};
+      GTEMath::MultiplyMatrix33(cameraRotationMatrix, m_activeCamera->inverseRotationMatrix(), &finalMatrix);
 
-    const auto texture = m_testParticle.pTexture();
-    if (texture) {
-      tpage = TextureManager::GetTPageAttr(texture);
-      offset = TextureManager::GetTPageUVForTim(texture);
-      offset.pos.y += (texture->height - 1);
+      // write the object position and camera rotation matrix
+      psyqo::GTE::writeSafe<psyqo::GTE::PseudoRegister::Translation>(particlePos);
+      psyqo::GTE::writeSafe<psyqo::GTE::PseudoRegister::Rotation>(finalMatrix);
+
+      const auto texture = particle.pTexture();
+      if (texture) {
+        tpage = TextureManager::GetTPageAttr(texture);
+        offset = TextureManager::GetTPageUVForTim(texture);
+        offset.pos.y += (texture->height - 1);
+      }
+
+      // load first 3 verts into GTE
+      psyqo::GTE::writeSafe<psyqo::GTE::PseudoRegister::V0>(particle.corners()[0]);
+      psyqo::GTE::writeSafe<psyqo::GTE::PseudoRegister::V1>(particle.corners()[1]);
+      psyqo::GTE::writeSafe<psyqo::GTE::PseudoRegister::V2>(particle.corners()[2]);
+
+      psyqo::GTE::Kernels::rtpt();
+      psyqo::GTE::Kernels::nclip();
+
+      if (!psyqo::GTE::readRaw<psyqo::GTE::Register::MAC0>())
+        continue;
+
+      // store the first vert so we can read the last one in
+      psyqo::GTE::read<psyqo::GTE::Register::SXY0>(&projected[0].packed);
+      psyqo::GTE::writeSafe<psyqo::GTE::PseudoRegister::V0>(particle.corners()[3]);
+
+      psyqo::GTE::Kernels::rtps();
+
+      psyqo::GTE::Kernels::avsz4();
+      zIndex = psyqo::GTE::readRaw<psyqo::GTE::Register::OTZ>();
+
+      if (zIndex == 0 || zIndex >= ORDERING_TABLE_SIZE)
+        continue;
+
+      // read the last three verts from GTE
+      psyqo::GTE::read<psyqo::GTE::Register::SXY0>(&projected[1].packed);
+      psyqo::GTE::read<psyqo::GTE::Register::SXY1>(&projected[2].packed);
+      psyqo::GTE::read<psyqo::GTE::Register::SXY2>(&projected[3].packed);
+
+      // out of screen space, it can be clipped
+      if (quad_clip(&screen_space, &projected[0], &projected[1], &projected[2], &projected[3]))
+        continue;
+
+      // generate its points
+      if (!texture) {
+        auto &quad = allocator.allocateFragment<psyqo::Prim::GouraudQuad>();
+        quad.primitive.pointA = projected[0];
+        quad.primitive.pointB = projected[1];
+        quad.primitive.pointC = projected[2];
+        quad.primitive.pointD = projected[3];
+
+        // set colour
+        quad.primitive.setColorA(particle.colour());
+        quad.primitive.setColorB(particle.colour());
+        quad.primitive.setColorC(particle.colour());
+        quad.primitive.setColorD(particle.colour());
+        
+        // make opaque
+        quad.primitive.setOpaque();
+
+        // insert into OT
+        ot.insert(quad, zIndex);
+      }
     }
-
-    // load first 3 verts into GTE
-    psyqo::GTE::writeSafe<psyqo::GTE::PseudoRegister::V0>(m_testParticle.corners()[0]);
-    psyqo::GTE::writeSafe<psyqo::GTE::PseudoRegister::V1>(m_testParticle.corners()[1]);
-    psyqo::GTE::writeSafe<psyqo::GTE::PseudoRegister::V2>(m_testParticle.corners()[2]);
-
-    psyqo::GTE::Kernels::rtpt();
-    psyqo::GTE::Kernels::nclip();
-
-    // if (!psyqo::GTE::readRaw<psyqo::GTE::Register::MAC0>())
-    //   continue;
-
-    // store the first vert so we can read the last one in
-    psyqo::GTE::read<psyqo::GTE::Register::SXY0>(&projected[0].packed);
-    psyqo::GTE::writeSafe<psyqo::GTE::PseudoRegister::V0>(m_testParticle.corners()[3]);
-
-    psyqo::GTE::Kernels::rtps();
-
-    psyqo::GTE::Kernels::avsz4();
-    zIndex = psyqo::GTE::readRaw<psyqo::GTE::Register::OTZ>();
-
-    // if (zIndex == 0 || zIndex >= ORDERING_TABLE_SIZE)
-    //   continue;
-
-    // read the last three verts from GTE
-    psyqo::GTE::read<psyqo::GTE::Register::SXY0>(&projected[1].packed);
-    psyqo::GTE::read<psyqo::GTE::Register::SXY1>(&projected[2].packed);
-    psyqo::GTE::read<psyqo::GTE::Register::SXY2>(&projected[3].packed);
-
-    // out of screen space, it can be clipped
-    // if (quad_clip(&screen_space, &projected[0], &projected[1], &projected[2], &projected[3]))
-    //   continue;
-
-    // generate its points
-    if (!texture) {
-      auto &quad = allocator.allocateFragment<psyqo::Prim::GouraudQuad>();
-      quad.primitive.pointA = projected[0];
-      quad.primitive.pointB = projected[1];
-      quad.primitive.pointC = projected[2];
-      quad.primitive.pointD = projected[3];
-
-      // set colour
-      quad.primitive.setColorA(m_testParticle.colour());
-      quad.primitive.setColorB(m_testParticle.colour());
-      quad.primitive.setColorC(m_testParticle.colour());
-      quad.primitive.setColorD(m_testParticle.colour());
-      
-      // make opaque
-      quad.primitive.setOpaque();
-
-      // insert into OT
-      ot.insert(quad, zIndex);
-    }
-  
-  m_testParticle.Process(deltaTime);
-*/
+  }
 }
 
 void Renderer::RenderLoadingScreen(uint16_t loadPercentage) {

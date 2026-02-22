@@ -32,6 +32,7 @@ public:
     }
 
     void Process(const uint32_t &deltaTime);
+    const bool IsDead(void) const { return m_age >= m_lifetime; }
 
 private:
     psyqo::Color m_startColour;
