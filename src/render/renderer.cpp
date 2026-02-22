@@ -24,6 +24,8 @@ Renderer *Renderer::m_instance = nullptr;
 psyqo::Font<> Renderer::m_kromFont;
 psyqo::Font<> Renderer::m_systemFont;
 static constexpr psyqo::Rect screen_space = {.pos = {0, 0}, .size = {320, 240}};
+static constexpr psyqo::Matrix33 identityMatrix = {
+    {{1.0_fp, 0.0_fp, 0.0_fp}, {0.0_fp, 1.0_fp, 0.0_fp}, {0.0_fp, 0.0_fp, 1.0_fp}}};
 
 #if ENABLE_BONE_DEBUG
 static constexpr psyqo::Color boneColours[MAX_BONES] = {
@@ -412,25 +414,26 @@ void Renderer::RenderBillboards(uint32_t deltaTime, const psyqo::Vec3 gteCameraP
   if (billboards.empty())
     return;
 
+  // billboards just use the inverse of the camera rotation matrix as rotation
+  psyqo::Matrix33 finalCameraMatrix = {0};
+  GTEMath::MultiplyMatrix33(cameraRotationMatrix, m_activeCamera->inverseRotationMatrix(), &finalCameraMatrix);
+
   for (auto const &billboard : billboards) {
     // clear TRX/Y/Z safely
     psyqo::GTE::clear<psyqo::GTE::Register::TRX, psyqo::GTE::Safe>();
     psyqo::GTE::clear<psyqo::GTE::Register::TRY, psyqo::GTE::Safe>();
     psyqo::GTE::clear<psyqo::GTE::Register::TRZ, psyqo::GTE::Safe>();
 
+    psyqo::GTE::writeSafe<psyqo::GTE::PseudoRegister::Rotation>(cameraRotationMatrix);
     psyqo::GTE::writeSafe<psyqo::GTE::PseudoRegister::V0>(billboard->pos());
     psyqo::GTE::Kernels::rt();
     psyqo::Vec3 billboardPos = psyqo::GTE::readSafe<psyqo::GTE::PseudoRegister::SV>();
 
     billboardPos += gteCameraPos;
 
-    // billboards just use the inverse of the camera rotation matrix as rotation
-    psyqo::Matrix33 finalMatrix = {0};
-    GTEMath::MultiplyMatrix33(cameraRotationMatrix, m_activeCamera->inverseRotationMatrix(), &finalMatrix);
-
     // write the object position and camera rotation matrix
     psyqo::GTE::writeSafe<psyqo::GTE::PseudoRegister::Translation>(billboardPos);
-    psyqo::GTE::writeSafe<psyqo::GTE::PseudoRegister::Rotation>(finalMatrix);
+    psyqo::GTE::writeSafe<psyqo::GTE::PseudoRegister::Rotation>(finalCameraMatrix);
 
     const auto texture = billboard->pTexture();
     if (texture) {
@@ -551,17 +554,19 @@ void Renderer::RenderParticles(uint32_t deltaTime, const psyqo::Vec3 gteCameraPo
   if (emitters.empty())
     return;
 
+  // particles just use the inverse of the camera rotation matrix as rotation
+  psyqo::Matrix33 finalCameraMatrix = {0};
+  GTEMath::MultiplyMatrix33(cameraRotationMatrix, m_activeCamera->inverseRotationMatrix(), &finalCameraMatrix);
+
   for (auto const &emitter : emitters) {
     auto const particles = emitter->particles();
     for (auto const &particle : particles) {
-      if (particle.IsDead())
-        continue;
-
       // clear TRX/Y/Z safely
       psyqo::GTE::clear<psyqo::GTE::Register::TRX, psyqo::GTE::Safe>();
       psyqo::GTE::clear<psyqo::GTE::Register::TRY, psyqo::GTE::Safe>();
       psyqo::GTE::clear<psyqo::GTE::Register::TRZ, psyqo::GTE::Safe>();
 
+      psyqo::GTE::writeSafe<psyqo::GTE::PseudoRegister::Rotation>(cameraRotationMatrix);
       psyqo::GTE::writeSafe<psyqo::GTE::PseudoRegister::V0>(particle.pos());
       psyqo::GTE::Kernels::rt();
       psyqo::Vec3 particlePos = psyqo::GTE::readSafe<psyqo::GTE::PseudoRegister::SV>();
