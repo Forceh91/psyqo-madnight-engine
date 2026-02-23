@@ -12,7 +12,7 @@
 
 class ParticleEmitterManager final {
 public:
-    static ParticleEmitter* CreateParticleEmitter(const eastl::fixed_string<char, MAX_PARTICLE_EMITTER_NAME_LENGTH> &name, const psyqo::Vec3 &pos, const psyqo::FixedPoint<> &radius, const uint8_t &maxParticles, const uint8_t &particlesPerSecond, const psyqo::FixedPoint<> &particleLifeTime);
+    static ParticleEmitter* CreateParticleEmitter(const eastl::fixed_string<char, MAX_PARTICLE_EMITTER_NAME_LENGTH> &name, const psyqo::Vec3 &pos, const psyqo::FixedPoint<> &radius, const uint8_t &particlesPerSecond, const psyqo::FixedPoint<> &particleLifeTime);
     static void DestroyParticleEmitter(ParticleEmitter* emitter);
 
     static const eastl::fixed_vector<ParticleEmitter*, MAX_PARTICLE_EMITTERS> &GetActiveEmitters(void);

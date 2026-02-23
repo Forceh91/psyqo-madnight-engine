@@ -8,17 +8,20 @@
 #include "psyqo/primitives/common.hh"
 #include "psyqo/vector.hh"
 
+using namespace psyqo::fixed_point_literals;
+
 class ParticleEmitter final {
 public:
     ParticleEmitter() = default;
-    ParticleEmitter(const eastl::fixed_string<char, MAX_PARTICLE_EMITTER_NAME_LENGTH> &name, const uint8_t &id, const psyqo::Vec3 &pos, const psyqo::FixedPoint<> radius, const uint8_t &maxParticles, const uint8_t &particlesPerSecond, const psyqo::FixedPoint<> &particleLifeTime) {
+    ParticleEmitter(const eastl::fixed_string<char, MAX_PARTICLE_EMITTER_NAME_LENGTH> &name, const uint8_t &id, const psyqo::Vec3 &pos, const psyqo::FixedPoint<> radius, const uint8_t &particlesPerSecond, const psyqo::FixedPoint<> &particleLifeTime) {
         m_id = id;
         m_name = name;
         m_pos = pos;
         m_radius = radius;
-        m_maxParticles = maxParticles;
         m_particlesPerSecond = particlesPerSecond;
         m_particleLifeTime = particleLifeTime;
+        m_maxParticles = m_particlesPerSecond * m_particleLifeTime.integer();
+        m_spawnRate = 1.0_fp / m_particlesPerSecond;
     };
 
     const eastl::fixed_string<char, MAX_PARTICLE_EMITTER_NAME_LENGTH> &name() const { return m_name; }
@@ -48,10 +51,11 @@ private:
     uint8_t m_id = INVALID_PARTICLE_EMITTER_ID;
     psyqo::Vec3 m_pos = {0,0,0};
     psyqo::FixedPoint<> m_radius = 0;
-    uint8_t m_maxParticles = 0;
+    uint16_t m_maxParticles = 0;
     uint8_t m_particlesPerSecond = 0;
     eastl::vector<Particle> m_spawnedParticles;
-    psyqo::FixedPoint<> m_timeSinceLastSpawn = 0;
+    psyqo::FixedPoint<> m_spawnRate = 0;
+    psyqo::FixedPoint<> m_timeSinceLastParticleSpawn = 0;
 
     psyqo::Color m_particleStartColour;
     psyqo::Color m_particleEndColour;

@@ -7,12 +7,12 @@
 eastl::array<ParticleEmitter, MAX_PARTICLE_EMITTERS> ParticleEmitterManager::m_emitters;
 eastl::fixed_vector<ParticleEmitter*, MAX_PARTICLE_EMITTERS> ParticleEmitterManager::m_activeEmitters;
 
-ParticleEmitter *ParticleEmitterManager::CreateParticleEmitter(const eastl::fixed_string<char, MAX_PARTICLE_EMITTER_NAME_LENGTH> &name, const psyqo::Vec3 &pos, const psyqo::FixedPoint<> &radius, const uint8_t &maxParticles, const uint8_t &particlesPerSecond, const psyqo::FixedPoint<> &particleLifeTime) {
+ParticleEmitter *ParticleEmitterManager::CreateParticleEmitter(const eastl::fixed_string<char, MAX_PARTICLE_EMITTER_NAME_LENGTH> &name, const psyqo::Vec3 &pos, const psyqo::FixedPoint<> &radius, const uint8_t &particlesPerSecond, const psyqo::FixedPoint<> &particleLifeTime) {
     auto ix = GetFreeIndex();
     if (ix == -1)
         return nullptr;
 
-    m_emitters[ix] = ParticleEmitter(name, ix, pos, radius, maxParticles, particlesPerSecond, particleLifeTime);
+    m_emitters[ix] = ParticleEmitter(name, ix, pos, radius, particlesPerSecond, particleLifeTime);
     return &m_emitters[ix];
 }
 

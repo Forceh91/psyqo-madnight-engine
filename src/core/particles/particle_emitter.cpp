@@ -41,7 +41,8 @@ void ParticleEmitter::Process(const uint32_t &deltaTime) {
     // clear out dead ones
     for (int i = m_spawnedParticles.size() - 1; i >= 0; i--) {
         auto const &particle = m_spawnedParticles.at(i);
-        if (particle.IsDead()) m_spawnedParticles.erase(m_spawnedParticles.begin() + i);
+        if (particle.IsDead())
+            m_spawnedParticles.erase(m_spawnedParticles.begin() + i);
     }
 
     // make sure we're enabled or we're not out of room
@@ -49,28 +50,24 @@ void ParticleEmitter::Process(const uint32_t &deltaTime) {
 
     // make sure its been a second
     auto fpDeltaTime = (deltaTime * 1.0_fp) / TARGET_FRAME_RATE;
-    m_timeSinceLastSpawn += fpDeltaTime;
-    if (m_timeSinceLastSpawn < 1.0_fp)
+    m_timeSinceLastParticleSpawn += fpDeltaTime;
+    if (m_timeSinceLastParticleSpawn < m_spawnRate)
         return;
 
-    // it has so spam particles whilst we can
-    for (int i = 0; i < m_particlesPerSecond; i++) {
-        auto pos = GenerateRandomPointOnCircumfrence();
-        auto spawnPos = psyqo::Vec3{
-            m_pos.x + pos.x,
-            m_pos.y,
-            m_pos.z + pos.y
-        };
+    // generate a particle at a random point on the circumfrence
+    auto pos = GenerateRandomPointOnCircumfrence();
+    auto spawnPos = psyqo::Vec3{
+        m_pos.x + pos.x,
+        m_pos.y,
+        m_pos.z + pos.y
+    };
 
-        auto particle = Particle(spawnPos, m_particleStartSize, m_particleEndSize, m_particleStartColour, m_particleEndColour, m_particleStartVelocity, m_particleEndVelocity, m_particleLifeTime);
-        if (m_particleTexture)
-            particle.SetTexture(m_particleTexture, m_particleUVCoords);
+    auto particle = Particle(spawnPos, m_particleStartSize, m_particleEndSize, m_particleStartColour, m_particleEndColour, m_particleStartVelocity, m_particleEndVelocity, m_particleLifeTime);
+    if (m_particleTexture)
+        particle.SetTexture(m_particleTexture, m_particleUVCoords);
 
-        m_spawnedParticles.push_back(particle);
-    }
-
-    // reset how long its been since last spawn
-    m_timeSinceLastSpawn = 0;
+    m_spawnedParticles.push_back(particle);
+    m_timeSinceLastParticleSpawn = 0;
 }
 
 void ParticleEmitter::SetParticleVelocity(const psyqo::Vec3 &particleVelocity) {
