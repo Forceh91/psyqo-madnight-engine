@@ -47,6 +47,8 @@ public:
 
     void SetParticleTexture(const eastl::fixed_string<char, MAX_CDROM_FILE_NAME_LEN> &textureName, const eastl::array<psyqo::PrimPieces::UVCoords, 4> &uv);
     void SetParticleUVCoords(const eastl::array<psyqo::PrimPieces::UVCoords, 4> &uv);
+
+    const TimFile *pParticleTexture() const { return m_particleTexture; }
 private:
     bool m_isEnabled = false;
     eastl::fixed_string<char, MAX_PARTICLE_EMITTER_NAME_LENGTH> m_name;

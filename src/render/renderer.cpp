@@ -564,6 +564,16 @@ void Renderer::RenderParticles(uint32_t deltaTime, const psyqo::Vec3 gteCameraPo
 
   for (auto const &emitter : emitters) {
     auto const particles = emitter->particles();
+
+    // send tpage info to gpu
+    auto texture = emitter->pParticleTexture();
+    if (texture) {
+      auto tpageAttr = TextureManager::GetTPageAttr(texture);
+      auto &tpage = allocator.allocateFragment<psyqo::Prim::TPage>();
+      tpage.primitive.attr = tpageAttr;
+      m_gpu.chain(tpage);
+    }
+
     for (auto const &particle : particles) {
       // clear TRX/Y/Z safely
       psyqo::GTE::clear<psyqo::GTE::Register::TRX, psyqo::GTE::Safe>();
@@ -611,14 +621,7 @@ void Renderer::RenderParticles(uint32_t deltaTime, const psyqo::Vec3 gteCameraPo
           continue;
 
         auto &sprite = allocator.allocateFragment<psyqo::Prim::Sprite>();
-        auto texture = particle.pTexture();
         if (texture) {
-          // send tpage info to gpu
-          auto tpageAttr = TextureManager::GetTPageAttr(texture);
-          auto &tpage = allocator.allocateFragment<psyqo::Prim::TPage>();
-          tpage.primitive.attr = tpageAttr;
-          m_gpu.chain(tpage);
-
           // update sprite with clut/uv data
           sprite.primitive.texInfo.clut = psyqo::PrimPieces::ClutIndex(texture->clutX, texture->clutY);
           
@@ -637,7 +640,6 @@ void Renderer::RenderParticles(uint32_t deltaTime, const psyqo::Vec3 gteCameraPo
         psyqo::GTE::writeSafe<psyqo::GTE::PseudoRegister::Translation>(particlePos);
         psyqo::GTE::writeSafe<psyqo::GTE::PseudoRegister::Rotation>(finalMatrix);
 
-        const auto texture = particle.pTexture();
         if (texture) {
           tpage = TextureManager::GetTPageAttr(texture);
           offset = TextureManager::GetTPageUVForTim(texture);
