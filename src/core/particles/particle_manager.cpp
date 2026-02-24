@@ -7,6 +7,12 @@
 eastl::array<ParticleEmitter, MAX_PARTICLE_EMITTERS> ParticleEmitterManager::m_emitters;
 eastl::fixed_vector<ParticleEmitter*, MAX_PARTICLE_EMITTERS> ParticleEmitterManager::m_activeEmitters;
 
+/*
+* make sure that after calling this you call the following functions to actually get particles looking good.
+* particles default to being 2D so they are sprites, which means they do need a texture
+* `SetParticleColour`, `SetParticleVelocity`, `SetParticleSize`, `SetParticleTexture`
+* you can make them 3d via `Set2D` however this is less performant.
+*/
 ParticleEmitter *ParticleEmitterManager::CreateParticleEmitter(const eastl::fixed_string<char, MAX_PARTICLE_EMITTER_NAME_LENGTH> &name, const psyqo::Vec3 &pos, const psyqo::FixedPoint<> &radius, const uint8_t &particlesPerSecond, const psyqo::FixedPoint<> &particleLifeTime) {
     auto ix = GetFreeIndex();
     if (ix == -1)
@@ -34,7 +40,7 @@ const eastl::fixed_vector<ParticleEmitter*, MAX_PARTICLE_EMITTERS> &ParticleEmit
     m_activeEmitters.clear();
 
     for (auto &emitter : m_emitters) {
-        if (emitter.id() != INVALID_BILLBOARD_ID)
+        if (emitter.id() != INVALID_PARTICLE_EMITTER_ID)
             m_activeEmitters.push_back(&emitter);
     }
 

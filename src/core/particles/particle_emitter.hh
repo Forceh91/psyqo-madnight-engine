@@ -34,6 +34,8 @@ public:
     void Process(const uint32_t &deltaTime);
     const eastl::vector<Particle> &particles() const { return m_spawnedParticles; };
 
+    void SetParticles2D(const bool &is2D);
+
     void SetParticleVelocity(const psyqo::Vec3 &particleVelocity);
     void SetParticleVelocity(const psyqo::Vec3 &particleVelocity, const psyqo::Vec3 &particleEndVelocity);    
 
@@ -66,6 +68,7 @@ private:
     psyqo::FixedPoint<> m_particleLifeTime;
     eastl::array<psyqo::PrimPieces::UVCoords, 4> m_particleUVCoords;
     TimFile *m_particleTexture = nullptr;
+    bool m_particleIs2D = true;
 
     psyqo::Vec2 GenerateRandomPointOnCircumfrence(void);
 };

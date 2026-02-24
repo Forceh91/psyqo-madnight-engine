@@ -19,7 +19,7 @@ void ParticleEmitter::Destroy(void) {
     m_name.clear();
     m_pos = {0,0,0};
     m_radius = 0;
-    m_id = INVALID_BILLBOARD_ID;
+    m_id = INVALID_PARTICLE_EMITTER_ID;
     m_isEnabled = false;
     m_spawnedParticles.clear();
 }
@@ -65,6 +65,7 @@ void ParticleEmitter::Process(const uint32_t &deltaTime) {
     auto particle = Particle(spawnPos, m_particleStartSize, m_particleEndSize, m_particleStartColour, m_particleEndColour, m_particleStartVelocity, m_particleEndVelocity, m_particleLifeTime);
     if (m_particleTexture)
         particle.SetTexture(m_particleTexture, m_particleUVCoords);
+    particle.Set2D(m_particleIs2D);
 
     m_spawnedParticles.push_back(particle);
     m_timeSinceLastParticleSpawn = 0;
@@ -104,4 +105,8 @@ void ParticleEmitter::SetParticleTexture(const eastl::fixed_string<char, MAX_CDR
 
 void ParticleEmitter::SetParticleUVCoords(const eastl::array<psyqo::PrimPieces::UVCoords, 4> &uv) {
     m_particleUVCoords = uv;
+}
+
+void ParticleEmitter::SetParticles2D(const bool &is2D) {
+    m_particleIs2D = is2D;
 }

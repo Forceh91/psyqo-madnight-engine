@@ -1,4 +1,5 @@
 #include "renderer.hh"
+#include "EASTL/algorithm.h"
 #include "clip.hh"
 #include "colour.hh"
 
@@ -16,8 +17,10 @@
 #include "psyqo/primitives/common.hh"
 #include "psyqo/primitives/control.hh"
 #include "psyqo/primitives/quads.hh"
+#include "psyqo/primitives/sprites.hh"
 #include "psyqo/vector.hh"
 #include "../defs.hh"
+#include <cstdint>
 
 
 Renderer *Renderer::m_instance = nullptr;
@@ -26,6 +29,7 @@ psyqo::Font<> Renderer::m_systemFont;
 static constexpr psyqo::Rect screen_space = {.pos = {0, 0}, .size = {320, 240}};
 static constexpr psyqo::Matrix33 identityMatrix = {
     {{1.0_fp, 0.0_fp, 0.0_fp}, {0.0_fp, 1.0_fp, 0.0_fp}, {0.0_fp, 0.0_fp, 1.0_fp}}};
+static constexpr uint8_t projectionDistance = 120;
 
 #if ENABLE_BONE_DEBUG
 static constexpr psyqo::Color boneColours[MAX_BONES] = {
@@ -109,7 +113,7 @@ void Renderer::StartScene(void) {
   psyqo::GTE::write<psyqo::GTE::Register::OFY, psyqo::GTE::Unsafe>(psyqo::FixedPoint<16>(120.0).raw());
 
   // write the projection plane distance
-  psyqo::GTE::write<psyqo::GTE::Register::H, psyqo::GTE::Unsafe>(120);
+  psyqo::GTE::write<psyqo::GTE::Register::H, psyqo::GTE::Unsafe>(projectionDistance);
 
   // set the scaling for z averaging
   psyqo::GTE::write<psyqo::GTE::Register::ZSF3, psyqo::GTE::Unsafe>(ORDERING_TABLE_SIZE / 3);
@@ -554,12 +558,13 @@ void Renderer::RenderParticles(uint32_t deltaTime, const psyqo::Vec3 gteCameraPo
   if (emitters.empty())
     return;
 
-  // particles just use the inverse of the camera rotation matrix as rotation
-  psyqo::Matrix33 finalCameraMatrix = {0};
-  GTEMath::MultiplyMatrix33(cameraRotationMatrix, m_activeCamera->inverseRotationMatrix(), &finalCameraMatrix);
+  // particles just use the inverse of the camera rotation matrix as rotation (when in 3d mode)
+  psyqo::Matrix33 finalMatrix = {0};
+  GTEMath::MultiplyMatrix33(cameraRotationMatrix, m_activeCamera->inverseRotationMatrix(), &finalMatrix);
 
   for (auto const &emitter : emitters) {
     auto const particles = emitter->particles();
+    auto hasSetTPage = false;
     for (auto const &particle : particles) {
       // clear TRX/Y/Z safely
       psyqo::GTE::clear<psyqo::GTE::Register::TRX, psyqo::GTE::Safe>();
@@ -573,114 +578,169 @@ void Renderer::RenderParticles(uint32_t deltaTime, const psyqo::Vec3 gteCameraPo
 
       particlePos += gteCameraPos;
 
-      // billboards just use the inverse of the camera rotation matrix as rotation
-      psyqo::Matrix33 finalMatrix = {0};
-      GTEMath::MultiplyMatrix33(cameraRotationMatrix, m_activeCamera->inverseRotationMatrix(), &finalMatrix);
+      if (particle.Is2D()) {
+        if (particlePos.z <= 0)
+          continue;
 
-      // write the object position and camera rotation matrix
-      psyqo::GTE::writeSafe<psyqo::GTE::PseudoRegister::Translation>(particlePos);
-      psyqo::GTE::writeSafe<psyqo::GTE::PseudoRegister::Rotation>(finalMatrix);
+        // write the object position and camera rotation matrix
+        psyqo::GTE::writeSafe<psyqo::GTE::PseudoRegister::Translation>(particlePos);
+        psyqo::GTE::writeSafe<psyqo::GTE::PseudoRegister::Rotation>(identityMatrix);
 
-      const auto texture = particle.pTexture();
-      if (texture) {
-        tpage = TextureManager::GetTPageAttr(texture);
-        offset = TextureManager::GetTPageUVForTim(texture);
-        offset.pos.y += (texture->height - 1);
-      }
+        // we dont need to offset it
+        psyqo::GTE::writeSafe<psyqo::GTE::PseudoRegister::V0>(psyqo::Vec3{0,0,0});
 
-      // load first 3 verts into GTE
-      psyqo::GTE::writeSafe<psyqo::GTE::PseudoRegister::V0>(particle.corners()[0]);
-      psyqo::GTE::writeSafe<psyqo::GTE::PseudoRegister::V1>(particle.corners()[1]);
-      psyqo::GTE::writeSafe<psyqo::GTE::PseudoRegister::V2>(particle.corners()[2]);
+        // single point rotation/translation
+        psyqo::GTE::Kernels::rtps();
 
-      psyqo::GTE::Kernels::rtpt();
-      psyqo::GTE::Kernels::nclip();
-
-      if (!psyqo::GTE::readRaw<psyqo::GTE::Register::MAC0>())
-        continue;
-
-      // store the first vert so we can read the last one in
-      psyqo::GTE::read<psyqo::GTE::Register::SXY0>(&projected[0].packed);
-      psyqo::GTE::writeSafe<psyqo::GTE::PseudoRegister::V0>(particle.corners()[3]);
-
-      psyqo::GTE::Kernels::rtps();
-
-      psyqo::GTE::Kernels::avsz4();
-      zIndex = psyqo::GTE::readRaw<psyqo::GTE::Register::OTZ>();
-
-      if (zIndex == 0 || zIndex >= ORDERING_TABLE_SIZE)
-        continue;
-
-      // read the last three verts from GTE
-      psyqo::GTE::read<psyqo::GTE::Register::SXY0>(&projected[1].packed);
-      psyqo::GTE::read<psyqo::GTE::Register::SXY1>(&projected[2].packed);
-      psyqo::GTE::read<psyqo::GTE::Register::SXY2>(&projected[3].packed);
-
-      // out of screen space, it can be clipped
-      if (quad_clip(&screen_space, &projected[0], &projected[1], &projected[2], &projected[3]))
-        continue;
-
-      // generate its points
-      if (!texture) {
-        auto &quad = allocator.allocateFragment<psyqo::Prim::GouraudQuad>();
-        quad.primitive.pointA = projected[0];
-        quad.primitive.pointB = projected[1];
-        quad.primitive.pointC = projected[2];
-        quad.primitive.pointD = projected[3];
-
-        // set colour
-        quad.primitive.setColorA(particle.colour());
-        quad.primitive.setColorB(particle.colour());
-        quad.primitive.setColorC(particle.colour());
-        quad.primitive.setColorD(particle.colour());
+        // keep it within the OT
+        zIndex = psyqo::GTE::readRaw<psyqo::GTE::Register::OTZ>();
+        if (zIndex >= ORDERING_TABLE_SIZE)
+          continue;
         
-        // make opaque
-        quad.primitive.setOpaque();
+        // read in sxy2
+        psyqo::Vertex vertex;
+        psyqo::GTE::read<psyqo::GTE::Register::SXY2>(&vertex.packed);
 
-        // insert into OT
-        ot.insert(quad, zIndex);
+        // calculate scaled size and make sure it doesnt go below 1
+        auto projectedSize = particle.size() * (1.0_fp * projectionDistance) / particlePos.z;
+        auto scaledSize = psyqo::Vertex{static_cast<int16_t>(projectedSize.x.integer()), static_cast<int16_t>(projectedSize.y.integer())};
+        scaledSize = {eastl::clamp<int16_t>(scaledSize.x, 1, scaledSize.x), eastl::clamp<int16_t>(scaledSize.y, 1, scaledSize.y)};
+
+        // make sure pos is sane
+        auto pos = psyqo::Vertex{static_cast<int16_t>(vertex.x - scaledSize.x / 2), static_cast<int16_t>(vertex.y - scaledSize.y / 2)};
+        if (pos.x < 0 || pos.x >= screen_space.size.x || pos.y < 0 || pos.y >= screen_space.size.y)
+          continue;
+
+        auto &sprite = allocator.allocateFragment<psyqo::Prim::Sprite>();
+        auto texture = particle.pTexture();
+        if (texture && !hasSetTPage) {
+          // send tpage info to gpu
+          auto tpageAttr = TextureManager::GetTPageAttr(texture);
+          auto &tpage = allocator.allocateFragment<psyqo::Prim::TPage>();
+          tpage.primitive.attr = tpageAttr;
+          m_gpu.chain(tpage);
+
+          // update sprite with clut/uv data
+          sprite.primitive.texInfo.clut = psyqo::PrimPieces::ClutIndex(texture->clutX, texture->clutY);
+          
+          // as particles can be quads they have 4 lots of uv data, so just take the first one
+          sprite.primitive.texInfo.u = particle.uv()[0].u;
+          sprite.primitive.texInfo.v = particle.uv()[0].v;
+
+          hasSetTPage = false;
+        }
+        
+        sprite.primitive.position = pos;
+        sprite.primitive.size = scaledSize;
+        sprite.primitive.setColor(particle.colour());
+
+        ot.insert(sprite, zIndex);
       } else {
-        auto &quad = allocator.allocateFragment<psyqo::Prim::GouraudTexturedQuad>();
-        quad.primitive.pointA = projected[0];
-        quad.primitive.pointB = projected[1];
-        quad.primitive.pointC = projected[2];
-        quad.primitive.pointD = projected[3];
+        // write the object position and camera rotation matrix
+        psyqo::GTE::writeSafe<psyqo::GTE::PseudoRegister::Translation>(particlePos);
+        psyqo::GTE::writeSafe<psyqo::GTE::PseudoRegister::Rotation>(finalMatrix);
 
-        // set colour
-        quad.primitive.setColorA(particle.colour());
-        quad.primitive.setColorB(particle.colour());
-        quad.primitive.setColorC(particle.colour());
-        quad.primitive.setColorD(particle.colour());
-        
-        // make opaque
-        quad.primitive.setOpaque();
+        const auto texture = particle.pTexture();
+        if (texture) {
+          tpage = TextureManager::GetTPageAttr(texture);
+          offset = TextureManager::GetTPageUVForTim(texture);
+          offset.pos.y += (texture->height - 1);
+        }
 
-        // set its tpage
-        quad.primitive.tpage = tpage;
+        // load first 3 verts into GTE
+        psyqo::GTE::writeSafe<psyqo::GTE::PseudoRegister::V0>(particle.corners()[0]);
+        psyqo::GTE::writeSafe<psyqo::GTE::PseudoRegister::V1>(particle.corners()[1]);
+        psyqo::GTE::writeSafe<psyqo::GTE::PseudoRegister::V2>(particle.corners()[2]);
 
-        // set its clut if it has one
-        if (texture->hasClut)
-          quad.primitive.clutIndex = {texture->clutX, texture->clutY};
+        psyqo::GTE::Kernels::rtpt();
+        psyqo::GTE::Kernels::nclip();
 
-        // set its uv coords
-        auto uvA = particle.uv()[0];
-        quad.primitive.uvA.u = offset.pos.x + uvA.u;
-        quad.primitive.uvA.v = offset.pos.y - uvA.v;
+        if (!psyqo::GTE::readRaw<psyqo::GTE::Register::MAC0>())
+          continue;
 
-        auto uvB = particle.uv()[1];
-        quad.primitive.uvB.u = offset.pos.x + uvB.u;
-        quad.primitive.uvB.v = offset.pos.y - uvB.v;
+        // store the first vert so we can read the last one in
+        psyqo::GTE::read<psyqo::GTE::Register::SXY0>(&projected[0].packed);
+        psyqo::GTE::writeSafe<psyqo::GTE::PseudoRegister::V0>(particle.corners()[3]);
 
-        auto uvC = particle.uv()[2];
-        quad.primitive.uvC.u = offset.pos.x + uvC.u;
-        quad.primitive.uvC.v = offset.pos.y - uvC.v;
+        psyqo::GTE::Kernels::rtps();
 
-        auto uvD = particle.uv()[3];
-        quad.primitive.uvD.u = offset.pos.x + uvD.u;
-        quad.primitive.uvD.v = offset.pos.y - uvD.v;
+        psyqo::GTE::Kernels::avsz4();
+        zIndex = psyqo::GTE::readRaw<psyqo::GTE::Register::OTZ>();
 
-        // insert into OT
-        ot.insert(quad, zIndex);
+        if (zIndex == 0 || zIndex >= ORDERING_TABLE_SIZE)
+          continue;
+
+        // read the last three verts from GTE
+        psyqo::GTE::read<psyqo::GTE::Register::SXY0>(&projected[1].packed);
+        psyqo::GTE::read<psyqo::GTE::Register::SXY1>(&projected[2].packed);
+        psyqo::GTE::read<psyqo::GTE::Register::SXY2>(&projected[3].packed);
+
+        // out of screen space, it can be clipped
+        if (quad_clip(&screen_space, &projected[0], &projected[1], &projected[2], &projected[3]))
+          continue;
+
+        // generate its points
+        if (!texture) {
+          auto &quad = allocator.allocateFragment<psyqo::Prim::GouraudQuad>();
+          quad.primitive.pointA = projected[0];
+          quad.primitive.pointB = projected[1];
+          quad.primitive.pointC = projected[2];
+          quad.primitive.pointD = projected[3];
+
+          // set colour
+          quad.primitive.setColorA(particle.colour());
+          quad.primitive.setColorB(particle.colour());
+          quad.primitive.setColorC(particle.colour());
+          quad.primitive.setColorD(particle.colour());
+          
+          // make opaque
+          quad.primitive.setOpaque();
+
+          // insert into OT
+          ot.insert(quad, zIndex);
+        } else {
+          auto &quad = allocator.allocateFragment<psyqo::Prim::GouraudTexturedQuad>();
+          quad.primitive.pointA = projected[0];
+          quad.primitive.pointB = projected[1];
+          quad.primitive.pointC = projected[2];
+          quad.primitive.pointD = projected[3];
+
+          // set colour
+          quad.primitive.setColorA(particle.colour());
+          quad.primitive.setColorB(particle.colour());
+          quad.primitive.setColorC(particle.colour());
+          quad.primitive.setColorD(particle.colour());
+          
+          // make opaque
+          quad.primitive.setOpaque();
+
+          // set its tpage
+          quad.primitive.tpage = tpage;
+
+          // set its clut if it has one
+          if (texture->hasClut)
+            quad.primitive.clutIndex = {texture->clutX, texture->clutY};
+
+          // set its uv coords
+          auto uvA = particle.uv()[0];
+          quad.primitive.uvA.u = offset.pos.x + uvA.u;
+          quad.primitive.uvA.v = offset.pos.y - uvA.v;
+
+          auto uvB = particle.uv()[1];
+          quad.primitive.uvB.u = offset.pos.x + uvB.u;
+          quad.primitive.uvB.v = offset.pos.y - uvB.v;
+
+          auto uvC = particle.uv()[2];
+          quad.primitive.uvC.u = offset.pos.x + uvC.u;
+          quad.primitive.uvC.v = offset.pos.y - uvC.v;
+
+          auto uvD = particle.uv()[3];
+          quad.primitive.uvD.u = offset.pos.x + uvD.u;
+          quad.primitive.uvD.v = offset.pos.y - uvD.v;
+
+          // insert into OT
+          ot.insert(quad, zIndex);
+        }
       }
     }
   }
@@ -708,9 +768,6 @@ void Renderer::Clear() {
 }
 
 void Renderer::RenderSprite(const TimFile *texture, const psyqo::Rect rect, const psyqo::PrimPieces::UVCoords uv) {
-  // create a quad fragment array for it
-  eastl::array<psyqo::Vertex, 4> projected;
-
   // get the frame buffer we're currently rendering
   int frameBuffer = m_gpu.getParity();
 
