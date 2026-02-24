@@ -564,7 +564,6 @@ void Renderer::RenderParticles(uint32_t deltaTime, const psyqo::Vec3 gteCameraPo
 
   for (auto const &emitter : emitters) {
     auto const particles = emitter->particles();
-    auto hasSetTPage = false;
     for (auto const &particle : particles) {
       // clear TRX/Y/Z safely
       psyqo::GTE::clear<psyqo::GTE::Register::TRX, psyqo::GTE::Safe>();
@@ -613,7 +612,7 @@ void Renderer::RenderParticles(uint32_t deltaTime, const psyqo::Vec3 gteCameraPo
 
         auto &sprite = allocator.allocateFragment<psyqo::Prim::Sprite>();
         auto texture = particle.pTexture();
-        if (texture && !hasSetTPage) {
+        if (texture) {
           // send tpage info to gpu
           auto tpageAttr = TextureManager::GetTPageAttr(texture);
           auto &tpage = allocator.allocateFragment<psyqo::Prim::TPage>();
@@ -626,8 +625,6 @@ void Renderer::RenderParticles(uint32_t deltaTime, const psyqo::Vec3 gteCameraPo
           // as particles can be quads they have 4 lots of uv data, so just take the first one
           sprite.primitive.texInfo.u = particle.uv()[0].u;
           sprite.primitive.texInfo.v = particle.uv()[0].v;
-
-          hasSetTPage = false;
         }
         
         sprite.primitive.position = pos;
