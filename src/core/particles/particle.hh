@@ -33,11 +33,6 @@ public:
 
     void Process(const uint32_t &deltaTime);
     const bool IsDead(void) const { return m_age >= m_lifetime; }
-    const bool Is2D(void) const { return m_is2D; }
-
-    void Set2D(const bool &is2D) {
-        m_is2D = is2D;
-    }
 
 private:
     psyqo::Color m_startColour;
@@ -48,7 +43,6 @@ private:
     psyqo::Vec3 m_endVelocity;
     psyqo::FixedPoint<> m_lifetime;
     psyqo::FixedPoint<> m_age;
-    bool m_is2D;
 };
 
 #endif

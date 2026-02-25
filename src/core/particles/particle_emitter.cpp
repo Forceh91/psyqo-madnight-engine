@@ -65,8 +65,6 @@ void ParticleEmitter::Process(const uint32_t &deltaTime) {
     auto particle = Particle(spawnPos, m_particleStartSize, m_particleEndSize, m_particleStartColour, m_particleEndColour, m_particleStartVelocity, m_particleEndVelocity, m_particleLifeTime);
     if (m_particleTexture)
         particle.SetUVCoords(m_particleUVCoords);
-    
-    particle.Set2D(m_particleIs2D);
 
     m_spawnedParticles.push_back(particle);
     m_timeSinceLastParticleSpawn = 0;

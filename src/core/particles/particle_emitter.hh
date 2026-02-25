@@ -49,6 +49,7 @@ public:
     void SetParticleUVCoords(const eastl::array<psyqo::PrimPieces::UVCoords, 4> &uv);
 
     const TimFile *pParticleTexture() const { return m_particleTexture; }
+    const bool &AreParticles2D() const { return m_particleIs2D; }
 private:
     bool m_isEnabled = false;
     eastl::fixed_string<char, MAX_PARTICLE_EMITTER_NAME_LENGTH> m_name;
