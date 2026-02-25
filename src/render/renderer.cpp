@@ -587,7 +587,7 @@ void Renderer::RenderParticles(uint32_t deltaTime, const psyqo::Vec3 gteCameraPo
 
       particlePos += gteCameraPos;
 
-      if (particle.Is2D()) {
+      if (emitter->AreParticles2D()) {
         if (particlePos.z <= 0)
           continue;
 
