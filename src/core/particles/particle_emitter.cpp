@@ -63,16 +63,8 @@ void ParticleEmitter::Process(const uint32_t &deltaTime) {
 
     // generate a particle at a random point on the circumfrence
     auto pos = GenerateRandomPointOnCircumfrence();
-    psyqo::Vec3 rotatedPos = {0, 0, 0};
-    GTEMath::MultiplyMatrixVec3(m_rotationMatrix, {pos.x, 0, pos.y}, &rotatedPos);
-
-    psyqo::Vec3 rotatedStartVelocity = {0, 0, 0};
-    psyqo::Vec3 rotatedEndVelocity = {0, 0, 0};
-    GTEMath::MultiplyMatrixVec3(m_rotationMatrix, m_particleStartVelocity, &rotatedStartVelocity);
-    GTEMath::MultiplyMatrixVec3(m_rotationMatrix, m_particleEndVelocity, &rotatedEndVelocity);    
-
-    auto spawnPos = m_pos + rotatedPos;
-    auto particle = Particle(spawnPos, m_particleStartSize, m_particleEndSize, m_particleStartColour, m_particleEndColour, rotatedStartVelocity, rotatedEndVelocity, m_particleLifeTime);
+    auto spawnPos = m_rotatedPos + psyqo::Vec3{pos.x, 0, pos.y};
+    auto particle = Particle(spawnPos, m_particleStartSize, m_particleEndSize, m_particleStartColour, m_particleEndColour, m_particleRotatedStartVelocity, m_particleRotatedEndVelocity, m_particleLifeTime);
 
     if (m_particleTexture)
         particle.SetUVCoords(m_particleUVCoords);
@@ -88,6 +80,8 @@ void ParticleEmitter::SetParticleVelocity(const psyqo::Vec3 &particleVelocity) {
 void ParticleEmitter::SetParticleVelocity(const psyqo::Vec3 &particleVelocity, const psyqo::Vec3 &particleEndVelocity) {
     m_particleStartVelocity = particleVelocity;
     m_particleEndVelocity = particleEndVelocity;
+
+    GenerateRotatedVelocity();
 }
 
 void ParticleEmitter::SetParticleSize(const psyqo::Vec2 &particleSize) {
@@ -135,4 +129,17 @@ void ParticleEmitter::GenerateRotationMatrix(void) {
     psyqo::Matrix33 tempMatrix = {0};
     psyqo::SoftMath::multiplyMatrix33(yaw, pitch, &tempMatrix);
     psyqo::SoftMath::multiplyMatrix33(tempMatrix, roll, &m_rotationMatrix);
+
+    // do both of these now so we dont have to do it every frame
+    // generate the rotated pos
+    psyqo::Vec3 rotatedPos = {0, 0, 0};
+    GTEMath::MultiplyMatrixVec3(m_rotationMatrix, m_pos, &m_rotatedPos);
+
+    // and generate the rotated velocity
+    GenerateRotatedVelocity();
+}
+
+void ParticleEmitter::GenerateRotatedVelocity(void) {
+    GTEMath::MultiplyMatrixVec3(m_rotationMatrix, m_particleStartVelocity, &m_particleRotatedStartVelocity);
+    GTEMath::MultiplyMatrixVec3(m_rotationMatrix, m_particleEndVelocity, &m_particleRotatedEndVelocity);    
 }

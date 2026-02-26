@@ -24,6 +24,7 @@ public:
         m_id = id;
         m_name = name;
         m_pos = pos;
+        m_rotatedPos = m_pos;
         m_radius = radius;
         m_particlesPerSecond = particlesPerSecond;
         m_particleLifeTime = particleLifeTimeSecs;
@@ -66,6 +67,7 @@ private:
     eastl::fixed_string<char, MAX_PARTICLE_EMITTER_NAME_LENGTH> m_name;
     uint8_t m_id = INVALID_PARTICLE_EMITTER_ID;
     psyqo::Vec3 m_pos = {0,0,0};
+    psyqo::Vec3 m_rotatedPos = {0, 0, 0};
     EmitterRotation m_rotation = {0, 0, 0};
     psyqo::Matrix33 m_rotationMatrix = {0};
     psyqo::FixedPoint<> m_radius = 0;
@@ -76,19 +78,22 @@ private:
     uint32_t m_timeSinceLastParticleSpawn = 0;
     uint32_t m_timeOfLastProcess = 0;
 
-    psyqo::Color m_particleStartColour;
-    psyqo::Color m_particleEndColour;
-    psyqo::Vec2 m_particleStartSize;
-    psyqo::Vec2 m_particleEndSize;
-    psyqo::Vec3 m_particleStartVelocity;
-    psyqo::Vec3 m_particleEndVelocity;
-    uint8_t m_particleLifeTime;
+    psyqo::Color m_particleStartColour = {0, 0, 0};
+    psyqo::Color m_particleEndColour = {0, 0, 0};
+    psyqo::Vec2 m_particleStartSize = {0, 0};
+    psyqo::Vec2 m_particleEndSize = {0, 0};
+    psyqo::Vec3 m_particleStartVelocity = {0, 0, 0};
+    psyqo::Vec3 m_particleRotatedStartVelocity = {0, 0, 0};
+    psyqo::Vec3 m_particleEndVelocity = {0, 0, 0};
+    psyqo::Vec3 m_particleRotatedEndVelocity = {0, 0, 0};
+    uint8_t m_particleLifeTime = 0;
     eastl::array<psyqo::PrimPieces::UVCoords, 4> m_particleUVCoords;
     TimFile *m_particleTexture = nullptr;
     bool m_particleIs2D = true;
 
     psyqo::Vec2 GenerateRandomPointOnCircumfrence(void);
     void GenerateRotationMatrix(void);
+    void GenerateRotatedVelocity(void);
 };
 
 #endif

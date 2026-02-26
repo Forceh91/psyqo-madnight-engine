@@ -1,8 +1,6 @@
 #include "particle.hh"
 #include "../../math/vector.hh"
-#include "defs.hh"
 #include "psyqo/fixed-point.hh"
-#include "psyqo/xprintf.h"
 
 using namespace psyqo::fixed_point_literals;
 
