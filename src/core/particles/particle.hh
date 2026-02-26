@@ -3,15 +3,14 @@
 
 #include "../billboard/billboard.hh"
 #include "defs.hh"
-#include "psyqo/fixed-point.hh"
 #include "psyqo/primitives/common.hh"
 
 class Particle final : public Billboard {
 public:
     Particle() = default;
-    Particle(const psyqo::Vec3 pos, const psyqo::Vec2 size, const psyqo::Color colour, const psyqo::Vec3 velocity, const psyqo::FixedPoint<> lifetime = 1) : Particle(pos, size, size, colour, colour, velocity, velocity, lifetime) {};
+    Particle(const psyqo::Vec3 pos, const psyqo::Vec2 size, const psyqo::Color colour, const psyqo::Vec3 velocity, const uint8_t lifetime = 1) : Particle(pos, size, size, colour, colour, velocity, velocity, lifetime) {};
 
-    Particle(const psyqo::Vec3 pos, const psyqo::Vec2 startSize, const psyqo::Vec2 endSize, const psyqo::Color startColour, const psyqo::Color endColour, const psyqo::Vec3 startVelocity, const psyqo::Vec3 endVelocity, const psyqo::FixedPoint<> lifetime = 1) {
+    Particle(const psyqo::Vec3 pos, const psyqo::Vec2 startSize, const psyqo::Vec2 endSize, const psyqo::Color startColour, const psyqo::Color endColour, const psyqo::Vec3 startVelocity, const psyqo::Vec3 endVelocity, const uint8_t lifetime = 1) {
         m_startSize = startSize;
         m_endSize = endSize;
 
@@ -23,6 +22,8 @@ public:
 
         m_lifetime = lifetime;
         m_age = 0;
+        m_lifetimeMicroSeconds = MICROSECONDS_IN_A_SECOND * m_lifetime;
+        m_lastUpdate = 0;
 
         // billboard settings
         m_pos = pos;
@@ -32,7 +33,7 @@ public:
     }
 
     void Process(const uint32_t &deltaTime);
-    const bool IsDead(void) const { return m_age >= m_lifetime; }
+    const bool IsDead(void) const { return m_age >= m_lifetimeMicroSeconds; }
 
 private:
     psyqo::Color m_startColour;
@@ -41,8 +42,10 @@ private:
     psyqo::Vec2 m_endSize;
     psyqo::Vec3 m_startVelocity;
     psyqo::Vec3 m_endVelocity;
-    psyqo::FixedPoint<> m_lifetime;
-    psyqo::FixedPoint<> m_age;
+    uint8_t m_lifetime = 1;
+    uint32_t m_lifetimeMicroSeconds = 0;
+    uint32_t m_age = 0;
+    uint32_t m_lastUpdate;
 };
 
 #endif

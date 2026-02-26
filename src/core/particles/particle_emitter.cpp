@@ -1,6 +1,7 @@
 #include "particle_emitter.hh"
 #include "defs.hh"
 #include "particle.hh"
+#include "../../render/renderer.hh"
 #include "../../madnight.hh"
 #include "psyqo/fixed-point.hh"
 #include "psyqo/trigonometry.hh"
@@ -33,9 +34,14 @@ psyqo::Vec2 ParticleEmitter::GenerateRandomPointOnCircumfrence(void) {
 }
 
 void ParticleEmitter::Process(const uint32_t &deltaTime) {
+    auto now = Renderer::Instance().GPU().now();
+    auto delta = now - m_timeOfLastProcess;;
+
+    m_timeSinceLastParticleSpawn += delta;
+
     // process active particles
     for (auto &particle : m_spawnedParticles) {
-        if (!particle.IsDead()) particle.Process(deltaTime);
+        if (!particle.IsDead()) particle.Process(delta);
     }
  
     // clear out dead ones
@@ -45,13 +51,12 @@ void ParticleEmitter::Process(const uint32_t &deltaTime) {
             m_spawnedParticles.erase(m_spawnedParticles.begin() + i);
     }
 
-    // make sure we're enabled or we're not out of room
-    if (!m_isEnabled || m_spawnedParticles.size() >= m_maxParticles) return;
-
-    // make sure its been a second
-    auto fpDeltaTime = (deltaTime * 1.0_fp) / TARGET_FRAME_RATE;
-    m_timeSinceLastParticleSpawn += fpDeltaTime;
-    if (m_timeSinceLastParticleSpawn < m_spawnRate)
+    // make sure we're enabled
+    if (!m_isEnabled) return;
+        
+    // make sure its been a second and we dont have too many spawned
+    m_timeOfLastProcess = now;
+    if (m_timeSinceLastParticleSpawn < m_spawnRate || m_spawnedParticles.size() >= m_maxParticles)
         return;
 
     // generate a particle at a random point on the circumfrence

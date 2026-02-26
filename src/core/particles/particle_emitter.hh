@@ -13,15 +13,15 @@ using namespace psyqo::fixed_point_literals;
 class ParticleEmitter final {
 public:
     ParticleEmitter() = default;
-    ParticleEmitter(const eastl::fixed_string<char, MAX_PARTICLE_EMITTER_NAME_LENGTH> &name, const uint8_t &id, const psyqo::Vec3 &pos, const psyqo::FixedPoint<> radius, const uint8_t &particlesPerSecond, const psyqo::FixedPoint<> &particleLifeTime) {
+    ParticleEmitter(const eastl::fixed_string<char, MAX_PARTICLE_EMITTER_NAME_LENGTH> &name, const uint8_t &id, const psyqo::Vec3 &pos, const psyqo::FixedPoint<> radius, const uint8_t &particlesPerSecond, const uint8_t &particleLifeTimeSecs) {
         m_id = id;
         m_name = name;
         m_pos = pos;
         m_radius = radius;
         m_particlesPerSecond = particlesPerSecond;
-        m_particleLifeTime = particleLifeTime;
-        m_maxParticles = m_particlesPerSecond * m_particleLifeTime.integer();
-        m_spawnRate = 1.0_fp / m_particlesPerSecond;
+        m_particleLifeTime = particleLifeTimeSecs;
+        m_maxParticles = m_particlesPerSecond * m_particleLifeTime;
+        m_spawnRate = MICROSECONDS_IN_A_SECOND / m_particlesPerSecond;
     };
 
     const eastl::fixed_string<char, MAX_PARTICLE_EMITTER_NAME_LENGTH> &name() const { return m_name; }
@@ -59,8 +59,9 @@ private:
     uint16_t m_maxParticles = 0;
     uint8_t m_particlesPerSecond = 0;
     eastl::vector<Particle> m_spawnedParticles;
-    psyqo::FixedPoint<> m_spawnRate = 0;
-    psyqo::FixedPoint<> m_timeSinceLastParticleSpawn = 0;
+    uint16_t m_spawnRate = 0;
+    uint32_t m_timeSinceLastParticleSpawn = 0;
+    uint32_t m_timeOfLastProcess = 0;
 
     psyqo::Color m_particleStartColour;
     psyqo::Color m_particleEndColour;
@@ -68,7 +69,7 @@ private:
     psyqo::Vec2 m_particleEndSize;
     psyqo::Vec3 m_particleStartVelocity;
     psyqo::Vec3 m_particleEndVelocity;
-    psyqo::FixedPoint<> m_particleLifeTime;
+    uint8_t m_particleLifeTime;
     eastl::array<psyqo::PrimPieces::UVCoords, 4> m_particleUVCoords;
     TimFile *m_particleTexture = nullptr;
     bool m_particleIs2D = true;

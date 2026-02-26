@@ -13,12 +13,12 @@ eastl::fixed_vector<ParticleEmitter*, MAX_PARTICLE_EMITTERS> ParticleEmitterMana
 * `SetParticleColour`, `SetParticleVelocity`, `SetParticleSize`, `SetParticleTexture`
 * you can make them 3d via `Set2D` however this is less performant.
 */
-ParticleEmitter *ParticleEmitterManager::CreateParticleEmitter(const eastl::fixed_string<char, MAX_PARTICLE_EMITTER_NAME_LENGTH> &name, const psyqo::Vec3 &pos, const psyqo::FixedPoint<> &radius, const uint8_t &particlesPerSecond, const psyqo::FixedPoint<> &particleLifeTime) {
+ParticleEmitter *ParticleEmitterManager::CreateParticleEmitter(const eastl::fixed_string<char, MAX_PARTICLE_EMITTER_NAME_LENGTH> &name, const psyqo::Vec3 &pos, const psyqo::FixedPoint<> &radius, const uint8_t &particlesPerSecond, const uint8_t &particleLifeTimeSecs) {
     auto ix = GetFreeIndex();
     if (ix == -1)
         return nullptr;
 
-    m_emitters[ix] = ParticleEmitter(name, ix, pos, radius, particlesPerSecond, particleLifeTime);
+    m_emitters[ix] = ParticleEmitter(name, ix, pos, radius, particlesPerSecond, particleLifeTimeSecs);
     return &m_emitters[ix];
 }
 
