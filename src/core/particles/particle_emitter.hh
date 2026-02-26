@@ -5,10 +5,17 @@
 #include "defs.hh"
 #include "particle.hh"
 #include "psyqo/fixed-point.hh"
+#include "psyqo/matrix.hh"
+#include "psyqo/trigonometry.hh"
 #include "psyqo/primitives/common.hh"
 #include "psyqo/vector.hh"
 
 using namespace psyqo::fixed_point_literals;
+using namespace psyqo::trig_literals;
+
+typedef struct _EmitterRotation {
+    psyqo::Angle x, y, z;
+} EmitterRotation;
 
 class ParticleEmitter final {
 public:
@@ -22,6 +29,8 @@ public:
         m_particleLifeTime = particleLifeTimeSecs;
         m_maxParticles = m_particlesPerSecond * m_particleLifeTime;
         m_spawnRate = MICROSECONDS_IN_A_SECOND / m_particlesPerSecond;
+
+        GenerateRotationMatrix();
     };
 
     const eastl::fixed_string<char, MAX_PARTICLE_EMITTER_NAME_LENGTH> &name() const { return m_name; }
@@ -33,6 +42,8 @@ public:
 
     void Process(const uint32_t &deltaTime);
     const eastl::vector<Particle> &particles() const { return m_spawnedParticles; };
+
+    void SetRotation(const EmitterRotation &rotation);
 
     void SetParticles2D(const bool &is2D);
 
@@ -55,6 +66,8 @@ private:
     eastl::fixed_string<char, MAX_PARTICLE_EMITTER_NAME_LENGTH> m_name;
     uint8_t m_id = INVALID_PARTICLE_EMITTER_ID;
     psyqo::Vec3 m_pos = {0,0,0};
+    EmitterRotation m_rotation = {0, 0, 0};
+    psyqo::Matrix33 m_rotationMatrix = {0};
     psyqo::FixedPoint<> m_radius = 0;
     uint16_t m_maxParticles = 0;
     uint8_t m_particlesPerSecond = 0;
@@ -75,6 +88,7 @@ private:
     bool m_particleIs2D = true;
 
     psyqo::Vec2 GenerateRandomPointOnCircumfrence(void);
+    void GenerateRotationMatrix(void);
 };
 
 #endif

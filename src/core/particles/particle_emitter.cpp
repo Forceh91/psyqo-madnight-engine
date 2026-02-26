@@ -3,7 +3,9 @@
 #include "particle.hh"
 #include "../../render/renderer.hh"
 #include "../../madnight.hh"
+#include "../../math/gte-math.hh"
 #include "psyqo/fixed-point.hh"
+#include "psyqo/soft-math.hh"
 #include "psyqo/trigonometry.hh"
 
 using namespace psyqo::fixed_point_literals;
@@ -61,13 +63,17 @@ void ParticleEmitter::Process(const uint32_t &deltaTime) {
 
     // generate a particle at a random point on the circumfrence
     auto pos = GenerateRandomPointOnCircumfrence();
-    auto spawnPos = psyqo::Vec3{
-        m_pos.x + pos.x,
-        m_pos.y,
-        m_pos.z + pos.y
-    };
+    psyqo::Vec3 rotatedPos = {0, 0, 0};
+    GTEMath::MultiplyMatrixVec3(m_rotationMatrix, {pos.x, 0, pos.y}, &rotatedPos);
 
-    auto particle = Particle(spawnPos, m_particleStartSize, m_particleEndSize, m_particleStartColour, m_particleEndColour, m_particleStartVelocity, m_particleEndVelocity, m_particleLifeTime);
+    psyqo::Vec3 rotatedStartVelocity = {0, 0, 0};
+    psyqo::Vec3 rotatedEndVelocity = {0, 0, 0};
+    GTEMath::MultiplyMatrixVec3(m_rotationMatrix, m_particleStartVelocity, &rotatedStartVelocity);
+    GTEMath::MultiplyMatrixVec3(m_rotationMatrix, m_particleEndVelocity, &rotatedEndVelocity);    
+
+    auto spawnPos = m_pos + rotatedPos;
+    auto particle = Particle(spawnPos, m_particleStartSize, m_particleEndSize, m_particleStartColour, m_particleEndColour, rotatedStartVelocity, rotatedEndVelocity, m_particleLifeTime);
+
     if (m_particleTexture)
         particle.SetUVCoords(m_particleUVCoords);
 
@@ -113,4 +119,20 @@ void ParticleEmitter::SetParticleUVCoords(const eastl::array<psyqo::PrimPieces::
 
 void ParticleEmitter::SetParticles2D(const bool &is2D) {
     m_particleIs2D = is2D;
+}
+
+void ParticleEmitter::SetRotation(const EmitterRotation &rotation) {
+    m_rotation = rotation;
+    GenerateRotationMatrix();
+}
+
+void ParticleEmitter::GenerateRotationMatrix(void) {
+    auto roll = psyqo::SoftMath::generateRotationMatrix33(m_rotation.x, psyqo::SoftMath::Axis::X, g_madnightEngine.m_trig);
+    auto pitch = psyqo::SoftMath::generateRotationMatrix33(m_rotation.y, psyqo::SoftMath::Axis::Y, g_madnightEngine.m_trig);
+    auto yaw = psyqo::SoftMath::generateRotationMatrix33(m_rotation.z, psyqo::SoftMath::Axis::Z, g_madnightEngine.m_trig);
+
+    // create complete x/y/z rotation. this is done ROLL then YAW then PITCH
+    psyqo::Matrix33 tempMatrix = {0};
+    psyqo::SoftMath::multiplyMatrix33(yaw, pitch, &tempMatrix);
+    psyqo::SoftMath::multiplyMatrix33(tempMatrix, roll, &m_rotationMatrix);
 }
