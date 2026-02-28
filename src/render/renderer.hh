@@ -2,7 +2,6 @@
 #define _RENDERER_H
 
 #include "../textures/texture_manager.hh"
-#include "../core/particles/particle.hh"
 
 #include "camera.hh"
 #include "psyqo/bump-allocator.hh"
@@ -24,6 +23,7 @@ class Renderer final {
   psyqo::GPU &m_gpu;
   uint32_t m_lastFrameCounter = 0;
   Camera *m_activeCamera;
+  psyqo::Vec3 m_gteCameraPos = {0, 0, 0};
 
   // create 2 ordering tables, one for each frame buffer
   psyqo::OrderingTable<ORDERING_TABLE_SIZE> m_orderingTables[2];
@@ -44,10 +44,11 @@ class Renderer final {
   ~Renderer(){};
 
   psyqo::Vec3 SetupCamera(const psyqo::Matrix33 &camRotationMatrix, const psyqo::Vec3 &negativeCamPos);
+  psyqo::Vec3 TransformObjectToViewSpace(const psyqo::Vec3 &pos, const psyqo::Matrix33 &cameraRotationMatrix, const psyqo::Matrix33 &finalCameraMatrix);
 
-  void RenderGameObjects(uint32_t deltaTime, const psyqo::Vec3 gteCameraPos, const psyqo::Matrix33 &cameraRotationMatrix);
-  void RenderBillboards(uint32_t deltaTime, const psyqo::Vec3 gteCameraPos, const psyqo::Matrix33 &cameraRotationMatrix);
-  void RenderParticles(uint32_t deltaTime, const psyqo::Vec3 gteCameraPos, const psyqo::Matrix33 &cameraRotationMatrix);
+  void RenderGameObjects(uint32_t deltaTime, const psyqo::Matrix33 &cameraRotationMatrix);
+  void RenderBillboards(uint32_t deltaTime, const psyqo::Matrix33 &cameraRotationMatrix);
+  void RenderParticles(uint32_t deltaTime, const psyqo::Matrix33 &cameraRotationMatrix);
 public:
   static void Init(psyqo::GPU &gpuInstance);
 
