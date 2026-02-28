@@ -2,6 +2,7 @@
 #define _HELLO3D_H_
 
 #include "helpers/load_queue.hh"
+#include "rand.hh"
 
 #include "psyqo/coroutine.hh"
 #include "psyqo/application.hh"
@@ -19,6 +20,10 @@ class MadnightEngine final : public psyqo::Application
 public:
     psyqo::Trig<> m_trig;
     psyqo::AdvancedPad m_input;
+
+    // make sure you seed this with a nice number when starting your first scene
+    // using `g_madnightEngine.gpu().now()` for example.
+    Rand m_rand;
 
     // you probably want to use hardloadingscreen below, but if you have no files to load then no need, just use this instead
     // this will pop the existing scene unless you specify `true` for keepPreviousscene

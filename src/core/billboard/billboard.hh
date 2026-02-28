@@ -7,7 +7,7 @@
 #include "../../textures/texture_manager.hh"
 #include "psyqo/primitives/common.hh"
 
-class Billboard final {
+class Billboard {
 public:
     Billboard() = default;
     Billboard(eastl::fixed_string<char, MAX_BILLBOARD_NAME_LENGTH> name, psyqo::Vec3 pos, psyqo::Vec2 size, uint8_t id) {
@@ -38,12 +38,13 @@ public:
 
     const TimFile *pTexture() const { return m_texture; }
     void SetTexture(const eastl::fixed_string<char, MAX_CDROM_FILE_NAME_LEN> &textureName, const eastl::array<psyqo::PrimPieces::UVCoords, 4> &uv);
+    void SetTexture(TimFile *texture, const eastl::array<psyqo::PrimPieces::UVCoords, 4> &uv);
 
     const eastl::array<psyqo::Vec3, 4> &corners() const { return m_quadCorners; }
 
     const eastl::array<psyqo::PrimPieces::UVCoords, 4> &uv() const { return m_uvCoords; }
     void SetUVCoords(const eastl::array<psyqo::PrimPieces::UVCoords, 4> &uv);
-private:
+protected:
     eastl::fixed_string<char, MAX_BILLBOARD_NAME_LENGTH> m_name = "";
     uint8_t m_id = INVALID_BILLBOARD_ID;
     psyqo::Vec3 m_pos = {0,0,0};
