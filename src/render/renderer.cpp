@@ -257,25 +257,25 @@ void Renderer::RenderGameObjects(uint32_t deltaTime, const psyqo::Vec3 gteCamera
         SkeletonController::MarkBonesClean(&mesh->skeleton);
       }
 
-      // clear TRX/Y/Z safely
-      psyqo::GTE::clear<psyqo::GTE::Register::TRX, psyqo::GTE::Safe>();
-      psyqo::GTE::clear<psyqo::GTE::Register::TRY, psyqo::GTE::Safe>();
-      psyqo::GTE::clear<psyqo::GTE::Register::TRZ, psyqo::GTE::Safe>();
+      // restore camera rotation for delta transform
+      psyqo::GTE::writeSafe<psyqo::GTE::PseudoRegister::Rotation>(cameraRotationMatrix);
+      psyqo::GTE::writeSafe<psyqo::GTE::PseudoRegister::Translation>(gteCameraPos);      
 
-      psyqo::GTE::writeSafe<psyqo::GTE::PseudoRegister::V0>(gameObject->pos());
+      // calculate delta pos of the object compared to the camera
+      auto objDeltaPos = gameObject->pos() - m_activeCamera->pos();
+      psyqo::GTE::writeSafe<psyqo::GTE::PseudoRegister::V0>(objDeltaPos);
       psyqo::GTE::Kernels::rt();
-      psyqo::Vec3 objectPos = psyqo::GTE::readSafe<psyqo::GTE::PseudoRegister::SV>();
 
-      // adjust object position by camera position
-      objectPos += gteCameraPos;
+      // get the view space translation and write it back for the meshes
+      auto finalObjPos = psyqo::GTE::readSafe<psyqo::GTE::PseudoRegister::SV>();
 
       // get the rotation matrix for the game object and then combine with the camera rotations
-      psyqo::Matrix33 finalMatrix = {0};
-      GTEMath::MultiplyMatrix33(cameraRotationMatrix, gameObject->rotationMatrix(), &finalMatrix);
+      psyqo::Matrix33 finalCameraMatrix = {0};
+      GTEMath::MultiplyMatrix33(cameraRotationMatrix, gameObject->rotationMatrix(), &finalCameraMatrix);
 
-      // write the object position and final matrix to the GTE
-      psyqo::GTE::writeSafe<psyqo::GTE::PseudoRegister::Translation>(objectPos);
-      psyqo::GTE::writeSafe<psyqo::GTE::PseudoRegister::Rotation>(finalMatrix);
+      // write the final rotation + translation
+      psyqo::GTE::writeSafe<psyqo::GTE::PseudoRegister::Rotation>(finalCameraMatrix);
+      psyqo::GTE::writeSafe<psyqo::GTE::PseudoRegister::Translation>(finalObjPos);
 
       // now we've done all this we can render the mesh and apply texture (if needed)
       // we dont need to get texture data for every single vert since it wont change, so lets only do that once
@@ -559,8 +559,8 @@ void Renderer::RenderParticles(uint32_t deltaTime, const psyqo::Vec3 gteCameraPo
     return;
 
   // particles just use the inverse of the camera rotation matrix as rotation (when in 3d mode)
-  psyqo::Matrix33 finalMatrix = {0};
-  GTEMath::MultiplyMatrix33(cameraRotationMatrix, m_activeCamera->inverseRotationMatrix(), &finalMatrix);
+  psyqo::Matrix33 finalCameraMatrix = {0};
+  GTEMath::MultiplyMatrix33(cameraRotationMatrix, m_activeCamera->inverseRotationMatrix(), &finalCameraMatrix);
 
   for (auto const &emitter : emitters) {
     auto const particles = emitter->particles();
@@ -575,25 +575,25 @@ void Renderer::RenderParticles(uint32_t deltaTime, const psyqo::Vec3 gteCameraPo
     }
 
     for (auto const &particle : particles) {
-      // clear TRX/Y/Z safely
-      psyqo::GTE::clear<psyqo::GTE::Register::TRX, psyqo::GTE::Safe>();
-      psyqo::GTE::clear<psyqo::GTE::Register::TRY, psyqo::GTE::Safe>();
-      psyqo::GTE::clear<psyqo::GTE::Register::TRZ, psyqo::GTE::Safe>();
-
+      // restore camera rotation for delta transform
       psyqo::GTE::writeSafe<psyqo::GTE::PseudoRegister::Rotation>(cameraRotationMatrix);
-      psyqo::GTE::writeSafe<psyqo::GTE::PseudoRegister::V0>(particle.pos());
-      psyqo::GTE::Kernels::rt();
-      psyqo::Vec3 particlePos = psyqo::GTE::readSafe<psyqo::GTE::PseudoRegister::SV>();
+      psyqo::GTE::writeSafe<psyqo::GTE::PseudoRegister::Translation>(gteCameraPos);      
 
-      particlePos += gteCameraPos;
+      // calculate delta pos of the object compared to the camera
+      auto particleDeltaPos = particle.pos() - m_activeCamera->pos();
+      psyqo::GTE::writeSafe<psyqo::GTE::PseudoRegister::V0>(particleDeltaPos);
+      psyqo::GTE::Kernels::rt();
+
+      // get the view space translation and write it back for the meshes
+      psyqo::Vec3 finalParticlePos = psyqo::GTE::readSafe<psyqo::GTE::PseudoRegister::SV>();
 
       if (emitter->AreParticles2D()) {
-        if (particlePos.z <= 0)
+        if (finalParticlePos.z <= 0)
           continue;
 
         // write the object position and camera rotation matrix
-        psyqo::GTE::writeSafe<psyqo::GTE::PseudoRegister::Translation>(particlePos);
         psyqo::GTE::writeSafe<psyqo::GTE::PseudoRegister::Rotation>(identityMatrix);
+        psyqo::GTE::writeSafe<psyqo::GTE::PseudoRegister::Translation>(finalParticlePos);
 
         // we dont need to offset it
         psyqo::GTE::writeSafe<psyqo::GTE::PseudoRegister::V0>(psyqo::Vec3{0,0,0});
@@ -611,7 +611,7 @@ void Renderer::RenderParticles(uint32_t deltaTime, const psyqo::Vec3 gteCameraPo
         psyqo::GTE::read<psyqo::GTE::Register::SXY2>(&vertex.packed);
 
         // calculate scaled size and make sure it doesnt go below 1
-        auto projectedSize = particle.size() * (1.0_fp * projectionDistance) / particlePos.z;
+        auto projectedSize = particle.size() * (1.0_fp * projectionDistance) / finalParticlePos.z;
         auto scaledSize = psyqo::Vertex{static_cast<int16_t>(projectedSize.x.integer()), static_cast<int16_t>(projectedSize.y.integer())};
         scaledSize = {eastl::clamp<int16_t>(scaledSize.x, 1, scaledSize.x), eastl::clamp<int16_t>(scaledSize.y, 1, scaledSize.y)};
 
@@ -637,8 +637,8 @@ void Renderer::RenderParticles(uint32_t deltaTime, const psyqo::Vec3 gteCameraPo
         ot.insert(sprite, zIndex);
       } else {
         // write the object position and camera rotation matrix
-        psyqo::GTE::writeSafe<psyqo::GTE::PseudoRegister::Translation>(particlePos);
-        psyqo::GTE::writeSafe<psyqo::GTE::PseudoRegister::Rotation>(finalMatrix);
+        psyqo::GTE::writeSafe<psyqo::GTE::PseudoRegister::Rotation>(finalCameraMatrix);
+        psyqo::GTE::writeSafe<psyqo::GTE::PseudoRegister::Translation>(finalParticlePos);
 
         if (texture) {
           tpage = TextureManager::GetTPageAttr(texture);
