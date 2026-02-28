@@ -423,20 +423,20 @@ void Renderer::RenderBillboards(uint32_t deltaTime, const psyqo::Vec3 gteCameraP
   GTEMath::MultiplyMatrix33(cameraRotationMatrix, m_activeCamera->inverseRotationMatrix(), &finalCameraMatrix);
 
   for (auto const &billboard : billboards) {
-    // clear TRX/Y/Z safely
-    psyqo::GTE::clear<psyqo::GTE::Register::TRX, psyqo::GTE::Safe>();
-    psyqo::GTE::clear<psyqo::GTE::Register::TRY, psyqo::GTE::Safe>();
-    psyqo::GTE::clear<psyqo::GTE::Register::TRZ, psyqo::GTE::Safe>();
-
+    // restore camera rotation for delta transform
     psyqo::GTE::writeSafe<psyqo::GTE::PseudoRegister::Rotation>(cameraRotationMatrix);
-    psyqo::GTE::writeSafe<psyqo::GTE::PseudoRegister::V0>(billboard->pos());
-    psyqo::GTE::Kernels::rt();
-    psyqo::Vec3 billboardPos = psyqo::GTE::readSafe<psyqo::GTE::PseudoRegister::SV>();
+    psyqo::GTE::writeSafe<psyqo::GTE::PseudoRegister::Translation>(gteCameraPos);      
 
-    billboardPos += gteCameraPos;
+    // calculate delta pos of the object compared to the camera
+    auto billboardDeltaPos = billboard->pos() - m_activeCamera->pos();
+    psyqo::GTE::writeSafe<psyqo::GTE::PseudoRegister::V0>(billboardDeltaPos);
+    psyqo::GTE::Kernels::rt();
+
+    // get the view space translation and write it back for the meshes
+    psyqo::Vec3 finalBillboardPos = psyqo::GTE::readSafe<psyqo::GTE::PseudoRegister::SV>();
 
     // write the object position and camera rotation matrix
-    psyqo::GTE::writeSafe<psyqo::GTE::PseudoRegister::Translation>(billboardPos);
+    psyqo::GTE::writeSafe<psyqo::GTE::PseudoRegister::Translation>(finalBillboardPos);
     psyqo::GTE::writeSafe<psyqo::GTE::PseudoRegister::Rotation>(finalCameraMatrix);
 
     const auto texture = billboard->pTexture();
