@@ -9,7 +9,7 @@ psyqo::FixedPoint<> DotProduct(const psyqo::Vec3 &a, const psyqo::Vec3 &b) { ret
 bool IsVector3Zero(const psyqo::Vec3 &v) {
   // compare components against small threshold, not exact zero
     auto const eps = 100;
-    return (v.x.abs()) <= eps && v.y.abs() <= eps && v.z.abs() <= eps;
+    return v.x.abs().value <= eps && v.y.abs().value <= eps && v.z.abs().value <= eps;
 }
 
 psyqo::Vec2 Lerp(const psyqo::Vec2 &a, const psyqo::Vec2 &b, const psyqo::FixedPoint<> &t) {
