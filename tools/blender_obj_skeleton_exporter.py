@@ -70,11 +70,14 @@ def export_obj_skel(context, filepath, apply_modifiers=True, export_selected=Tru
             # Vertices - export in model space (transformed by global_matrix)
             for v in mesh_eval.vertices:
                 if mesh_eval.color_attributes:
-                    color = mesh_eval.color_attributes.active_color.data[v.index].color
-                    r = int(color[0] * 128) if color[0] >= 0.1 else 128
-                    g = int(color[1] * 128) if color[1] >= 0.1 else 128
-                    b = int(color[2] * 128) if color[2] >= 0.1 else 128
-                    f.write(f"v {v.co.x:.6f} {v.co.y:.6f} {v.co.z:.6f} {r} {g} {b}\n")
+                    if mesh_eval.color_attributes.active_color:
+                        color = mesh_eval.color_attributes.active_color.data[v.index].color
+                        r = int(color[0] * 128) if color[0] >= 0.1 else 128
+                        g = int(color[1] * 128) if color[1] >= 0.1 else 128
+                        b = int(color[2] * 128) if color[2] >= 0.1 else 128
+                        f.write(f"v {v.co.x:.6f} {v.co.y:.6f} {v.co.z:.6f} {r} {g} {b}\n")
+                    else:
+                        f.write(f"v {v.co.x:.6f} {v.co.y:.6f} {v.co.z:.6f}\n")                        
                 else:
                     f.write(f"v {v.co.x:.6f} {v.co.y:.6f} {v.co.z:.6f}\n")
 
