@@ -344,11 +344,10 @@ void Renderer::RenderGameObjects(uint32_t deltaTime, const psyqo::Matrix33 &came
         quad.primitive.pointD = projected[3];
 
         // set its colour, and make it opaque
-        // TODO: make objects decide if they are gouraud shaded or not? saves processing time
-        quad.primitive.setColorA({128, 128, 128});
-        quad.primitive.setColorB({128, 128, 128});
-        quad.primitive.setColorC({128, 128, 128});
-        quad.primitive.setColorD({128, 128, 128});
+        quad.primitive.setColorA({mesh->vertexColours[mesh->vertexIndices[i].i1].r, mesh->vertexColours[mesh->vertexIndices[i].i1].g, mesh->vertexColours[mesh->vertexIndices[i].i1].b});
+        quad.primitive.setColorB({mesh->vertexColours[mesh->vertexIndices[i].i2].r, mesh->vertexColours[mesh->vertexIndices[i].i2].g, mesh->vertexColours[mesh->vertexIndices[i].i2].b});
+        quad.primitive.setColorC({mesh->vertexColours[mesh->vertexIndices[i].i3].r, mesh->vertexColours[mesh->vertexIndices[i].i3].g, mesh->vertexColours[mesh->vertexIndices[i].i3].b});
+        quad.primitive.setColorD({mesh->vertexColours[mesh->vertexIndices[i].i4].r, mesh->vertexColours[mesh->vertexIndices[i].i4].g, mesh->vertexColours[mesh->vertexIndices[i].i4].b});
 
         quad.primitive.setOpaque();
 
