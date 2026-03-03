@@ -157,10 +157,12 @@ psyqo::Vec3 Renderer::SetupCamera(const psyqo::Matrix33 &camRotationMatrix, cons
 psyqo::Vec3 Renderer::TransformObjectToViewSpace(const psyqo::Vec3 &pos, const psyqo::Matrix33 &cameraRotationMatrix, const psyqo::Matrix33 &finalCameraMatrix) {
   // restore camera rotation for delta transform
   psyqo::GTE::writeSafe<psyqo::GTE::PseudoRegister::Rotation>(cameraRotationMatrix);
-  psyqo::GTE::writeSafe<psyqo::GTE::PseudoRegister::Translation>(m_gteCameraPos);      
+  psyqo::GTE::writeSafe<psyqo::GTE::PseudoRegister::Translation>(m_gteCameraPos);
 
   // calculate delta pos of the object compared to the camera
-  auto objDeltaPos = pos - m_activeCamera->pos();
+  // hacky fix to get follow camera working: add on a delta offset before doing the final object delta pos
+  // deltaOffset will return {0, 0, 0} when not in follow mode
+  auto objDeltaPos = m_activeCamera->deltaOffset() + (pos - m_activeCamera->pos());
   psyqo::GTE::writeSafe<psyqo::GTE::PseudoRegister::V0>(objDeltaPos);
   psyqo::GTE::Kernels::rt();
 
