@@ -71,7 +71,9 @@ public:
   const GameObjectQuadType &quadType() { return m_quadType; }
   const OBB &obb() { return m_obb; }
 
+  void SetPosition(const psyqo::Vec3& pos);
   void SetPosition(psyqo::FixedPoint<12> x, psyqo::FixedPoint<12> y, psyqo::FixedPoint<12> z);
+  void SetRotation(const GameObjectRotation &rotation);
   void SetRotation(psyqo::Angle x, psyqo::Angle y, psyqo::Angle z);
   void SetMesh(const char *meshName);
   void SetTexture(const char *textureName);

@@ -33,6 +33,11 @@ void GameObject::SetTexture(const char *textureName)
     TextureManager::GetTextureFromName(textureName, &m_texture);
 }
 
+void GameObject::SetPosition(const psyqo::Vec3 &pos) {
+    m_pos = pos;
+    GenerateOBB();
+}
+
 void GameObject::SetPosition(psyqo::FixedPoint<12> x, psyqo::FixedPoint<12> y, psyqo::FixedPoint<12> z)
 {
     m_pos.x = x;
@@ -41,6 +46,11 @@ void GameObject::SetPosition(psyqo::FixedPoint<12> x, psyqo::FixedPoint<12> y, p
 
     // update the OBB
     GenerateOBB();
+}
+
+void GameObject::SetRotation(const GameObjectRotation &rotation) {
+    m_rotation = rotation;
+    GenerateRotationMatrix();
 }
 
 void GameObject::SetRotation(psyqo::Angle x, psyqo::Angle y, psyqo::Angle z)
