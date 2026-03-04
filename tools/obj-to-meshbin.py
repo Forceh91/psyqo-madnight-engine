@@ -83,9 +83,10 @@ def parse_obj_file_with_collision_data(path,texture_size):
                 parts = line.strip().split()
                 x, y, z = map(float, parts[1:4])
                 if len(parts) >= 7:
-                    r, g, b = map(lambda v: int(float(v) * 128), parts[4:7])
+                    r, g, b = map(lambda v: int(v), parts[4:7])
                 else:
-                    r, g, b = -1, -1, -1  # or 0s if that's your neutral color
+                    r, g, b = 128, 128, 128
+
                 if is_collision:
                     collision_verts[-1].append((int(float(x)*ONE_ENGINE_METRE), int(float(y)*ONE_ENGINE_METRE), int(float(z)*ONE_ENGINE_METRE)))
                     total_collision_verts += 1
@@ -197,8 +198,9 @@ def write_meshbin(filename, verts, norms, uvs, indices, uv_indices, normal_indic
             if len(vert) >= 6:
                 r, g, b = vert[3:6]
             else:
-                r, g, b = -1, -1, -1
-            f.write(struct.pack("<bbb", r, g, b))
+                r, g, b = 128, 128, 128
+
+            f.write(struct.pack("<BBB", r, g, b))
 
         for face in indices:
             f.write(struct.pack("<hhhh", *face))

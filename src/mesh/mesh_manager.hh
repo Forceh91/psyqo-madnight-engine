@@ -16,7 +16,7 @@
 static constexpr uint16_t MAX_FACES_PER_MESH = 1024;
 
 struct MeshBinVertexColours {
-  int8_t r, g, b; // -1 if not present. otherwise 0-255
+  uint8_t r, g, b; // -1 if not present. otherwise 0-255
 };
 
 struct MeshBinIndex {

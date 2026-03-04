@@ -154,6 +154,28 @@ psyqo::Vec3 Renderer::SetupCamera(const psyqo::Matrix33 &camRotationMatrix, cons
   return psyqo::GTE::readSafe<psyqo::GTE::PseudoRegister::SV>();
 }
 
+psyqo::Vec3 Renderer::TransformObjectToViewSpace(const psyqo::Vec3 &pos, const psyqo::Matrix33 &cameraRotationMatrix, const psyqo::Matrix33 &finalCameraMatrix) {
+  // restore camera rotation for delta transform
+  psyqo::GTE::writeSafe<psyqo::GTE::PseudoRegister::Rotation>(cameraRotationMatrix);
+  psyqo::GTE::writeSafe<psyqo::GTE::PseudoRegister::Translation>(m_gteCameraPos);
+
+  // calculate delta pos of the object compared to the camera
+  // hacky fix to get follow camera working: add on a delta offset before doing the final object delta pos
+  // deltaOffset will return {0, 0, 0} when not in follow mode
+  auto objDeltaPos = m_activeCamera->deltaOffset() + (pos - m_activeCamera->pos());
+  psyqo::GTE::writeSafe<psyqo::GTE::PseudoRegister::V0>(objDeltaPos);
+  psyqo::GTE::Kernels::rt();
+
+  // get the view space translation and write it back for the meshes
+  auto finalObjPos = psyqo::GTE::readSafe<psyqo::GTE::PseudoRegister::SV>();
+
+  // write the final rotation + translation
+  psyqo::GTE::writeSafe<psyqo::GTE::PseudoRegister::Rotation>(finalCameraMatrix);
+  psyqo::GTE::writeSafe<psyqo::GTE::PseudoRegister::Translation>(finalObjPos);
+
+  return finalObjPos;
+}
+
 void Renderer::Render(void) { Render(1); }
 
 void Renderer::Render(uint32_t deltaTime) {
@@ -179,18 +201,17 @@ void Renderer::Render(uint32_t deltaTime) {
   m_gpu.pumpCallbacks();
 
   // fallback if we don't have an active camera set
-  psyqo::Vec3 gteCameraPos = {0, 0, 0};
   psyqo::Matrix33 cameraRotationMatrix = {{0, 0, 0}};
   if (m_activeCamera != nullptr) {
     cameraRotationMatrix = m_activeCamera->rotationMatrix();
-    gteCameraPos = SetupCamera(cameraRotationMatrix, -m_activeCamera->pos());
+    m_gteCameraPos = SetupCamera(cameraRotationMatrix, -m_activeCamera->pos());
   }
 
-  RenderGameObjects(deltaTime, gteCameraPos, cameraRotationMatrix);
+  RenderGameObjects(deltaTime, cameraRotationMatrix);
 
-  RenderBillboards(deltaTime, gteCameraPos, cameraRotationMatrix);
+  RenderBillboards(deltaTime, cameraRotationMatrix);
 
-  RenderParticles(deltaTime, gteCameraPos, cameraRotationMatrix);
+  RenderParticles(deltaTime, cameraRotationMatrix);
 
   // send the entire ordering table as a DMA chain to the gpu
   m_gpu.chain(m_orderingTables[frameBuffer]);
@@ -199,7 +220,7 @@ void Renderer::Render(uint32_t deltaTime) {
   DebugMenu::Draw(m_gpu);
 }
 
-void Renderer::RenderGameObjects(uint32_t deltaTime, const psyqo::Vec3 gteCameraPos, const psyqo::Matrix33 &cameraRotationMatrix) {
+void Renderer::RenderGameObjects(uint32_t deltaTime, const psyqo::Matrix33 &cameraRotationMatrix) {
   eastl::array<psyqo::Vertex, 4> projected;
   uint32_t zIndex = 0;
   psyqo::PrimPieces::TPageAttr tpage;
@@ -257,25 +278,12 @@ void Renderer::RenderGameObjects(uint32_t deltaTime, const psyqo::Vec3 gteCamera
         SkeletonController::MarkBonesClean(&mesh->skeleton);
       }
 
-      // clear TRX/Y/Z safely
-      psyqo::GTE::clear<psyqo::GTE::Register::TRX, psyqo::GTE::Safe>();
-      psyqo::GTE::clear<psyqo::GTE::Register::TRY, psyqo::GTE::Safe>();
-      psyqo::GTE::clear<psyqo::GTE::Register::TRZ, psyqo::GTE::Safe>();
-
-      psyqo::GTE::writeSafe<psyqo::GTE::PseudoRegister::V0>(gameObject->pos());
-      psyqo::GTE::Kernels::rt();
-      psyqo::Vec3 objectPos = psyqo::GTE::readSafe<psyqo::GTE::PseudoRegister::SV>();
-
-      // adjust object position by camera position
-      objectPos += gteCameraPos;
-
       // get the rotation matrix for the game object and then combine with the camera rotations
-      psyqo::Matrix33 finalMatrix = {0};
-      GTEMath::MultiplyMatrix33(cameraRotationMatrix, gameObject->rotationMatrix(), &finalMatrix);
+      psyqo::Matrix33 finalCameraMatrix = {0};
+      GTEMath::MultiplyMatrix33(cameraRotationMatrix, gameObject->rotationMatrix(), &finalCameraMatrix);
 
-      // write the object position and final matrix to the GTE
-      psyqo::GTE::writeSafe<psyqo::GTE::PseudoRegister::Translation>(objectPos);
-      psyqo::GTE::writeSafe<psyqo::GTE::PseudoRegister::Rotation>(finalMatrix);
+      // so that we can then transform it into view space
+      TransformObjectToViewSpace(gameObject->pos(), cameraRotationMatrix, finalCameraMatrix);
 
       // now we've done all this we can render the mesh and apply texture (if needed)
       // we dont need to get texture data for every single vert since it wont change, so lets only do that once
@@ -338,11 +346,10 @@ void Renderer::RenderGameObjects(uint32_t deltaTime, const psyqo::Vec3 gteCamera
         quad.primitive.pointD = projected[3];
 
         // set its colour, and make it opaque
-        // TODO: make objects decide if they are gouraud shaded or not? saves processing time
-        quad.primitive.setColorA({128, 128, 128});
-        quad.primitive.setColorB({128, 128, 128});
-        quad.primitive.setColorC({128, 128, 128});
-        quad.primitive.setColorD({128, 128, 128});
+        quad.primitive.setColorA({mesh->vertexColours[mesh->vertexIndices[i].i1].r, mesh->vertexColours[mesh->vertexIndices[i].i1].g, mesh->vertexColours[mesh->vertexIndices[i].i1].b});
+        quad.primitive.setColorB({mesh->vertexColours[mesh->vertexIndices[i].i2].r, mesh->vertexColours[mesh->vertexIndices[i].i2].g, mesh->vertexColours[mesh->vertexIndices[i].i2].b});
+        quad.primitive.setColorC({mesh->vertexColours[mesh->vertexIndices[i].i3].r, mesh->vertexColours[mesh->vertexIndices[i].i3].g, mesh->vertexColours[mesh->vertexIndices[i].i3].b});
+        quad.primitive.setColorD({mesh->vertexColours[mesh->vertexIndices[i].i4].r, mesh->vertexColours[mesh->vertexIndices[i].i4].g, mesh->vertexColours[mesh->vertexIndices[i].i4].b});
 
         quad.primitive.setOpaque();
 
@@ -404,7 +411,7 @@ void Renderer::RenderGameObjects(uint32_t deltaTime, const psyqo::Vec3 gteCamera
   }
 }
 
-void Renderer::RenderBillboards(uint32_t deltaTime, const psyqo::Vec3 gteCameraPos, const psyqo::Matrix33 &cameraRotationMatrix) {
+void Renderer::RenderBillboards(uint32_t deltaTime, const psyqo::Matrix33 &cameraRotationMatrix) {
   eastl::array<psyqo::Vertex, 4> projected;
   uint32_t zIndex = 0;
   psyqo::PrimPieces::TPageAttr tpage;
@@ -423,21 +430,7 @@ void Renderer::RenderBillboards(uint32_t deltaTime, const psyqo::Vec3 gteCameraP
   GTEMath::MultiplyMatrix33(cameraRotationMatrix, m_activeCamera->inverseRotationMatrix(), &finalCameraMatrix);
 
   for (auto const &billboard : billboards) {
-    // clear TRX/Y/Z safely
-    psyqo::GTE::clear<psyqo::GTE::Register::TRX, psyqo::GTE::Safe>();
-    psyqo::GTE::clear<psyqo::GTE::Register::TRY, psyqo::GTE::Safe>();
-    psyqo::GTE::clear<psyqo::GTE::Register::TRZ, psyqo::GTE::Safe>();
-
-    psyqo::GTE::writeSafe<psyqo::GTE::PseudoRegister::Rotation>(cameraRotationMatrix);
-    psyqo::GTE::writeSafe<psyqo::GTE::PseudoRegister::V0>(billboard->pos());
-    psyqo::GTE::Kernels::rt();
-    psyqo::Vec3 billboardPos = psyqo::GTE::readSafe<psyqo::GTE::PseudoRegister::SV>();
-
-    billboardPos += gteCameraPos;
-
-    // write the object position and camera rotation matrix
-    psyqo::GTE::writeSafe<psyqo::GTE::PseudoRegister::Translation>(billboardPos);
-    psyqo::GTE::writeSafe<psyqo::GTE::PseudoRegister::Rotation>(finalCameraMatrix);
+    TransformObjectToViewSpace(billboard->pos(), cameraRotationMatrix, finalCameraMatrix);
 
     const auto texture = billboard->pTexture();
     if (texture) {
@@ -544,7 +537,7 @@ void Renderer::RenderBillboards(uint32_t deltaTime, const psyqo::Vec3 gteCameraP
 }
 
 // TODO: somethings not quite right with rotation?
-void Renderer::RenderParticles(uint32_t deltaTime, const psyqo::Vec3 gteCameraPos, const psyqo::Matrix33 &cameraRotationMatrix) {
+void Renderer::RenderParticles(uint32_t deltaTime, const psyqo::Matrix33 &cameraRotationMatrix) {
   eastl::array<psyqo::Vertex, 4> projected;
   uint32_t zIndex = 0;
   psyqo::PrimPieces::TPageAttr tpage;
@@ -559,8 +552,8 @@ void Renderer::RenderParticles(uint32_t deltaTime, const psyqo::Vec3 gteCameraPo
     return;
 
   // particles just use the inverse of the camera rotation matrix as rotation (when in 3d mode)
-  psyqo::Matrix33 finalMatrix = {0};
-  GTEMath::MultiplyMatrix33(cameraRotationMatrix, m_activeCamera->inverseRotationMatrix(), &finalMatrix);
+  psyqo::Matrix33 finalCameraMatrix = {0};
+  GTEMath::MultiplyMatrix33(cameraRotationMatrix, m_activeCamera->inverseRotationMatrix(), &finalCameraMatrix);
 
   for (auto const &emitter : emitters) {
     auto const particles = emitter->particles();
@@ -575,25 +568,15 @@ void Renderer::RenderParticles(uint32_t deltaTime, const psyqo::Vec3 gteCameraPo
     }
 
     for (auto const &particle : particles) {
-      // clear TRX/Y/Z safely
-      psyqo::GTE::clear<psyqo::GTE::Register::TRX, psyqo::GTE::Safe>();
-      psyqo::GTE::clear<psyqo::GTE::Register::TRY, psyqo::GTE::Safe>();
-      psyqo::GTE::clear<psyqo::GTE::Register::TRZ, psyqo::GTE::Safe>();
-
-      psyqo::GTE::writeSafe<psyqo::GTE::PseudoRegister::Rotation>(cameraRotationMatrix);
-      psyqo::GTE::writeSafe<psyqo::GTE::PseudoRegister::V0>(particle.pos());
-      psyqo::GTE::Kernels::rt();
-      psyqo::Vec3 particlePos = psyqo::GTE::readSafe<psyqo::GTE::PseudoRegister::SV>();
-
-      particlePos += gteCameraPos;
+      auto finalParticlePos = TransformObjectToViewSpace(particle.pos(), cameraRotationMatrix, finalCameraMatrix);
 
       if (emitter->AreParticles2D()) {
-        if (particlePos.z <= 0)
+        if (finalParticlePos.z <= 0)
           continue;
 
         // write the object position and camera rotation matrix
-        psyqo::GTE::writeSafe<psyqo::GTE::PseudoRegister::Translation>(particlePos);
         psyqo::GTE::writeSafe<psyqo::GTE::PseudoRegister::Rotation>(identityMatrix);
+        psyqo::GTE::writeSafe<psyqo::GTE::PseudoRegister::Translation>(finalParticlePos);
 
         // we dont need to offset it
         psyqo::GTE::writeSafe<psyqo::GTE::PseudoRegister::V0>(psyqo::Vec3{0,0,0});
@@ -611,7 +594,7 @@ void Renderer::RenderParticles(uint32_t deltaTime, const psyqo::Vec3 gteCameraPo
         psyqo::GTE::read<psyqo::GTE::Register::SXY2>(&vertex.packed);
 
         // calculate scaled size and make sure it doesnt go below 1
-        auto projectedSize = particle.size() * (1.0_fp * projectionDistance) / particlePos.z;
+        auto projectedSize = particle.size() * (1.0_fp * projectionDistance) / finalParticlePos.z;
         auto scaledSize = psyqo::Vertex{static_cast<int16_t>(projectedSize.x.integer()), static_cast<int16_t>(projectedSize.y.integer())};
         scaledSize = {eastl::clamp<int16_t>(scaledSize.x, 1, scaledSize.x), eastl::clamp<int16_t>(scaledSize.y, 1, scaledSize.y)};
 
@@ -636,10 +619,6 @@ void Renderer::RenderParticles(uint32_t deltaTime, const psyqo::Vec3 gteCameraPo
 
         ot.insert(sprite, zIndex);
       } else {
-        // write the object position and camera rotation matrix
-        psyqo::GTE::writeSafe<psyqo::GTE::PseudoRegister::Translation>(particlePos);
-        psyqo::GTE::writeSafe<psyqo::GTE::PseudoRegister::Rotation>(finalMatrix);
-
         if (texture) {
           tpage = TextureManager::GetTPageAttr(texture);
           offset = TextureManager::GetTPageUVForTim(texture);
