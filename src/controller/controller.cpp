@@ -9,7 +9,8 @@ int ControllerHelper::GetNormalizedAnalogStickInput(psyqo::AdvancedPad::Pad pad,
   if (!IsPadAnalog(pad))
     return 0;
 
-  return static_cast<int>(g_madnightEngine.m_input.getAdc(pad, analog_index) - 0x80);
+  auto val = static_cast<int>(g_madnightEngine.m_input.getAdc(pad, analog_index) - 0x80);
+  return analog_index == LeftStickY || analog_index == RightStickY ? -val : val; // normalize y axis so that a positive value is up on the stick
 }
 
 bool ControllerHelper::IsPadAnalog(psyqo::AdvancedPad::Pad pad) {

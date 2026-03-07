@@ -3,6 +3,10 @@
 
 #include "psyqo/advancedpad.hh"
 
+static constexpr uint8_t ANALOG_STICK_DEADZONE = 16;
+static constexpr uint8_t ANALOG_STICK_DEADZONE_X = 16;
+static constexpr uint8_t ANALOG_STICK_DEADZONE_Y = 16;
+
 class ControllerHelper final {
 public:
   enum AnalogStickIndex { RightStickX, RightStickY, LeftStickX, LeftStickY };
