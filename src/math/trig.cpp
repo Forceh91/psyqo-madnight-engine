@@ -73,13 +73,21 @@ static int16_t atan_first_octant(int32_t num, int32_t den)
  * @param x  Horizontal component [-128, 127], positive = right
  * @return   psyqo::Angle in the range (-1.0_pi, 1.0_pi], i.e. (-180°, 180°]
  *
+ * Uses a compass/clock convention where up = 0°, rotating clockwise:
+ *   0.0_pi  =   0° = up
+ *   0.5_pi  =  90° = right
+ *   1.0_pi  = 180° = down
+ *  -0.5_pi  = -90° = left
+ *
  * Internally computed in Q10 fixed point where 1024 = Pi = 180°,
  * then stored directly into Angle::value with no float conversion.
  *
  * Special cases:
- *   (0, 0) ->  0.0_pi
- *   (y, 0) -> +0.5_pi (90°) or -0.5_pi (-90°)
- *   (0,-x) ->  1.0_pi (180°)
+ *   (0,  0) ->  0.0_pi
+ *   (1,  0) ->  0.0_pi (up)
+ *   (0,  1) ->  0.5_pi (right)
+ *   (-1, 0) ->  1.0_pi (down)
+ *   (0, -1) -> -0.5_pi (left)
  */
 psyqo::Angle atan2_fixed(int16_t y, int16_t x)
 {
