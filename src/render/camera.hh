@@ -67,11 +67,11 @@ public:
   const psyqo::Vec3 deltaOffset(void) const { return m_cameraMode != CameraMode::FOLLOW ? psyqo::Vec3{0, 0, 0} : m_pos; }
   const psyqo::Vec3 *posPtr(void) { return &m_pos; }
   const CameraAngle *angle(void) { return &m_angle; }
-  const psyqo::Vec3 forwardVector(void) {
+  const psyqo::Vec3 forwardVector(void) const {
     return {-m_rotationMatrix.vs[0].z, m_rotationMatrix.vs[1].z, m_rotationMatrix.vs[2].z};
   }
 
-  const psyqo::Vec3 rightVector(void) {
+  const psyqo::Vec3 rightVector(void) const {
     return {m_rotationMatrix.vs[0].x, m_rotationMatrix.vs[1].x, m_rotationMatrix.vs[2].x};
   }
 
@@ -112,6 +112,7 @@ public:
 
   void LookAt(const psyqo::Vec3 *target);
 
+  const CameraAngle OrbitAngle(void) const { return m_orbitAngle; }
   // deltaTime in terms of frames
   void UpdateOrbitAngles(psyqo::Angle xDeltaAmount, psyqo::Angle yDeltaAmount);
   void UpdateOrbitAngles(psyqo::Angle xAmount, psyqo::Angle yAmount, uint32_t deltaTime);
