@@ -112,10 +112,15 @@ public:
 
   void LookAt(const psyqo::Vec3 *target);
 
+  const psyqo::Vec3 SwingTarget(void) const { return m_swingTarget; }
+  void SetSwingTarget(const psyqo::Vec3 &target) { m_swingTarget = target; }
+
   const CameraAngle OrbitAngle(void) const { return m_orbitAngle; }
+  void SetOrbitAngle(const CameraAngle &angle) { m_orbitAngle = angle; }
   // deltaTime in terms of frames
   void UpdateOrbitAngles(psyqo::Angle xDeltaAmount, psyqo::Angle yDeltaAmount);
   void UpdateOrbitAngles(psyqo::Angle xAmount, psyqo::Angle yAmount, uint32_t deltaTime);
+  void ResetOrbitAngles(void) { m_orbitAngle = {0, 0, 0}; }
 
   // deltatime in terms of frames
   void UpdateAngles(psyqo::Angle xDeltaAmount, psyqo::Angle yDeltaAmount, psyqo::Angle zDeltaAmount);
@@ -124,6 +129,7 @@ public:
 
 private:
   psyqo::Vec3 m_pos = {0, 0, 0};
+  psyqo::Vec3 m_swingTarget = {0, 0, 0};
   psyqo::Vec3 m_initialPos = {0, 0, 0};
   CameraTracking m_tracking = {nullptr, 0, 0};
   CameraAngle m_angle = {0, 0, 0};
