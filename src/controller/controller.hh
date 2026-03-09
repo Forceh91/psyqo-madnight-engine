@@ -6,6 +6,8 @@
 static constexpr uint8_t ANALOG_STICK_DEADZONE = 16;
 static constexpr uint8_t ANALOG_STICK_DEADZONE_X = 16;
 static constexpr uint8_t ANALOG_STICK_DEADZONE_Y = 16;
+// analog sticks are in the range of [-128,127]
+static constexpr uint8_t ANALOG_STICK_MAX_INPUT = 127;
 
 class ControllerHelper final {
 public:

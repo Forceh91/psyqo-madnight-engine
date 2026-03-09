@@ -67,11 +67,11 @@ public:
   const psyqo::Vec3 deltaOffset(void) const { return m_cameraMode != CameraMode::FOLLOW ? psyqo::Vec3{0, 0, 0} : m_pos; }
   const psyqo::Vec3 *posPtr(void) { return &m_pos; }
   const CameraAngle *angle(void) { return &m_angle; }
-  const psyqo::Vec3 forwardVector(void) {
+  const psyqo::Vec3 forwardVector(void) const {
     return {-m_rotationMatrix.vs[0].z, m_rotationMatrix.vs[1].z, m_rotationMatrix.vs[2].z};
   }
 
-  const psyqo::Vec3 rightVector(void) {
+  const psyqo::Vec3 rightVector(void) const {
     return {m_rotationMatrix.vs[0].x, m_rotationMatrix.vs[1].x, m_rotationMatrix.vs[2].x};
   }
 
@@ -112,9 +112,15 @@ public:
 
   void LookAt(const psyqo::Vec3 *target);
 
+  const psyqo::Vec3 SwingTarget(void) const { return m_swingTarget; }
+  void SetSwingTarget(const psyqo::Vec3 &target) { m_swingTarget = target; }
+
+  const CameraAngle OrbitAngle(void) const { return m_orbitAngle; }
+  void SetOrbitAngle(const CameraAngle &angle) { m_orbitAngle = angle; }
   // deltaTime in terms of frames
   void UpdateOrbitAngles(psyqo::Angle xDeltaAmount, psyqo::Angle yDeltaAmount);
   void UpdateOrbitAngles(psyqo::Angle xAmount, psyqo::Angle yAmount, uint32_t deltaTime);
+  void ResetOrbitAngles(void) { m_orbitAngle = {0, 0, 0}; }
 
   // deltatime in terms of frames
   void UpdateAngles(psyqo::Angle xDeltaAmount, psyqo::Angle yDeltaAmount, psyqo::Angle zDeltaAmount);
@@ -123,6 +129,7 @@ public:
 
 private:
   psyqo::Vec3 m_pos = {0, 0, 0};
+  psyqo::Vec3 m_swingTarget = {0, 0, 0};
   psyqo::Vec3 m_initialPos = {0, 0, 0};
   CameraTracking m_tracking = {nullptr, 0, 0};
   CameraAngle m_angle = {0, 0, 0};

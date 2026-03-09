@@ -65,6 +65,7 @@ public:
   void RenderLoadingScreen(uint16_t loadPercentage);
   void RenderSprite(const TimFile *tim, const psyqo::Rect rect, const psyqo::PrimPieces::UVCoords uv);
   void SetActiveCamera(Camera *camera);
+  const Camera* ActiveCamera(void) const { return m_activeCamera; }
 
   static Renderer &Instance() { return *m_instance; }
   psyqo::GPU &GPU() { return m_gpu; }

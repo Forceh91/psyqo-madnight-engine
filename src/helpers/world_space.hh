@@ -14,4 +14,10 @@ consteval psyqo::FixedPoint<> operator""_ws(long double blenderUnits) {
     return output;
 }
 
+consteval psyqo::FixedPoint<10> operator""_ws10(long double blenderUnits) {
+    psyqo::FixedPoint<10> output;
+    output.value = blenderUnits * 128;
+    return output;
+}
+
 #endif
