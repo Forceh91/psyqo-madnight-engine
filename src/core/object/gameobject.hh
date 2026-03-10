@@ -21,6 +21,13 @@ enum GameObjectQuadType {
   GouraudTextureQuad,
 };
 
+enum GameObjectTriangleType {
+    Triangle,
+    TexturedTriangle,
+    GouraudTriangle,
+    GouraudTextureTriangle,
+};
+
 typedef struct _GAMEOBJECT_ROTATION {
   psyqo::Angle x, y, z;
 } GameObjectRotation;
@@ -29,6 +36,7 @@ class GameObject final {
   eastl::fixed_string<char, MAX_CDROM_FILE_NAME_LEN> m_name = "";
   uint8_t m_id = INVALID_GAMEOBJECT_ID;
   GameObjectQuadType m_quadType = GameObjectQuadType::Quad;
+  GameObjectTriangleType m_triangleType = GameObjectTriangleType::Triangle;
   GameObjectTag m_tag = GameObjectTag::NONE;
   psyqo::Vec3 m_pos = {0, 0, 0};
   GameObjectRotation m_rotation = {0, 0, 0};
@@ -69,6 +77,7 @@ public:
   const TimFile *texture() const { return m_texture; }
   const GameObjectTag &tag() { return m_tag; }
   const GameObjectQuadType &quadType() { return m_quadType; }
+  const GameObjectTriangleType &triangleType() { return m_triangleType; }
   const OBB &obb() { return m_obb; }
 
   void SetPosition(const psyqo::Vec3& pos);
@@ -79,6 +88,7 @@ public:
   void SetTexture(const char *textureName);
   // note: doesn't actually do anything yet. need to figure it out later when its important
   void SetQuadType(const GameObjectQuadType quadType) { m_quadType = quadType; }
+  void SetTriangleType(const GameObjectTriangleType triangleType) { m_triangleType = triangleType; }
   void SetAsTrigger(const psyqo::Vec3 &size);
 };
 
