@@ -27,25 +27,48 @@ def generate_aabb_for_verts(verts):
     return min_coords, max_coords
 
 def reorder_face_clockwise_z(v_idx, uv_idx, n_idx, verts):
+
     def get_3d(i):
+        if i == -1:
+            return None
         v = verts[i]
         if len(v) < 3:
             raise ValueError(f"Vertex {i} is malformed: {v}")
-        return np.array(v[:3])  # Only take the first 3 components (x, y, z)
+        return np.array(v[:3])
 
-    # Get the 3D coordinates for the first three vertices (v0, v1, v2)
+    face_vert_count = len(v_idx)
+    is_triangle = False
+
+    if face_vert_count == 3:
+        is_triangle = True
+    elif face_vert_count == 4:
+        is_triangle = False
+
+    # Texture coord indices for triangles
+    tri_uv_idx = [uv_idx[0], uv_idx[1], uv_idx[2]]
+
+    # Ensure lists have length 4 (pad triangles with -1)
+    v_idx = list(v_idx) + [-1] * (4 - len(v_idx))
+    uv_idx = list(uv_idx) + [-1] * (4 - len(uv_idx))
+    n_idx = list(n_idx) + [-1] * (4 - len(n_idx))
+
+    # Get coordinates for first 3 valid vertices
     p0 = get_3d(v_idx[0])
     p1 = get_3d(v_idx[1])
     p2 = get_3d(v_idx[2])
-    
-    # Calculate the normal using the cross product of two edge vectors
-    normal = np.cross(p1 - p0, p2 - p0)
-      
-    # this is incredibly specific to the blender .obj format
-    # basically .obj is counterclockwise verts and we want clockwise Z verts
-    v_idx = [v_idx[0], v_idx[3], v_idx[1], v_idx[2]]
-    uv_idx = [uv_idx[0], uv_idx[3], uv_idx[1], uv_idx[2]]
-    n_idx = [n_idx[0], n_idx[3], n_idx[1], n_idx[2]]
+
+    if p0 is not None and p1 is not None and p2 is not None:
+        normal = np.cross(p1 - p0, p2 - p0)
+
+    # Winding order
+    order = [0, 3, 1, 2]
+
+    v_idx = [v_idx[i] if i < len(v_idx) else -1 for i in order]
+    if is_triangle == False:
+        uv_idx = [uv_idx[i] if i < len(uv_idx) else -1 for i in order]
+    else:
+        uv_idx = [tri_uv_idx[2], -1, tri_uv_idx[1], tri_uv_idx[0]]
+    n_idx = [n_idx[i] if i < len(n_idx) else -1 for i in order]
 
     return v_idx, uv_idx, n_idx
 
@@ -114,19 +137,22 @@ def parse_obj_file_with_collision_data(path,texture_size):
                 if u < 0: u = 0
                 if v < 0: v = 0
                 uvs.append((u, v))
+
             elif line.startswith("f "):
                 if is_collision:
                     total_collision_faces += 1
                     continue
 
                 face = line.strip().split()[1:]
+
                 v_idx = []
                 uv_idx = []
                 n_idx = []
 
                 for vertex in face:
                     parts = vertex.split("/")
-                    v = int(parts[0]) - total_collision_verts -1
+
+                    v = int(parts[0]) - total_collision_verts - 1
                     vt = int(parts[1]) - total_collision_uvs - 1 if len(parts) > 1 and parts[1] else -1
                     vn = int(parts[2]) - total_collision_faces - 1 if len(parts) > 2 and parts[2] else -1
 
@@ -134,17 +160,16 @@ def parse_obj_file_with_collision_data(path,texture_size):
                     uv_idx.append(vt)
                     n_idx.append(vn)
 
-                if len(v_idx) == 4:
-                    # Reorder for PS1 Z-shaped clockwise
-                    v_idx, uv_idx, n_idx = reorder_face_clockwise_z(v_idx, uv_idx, n_idx, verts)
+                # NOW reorder after the face is complete
+                v_idx, uv_idx, n_idx = reorder_face_clockwise_z(v_idx, uv_idx, n_idx, verts)
 
-                    face_indices.append(v_idx)
-                    uv_indices.append(uv_idx)
-                    normal_indices.append(n_idx)
+                face_indices.append(v_idx)
+                uv_indices.append(uv_idx)
+                normal_indices.append(n_idx)
 
-                    num_faces += 1
-                elif len(v_idx) == 3:
-                    print(f"Skipping triangle: {v_idx}")
+                print(f"v_idx: {v_idx}. uv_idx: {uv_idx}. n_idx: {n_idx}")
+
+                num_faces += 1
 
             elif line.startswith("skel "):
                 has_skeleton = True
@@ -176,10 +201,21 @@ def parse_obj_file_with_collision_data(path,texture_size):
 
 
 def write_meshbin(filename, verts, norms, uvs, indices, uv_indices, normal_indices, num_faces, collision_verts, has_skeleton, skeleton_bone_count, skeleton_bones, bone_id_for_vert_ix):
+    # 1 = quads, 2 = triangles
+    model_type = 1
+
+    # check for triangles if they exist
+    for v_idx in indices:
+        # count vertices and exclude -1
+        num_verts = sum(1 for i in v_idx if i != -1)
+        if num_verts == 3:
+            model_type = 2
+            break
+
     with open(filename, "wb") as f:
         f.write(b"MESHBIN") # magic
         f.write(struct.pack("<B", 2)) # version
-        f.write(struct.pack("<B", 1)) # type
+        f.write(struct.pack("<B", model_type)) # type
 
         # subheader
         f.write(struct.pack("<I", len(verts)))
