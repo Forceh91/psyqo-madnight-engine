@@ -58,6 +58,9 @@ def export_obj_skel(context, filepath, apply_modifiers=True, export_selected=Tru
             if obj.type != "MESH":
                 continue
 
+            if obj.users_collection[0].name == "col":
+                continue
+
             arm = obj.find_armature()
             depsgraph = context.evaluated_depsgraph_get()
             mesh_eval = obj.evaluated_get(depsgraph).to_mesh() if apply_modifiers else obj.to_mesh()
