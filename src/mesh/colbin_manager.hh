@@ -22,7 +22,7 @@ struct FloorTri {
 
 struct WallOBB {
     psyqo::Vec3 center;      // OBB center (x, y, z) — scaled by 128
-    int16_t axes[3][3];     // 3 orthogonal axes — FP12 (scaled by 4096)
+    psyqo::Vec3 axes[3];     // 3 orthogonal axes — FP12 (scaled by 4096)
                             //   axes[0] = along width
                             //   axes[1] = face normal
                             //   axes[2] = along height
@@ -40,7 +40,7 @@ struct ColBin {
 class ColbinManager {
 public:
     static psyqo::Coroutine<> LoadColbin(const eastl::fixed_string<char, MAX_CDROM_FILE_NAME_LEN> &name, ColBin **colbinOut);
-    const static ColBin *Colbin(void) { return &m_colbin; }
+    static ColBin *Colbin(void) { return &m_colbin; }
     static void Dump(void);
 
 private:

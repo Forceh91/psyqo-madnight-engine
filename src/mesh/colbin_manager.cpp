@@ -112,10 +112,14 @@ psyqo::Coroutine<> ColbinManager::LoadColbin(const eastl::fixed_string<char, MAX
 
         // axes
         for (int j = 0; j < 3; j++) {
-            for (int k = 0; k < 3; k++) {
-                __builtin_memcpy(&m_colbin.walls[i].axes[j][k], ptr, sizeof(int16_t));
-                ptr += sizeof(int16_t);
-            }
+            __builtin_memcpy(&m_colbin.walls[i].axes[j].x.value, ptr, sizeof(int16_t));
+            ptr += sizeof(int16_t);
+
+            __builtin_memcpy(&m_colbin.walls[i].axes[j].y.value, ptr, sizeof(int16_t));
+            ptr += sizeof(int16_t);
+            
+            __builtin_memcpy(&m_colbin.walls[i].axes[j].z.value, ptr, sizeof(int16_t));
+            ptr += sizeof(int16_t);
 
             // skip over padding
             ptr += 2;            
