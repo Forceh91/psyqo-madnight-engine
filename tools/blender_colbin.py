@@ -37,24 +37,6 @@ def apply_matrix_vert(mat, vert):
     co = mat @ vert.co
     return (int(co.x), int(co.y), int(co.z))
 
-def compute_obb(positions):
-    center = sum(positions, Vector((0, 0, 0))) / len(positions)
-
-    axis0 = (positions[1] - positions[0]).normalized()
-    axis2 = (positions[-1] - positions[0]).normalized()
-    axis1 = axis0.cross(axis2).normalized()
-    axis2 = axis1.cross(axis0).normalized()
-
-    axes = [axis0, axis1, axis2]
-
-    half_extents = []
-    for axis in axes:
-        projs = [v.dot(axis) for v in positions]
-        extent = (max(projs) - min(projs)) / 2.0
-        half_extents.append(extent)
-
-    return center, axes, half_extents
-
 def axis_to_fixed(v):
     return (int(v.x * 4096), int(v.y * 4096), int(v.z * 4096))
 
@@ -75,7 +57,7 @@ def do_export(filepath, floor_normal_threshold, forward_axis, up_axis, scale):
     ).to_4x4()
     global_matrix @= mathutils.Matrix.Scale(scale, 4)
 
-    rot_matrix = global_matrix.to_3x3().normalized()
+    rot_only = global_matrix.to_3x3().normalized()
 
     floor_tris = []
     wall_obbs  = []
@@ -84,39 +66,55 @@ def do_export(filepath, floor_normal_threshold, forward_axis, up_axis, scale):
         if obj.type != 'MESH':
             continue
 
+        # get object axes in engine space from world transform
+        obj_rot = rot_only @ obj.matrix_world.to_3x3().normalized()
+        obj_axes = [obj_rot.col[0].normalized(),   # local X
+                    obj_rot.col[1].normalized(),   # local Y
+                    obj_rot.col[2].normalized()]   # local Z
+
         bm = world_verts(obj)
         bm.faces.ensure_lookup_table()
 
         for face in bm.faces:
-            normal = (rot_matrix @ face.normal).normalized()
-            verts  = face.verts
+            verts = face.verts
 
-            # always treat normal as pointing up
-            if normal.y < 0:
-                normal = -normal
+            # transform face normal to engine space
+            face_normal = (rot_only @ face.normal).normalized()
+            if face_normal.y < 0:
+                face_normal = -face_normal
 
-            if normal.y >= floor_normal_threshold:
+            if face_normal.y >= floor_normal_threshold:
                 # floor — fan triangulate
+                n = axis_to_fixed(face_normal)
                 for i in range(1, len(verts) - 1):
                     v0 = apply_matrix_vert(global_matrix, verts[0])
                     v1 = apply_matrix_vert(global_matrix, verts[i])
                     v2 = apply_matrix_vert(global_matrix, verts[i + 1])
-                    n  = (int(normal.x * 4096), int(normal.y * 4096), int(normal.z * 4096))
                     floor_tris.append((v0, v1, v2, n))
             else:
-                # wall — compute OBB in transformed space
-                quad_verts = list(verts)
-                if len(quad_verts) == 3:
-                    quad_verts.append(quad_verts[2])
+                # no reordering, use object axes directly
+                axes = list(obj_axes)
 
-                positions = [global_matrix @ v.co for v in quad_verts]
-                center, axes, half_extents = compute_obb(positions)
+                positions = [global_matrix @ v.co for v in verts]
+                center = sum(positions, Vector((0, 0, 0))) / len(positions)
+
+                half_extents = []
+                for axis in axes:
+                    projs = [v.dot(axis) for v in positions]
+                    extent = (max(projs) - min(projs)) / 2.0
+                    half_extents.append(extent)
+
+                # clamp thinnest axis to minimum wall thickness
+                min_idx = half_extents.index(min(half_extents))
+                MIN_WALL_THICKNESS = 32
+                half_extents = [int(h) for h in half_extents]
+                half_extents[min_idx] = max(half_extents[min_idx], MIN_WALL_THICKNESS)
+
                 flags = 0
-
                 wall_obbs.append((
                     (int(center.x), int(center.y), int(center.z)),
                     [axis_to_fixed(a) for a in axes],
-                    [max(int(h), 4) for h in half_extents],
+                    half_extents,
                     flags
                 ))
 
