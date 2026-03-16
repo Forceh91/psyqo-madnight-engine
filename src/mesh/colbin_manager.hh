@@ -10,9 +10,22 @@
 
 struct Header {
     eastl::fixed_string<char, 6> magic; // COLBIN
-    uint8_t version; // 1
+    uint8_t version; // 2
     uint32_t floorTriCount;
     uint32_t wallOBBCount;
+};
+
+struct GridHeader {
+    int32_t originX;
+    int32_t originZ;
+    uint32_t cellSize;
+    uint16_t gridWidth;
+    uint16_t gridHeight;
+};
+
+struct GridCell {
+    uint16_t count;
+    uint16_t *indices;
 };
 
 struct FloorTri {
@@ -24,6 +37,8 @@ struct FloorTri {
 
 struct ColBin {   
     Header header;
+    GridHeader gridHeader;
+    GridCell* gridCells;
     FloorTri *floors;
     OBB *walls;
 };

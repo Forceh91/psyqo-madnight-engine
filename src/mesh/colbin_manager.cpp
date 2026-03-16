@@ -5,7 +5,7 @@
 #include "psyqo/xprintf.h"
 #include <cstdint>
 
-ColBin ColbinManager::m_colbin  = {"", 0, 0, 0, nullptr, nullptr};
+ColBin ColbinManager::m_colbin = {{"", 0, 0, 0,}, 0, 0, 0, 0, 0, nullptr, nullptr, nullptr};
 
 psyqo::Coroutine<> ColbinManager::LoadColbin(const eastl::fixed_string<char, MAX_CDROM_FILE_NAME_LEN> &name, ColBin **colbinOut) {
     // just incase something goes wrong
@@ -44,6 +44,47 @@ psyqo::Coroutine<> ColbinManager::LoadColbin(const eastl::fixed_string<char, MAX
 
     __builtin_memcpy(&m_colbin.header.wallOBBCount, ptr, sizeof(m_colbin.header.wallOBBCount));
     ptr += sizeof(m_colbin.header.wallOBBCount);
+
+    // grid header
+    __builtin_memcpy(&m_colbin.gridHeader.originX, ptr, sizeof(int32_t));
+    ptr += sizeof(int32_t);
+
+    __builtin_memcpy(&m_colbin.gridHeader.originZ, ptr, sizeof(int32_t));
+    ptr += sizeof(int32_t);
+    
+    __builtin_memcpy(&m_colbin.gridHeader.cellSize, ptr, sizeof(uint32_t));
+    ptr += sizeof(uint32_t);
+
+    __builtin_memcpy(&m_colbin.gridHeader.gridWidth, ptr, sizeof(uint16_t));
+    ptr += sizeof(uint16_t);
+
+    __builtin_memcpy(&m_colbin.gridHeader.gridHeight, ptr, sizeof(uint16_t));
+    ptr += sizeof(uint16_t);
+
+    // handle grid cells
+    auto gridCells = m_colbin.gridHeader.gridWidth * m_colbin.gridHeader.gridHeight;
+    size_t gridCellsSize = sizeof(GridCell) * gridCells;
+    m_colbin.gridCells = (GridCell*)psyqo_malloc(gridCellsSize);
+
+    for (int i = 0; i < gridCells; i++) {
+        uint16_t count = 0;
+
+        __builtin_memcpy(&count, ptr, sizeof(uint16_t));
+        ptr += sizeof(uint16_t);
+
+        m_colbin.gridCells[i].count = count;
+
+        if (count > 0) {
+            size_t gridCellIndicesSize = sizeof(uint16_t) * m_colbin.gridCells[i].count;
+            m_colbin.gridCells[i].indices = (uint16_t*)psyqo_malloc(gridCellIndicesSize);
+
+            for (int j = 0; j < count; j++) {
+                __builtin_memcpy(&m_colbin.gridCells[i].indices[j], ptr, sizeof(uint16_t));
+                ptr += sizeof(uint16_t);
+            }
+        } else
+            m_colbin.gridCells[i].indices = nullptr;
+    }
 
     // handle floor tris
     size_t floorTrisSize = sizeof(FloorTri) * m_colbin.header.floorTriCount;
@@ -112,17 +153,14 @@ psyqo::Coroutine<> ColbinManager::LoadColbin(const eastl::fixed_string<char, MAX
 
         // axes
         for (int j = 0; j < 3; j++) {
-            __builtin_memcpy(&m_colbin.walls[i].axes[j].x.value, ptr, sizeof(int16_t));
-            ptr += sizeof(int16_t);
+            __builtin_memcpy(&m_colbin.walls[i].axes[j].x.value, ptr, sizeof(int32_t));
+            ptr += sizeof(int32_t);
 
-            __builtin_memcpy(&m_colbin.walls[i].axes[j].y.value, ptr, sizeof(int16_t));
-            ptr += sizeof(int16_t);
+            __builtin_memcpy(&m_colbin.walls[i].axes[j].y.value, ptr, sizeof(int32_t));
+            ptr += sizeof(int32_t);
             
-            __builtin_memcpy(&m_colbin.walls[i].axes[j].z.value, ptr, sizeof(int16_t));
-            ptr += sizeof(int16_t);
-
-            // skip over padding
-            ptr += 2;            
+            __builtin_memcpy(&m_colbin.walls[i].axes[j].z.value, ptr, sizeof(int32_t));
+            ptr += sizeof(int32_t);
         }
 
         // half extents
@@ -151,6 +189,7 @@ psyqo::Coroutine<> ColbinManager::LoadColbin(const eastl::fixed_string<char, MAX
 void ColbinManager::Dump(void) {
     psyqo_free(m_colbin.floors);
     psyqo_free(m_colbin.walls);
-    m_colbin = {"", 0, 0, 0, nullptr, nullptr};
+    psyqo_free(m_colbin.gridCells);
+    m_colbin = {{"", 0, 0, 0,}, 0, 0, 0, 0, 0, nullptr, nullptr, nullptr};
 }
 
