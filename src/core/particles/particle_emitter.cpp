@@ -37,7 +37,7 @@ psyqo::Vec2 ParticleEmitter::GenerateRandomPointOnCircumfrence(void) {
 
 void ParticleEmitter::Process(const uint32_t &deltaTime) {
     auto now = Renderer::Instance().GPU().now();
-    auto delta = now - m_timeOfLastProcess;;
+    auto delta = now - m_timeOfLastProcess;
 
     m_timeSinceLastParticleSpawn += delta;
 

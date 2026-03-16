@@ -95,8 +95,8 @@ psyqo::Coroutine<> ColbinManager::LoadColbin(const eastl::fixed_string<char, MAX
     }
 
     // now we can move onto the OBB walls
-    size_t wallOBBSize = sizeof(WallOBB) * m_colbin.header.wallOBBCount;
-    m_colbin.walls = (WallOBB*)psyqo_malloc(wallOBBSize);
+    size_t wallOBBSize = sizeof(OBB) * m_colbin.header.wallOBBCount;
+    m_colbin.walls = (OBB*)psyqo_malloc(wallOBBSize);
 
     for (int i = 0; i < m_colbin.header.wallOBBCount; i++) {
         // centres
