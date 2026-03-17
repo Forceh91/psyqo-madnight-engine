@@ -38,7 +38,7 @@ struct FloorTri {
 struct ColBin {   
     Header header;
     GridHeader gridHeader;
-    GridCell* gridCells;
+    GridCell *gridCells;
     FloorTri *floors;
     OBB *walls;
 };
