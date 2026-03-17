@@ -1,7 +1,7 @@
 bl_info = {
     "name": "Export OBJ+SKEL (.objskel)",
     "author": "Madnight & ChatGPT",
-    "version": (1, 1),
+    "version": (1, 2),
     "blender": (3, 0, 0),
     "location": "File > Export > OBJ+SKEL",
     "description": "Exports mesh with skeleton & vertex-bone mapping, with standard OBJ export options",
@@ -11,7 +11,7 @@ bl_info = {
 import bpy
 import mathutils
 from bpy_extras.io_utils import ExportHelper, axis_conversion
-from bpy.props import StringProperty, BoolProperty, FloatProperty, EnumProperty
+from bpy.props import StringProperty, BoolProperty, FloatProperty, EnumProperty, FloatVectorProperty
 
 # Go from Blender's coordinate system into PS1's coordinate system:
 axis_basis_change = mathutils.Matrix(
@@ -22,30 +22,43 @@ axis_basis_change = mathutils.Matrix(
 )
 
 def scale_bone_translation(bone, translation, global_matrix, arm_world):
-    # Get actual bone length in world space
     bone_head_ws = arm_world @ bone.head
     if bone.parent:
         parent_head_ws = arm_world @ bone.parent.head
         actual_offset = bone_head_ws - parent_head_ws
     else:
         actual_offset = bone_head_ws
-    
-    # Scale the decomposed translation to match actual bone length
+
     decomposed_length = translation.length
     if decomposed_length > 0.0001:
         actual_length = actual_offset.length
-        scale_factor = actual_length / decomposed_length
         return translation.normalized() * actual_length
     else:
         return actual_offset
 
-def export_obj_skel(context, filepath, apply_modifiers=True, export_selected=True,
-                    global_scale=1.0, forward_axis='Z', up_axis='-Y'):
+def generate_aabb_for_verts(verts):
+    import sys
+    min_coords = [sys.maxsize, sys.maxsize, sys.maxsize]
+    max_coords = [-sys.maxsize, -sys.maxsize, -sys.maxsize]
+    for vert in verts:
+        x, y, z = vert.co.x, vert.co.y, vert.co.z
+        if x < min_coords[0]: min_coords[0] = x
+        if y < min_coords[1]: min_coords[1] = y
+        if z < min_coords[2]: min_coords[2] = z
+        if x > max_coords[0]: max_coords[0] = x
+        if y > max_coords[1]: max_coords[1] = y
+        if z > max_coords[2]: max_coords[2] = z
+    return min_coords, max_coords
 
-    # Axis conversion + scale
+def export_obj_skel(context, filepath, apply_modifiers=True, export_selected=True,
+                    global_scale=1.0, forward_axis='Z', up_axis='-Y',
+                    aabb_auto=True, aabb_min=(0.0, 0.0, 0.0), aabb_max=(0.0, 0.0, 0.0)):
+
     global_matrix = axis_conversion(from_forward='Y', from_up='Z',
                                     to_forward=forward_axis, to_up=up_axis).to_4x4()
     global_matrix @= mathutils.Matrix.Scale(global_scale, 4)
+
+    ONE_ENGINE_METRE = global_scale
 
     objs = [context.object]
     if export_selected:
@@ -65,12 +78,11 @@ def export_obj_skel(context, filepath, apply_modifiers=True, export_selected=Tru
             depsgraph = context.evaluated_depsgraph_get()
             mesh_eval = obj.evaluated_get(depsgraph).to_mesh() if apply_modifiers else obj.to_mesh()
 
-            # Apply transforms
             mesh_eval.transform(global_matrix @ obj.matrix_world)
 
             f.write(f"o {obj.name}\n")
 
-            # Vertices - export in model space (transformed by global_matrix)
+            # Vertices
             for v in mesh_eval.vertices:
                 if mesh_eval.color_attributes:
                     if mesh_eval.color_attributes.active_color:
@@ -80,7 +92,7 @@ def export_obj_skel(context, filepath, apply_modifiers=True, export_selected=Tru
                         b = int(color[2] * 128) if color[2] >= 0.1 else 128
                         f.write(f"v {v.co.x:.6f} {v.co.y:.6f} {v.co.z:.6f} {r} {g} {b}\n")
                     else:
-                        f.write(f"v {v.co.x:.6f} {v.co.y:.6f} {v.co.z:.6f}\n")                        
+                        f.write(f"v {v.co.x:.6f} {v.co.y:.6f} {v.co.z:.6f}\n")
                 else:
                     f.write(f"v {v.co.x:.6f} {v.co.y:.6f} {v.co.z:.6f}\n")
 
@@ -101,7 +113,22 @@ def export_obj_skel(context, filepath, apply_modifiers=True, export_selected=Tru
                     f.write(f" {vertex_index + 1}/{loop_index + 1}")
                 f.write("\n")
 
-            # Skeleton - bone positions transformed same as mesh
+            # AABB collision box
+            if aabb_auto:
+                min_coords, max_coords = generate_aabb_for_verts(mesh_eval.vertices)
+            else:
+                # override — convert from Blender units to engine units
+                min_coords = [aabb_min[0] * ONE_ENGINE_METRE,
+                              aabb_min[1] * ONE_ENGINE_METRE,
+                              aabb_min[2] * ONE_ENGINE_METRE]
+                max_coords = [aabb_max[0] * ONE_ENGINE_METRE,
+                              aabb_max[1] * ONE_ENGINE_METRE,
+                              aabb_max[2] * ONE_ENGINE_METRE]
+
+            f.write(f"aabb {min_coords[0]:.6f} {min_coords[1]:.6f} {min_coords[2]:.6f} "
+                    f"{max_coords[0]:.6f} {max_coords[1]:.6f} {max_coords[2]:.6f}\n")
+
+            # Skeleton
             if arm:
                 deform_bones = [b for b in arm.pose.bones if b.bone.use_deform]
                 bone_index_map = {b.name: i for i, b in enumerate(deform_bones)}
@@ -110,30 +137,27 @@ def export_obj_skel(context, filepath, apply_modifiers=True, export_selected=Tru
                 arm_world = global_matrix @ arm.matrix_world
                 for i, bone in enumerate(deform_bones):
                     parent_idx = bone_index_map[bone.parent.name] if bone.parent else -1
-                    
-                    # Get transform in PS1 coordinate system
+
                     if bone.parent is None:
                         transform = axis_basis_change @ bone.matrix
                     else:
                         transform = bone.parent.matrix.inverted_safe() @ bone.matrix
-                    
+
                     translation, rotation, scale = transform.decompose()
                     translation = scale_bone_translation(bone, translation, global_matrix, arm_world)
-                    
-                    # Apply global_scale if needed
+
                     if global_scale > 0.0:
                         translation.x *= global_scale
                         translation.y *= global_scale
                         translation.z *= global_scale
-                    
+
                     rest_quat = rotation
                     f.write(
                         f"bone {i} {bone.name} {parent_idx} "
                         f"{translation.x:.6f} {translation.y:.6f} {translation.z:.6f} "
                         f"{rest_quat.w:.6f} {rest_quat.x:.6f} {rest_quat.y:.6f} {rest_quat.z:.6f}\n"
                     )
-                
-                # Vertex → Bone mapping
+
                 for v in mesh_eval.vertices:
                     if v.groups:
                         g = max(v.groups, key=lambda gr: gr.weight)
@@ -157,17 +181,14 @@ class ExportObjSkel(bpy.types.Operator, ExportHelper):
 
     apply_modifiers: BoolProperty(
         name="Apply Modifiers",
-        description="Apply object modifiers before exporting",
         default=True,
     )
     use_selection: BoolProperty(
         name="Selected Objects Only",
-        description="Export only selected objects",
         default=True,
     )
     global_scale: FloatProperty(
         name="Scale",
-        description="Scale all data",
         default=1.0,
     )
     forward_axis: EnumProperty(
@@ -182,12 +203,43 @@ class ExportObjSkel(bpy.types.Operator, ExportHelper):
                ('-X', "-X Up", ""), ('-Y', "-Y Up", ""), ('-Z', "-Z Up", "")),
         default='-Y',
     )
+    aabb_auto: BoolProperty(
+        name="Auto Generate Collision Box",
+        description="Automatically generate AABB from mesh vertices",
+        default=True,
+    )
+    aabb_min: FloatVectorProperty(
+        name="AABB Min",
+        description="Minimum corner of collision box in Blender units",
+        default=(-0.5, -0.5, -0.5),
+        size=3,
+    )
+    aabb_max: FloatVectorProperty(
+        name="AABB Max",
+        description="Maximum corner of collision box in Blender units",
+        default=(0.5, 0.5, 0.5),
+        size=3,
+    )
+
+    def draw(self, context):
+        layout = self.layout
+        layout.prop(self, "apply_modifiers")
+        layout.prop(self, "use_selection")
+        layout.prop(self, "global_scale")
+        layout.prop(self, "forward_axis")
+        layout.prop(self, "up_axis")
+        layout.separator()
+        layout.prop(self, "aabb_auto")
+        if not self.aabb_auto:
+            layout.prop(self, "aabb_min")
+            layout.prop(self, "aabb_max")
 
     def execute(self, context):
         export_obj_skel(
             context, self.filepath,
             self.apply_modifiers, self.use_selection,
-            self.global_scale, self.forward_axis, self.up_axis
+            self.global_scale, self.forward_axis, self.up_axis,
+            self.aabb_auto, self.aabb_min, self.aabb_max,
         )
         return {'FINISHED'}
 
