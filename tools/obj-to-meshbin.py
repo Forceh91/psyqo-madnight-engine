@@ -70,6 +70,8 @@ def parse_obj_file_with_collision_data(path,texture_size):
     skeleton_bone_count = 0
     skeleton_bones = []
     bone_id_for_vert_ix = []
+    min_coords = []
+    max_coords = []
 
     with open(path, "r") as f:
         for line in f:
@@ -146,6 +148,15 @@ def parse_obj_file_with_collision_data(path,texture_size):
                 elif len(v_idx) == 3:
                     print(f"Skipping triangle: {v_idx}")
 
+            elif line.startswith('aabb '):
+                parts = line.split()
+                min_coords = [int(float(parts[1]) * ONE_ENGINE_METRE),
+                            int(float(parts[2]) * ONE_ENGINE_METRE),
+                            int(float(parts[3]) * ONE_ENGINE_METRE)]
+                max_coords = [int(float(parts[4]) * ONE_ENGINE_METRE),
+                            int(float(parts[5]) * ONE_ENGINE_METRE),
+                            int(float(parts[6]) * ONE_ENGINE_METRE)]
+
             elif line.startswith("skel "):
                 has_skeleton = True
                 skeleton_bone_count = int(line.strip().split()[1])
@@ -172,10 +183,10 @@ def parse_obj_file_with_collision_data(path,texture_size):
                 bone_id = line.strip().split()[2]
                 bone_id_for_vert_ix.append(int(bone_id))
 
-    return verts, norms, uvs, face_indices, uv_indices, normal_indices, num_faces, collision_verts, has_skeleton, skeleton_bone_count, skeleton_bones, bone_id_for_vert_ix
+    return verts, norms, uvs, face_indices, uv_indices, normal_indices, num_faces, collision_verts, min_coords, max_coords, has_skeleton, skeleton_bone_count, skeleton_bones, bone_id_for_vert_ix
 
 
-def write_meshbin(filename, verts, norms, uvs, indices, uv_indices, normal_indices, num_faces, collision_verts, has_skeleton, skeleton_bone_count, skeleton_bones, bone_id_for_vert_ix):
+def write_meshbin(filename, verts, norms, uvs, indices, uv_indices, normal_indices, num_faces, collision_verts, min_coords, max_coords, has_skeleton, skeleton_bone_count, skeleton_bones, bone_id_for_vert_ix):
     with open(filename, "wb") as f:
         f.write(b"MESHBIN") # magic
         f.write(struct.pack("<B", 2)) # version
@@ -218,7 +229,6 @@ def write_meshbin(filename, verts, norms, uvs, indices, uv_indices, normal_indic
             f.write(struct.pack("<hhhh", *face))
 
         # aabb collision box
-        min_coords, max_coords = generate_aabb_for_verts(verts)
         f.write(struct.pack("<hhh", *min_coords))
         f.write(struct.pack("<hhh", *max_coords))
 
@@ -240,7 +250,7 @@ if __name__ == "__main__":
     output_bin = sys.argv[2]
     texture_size = sys.argv[3]
 
-    verts, norms, uvs, indices, uv_idx, norm_idx, num_faces, collision_verts, has_skeleton, skeleton_bone_count, skeleton_bones, bone_id_for_vert_ix = parse_obj_file_with_collision_data(input_obj, texture_size)
-    write_meshbin(output_bin, verts, norms, uvs, indices, uv_idx, norm_idx, num_faces, collision_verts, has_skeleton, skeleton_bone_count, skeleton_bones, bone_id_for_vert_ix)
+    verts, norms, uvs, indices, uv_idx, norm_idx, num_faces, collision_verts, min_coords, max_coords, has_skeleton, skeleton_bone_count, skeleton_bones, bone_id_for_vert_ix = parse_obj_file_with_collision_data(input_obj, texture_size)
+    write_meshbin(output_bin, verts, norms, uvs, indices, uv_idx, norm_idx, num_faces, collision_verts, min_coords, max_coords, has_skeleton, skeleton_bone_count, skeleton_bones, bone_id_for_vert_ix)
     print(f"Successfully wrote mesh binary to {output_bin}\n")
     print(f"verts: {len(verts)}. indices count: {len(indices)}. faces count: {num_faces}. uv count: {len(uvs)}. bone count: {skeleton_bone_count}")
