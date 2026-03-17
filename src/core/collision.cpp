@@ -4,6 +4,7 @@
 #include "../mesh/mesh_manager.hh"
 #include "psyqo/fixed-point.hh"
 #include "psyqo/soft-math.hh"
+#include "psyqo/vector.hh"
 
 // TODO: cache these AABBs somewhere?
 // TODO: this obviously gets weird with rotated objects so might need to update later
@@ -72,7 +73,13 @@ bool Collision::IsAABBCollision(const AABBCollision &collisionA, const AABBColli
 }
 
 // this is more complicated and does take into account object rotation properly
-bool Collision::IsSATCollision(const OBB &collisionA, const OBB &collisionB) {
+bool Collision::IsSATCollision(const OBB &collisionA, const OBB &collisionB, CollisionTest *resultOut) {
+  auto minACentre = 0.0_fp, minBCentre = 0.0_fp;
+
+  resultOut->mtv = psyqo::Vec3::ZERO();
+  resultOut->normal = psyqo::Vec3::ZERO();
+  resultOut->penetration = 1000.0_fp;
+
   // get all of the axes that we want to check
   // this is the 3 from object a, 3 object b, and 9 from the cross product of all a+b combos
   eastl::array<psyqo::Vec3, 15> axesToCheck = {
@@ -93,7 +100,9 @@ bool Collision::IsSATCollision(const OBB &collisionA, const OBB &collisionB) {
       psyqo::SoftMath::crossProductVec3(collisionA.axes[2], collisionB.axes[2])};
 
   // we can skip this axes if we get a vec3 zero for any of these
+  auto i = -1;
   for (auto &axis : axesToCheck) {
+    i++;
     // skip this one if its zero
     if (axis.x == 0 && axis.y == 0 && axis.z == 0)
       continue;
@@ -121,12 +130,28 @@ bool Collision::IsSATCollision(const OBB &collisionA, const OBB &collisionB) {
     // check for overlap
     auto distance = (aCentre - bCentre).abs();
     auto overlap = aRadius + bRadius;
+    auto penetration = overlap - distance;
 
     // no overlap if distance is greater than radius
     if (distance > overlap)
       return false;
-  }
 
+    // skip axis on negative penetration
+    if (penetration <= 0)
+      continue;
+
+    // keep track of what the min penetration and axes we're pushed on is
+    if (penetration < resultOut->penetration) {
+      resultOut->penetration = penetration;
+
+      resultOut->normal = normalizedAxis;
+      if (aCentre < bCentre)
+        resultOut->normal = -resultOut->normal;
+
+      resultOut->mtv = resultOut->normal * resultOut->penetration;
+    }
+  }
+  
   // no separated axis found, so we must be colliding
   return true;
 }

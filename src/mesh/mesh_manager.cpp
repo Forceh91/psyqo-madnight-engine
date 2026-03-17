@@ -152,24 +152,37 @@ psyqo::Coroutine<> MeshManager::LoadMeshFromCDROM(const char *meshName, MeshBin 
   ptr += uvIndicesSize;
 
   // load aabb min data
-  __builtin_memcpy(&loaded_mesh.mesh.collisionBox.min.x.value, ptr, sizeof(int16_t));
+  int16_t tempVal = 0;
+  __builtin_memcpy(&tempVal, ptr, sizeof(int16_t));
   ptr += sizeof(int16_t);
 
-  __builtin_memcpy(&loaded_mesh.mesh.collisionBox.min.y.value, ptr, sizeof(int16_t));
+  loaded_mesh.mesh.collisionBox.min.x.value = static_cast<int32_t>(tempVal);
+
+  __builtin_memcpy(&tempVal, ptr, sizeof(int16_t));
   ptr += sizeof(int16_t);
 
-  __builtin_memcpy(&loaded_mesh.mesh.collisionBox.min.z.value, ptr, sizeof(int16_t));
+  loaded_mesh.mesh.collisionBox.min.y.value = static_cast<int32_t>(tempVal);
+
+  __builtin_memcpy(&tempVal, ptr, sizeof(int16_t));
   ptr += sizeof(int16_t);
+
+  loaded_mesh.mesh.collisionBox.min.z.value = static_cast<int32_t>(tempVal);
 
   // load aabb max data
-  __builtin_memcpy(&loaded_mesh.mesh.collisionBox.max.x.value, ptr, sizeof(int16_t));
+  __builtin_memcpy(&tempVal, ptr, sizeof(int16_t));
   ptr += sizeof(int16_t);
 
-  __builtin_memcpy(&loaded_mesh.mesh.collisionBox.max.y.value, ptr, sizeof(int16_t));
+  loaded_mesh.mesh.collisionBox.max.x.value = static_cast<int32_t>(tempVal);
+
+  __builtin_memcpy(&tempVal, ptr, sizeof(int16_t));
   ptr += sizeof(int16_t);
 
-  __builtin_memcpy(&loaded_mesh.mesh.collisionBox.max.z.value, ptr, sizeof(int16_t));
+  loaded_mesh.mesh.collisionBox.max.y.value = static_cast<int32_t>(tempVal);
+
+  __builtin_memcpy(&tempVal, ptr, sizeof(int16_t));
   ptr += sizeof(int16_t);
+
+  loaded_mesh.mesh.collisionBox.max.z.value = static_cast<int32_t>(tempVal);
 
   // load skeleton bones
   if (loaded_mesh.mesh.version > 1 && loaded_mesh.mesh.hasSkeleton) {

@@ -14,6 +14,7 @@ struct OBB
     psyqo::Vec3 center;
     psyqo::Vec3 axes[3];
     psyqo::Vec3 halfExtents;
+    uint32_t flags = 0; // reserved, defaults to 0
 };
 
 struct AABBCollision

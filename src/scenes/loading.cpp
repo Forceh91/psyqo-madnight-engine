@@ -4,10 +4,10 @@
 #include "../render/renderer.hh"
 #include "../sound/sound_manager.hh"
 #include "../textures/texture_manager.hh"
+#include "../mesh/colbin_manager.hh"
 
 
 #include "psyqo/fixed-point.hh"
-#include "psyqo/xprintf.h"
 
 void LoadingScene::start(StartReason reason) { Renderer::Instance().StartScene(); }
 
@@ -28,6 +28,7 @@ psyqo::Coroutine<> LoadingScene::LoadFiles(eastl::vector<LoadQueue> &&files, boo
   if (dumpExisting) {
     MeshManager::Dump();
     TextureManager::Dump();
+    ColbinManager::Dump();
   }
 
   m_queue = eastl::move(files);
@@ -38,6 +39,7 @@ psyqo::Coroutine<> LoadingScene::LoadFiles(eastl::vector<LoadQueue> &&files, boo
     MeshBin *mesh = nullptr;
     TimFile *tim = nullptr;
     ModSoundFile *modSound = nullptr;
+    ColBin *colbin = nullptr;
     if (file.type == LoadFileType::OBJECT)
       co_await MeshManager::LoadMeshFromCDROM(file.name.c_str(), &mesh);
     if (file.type == LoadFileType::TEXTURE)
@@ -46,6 +48,8 @@ psyqo::Coroutine<> LoadingScene::LoadFiles(eastl::vector<LoadQueue> &&files, boo
       co_await SoundManager::LoadMODSoundFromCDRom(file.name.c_str(), &modSound);
     if (file.type == LoadFileType::ANIMATION)
       co_await AnimationManager::LoadAnimationFromCDRom(file.name.c_str());
+    if (file.type == LoadFileType::COLBIN)
+      co_await ColbinManager::LoadColbin(file.name, &colbin);
 
     // total loaded files
     m_loadFilesLoadedCount++;
