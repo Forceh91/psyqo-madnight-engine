@@ -12,7 +12,7 @@
 #include "../helpers/file_defs.hh"
 #include "skeleton/skeleton.hh"
 
-#define MAX_LOADED_MESHES 32
+#define MAX_LOADED_MESHES 50
 static constexpr uint16_t MAX_FACES_PER_MESH = 1024;
 
 struct MeshBinVertexColours {
@@ -60,8 +60,7 @@ struct MeshBin {
   AABBCollision collisionBox;
 
   // TODO: make this a proper value so it can handle the right amount of verts
-  psyqo::Vec3 verticesOnBonePos[MAX_FACES_PER_MESH];
-  psyqo::Vec3 bonePos[MAX_FACES_PER_MESH];
+  psyqo::Vec3 verticesOnBonePos[400];
 };
 
 struct LoadedMeshBin {

@@ -5,6 +5,7 @@
 #include "../sound/sound_manager.hh"
 #include "../textures/texture_manager.hh"
 #include "../mesh/colbin_manager.hh"
+#include "../core/debug//perf_monitor.hh"
 
 
 #include "psyqo/fixed-point.hh"
@@ -19,7 +20,9 @@ void LoadingScene::frame() {
   auto loaded = psyqo::FixedPoint<>(int32_t(m_loadFilesLoadedCount), int32_t(0));
   auto total = psyqo::FixedPoint<>(int32_t(m_loadFilesCount), int32_t(0));
   auto percent = loaded > 0 ? loaded / total * 100 : 0;
+
   Renderer::Instance().RenderLoadingScreen(percent.integer());
+  PerfMonitor::Render(deltaTime);
 }
 
 psyqo::Coroutine<> LoadingScene::LoadFiles(eastl::vector<LoadQueue> &&files, bool dumpExisting) {
@@ -35,7 +38,10 @@ psyqo::Coroutine<> LoadingScene::LoadFiles(eastl::vector<LoadQueue> &&files, boo
   m_loadFilesCount = m_queue.size();
   m_loadFilesLoadedCount = 0;
 
-  for (auto &file : m_queue) {
+  // load it backwards so we can erase as we go
+  for (int i = m_queue.size() - 1; i >= 0; i--) {
+    auto const &file = m_queue.at(i);
+
     MeshBin *mesh = nullptr;
     TimFile *tim = nullptr;
     ModSoundFile *modSound = nullptr;
@@ -51,7 +57,8 @@ psyqo::Coroutine<> LoadingScene::LoadFiles(eastl::vector<LoadQueue> &&files, boo
     if (file.type == LoadFileType::COLBIN)
       co_await ColbinManager::LoadColbin(file.name, &colbin);
 
-    // total loaded files
+    m_queue.erase(m_queue.begin() + i);
+
     m_loadFilesLoadedCount++;
   }
 
