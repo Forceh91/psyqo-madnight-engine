@@ -24,7 +24,6 @@
 
 
 Renderer *Renderer::m_instance = nullptr;
-psyqo::Font<> Renderer::m_kromFont;
 psyqo::Font<> Renderer::m_systemFont;
 static constexpr psyqo::Rect screen_space = {.pos = {0, 0}, .size = {320, 240}};
 static constexpr psyqo::Matrix33 identityMatrix = {
@@ -93,7 +92,6 @@ void Renderer::Init(psyqo::GPU &gpuInstance) {
     return;
 
   m_instance = new Renderer(gpuInstance);
-  m_kromFont.uploadKromFont(m_instance->GPU());
   m_systemFont.uploadSystemFont(m_instance->GPU(), {960, 256});
 }
 
@@ -733,7 +731,7 @@ void Renderer::RenderLoadingScreen(uint16_t loadPercentage) {
   m_gpu.chain(clear);
 
   // render the actual loading sprite/font/whatever
-  m_kromFont.chainprintf(m_gpu, {10, 220}, COLOUR_WHITE, "Loading... (%d%%)", loadPercentage);
+  m_systemFont.chainprintf(m_gpu, {10, 210}, COLOUR_WHITE, "Loading... (%d%%)", loadPercentage);
 }
 
 void Renderer::Clear() {

@@ -11,13 +11,12 @@
 #include "psyqo/matrix.hh"
 
 static constexpr uint16_t ORDERING_TABLE_SIZE = 1024;
-static constexpr uint32_t BUMP_ALLOCATOR_BYTES = 75000; // 75,000 bytes/75kb for each frame buffer, 150k total
+static constexpr uint32_t BUMP_ALLOCATOR_BYTES = 100'000; // this is for each frame, so double what this number is is used up in RAM
 static constexpr psyqo::Color c_backgroundColour = {.r = 10, .g = 10, .b = 10};
 static constexpr psyqo::Color c_loadingBackgroundColour = {.r = 0, .g = 0, .b = 0};
 
 class Renderer final {
   static Renderer *m_instance;
-  static psyqo::Font<> m_kromFont;
   static psyqo::Font<> m_systemFont;
 
   psyqo::GPU &m_gpu;
@@ -69,7 +68,6 @@ public:
 
   static Renderer &Instance() { return *m_instance; }
   psyqo::GPU &GPU() { return m_gpu; }
-  psyqo::Font<> *KromFont() { return &m_kromFont; }
   psyqo::Font<> *SystemFont() { return &m_systemFont; }
 };
 
