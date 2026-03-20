@@ -196,6 +196,9 @@ psyqo::Coroutine<> MeshManager::LoadMeshFromCDROM(const char *meshName, MeshBin 
     for (int32_t i = 0; i < loaded_mesh.mesh.numBones; i++) {
       loaded_mesh.mesh.skeleton.bones[i].id = i;
 
+      if (i >= MAX_BONES)
+        break;
+
       // parent bone
       __builtin_memcpy(&loaded_mesh.mesh.skeleton.bones[i].parent, ptr++, sizeof(int8_t)); // 1 byte
 

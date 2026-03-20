@@ -6,7 +6,7 @@
 #include "psyqo/matrix.hh"
 #include "psyqo/vector.hh"
 
-static constexpr uint8_t MAX_BONES = 50;
+static constexpr uint8_t MAX_BONES = 15;
 
 struct SkeletonBoneMatrix {
   psyqo::Matrix33 rotationMatrix = {{{0, 0, 0}, {0, 0, 0}, {0, 0, 0}}};
