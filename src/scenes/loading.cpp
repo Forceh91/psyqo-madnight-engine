@@ -1,8 +1,9 @@
 #include "loading.hh"
 #include "../animation/animation_manager.hh"
-#include "../core/debug//perf_monitor.hh"
+#include "../core/debug/perf_monitor.hh"
 #include "../mesh/colbin_manager.hh"
 #include "../mesh/mesh_manager.hh"
+#include "../core/object/gameobject_manager.hh"
 #include "../render/renderer.hh"
 #include "../sound/sound_manager.hh"
 #include "../textures/texture_manager.hh"
@@ -28,6 +29,7 @@ psyqo::Coroutine<> LoadingScene::LoadFiles(eastl::vector<LoadQueue> &&files, boo
 	// most likely we want to do this, but this will dump everything we know
 	// about meshes and textures, ready for a fresh scene
 	if (dumpExisting) {
+		GameObjectManager::Dump();
 		MeshManager::Dump();
 		TextureManager::Dump();
 		ColbinManager::Dump();

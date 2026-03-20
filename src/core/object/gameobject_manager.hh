@@ -24,6 +24,7 @@ public:
     static const eastl::fixed_vector<GameObject *, MAX_GAME_OBJECTS> &GetGameObjectsWithTag(GameObjectTag tag);
     static const eastl::array<GameObject, MAX_GAME_OBJECTS> &GetGameObjects(void) { return m_gameObjects; }
     static GameObject *GetGameObjectByName(const char *name);
+    static void Dump(void);
 };
 
 #endif

@@ -71,3 +71,12 @@ GameObject *GameObjectManager::GetGameObjectByName(const char *name)
 
     return nullptr;
 }
+
+void GameObjectManager::Dump(void) {
+    // get all game objects that are actually initialized
+    for (auto &gameObject : m_gameObjects)
+    {
+        if (gameObject.id() != INVALID_GAMEOBJECT_ID)
+            gameObject.Destroy();
+    }
+}
