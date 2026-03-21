@@ -10,7 +10,7 @@
 #include "psyqo/gpu.hh"
 #include "psyqo/matrix.hh"
 
-static constexpr uint16_t ORDERING_TABLE_SIZE = 1024;
+static constexpr uint16_t ORDERING_TABLE_SIZE = 2'000;
 static constexpr uint32_t BUMP_ALLOCATOR_BYTES = 100'000; // this is for each frame, so double what this number is is used up in RAM
 static constexpr psyqo::Color c_backgroundColour = {.r = 10, .g = 10, .b = 10};
 static constexpr psyqo::Color c_loadingBackgroundColour = {.r = 0, .g = 0, .b = 0};

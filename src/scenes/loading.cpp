@@ -40,40 +40,38 @@ psyqo::Coroutine<> LoadingScene::LoadFiles(eastl::vector<LoadQueue> &&files, boo
 	m_loadFilesLoadedCount = 0;
 
 	// load it backwards so we can erase as we go
-	for (int i = m_queue.size() - 1; i >= 0; i--) {
-		auto const &file = m_queue.at(i);
-
+	// for (int i = m_queue.size() - 1; i >= 0; i--) {
+	for (auto const &file : m_queue) {
 		switch (file.type) {
-      case LoadFileType::OBJECT: {
-        MeshBin *mesh = nullptr;
-        co_await MeshManager::LoadMeshFromCDROM(file.name.c_str(), &mesh);
-        break;
-      }
+			case LoadFileType::OBJECT: {
+				MeshBin *mesh = nullptr;
+				co_await MeshManager::LoadMeshFromCDROM(file.name.c_str(), &mesh);
+				break;
+			}
 
-      case LoadFileType::TEXTURE: {
-        TimFile *tim = nullptr;
-        co_await TextureManager::LoadTIMFromCDRom(file.name.c_str(), file.x, file.y, file.clutX, file.clutY, &tim);
-        break;
-      }
+			case LoadFileType::TEXTURE: {
+				TimFile *tim = nullptr;
+				co_await TextureManager::LoadTIMFromCDRom(file.name.c_str(), file.x, file.y, file.clutX, file.clutY, &tim);
+				break;
+			}
 
-      case LoadFileType::MOD_FILE: {
-        ModSoundFile *modSound = nullptr;
-        co_await SoundManager::LoadMODSoundFromCDRom(file.name.c_str(), &modSound);
-        break;
-      }
+			case LoadFileType::MOD_FILE: {
+				ModSoundFile *modSound = nullptr;
+				co_await SoundManager::LoadMODSoundFromCDRom(file.name.c_str(), &modSound);
+				break;
+			}
 
-      case LoadFileType::ANIMATION:
-        co_await AnimationManager::LoadAnimationFromCDRom(file.name.c_str());
-        break;
+			case LoadFileType::ANIMATION:
+				co_await AnimationManager::LoadAnimationFromCDRom(file.name.c_str());
+				break;
 
-      case LoadFileType::COLBIN: {
-        ColBin *colbin = nullptr;
-        co_await ColbinManager::LoadColbin(file.name, &colbin);
-        break;
-      }
+			case LoadFileType::COLBIN: {
+				ColBin *colbin = nullptr;
+				co_await ColbinManager::LoadColbin(file.name, &colbin);
+				break;
+			}
 		}
 
-		m_queue.erase(m_queue.begin() + i);
 		m_loadFilesLoadedCount++;
 	}
 
