@@ -12,7 +12,7 @@
 #include "../helpers/file_defs.hh"
 #include "skeleton/skeleton.hh"
 
-#define MAX_LOADED_MESHES 100
+static constexpr uint8_t MAX_LOADED_MESHES = 100;
 static constexpr uint16_t MAX_FACES_PER_MESH = 1000;
 
 struct MeshBinVertexColours {

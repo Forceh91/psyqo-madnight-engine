@@ -8,7 +8,7 @@
 #include "EASTL/fixed_vector.h"
 #include "psyqo/vector.hh"
 
-static constexpr uint8_t MAX_GAME_OBJECTS = 200;
+static constexpr uint8_t MAX_GAME_OBJECTS = 150;
 
 class GameObjectManager final
 {

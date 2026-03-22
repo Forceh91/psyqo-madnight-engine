@@ -65,6 +65,82 @@ _UPPER_ALPHA_BOUND: int = 0xe0
 _TRANSPARENT_COLOR: int = 0x0000
 _BLACK_COLOR:       int = 0x0421
 
+
+def parse_hex_color(hex_str: str) -> tuple[int, int, int]:
+	"""Parse a hex color string (e.g. '#FF00FF' or 'FF00FF') into an (R, G, B) tuple."""
+	hex_str = hex_str.lstrip("#")
+	if len(hex_str) != 6:
+		raise argparse.ArgumentTypeError(
+			f"Invalid hex color '{hex_str}': must be a 6-digit hex value (e.g. FF00FF)"
+		)
+	try:
+		r = int(hex_str[0:2], 16)
+		g = int(hex_str[2:4], 16)
+		b = int(hex_str[4:6], 16)
+	except ValueError:
+		raise argparse.ArgumentTypeError(
+			f"Invalid hex color '{hex_str}': contains non-hex characters"
+		)
+	return (r, g, b)
+
+
+def applyTransparentColor(imageObj: Image.Image, transparent_rgb: tuple[int, int, int]) -> Image.Image:
+	"""
+	Replace pixels matching transparent_rgb with fully transparent pixels (alpha=0).
+	Converts the image to RGBA if it isn't already.
+	"""
+	if imageObj.mode != "RGBA":
+		imageObj = imageObj.convert("RGBA")
+
+	data: ndarray = numpy.asarray(imageObj, "B").copy()
+	r, g, b = transparent_rgb
+
+	# Build a mask of pixels that match the target color (ignoring existing alpha)
+	mask = (data[:, :, 0] == r) & (data[:, :, 1] == g) & (data[:, :, 2] == b)
+
+	# Set those pixels to fully transparent
+	data[mask, 3] = 0
+
+	return Image.fromarray(data, "RGBA")
+
+
+def applyTransparentColorIndexed(imageObj: Image.Image, transparent_rgb: tuple[int, int, int]) -> Image.Image:
+	"""
+	For indexed (mode P) images, find palette entries matching transparent_rgb
+	and set their alpha to 0 in the palette. Also ensures the image uses RGBA palette mode.
+	"""
+	palette_mode = imageObj.palette.mode
+	color_depth  = {"RGB": 3, "RGBA": 4}[palette_mode]
+
+	clut: ndarray = numpy.frombuffer(imageObj.palette.palette, "B").copy()
+	num_colors    = clut.shape[0] // color_depth
+	clut          = clut.reshape((num_colors, color_depth))
+
+	r, g, b = transparent_rgb
+
+	if color_depth == 3:
+		# Expand palette to RGBA so we can set alpha
+		clut_rgba         = numpy.ones((num_colors, 4), "B") * 0xff
+		clut_rgba[:, :3]  = clut
+		clut              = clut_rgba
+		color_depth       = 4
+
+	# Zero out alpha for any palette entry matching the target color
+	mask = (clut[:, 0] == r) & (clut[:, 1] == g) & (clut[:, 2] == b)
+	if not mask.any():
+		print(
+			f"Warning: transparent color #{r:02X}{g:02X}{b:02X} not found in palette — "
+			"no changes made."
+		)
+
+	clut[mask, 3] = 0
+
+	new_image             = imageObj.copy()
+	new_image.palette.mode    = "RGBA"
+	new_image.palette.palette = clut.tobytes()
+	return new_image
+
+
 def _to16bpp(inputData: ndarray, forceSTP: bool) -> ndarray:
 	source: ndarray = inputData.astype("<H")
 	r:      ndarray = ((source[:, :, 0] * 249) + 1014) >> 11
@@ -204,55 +280,83 @@ def generateIndexedTIM(
 
 # Argument parsing function
 def parse_args():
-    parser = argparse.ArgumentParser(description="Convert images to TIM format for PS1.")
-    
-    # Required arguments
-    parser.add_argument("input_image", help="Path to the input image file")
-    
-    # Optional arguments
-    parser.add_argument("-o", "--output", help="Output TIM file name (default: input_image.tim)", default=None)
-    parser.add_argument("-x", "--xcoord", type=int, help="X coordinate for image placement (0-1023)", default=0)
-    parser.add_argument("-y", "--ycoord", type=int, help="Y coordinate for image placement (0-1023)", default=0)
-    parser.add_argument("-c", "--clut_x", type=int, help="X coordinate for CLUT placement (0-1023)", default=0)
-    parser.add_argument("-d", "--clut_y", type=int, help="Y coordinate for CLUT placement (0-1023)", default=0)
-    parser.add_argument("--force_stp", action="store_true", help="Force STP (semi-transparent) color processing")
-    parser.add_argument("--quantize", type=int, help="Quantize image to a specified number of colors (e.g. 16, 256)", default=None)
+	parser = argparse.ArgumentParser(description="Convert images to TIM format for PS1.")
 
-    return parser.parse_args()
+	# Required arguments
+	parser.add_argument("input_image", help="Path to the input image file")
+
+	# Optional arguments
+	parser.add_argument("-o", "--output", help="Output TIM file name (default: input_image.tim)", default=None)
+	parser.add_argument("-x", "--xcoord", type=int, help="X coordinate for image placement (0-1023)", default=0)
+	parser.add_argument("-y", "--ycoord", type=int, help="Y coordinate for image placement (0-1023)", default=0)
+	parser.add_argument("-c", "--clut_x", type=int, help="X coordinate for CLUT placement (0-1023)", default=0)
+	parser.add_argument("-d", "--clut_y", type=int, help="Y coordinate for CLUT placement (0-1023)", default=0)
+	parser.add_argument("--force_stp", action="store_true", help="Force STP (semi-transparent) color processing")
+	parser.add_argument("--quantize", type=int, help="Quantize image to a specified number of colors (e.g. 16, 256)", default=None)
+	parser.add_argument(
+		"--transparent",
+		metavar="RRGGBB",
+		help=(
+			"Treat this hex color as fully transparent (e.g. FF00FF or #FF00FF). "
+			"For indexed images the matching palette entry's alpha is zeroed; "
+			"for RGB/RGBA images all matching pixels are set to alpha=0."
+		),
+		default=None
+	)
+
+	return parser.parse_args()
 
 def main():
-    args = parse_args()
-    
-    try:
-        # Load the image
-        image_obj = Image.open(args.input_image)
-    except Exception as e:
-        print(f"Error opening image: {e}")
-        sys.exit(1)
+	args = parse_args()
 
-    # Quantize the image if needed
-    if args.quantize:
-        print(f"Quantizing image to {args.quantize} colors...")
-        image_obj = toIndexedImage(image_obj, args.quantize)
-    
-    # Generate TIM based on user input
-    print("Generating TIM...")
-    if image_obj.mode == "P":  # Indexed color image
-        tim_data = generateIndexedTIM(image_obj, args.xcoord, args.ycoord, args.clut_x, args.clut_y, args.force_stp)
-    else:  # RGB or RGBA image
-        tim_data = generateRawTIM(image_obj, args.xcoord, args.ycoord, args.force_stp)
+	# Parse transparent color early so bad input fails before any file I/O
+	transparent_rgb: tuple[int, int, int] | None = None
+	if args.transparent:
+		try:
+			transparent_rgb = parse_hex_color(args.transparent)
+			r, g, b = transparent_rgb
+			print(f"Transparent color set to #{r:02X}{g:02X}{b:02X}")
+		except argparse.ArgumentTypeError as e:
+			print(f"Error: {e}")
+			sys.exit(1)
 
-    # Define output file
-    output_file = args.output if args.output else f"{args.input_image.rsplit('.', 1)[0]}.tim"
-    
-    # Write the TIM data to the output file
-    try:
-        with open(output_file, "wb") as f:
-            f.write(tim_data)
-        print(f"TIM file successfully saved to {output_file}")
-    except Exception as e:
-        print(f"Error saving TIM file: {e}")
-        sys.exit(1)
+	try:
+		image_obj = Image.open(args.input_image)
+	except Exception as e:
+		print(f"Error opening image: {e}")
+		sys.exit(1)
+
+	# Quantize the image if needed
+	if args.quantize:
+		print(f"Quantizing image to {args.quantize} colors...")
+		image_obj = toIndexedImage(image_obj, args.quantize)
+
+	# Apply transparent color substitution
+	if transparent_rgb is not None:
+		print("Applying transparent color...")
+		if image_obj.mode == "P":
+			image_obj = applyTransparentColorIndexed(image_obj, transparent_rgb)
+		else:
+			image_obj = applyTransparentColor(image_obj, transparent_rgb)
+
+	# Generate TIM based on image mode
+	print("Generating TIM...")
+	if image_obj.mode == "P":
+		tim_data = generateIndexedTIM(image_obj, args.xcoord, args.ycoord, args.clut_x, args.clut_y, args.force_stp)
+	else:
+		tim_data = generateRawTIM(image_obj, args.xcoord, args.ycoord, args.force_stp)
+
+	# Define output file
+	output_file = args.output if args.output else f"{args.input_image.rsplit('.', 1)[0]}.tim"
+
+	try:
+		with open(output_file, "wb") as f:
+			f.write(tim_data)
+		print(f"TIM file successfully saved to {output_file}")
+	except Exception as e:
+		print(f"Error saving TIM file: {e}")
+		sys.exit(1)
 
 if __name__ == "__main__":
-    main()
+	main()
+	

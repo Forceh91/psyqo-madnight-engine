@@ -177,9 +177,6 @@ psyqo::Vec3 Renderer::TransformObjectToViewSpace(const psyqo::Vec3 &pos, const p
 void Renderer::Render(void) { Render(1); }
 
 void Renderer::Render(uint32_t deltaTime) {
-  // create a quad fragment array for it
-  eastl::array<psyqo::Vertex, 4> projected;
-
   // get the frame buffer we're currently rendering
   int frameBuffer = m_gpu.getParity();
 
@@ -189,7 +186,7 @@ void Renderer::Render(uint32_t deltaTime) {
   
   // chain the fill command to clear the buffer
   auto &clear = m_clear[frameBuffer];
-  m_gpu.getNextClear(clear.primitive, c_backgroundColour);
+  m_gpu.getNextClear(clear.primitive, m_clearColour);
   m_gpu.chain(clear);
 
   // make use of `gpu.pumpCallbacks` at some point in here
@@ -220,6 +217,7 @@ void Renderer::Render(uint32_t deltaTime) {
 
 void Renderer::RenderGameObjects(uint32_t deltaTime, const psyqo::Matrix33 &cameraRotationMatrix) {
   eastl::array<psyqo::Vertex, 4> projected;
+
   uint32_t zIndex = 0;
   psyqo::PrimPieces::TPageAttr tpage;
   psyqo::Rect offset = {0,0};
@@ -230,182 +228,194 @@ void Renderer::RenderGameObjects(uint32_t deltaTime, const psyqo::Matrix33 &came
 
   // get game objects. if there's nothing to render then just early return
   const auto &gameObjects = GameObjectManager::GetActiveGameObjects();
-  if (!gameObjects.empty()) {
-    // now for each object...
-    int lineFragment = 0;
-    uint32_t zIndex = 0;
-    psyqo::PrimPieces::TPageAttr tpage;
-    psyqo::Rect offset = {0};
+  if (gameObjects.empty())
+    return;
 
-    for (const auto &gameObject : gameObjects) {
-      // we dont need to get mesh data for every single vert since it wont change, so lets only do that once
-      const auto mesh = gameObject->mesh();
-      if (mesh == nullptr)
+  // now for each object...
+  for (const auto &gameObject : gameObjects) {
+    // we dont need to get mesh data for every single vert since it wont change, so lets only do that once
+    const auto mesh = gameObject->mesh();
+    if (!mesh)
+      continue;
+
+    // if we've got a skeleton on this mesh
+    if (mesh->hasSkeleton) {
+      SkeletonController::PlayAnimation(&mesh->skeleton, deltaTime);
+
+      // update the bone/rotation matrices
+      SkeletonController::UpdateSkeletonBoneMatrices(&mesh->skeleton);
+
+      // adjust pos of verts that are attached to bones
+      for (int i = 0; i < mesh->vertexCount; i++) {
+        auto &bone = mesh->skeleton.bones[mesh->boneForVertex[i]];
+
+        if (!bone.isDirty) continue;
+
+        psyqo::Matrix33 rotationOffset;
+        GTEMath::MultiplyMatrix33(bone.worldMatrix.rotationMatrix, bone.bindPoseInverse.rotationMatrix,
+                                  &rotationOffset);
+
+        // translation offset = world_T + (R_world * bindPoseInverse.translation)
+        psyqo::Vec3 translationOffset;
+        GTEMath::MultiplyMatrixVec3(bone.worldMatrix.rotationMatrix, bone.bindPoseInverse.translation,
+                                    &translationOffset);
+        translationOffset += bone.worldMatrix.translation;
+
+        // final position
+        psyqo::Vec3 rotatedVert;
+        GTEMath::MultiplyMatrixVec3(rotationOffset, mesh->vertices[i], &rotatedVert);
+        mesh->verticesOnBonePos[i] = rotatedVert + translationOffset;
+      }
+
+      // mark all bones as clean
+      SkeletonController::MarkBonesClean(&mesh->skeleton);
+    }
+
+    // get the rotation matrix for the game object and then combine with the camera rotations
+    psyqo::Matrix33 finalCameraMatrix = {0};
+    GTEMath::MultiplyMatrix33(cameraRotationMatrix, gameObject->rotationMatrix(), &finalCameraMatrix);
+
+    // so that we can then transform it into view space
+    TransformObjectToViewSpace(gameObject->pos(), cameraRotationMatrix, finalCameraMatrix);
+
+    // now we've done all this we can render the mesh and apply texture (if needed)
+    // we dont need to get texture data for every single vert since it wont change, so lets only do that once
+    // if its not a nullptr fill out some data so we don't have to do it every face
+    // NOTE: the nullptr check here is a free 0.2ms if you want it but it really should be done
+    const auto texture = gameObject->texture();
+    if (texture) {
+      // get the tpage and uv offset info
+      tpage = TextureManager::GetTPageAttr(texture);
+      offset = TextureManager::GetTPageUVForTim(texture);
+      offset.pos.y += (texture->height - 1);
+    }
+
+    for (int i = 0; i < mesh->facesCount; i++) {
+      // load the first 3 verts into the GTE. remember it can only handle 3 at a time
+      psyqo::GTE::writeSafe<psyqo::GTE::PseudoRegister::V0>(mesh->verticesOnBonePos[mesh->vertexIndices[i].i1]);
+      psyqo::GTE::writeSafe<psyqo::GTE::PseudoRegister::V1>(mesh->verticesOnBonePos[mesh->vertexIndices[i].i2]);
+      psyqo::GTE::writeSafe<psyqo::GTE::PseudoRegister::V2>(mesh->verticesOnBonePos[mesh->vertexIndices[i].i3]);
+
+      // perform the rtpt (perspective transformation) on these three
+      psyqo::GTE::Kernels::rtpt();
+
+      // nclip determines the winding order of the vertices. if they are clockwise then it is facing towards us
+      psyqo::GTE::Kernels::nclip();
+
+      // read the result of this and skip rendering if its backfaced
+      if (psyqo::GTE::readRaw<psyqo::GTE::Register::MAC0>() == 0)
         continue;
 
-      // if we've got a skeleton on this mesh
-      if (mesh->hasSkeleton) {
-        SkeletonController::PlayAnimation(&mesh->skeleton, deltaTime);
+      // store these verts so we can read the last one in
+      psyqo::GTE::read<psyqo::GTE::Register::SXY0>(&projected[0].packed);
+      psyqo::GTE::writeSafe<psyqo::GTE::PseudoRegister::V0>(mesh->verticesOnBonePos[mesh->vertexIndices[i].i4]);
 
-        // update the bone/rotation matrices
-        SkeletonController::UpdateSkeletonBoneMatrices(&mesh->skeleton);
+      // again we need to rtps it
+      psyqo::GTE::Kernels::rtps();
 
-        // adjust pos of verts that are attached to bones
-        for (int i = 0; i < mesh->vertexCount; i++) {
-          auto &bone = mesh->skeleton.bones[mesh->boneForVertex[i]];
+      // average z index for ordering
+      psyqo::GTE::Kernels::avsz4();
+      zIndex = psyqo::GTE::readRaw<psyqo::GTE::Register::OTZ>();
 
-          if (!bone.isDirty) continue;
+      // make sure we dont go out of bounds
+      if (zIndex == 0 || zIndex >= ORDERING_TABLE_SIZE)
+        continue;
 
-          psyqo::Matrix33 rotationOffset;
-          GTEMath::MultiplyMatrix33(bone.worldMatrix.rotationMatrix, bone.bindPoseInverse.rotationMatrix,
-                                    &rotationOffset);
+      // get the three remaining verts from the GTE
+      psyqo::GTE::read<psyqo::GTE::Register::SXY0>(&projected[1].packed);
+      psyqo::GTE::read<psyqo::GTE::Register::SXY1>(&projected[2].packed);
+      psyqo::GTE::read<psyqo::GTE::Register::SXY2>(&projected[3].packed);
 
-          // translation offset = world_T + (R_world * bindPoseInverse.translation)
-          psyqo::Vec3 translationOffset;
-          GTEMath::MultiplyMatrixVec3(bone.worldMatrix.rotationMatrix, bone.bindPoseInverse.translation,
-                                      &translationOffset);
-          translationOffset += bone.worldMatrix.translation;
+      // if its out of the screen space we can clip too
+      if (quad_clip(&screen_space, &projected[0], &projected[1], &projected[2], &projected[3]))
+        continue;
 
-          // final position
-          psyqo::Vec3 rotatedVert;
-          GTEMath::MultiplyMatrixVec3(rotationOffset, mesh->vertices[i], &rotatedVert);
-          mesh->verticesOnBonePos[i] = rotatedVert + translationOffset;
-        }
+      // now take a quad fragment from our array and:
+      // set its vertices
+      auto &quad = allocator.allocateFragment<psyqo::Prim::GouraudTexturedQuad>();
+      quad.primitive.pointA = projected[0];
+      quad.primitive.pointB = projected[1];
+      quad.primitive.pointC = projected[2];
+      quad.primitive.pointD = projected[3];
 
-        // mark all bones as clean
-        SkeletonController::MarkBonesClean(&mesh->skeleton);
+      psyqo::Color colA = {mesh->vertexColours[mesh->vertexIndices[i].i1].r, mesh->vertexColours[mesh->vertexIndices[i].i1].g, mesh->vertexColours[mesh->vertexIndices[i].i1].b},
+        colB = {mesh->vertexColours[mesh->vertexIndices[i].i2].r, mesh->vertexColours[mesh->vertexIndices[i].i2].g, mesh->vertexColours[mesh->vertexIndices[i].i2].b},
+        colC = {mesh->vertexColours[mesh->vertexIndices[i].i3].r, mesh->vertexColours[mesh->vertexIndices[i].i3].g, mesh->vertexColours[mesh->vertexIndices[i].i3].b},
+        colD = {mesh->vertexColours[mesh->vertexIndices[i].i4].r, mesh->vertexColours[mesh->vertexIndices[i].i4].g, mesh->vertexColours[mesh->vertexIndices[i].i4].b};
+
+      if (m_isSimpleFogEnabled) {
+        auto sz0 = psyqo::GTE::readRaw<psyqo::GTE::Register::SZ0>();
+        auto sz1 = psyqo::GTE::readRaw<psyqo::GTE::Register::SZ1>();
+        auto sz2 = psyqo::GTE::readRaw<psyqo::GTE::Register::SZ2>();
+        auto sz3 = psyqo::GTE::readRaw<psyqo::GTE::Register::SZ3>();
+
+        ApplyFogToColour(&colA, GetFogFactor(sz0));
+        ApplyFogToColour(&colB, GetFogFactor(sz1));
+        ApplyFogToColour(&colC, GetFogFactor(sz2));
+        ApplyFogToColour(&colD, GetFogFactor(sz3));
       }
 
-      // get the rotation matrix for the game object and then combine with the camera rotations
-      psyqo::Matrix33 finalCameraMatrix = {0};
-      GTEMath::MultiplyMatrix33(cameraRotationMatrix, gameObject->rotationMatrix(), &finalCameraMatrix);
+      // set its colour, and make it opaque
+      quad.primitive.setColorA(colA);
+      quad.primitive.setColorB(colB);
+      quad.primitive.setColorC(colC);
+      quad.primitive.setColorD(colD);
+      quad.primitive.setOpaque();
 
-      // so that we can then transform it into view space
-      TransformObjectToViewSpace(gameObject->pos(), cameraRotationMatrix, finalCameraMatrix);
-
-      // now we've done all this we can render the mesh and apply texture (if needed)
-      // we dont need to get texture data for every single vert since it wont change, so lets only do that once
-      // if its not a nullptr fill out some data so we don't have to do it every face
-      // NOTE: the nullptr check here is a free 0.2ms if you want it but it really should be done
-      const auto texture = gameObject->texture();
+      // do we have a texture for this?
       if (texture) {
-        // get the tpage and uv offset info
-        tpage = TextureManager::GetTPageAttr(texture);
-        offset = TextureManager::GetTPageUVForTim(texture);
-        offset.pos.y += (texture->height - 1);
+        // set its tpage
+        quad.primitive.tpage = tpage;
+
+        // set its clut if it has one
+        if (texture->hasClut)
+          quad.primitive.clutIndex = {texture->clutX, texture->clutY};
+
+        // set its uv coords
+        auto uvA = mesh->uvs[mesh->uvIndices[i].i1];
+        quad.primitive.uvA.u = offset.pos.x + uvA.u;
+        quad.primitive.uvA.v = offset.pos.y - uvA.v;
+
+        auto uvB = mesh->uvs[mesh->uvIndices[i].i2];
+        quad.primitive.uvB.u = offset.pos.x + uvB.u;
+        quad.primitive.uvB.v = offset.pos.y - uvB.v;
+
+        auto uvC = mesh->uvs[mesh->uvIndices[i].i3];
+        quad.primitive.uvC.u = offset.pos.x + uvC.u;
+        quad.primitive.uvC.v = offset.pos.y - uvC.v;
+
+        auto uvD = mesh->uvs[mesh->uvIndices[i].i4];
+        quad.primitive.uvD.u = offset.pos.x + uvD.u;
+        quad.primitive.uvD.v = offset.pos.y - uvD.v;
       }
 
-      for (int i = 0; i < mesh->facesCount; i++) {
-        // load the first 3 verts into the GTE. remember it can only handle 3 at a time
-        psyqo::GTE::writeSafe<psyqo::GTE::PseudoRegister::V0>(mesh->verticesOnBonePos[mesh->vertexIndices[i].i1]);
-        psyqo::GTE::writeSafe<psyqo::GTE::PseudoRegister::V1>(mesh->verticesOnBonePos[mesh->vertexIndices[i].i2]);
-        psyqo::GTE::writeSafe<psyqo::GTE::PseudoRegister::V2>(mesh->verticesOnBonePos[mesh->vertexIndices[i].i3]);
+      // finally we can insert the quad fragment into the ordering table at the calculated z-index
+      ot.insert(quad, zIndex);
+    };
 
-        // perform the rtpt (perspective transformation) on these three
+#if ENABLE_BONE_DEBUG
+    if (mesh->hasSkeleton && mesh->skeleton.numBones > 0) {
+      for (int j = 0; j < mesh->skeleton.numBones; j++) {         
+        auto &bone = mesh->skeleton.bones[j];
+        psyqo::GTE::writeSafe<psyqo::GTE::PseudoRegister::V0>(bone.startPos);
+        psyqo::GTE::writeSafe<psyqo::GTE::PseudoRegister::V1>(bone.endPos);
         psyqo::GTE::Kernels::rtpt();
-
-        // nclip determines the winding order of the vertices. if they are clockwise then it is facing towards us
-        psyqo::GTE::Kernels::nclip();
-
-        // read the result of this and skip rendering if its backfaced
-        if (psyqo::GTE::readRaw<psyqo::GTE::Register::MAC0>() == 0)
-          continue;
-
-        // store these verts so we can read the last one in
+      
         psyqo::GTE::read<psyqo::GTE::Register::SXY0>(&projected[0].packed);
-        psyqo::GTE::writeSafe<psyqo::GTE::PseudoRegister::V0>(mesh->verticesOnBonePos[mesh->vertexIndices[i].i4]);
+        psyqo::GTE::read<psyqo::GTE::Register::SXY1>(&projected[1].packed);
 
-        // again we need to rtps it
-        psyqo::GTE::Kernels::rtps();
+        auto &line = allocator.allocateFragment<psyqo::Prim::Line>();
+        line.primitive.pointA = projected[0];
+        line.primitive.pointB = projected[1];
 
-        // average z index for ordering
-        psyqo::GTE::Kernels::avsz4();
-        zIndex = psyqo::GTE::readRaw<psyqo::GTE::Register::OTZ>();
+        line.primitive.setColorA(boneColours[j]);
+        line.primitive.setColorB(boneColours[j]);
+        line.primitive.setOpaque();
 
-        // make sure we dont go out of bounds
-        if (zIndex == 0 || zIndex >= ORDERING_TABLE_SIZE)
-          continue;
-
-        // get the three remaining verts from the GTE
-        psyqo::GTE::read<psyqo::GTE::Register::SXY0>(&projected[1].packed);
-        psyqo::GTE::read<psyqo::GTE::Register::SXY1>(&projected[2].packed);
-        psyqo::GTE::read<psyqo::GTE::Register::SXY2>(&projected[3].packed);
-
-        // if its out of the screen space we can clip too
-        if (quad_clip(&screen_space, &projected[0], &projected[1], &projected[2], &projected[3]))
-          continue;
-
-        // now take a quad fragment from our array and:
-        // set its vertices
-        auto &quad = allocator.allocateFragment<psyqo::Prim::GouraudTexturedQuad>();
-        quad.primitive.pointA = projected[0];
-        quad.primitive.pointB = projected[1];
-        quad.primitive.pointC = projected[2];
-        quad.primitive.pointD = projected[3];
-
-        // set its colour, and make it opaque
-        quad.primitive.setColorA({mesh->vertexColours[mesh->vertexIndices[i].i1].r, mesh->vertexColours[mesh->vertexIndices[i].i1].g, mesh->vertexColours[mesh->vertexIndices[i].i1].b});
-        quad.primitive.setColorB({mesh->vertexColours[mesh->vertexIndices[i].i2].r, mesh->vertexColours[mesh->vertexIndices[i].i2].g, mesh->vertexColours[mesh->vertexIndices[i].i2].b});
-        quad.primitive.setColorC({mesh->vertexColours[mesh->vertexIndices[i].i3].r, mesh->vertexColours[mesh->vertexIndices[i].i3].g, mesh->vertexColours[mesh->vertexIndices[i].i3].b});
-        quad.primitive.setColorD({mesh->vertexColours[mesh->vertexIndices[i].i4].r, mesh->vertexColours[mesh->vertexIndices[i].i4].g, mesh->vertexColours[mesh->vertexIndices[i].i4].b});
-
-        quad.primitive.setOpaque();
-
-        // do we have a texture for this?
-        if (texture) {
-          // set its tpage
-          quad.primitive.tpage = tpage;
-
-          // set its clut if it has one
-          if (texture->hasClut)
-            quad.primitive.clutIndex = {texture->clutX, texture->clutY};
-
-          // set its uv coords
-          auto uvA = mesh->uvs[mesh->uvIndices[i].i1];
-          quad.primitive.uvA.u = offset.pos.x + uvA.u;
-          quad.primitive.uvA.v = offset.pos.y - uvA.v;
-
-          auto uvB = mesh->uvs[mesh->uvIndices[i].i2];
-          quad.primitive.uvB.u = offset.pos.x + uvB.u;
-          quad.primitive.uvB.v = offset.pos.y - uvB.v;
-
-          auto uvC = mesh->uvs[mesh->uvIndices[i].i3];
-          quad.primitive.uvC.u = offset.pos.x + uvC.u;
-          quad.primitive.uvC.v = offset.pos.y - uvC.v;
-
-          auto uvD = mesh->uvs[mesh->uvIndices[i].i4];
-          quad.primitive.uvD.u = offset.pos.x + uvD.u;
-          quad.primitive.uvD.v = offset.pos.y - uvD.v;
-        }
-
-        // finally we can insert the quad fragment into the ordering table at the calculated z-index
-        ot.insert(quad, zIndex);
-      };
-
-  #if ENABLE_BONE_DEBUG
-      if (mesh->hasSkeleton && mesh->skeleton.numBones > 0) {
-        for (int j = 0; j < mesh->skeleton.numBones; j++) {         
-          auto &bone = mesh->skeleton.bones[j];
-          psyqo::GTE::writeSafe<psyqo::GTE::PseudoRegister::V0>(bone.startPos);
-          psyqo::GTE::writeSafe<psyqo::GTE::PseudoRegister::V1>(bone.endPos);
-          psyqo::GTE::Kernels::rtpt();
-        
-          psyqo::GTE::read<psyqo::GTE::Register::SXY0>(&projected[0].packed);
-          psyqo::GTE::read<psyqo::GTE::Register::SXY1>(&projected[1].packed);
-
-          auto &line = allocator.allocateFragment<psyqo::Prim::Line>();
-          line.primitive.pointA = projected[0];
-          line.primitive.pointB = projected[1];
-
-          line.primitive.setColorA(boneColours[j]);
-          line.primitive.setColorB(boneColours[j]);
-          line.primitive.setOpaque();
-
-          ot.insert(line, 1);
-        }
+        ot.insert(line, 1);
       }
-  #endif
     }
+#endif
   }
 }
 
@@ -776,3 +786,16 @@ void Renderer::RenderSprite(const TimFile *texture, const psyqo::Rect rect, cons
 }
 
 void Renderer::SetActiveCamera(Camera *camera) { m_activeCamera = camera; }
+
+psyqo::FixedPoint<> Renderer::GetFogFactor(uint32_t z) {
+  if (z <= 0) return 0.0_fp;
+  if (z >= FULL_FOG_DISTANCE) return 1.0_fp;
+
+  return (z * 1.0_fp) / FULL_FOG_DISTANCE;
+}
+
+void Renderer::ApplyFogToColour(psyqo::Color* col, psyqo::FixedPoint<> fogFactor) {
+  col->r = ((col->r * (1.0_fp - fogFactor)).value) >> 12;
+  col->g = ((col->g * (1.0_fp - fogFactor)).value) >> 12;
+  col->b = ((col->b * (1.0_fp - fogFactor)).value) >> 12;
+}
