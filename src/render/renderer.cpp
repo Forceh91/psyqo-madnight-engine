@@ -788,10 +788,10 @@ void Renderer::RenderSprite(const TimFile *texture, const psyqo::Rect rect, cons
 void Renderer::SetActiveCamera(Camera *camera) { m_activeCamera = camera; }
 
 psyqo::FixedPoint<> Renderer::GetFogFactor(uint32_t z) {
-  if (z <= 0) return 0.0_fp;
+  if (z <= NEAR_FOG_DISTANCE) return 0.0_fp;
   if (z >= FULL_FOG_DISTANCE) return 1.0_fp;
 
-  return (z * 1.0_fp) / FULL_FOG_DISTANCE;
+  return ((z - NEAR_FOG_DISTANCE) * 1.0_fp) / (FULL_FOG_DISTANCE - NEAR_FOG_DISTANCE);
 }
 
 void Renderer::ApplyFogToColour(psyqo::Color* col, psyqo::FixedPoint<> fogFactor) {
