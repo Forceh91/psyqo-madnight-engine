@@ -487,11 +487,18 @@ void Renderer::RenderBillboards(uint32_t deltaTime, const psyqo::Matrix33 &camer
       quad.primitive.pointC = projected[2];
       quad.primitive.pointD = projected[3];
 
+      // handle fog
+      auto colour = billboard->colour();
+      if (m_isSimpleFogEnabled) {
+        auto sz = psyqo::GTE::readRaw<psyqo::GTE::Register::SZ1>();
+        ApplyFogToColour(&colour, GetFogFactor(sz));
+      }
+
       // set colour
-      quad.primitive.setColorA(billboard->colour());
-      quad.primitive.setColorB(billboard->colour());
-      quad.primitive.setColorC(billboard->colour());
-      quad.primitive.setColorD(billboard->colour());
+      quad.primitive.setColorA(colour);
+      quad.primitive.setColorB(colour);
+      quad.primitive.setColorC(colour);
+      quad.primitive.setColorD(colour);
       
       // make opaque
       quad.primitive.setOpaque();
@@ -505,11 +512,18 @@ void Renderer::RenderBillboards(uint32_t deltaTime, const psyqo::Matrix33 &camer
       quad.primitive.pointC = projected[2];
       quad.primitive.pointD = projected[3];
 
+      // handle fog
+      auto colour = billboard->colour();
+      if (m_isSimpleFogEnabled) {
+        auto sz = psyqo::GTE::readRaw<psyqo::GTE::Register::SZ1>();
+        ApplyFogToColour(&colour, GetFogFactor(sz));
+      }
+
       // set colour
-      quad.primitive.setColorA(billboard->colour());
-      quad.primitive.setColorB(billboard->colour());
-      quad.primitive.setColorC(billboard->colour());
-      quad.primitive.setColorD(billboard->colour());
+      quad.primitive.setColorA(colour);
+      quad.primitive.setColorB(colour);
+      quad.primitive.setColorC(colour);
+      quad.primitive.setColorD(colour);
       
       // make opaque
       quad.primitive.setOpaque();
@@ -623,7 +637,16 @@ void Renderer::RenderParticles(uint32_t deltaTime, const psyqo::Matrix33 &camera
         
         sprite.primitive.position = pos;
         sprite.primitive.size = scaledSize;
-        sprite.primitive.setColor(particle.colour());
+
+        // handle fog
+        auto colour = particle.colour();
+        if (m_isSimpleFogEnabled) {
+          auto sz = psyqo::GTE::readRaw<psyqo::GTE::Register::SZ1>();
+          ApplyFogToColour(&colour, GetFogFactor(sz));
+        }
+
+        // set colour
+        sprite.primitive.setColor(colour);
 
         ot.insert(sprite, zIndex);
       } else {
@@ -673,11 +696,18 @@ void Renderer::RenderParticles(uint32_t deltaTime, const psyqo::Matrix33 &camera
           quad.primitive.pointC = projected[2];
           quad.primitive.pointD = projected[3];
 
+          // handle fog
+          auto colour = particle.colour();
+          if (m_isSimpleFogEnabled) {
+            auto sz = psyqo::GTE::readRaw<psyqo::GTE::Register::SZ1>();
+            ApplyFogToColour(&colour, GetFogFactor(sz));
+          }
+
           // set colour
-          quad.primitive.setColorA(particle.colour());
-          quad.primitive.setColorB(particle.colour());
-          quad.primitive.setColorC(particle.colour());
-          quad.primitive.setColorD(particle.colour());
+          quad.primitive.setColorA(colour);
+          quad.primitive.setColorB(colour);
+          quad.primitive.setColorC(colour);
+          quad.primitive.setColorD(colour);
           
           // make opaque
           quad.primitive.setOpaque();
@@ -691,11 +721,18 @@ void Renderer::RenderParticles(uint32_t deltaTime, const psyqo::Matrix33 &camera
           quad.primitive.pointC = projected[2];
           quad.primitive.pointD = projected[3];
 
+          // handle fog
+          auto colour = particle.colour();
+          if (m_isSimpleFogEnabled) {
+            auto sz = psyqo::GTE::readRaw<psyqo::GTE::Register::SZ1>();
+            ApplyFogToColour(&colour, GetFogFactor(sz));
+          }
+
           // set colour
-          quad.primitive.setColorA(particle.colour());
-          quad.primitive.setColorB(particle.colour());
-          quad.primitive.setColorC(particle.colour());
-          quad.primitive.setColorD(particle.colour());
+          quad.primitive.setColorA(colour);
+          quad.primitive.setColorB(colour);
+          quad.primitive.setColorC(colour);
+          quad.primitive.setColorD(colour);
           
           // make opaque
           quad.primitive.setOpaque();
