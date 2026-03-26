@@ -15,6 +15,9 @@ private:
   static TextHUDElement *m_fpsText;
 
   static void Init(void);
+
+  static uint32_t m_deltaTimeAccum;
+  static uint32_t m_frameCount;
 };
 
 #endif
