@@ -14,7 +14,7 @@
 
 static constexpr uint16_t ORDERING_TABLE_SIZE = 2'000;
 static constexpr uint16_t FULL_FOG_DISTANCE = 3'500;
-static constexpr uint16_t NEAR_FOG_DISTANCE = 1'000;
+static constexpr uint16_t NEAR_FOG_DISTANCE = 2'000;
 static constexpr uint32_t BUMP_ALLOCATOR_BYTES = 125'000; // this is for each frame, so double what this number is is used up in RAM
 static constexpr psyqo::Color m_clearColour = {.r = 0, .g = 0, .b = 0};
 static constexpr psyqo::Color c_loadingBackgroundColour = {.r = 0, .g = 0, .b = 0};

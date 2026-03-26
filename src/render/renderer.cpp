@@ -238,6 +238,13 @@ void Renderer::RenderGameObjects(uint32_t deltaTime, const psyqo::Matrix33 &came
     if (!mesh)
       continue;
 
+    // get the rotation matrix for the game object and then combine with the camera rotations
+    psyqo::Matrix33 finalCameraMatrix = {0};
+    GTEMath::MultiplyMatrix33(cameraRotationMatrix, gameObject->rotationMatrix(), &finalCameraMatrix);
+
+    // so that we can then transform it into view space
+    TransformObjectToViewSpace(gameObject->pos(), cameraRotationMatrix, finalCameraMatrix);
+
     // if we've got a skeleton on this mesh
     if (mesh->hasSkeleton) {
       SkeletonController::PlayAnimation(&mesh->skeleton, deltaTime);
@@ -270,13 +277,6 @@ void Renderer::RenderGameObjects(uint32_t deltaTime, const psyqo::Matrix33 &came
       // mark all bones as clean
       SkeletonController::MarkBonesClean(&mesh->skeleton);
     }
-
-    // get the rotation matrix for the game object and then combine with the camera rotations
-    psyqo::Matrix33 finalCameraMatrix = {0};
-    GTEMath::MultiplyMatrix33(cameraRotationMatrix, gameObject->rotationMatrix(), &finalCameraMatrix);
-
-    // so that we can then transform it into view space
-    TransformObjectToViewSpace(gameObject->pos(), cameraRotationMatrix, finalCameraMatrix);
 
     // now we've done all this we can render the mesh and apply texture (if needed)
     // we dont need to get texture data for every single vert since it wont change, so lets only do that once
@@ -372,21 +372,16 @@ void Renderer::RenderGameObjects(uint32_t deltaTime, const psyqo::Matrix33 &came
           quad.primitive.clutIndex = {texture->clutX, texture->clutY};
 
         // set its uv coords
-        auto uvA = mesh->uvs[mesh->uvIndices[i].i1];
-        quad.primitive.uvA.u = offset.pos.x + uvA.u;
-        quad.primitive.uvA.v = offset.pos.y - uvA.v;
+        auto applyUV = [&](auto& uvDest, int index) {
+            auto uv = mesh->uvs[index];
+            uvDest.u = offset.pos.x + uv.u;
+            uvDest.v = offset.pos.y - uv.v;
+        };
 
-        auto uvB = mesh->uvs[mesh->uvIndices[i].i2];
-        quad.primitive.uvB.u = offset.pos.x + uvB.u;
-        quad.primitive.uvB.v = offset.pos.y - uvB.v;
-
-        auto uvC = mesh->uvs[mesh->uvIndices[i].i3];
-        quad.primitive.uvC.u = offset.pos.x + uvC.u;
-        quad.primitive.uvC.v = offset.pos.y - uvC.v;
-
-        auto uvD = mesh->uvs[mesh->uvIndices[i].i4];
-        quad.primitive.uvD.u = offset.pos.x + uvD.u;
-        quad.primitive.uvD.v = offset.pos.y - uvD.v;
+        applyUV(quad.primitive.uvA, mesh->uvIndices[i].i1);
+        applyUV(quad.primitive.uvB, mesh->uvIndices[i].i2);
+        applyUV(quad.primitive.uvC, mesh->uvIndices[i].i3);
+        applyUV(quad.primitive.uvD, mesh->uvIndices[i].i4);
       }
 
       // finally we can insert the quad fragment into the ordering table at the calculated z-index
