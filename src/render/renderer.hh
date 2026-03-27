@@ -2,6 +2,7 @@
 #define _RENDERER_H
 
 #include "../textures/texture_manager.hh"
+#include "../core/collision_types.hh"
 
 #include "camera.hh"
 #include "psyqo/bump-allocator.hh"
@@ -12,9 +13,9 @@
 #include "psyqo/matrix.hh"
 #include "psyqo/primitives/common.hh"
 
-static constexpr uint16_t ORDERING_TABLE_SIZE = 2'000;
-static constexpr uint16_t FULL_FOG_DISTANCE = 3'500;
-static constexpr uint16_t NEAR_FOG_DISTANCE = 2'000;
+static constexpr uint16_t ORDERING_TABLE_SIZE = 4'000;
+static constexpr uint16_t FULL_FOG_DISTANCE = 3'500; // screen z
+static constexpr uint16_t NEAR_FOG_DISTANCE = 2'000; // screen z
 static constexpr uint32_t BUMP_ALLOCATOR_BYTES = 125'000; // this is for each frame, so double what this number is is used up in RAM
 static constexpr psyqo::Color m_clearColour = {.r = 0, .g = 0, .b = 0};
 static constexpr psyqo::Color c_loadingBackgroundColour = {.r = 0, .g = 0, .b = 0};
@@ -53,6 +54,9 @@ class Renderer final {
   void RenderGameObjects(uint32_t deltaTime, const psyqo::Matrix33 &cameraRotationMatrix);
   void RenderBillboards(uint32_t deltaTime, const psyqo::Matrix33 &cameraRotationMatrix);
   void RenderParticles(uint32_t deltaTime, const psyqo::Matrix33 &cameraRotationMatrix);
+  
+  bool IsGameObjectVisible(const psyqo::Vec3& deltaPos, const AABBCollision& collisionBox);
+
   psyqo::FixedPoint<> GetFogFactor(uint32_t z);
   void ApplyFogToColour(psyqo::Color* col, psyqo::FixedPoint<> fogFactor);
 public:

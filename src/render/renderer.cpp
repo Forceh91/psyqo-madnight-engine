@@ -8,6 +8,7 @@
 #include "../core/billboard/billboard_manager.hh"
 #include "../core/particles/particle_manager.hh"
 #include "../math/gte-math.hh"
+#include "../defs.hh"
 
 #include "psyqo/fixed-point.hh"
 #include "psyqo/fragments.hh"
@@ -19,9 +20,7 @@
 #include "psyqo/primitives/quads.hh"
 #include "psyqo/primitives/sprites.hh"
 #include "psyqo/vector.hh"
-#include "../defs.hh"
-#include <cstdint>
-
+#include "psyqo/xprintf.h"
 
 Renderer *Renderer::m_instance = nullptr;
 psyqo::Font<> Renderer::m_systemFont;
@@ -226,6 +225,8 @@ void Renderer::RenderGameObjects(uint32_t deltaTime, const psyqo::Matrix33 &came
   auto &allocator = m_allocators[frameBuffer];
   auto &ot = m_orderingTables[frameBuffer];
 
+  printf("begin render loop\n");
+
   // get game objects. if there's nothing to render then just early return
   const auto &gameObjects = GameObjectManager::GetActiveGameObjects();
   if (gameObjects.empty())
@@ -242,8 +243,11 @@ void Renderer::RenderGameObjects(uint32_t deltaTime, const psyqo::Matrix33 &came
     psyqo::Matrix33 finalCameraMatrix = {0};
     GTEMath::MultiplyMatrix33(cameraRotationMatrix, gameObject->rotationMatrix(), &finalCameraMatrix);
 
-    // so that we can then transform it into view space
-    TransformObjectToViewSpace(gameObject->pos(), cameraRotationMatrix, finalCameraMatrix);
+    // see if the entire chunk will be visible
+    printf("checking chunk=%s\n", gameObject->name().c_str());
+    auto deltaPos = TransformObjectToViewSpace(gameObject->pos(), cameraRotationMatrix, finalCameraMatrix);
+    if (!IsGameObjectVisible(deltaPos, gameObject->mesh()->collisionBox))
+      continue;
 
     // if we've got a skeleton on this mesh
     if (mesh->hasSkeleton) {
@@ -318,7 +322,7 @@ void Renderer::RenderGameObjects(uint32_t deltaTime, const psyqo::Matrix33 &came
       zIndex = psyqo::GTE::readRaw<psyqo::GTE::Register::OTZ>();
 
       // make sure we dont go out of bounds
-      if (zIndex == 0 || zIndex >= ORDERING_TABLE_SIZE)
+      if (zIndex == 0 || zIndex >= FULL_FOG_DISTANCE || zIndex >= ORDERING_TABLE_SIZE)
         continue;
 
       // get the three remaining verts from the GTE
@@ -818,6 +822,36 @@ void Renderer::RenderSprite(const TimFile *texture, const psyqo::Rect rect, cons
 }
 
 void Renderer::SetActiveCamera(Camera *camera) { m_activeCamera = camera; }
+
+bool Renderer::IsGameObjectVisible(const psyqo::Vec3& deltaPos, const AABBCollision& collisionBox) {
+  // now we'll do a rough screen z check on the chunk to see if its even worth bothering with the faces
+  // using AABB corners is cheaper than skipping over writing 4 verts per face then realizing its too far
+  auto worldMin = collisionBox.min, worldMax = collisionBox.max;
+  psyqo::Vec3 chunkCorners[5] = {
+    {(worldMin.x + worldMax.x) / 2, m_activeCamera->pos().y, (worldMin.z + worldMax.z) / 2},
+      {worldMin.x, m_activeCamera->pos().y, worldMin.z},
+      {worldMax.x, m_activeCamera->pos().y, worldMin.z},
+      {worldMin.x, m_activeCamera->pos().y, worldMax.z},
+      {worldMax.x, m_activeCamera->pos().y, worldMax.z},
+  };
+
+  // for each corner, see if its within screen Z range
+  for (auto &corner : chunkCorners) {
+    // write it to v0 and rtps it
+    auto delta = m_activeCamera->deltaOffset() + (corner - m_activeCamera->pos());
+    psyqo::GTE::writeSafe<psyqo::GTE::PseudoRegister::V0>(delta);
+    psyqo::GTE::Kernels::rtps();
+
+    // giving us the screen Z. if we know its within fog range + some leeway, just early exit
+    auto sz = psyqo::GTE::readRaw<psyqo::GTE::Register::SZ0>();
+    if (psyqo::GTE::readRaw<psyqo::GTE::Register::SZ0>() <= FULL_FOG_DISTANCE + 150)
+      return true;
+  }
+
+  printf("skipping chunk as its too far\n");
+
+  return false;
+}
 
 psyqo::FixedPoint<> Renderer::GetFogFactor(uint32_t z) {
   if (z <= NEAR_FOG_DISTANCE) return 0.0_fp;
