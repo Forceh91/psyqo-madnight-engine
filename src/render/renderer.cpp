@@ -246,7 +246,7 @@ void Renderer::RenderGameObjects(uint32_t deltaTime, const psyqo::Matrix33 &came
     // see if the entire chunk will be visible
     printf("checking chunk=%s\n", gameObject->name().c_str());
     auto deltaPos = TransformObjectToViewSpace(gameObject->pos(), cameraRotationMatrix, finalCameraMatrix);
-    if (!IsGameObjectVisible(deltaPos, gameObject->mesh()->collisionBox))
+    if (gameObject->HasRenderFlag(RF_DISTANCE_CHECK) && !IsGameObjectVisible(deltaPos, gameObject->mesh()->collisionBox))
       continue;
 
     // if we've got a skeleton on this mesh
