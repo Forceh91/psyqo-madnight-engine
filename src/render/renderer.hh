@@ -55,7 +55,7 @@ class Renderer final {
   void RenderBillboards(uint32_t deltaTime, const psyqo::Matrix33 &cameraRotationMatrix);
   void RenderParticles(uint32_t deltaTime, const psyqo::Matrix33 &cameraRotationMatrix);
   
-  bool IsGameObjectVisible(const psyqo::Vec3& deltaPos, const AABBCollision& collisionBox);
+  bool IsGameObjectVisible(const AABBCollision& collisionBox, const psyqo::FixedPoint<>& boundingSphereRadius);
 
   psyqo::FixedPoint<> GetFogFactor(uint32_t z);
   void ApplyFogToColour(psyqo::Color* col, psyqo::FixedPoint<> fogFactor);

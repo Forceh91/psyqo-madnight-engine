@@ -20,7 +20,6 @@
 #include "psyqo/primitives/quads.hh"
 #include "psyqo/primitives/sprites.hh"
 #include "psyqo/vector.hh"
-#include "psyqo/xprintf.h"
 
 Renderer *Renderer::m_instance = nullptr;
 psyqo::Font<> Renderer::m_systemFont;
@@ -225,8 +224,6 @@ void Renderer::RenderGameObjects(uint32_t deltaTime, const psyqo::Matrix33 &came
   auto &allocator = m_allocators[frameBuffer];
   auto &ot = m_orderingTables[frameBuffer];
 
-  printf("begin render loop\n");
-
   // get game objects. if there's nothing to render then just early return
   const auto &gameObjects = GameObjectManager::GetActiveGameObjects();
   if (gameObjects.empty())
@@ -244,9 +241,8 @@ void Renderer::RenderGameObjects(uint32_t deltaTime, const psyqo::Matrix33 &came
     GTEMath::MultiplyMatrix33(cameraRotationMatrix, gameObject->rotationMatrix(), &finalCameraMatrix);
 
     // see if the entire chunk will be visible
-    printf("checking chunk=%s\n", gameObject->name().c_str());
     auto deltaPos = TransformObjectToViewSpace(gameObject->pos(), cameraRotationMatrix, finalCameraMatrix);
-    if (gameObject->HasRenderFlag(RF_DISTANCE_CHECK) && !IsGameObjectVisible(deltaPos, gameObject->mesh()->collisionBox))
+    if (gameObject->HasRenderFlag(RF_DISTANCE_CHECK) && !IsGameObjectVisible(gameObject->mesh()->collisionBox, gameObject->mesh()->boundingSphereRadius))
       continue;
 
     // if we've got a skeleton on this mesh
@@ -823,34 +819,39 @@ void Renderer::RenderSprite(const TimFile *texture, const psyqo::Rect rect, cons
 
 void Renderer::SetActiveCamera(Camera *camera) { m_activeCamera = camera; }
 
-bool Renderer::IsGameObjectVisible(const psyqo::Vec3& deltaPos, const AABBCollision& collisionBox) {
-  // now we'll do a rough screen z check on the chunk to see if its even worth bothering with the faces
-  // using AABB corners is cheaper than skipping over writing 4 verts per face then realizing its too far
-  auto worldMin = collisionBox.min, worldMax = collisionBox.max;
-  psyqo::Vec3 chunkCorners[5] = {
-    {(worldMin.x + worldMax.x) / 2, m_activeCamera->pos().y, (worldMin.z + worldMax.z) / 2},
-      {worldMin.x, m_activeCamera->pos().y, worldMin.z},
-      {worldMax.x, m_activeCamera->pos().y, worldMin.z},
-      {worldMin.x, m_activeCamera->pos().y, worldMax.z},
-      {worldMax.x, m_activeCamera->pos().y, worldMax.z},
+bool Renderer::IsGameObjectVisible(const AABBCollision& collisionBox, const psyqo::FixedPoint<>& boundingSphereRadius) {
+  psyqo::Vec3 centre = {
+      (collisionBox.min.x + collisionBox.max.x) / 2,
+      (collisionBox.min.y + collisionBox.max.y) / 2,
+      (collisionBox.min.z + collisionBox.max.z) / 2,
   };
+  
+  // this uses a rough bounding sphere radius to determine if the chunk is on screen (even just a tiny bit)
+  auto deltaPos = m_activeCamera->deltaOffset() + (centre - m_activeCamera->pos());
+  psyqo::GTE::writeSafe<psyqo::GTE::PseudoRegister::V0>(deltaPos);
+  psyqo::GTE::Kernels::rtps();
 
-  // for each corner, see if its within screen Z range
-  for (auto &corner : chunkCorners) {
-    // write it to v0 and rtps it
-    auto delta = m_activeCamera->deltaOffset() + (corner - m_activeCamera->pos());
-    psyqo::GTE::writeSafe<psyqo::GTE::PseudoRegister::V0>(delta);
-    psyqo::GTE::Kernels::rtps();
+  // read back screen x/y/z from the GTE
+  psyqo::Vertex projected;
+  psyqo::GTE::read<psyqo::GTE::Register::SXY0>(&projected.packed);
 
-    // giving us the screen Z. if we know its within fog range + some leeway, just early exit
-    auto sz = psyqo::GTE::readRaw<psyqo::GTE::Register::SZ0>();
-    if (psyqo::GTE::readRaw<psyqo::GTE::Register::SZ0>() <= FULL_FOG_DISTANCE + 150)
-      return true;
-  }
+  // handle right in front of camera
+  auto sz = psyqo::GTE::readRaw<psyqo::GTE::Register::SZ0>();
+  if (sz <= 0) return true;
 
-  printf("skipping chunk as its too far\n");
+  // do some projection
+  int32_t screenRadius = (boundingSphereRadius.value * projectionDistance) / sz;
 
-  return false;
+  // and see if its in the screen
+  auto screenWidth = screen_space.size.x / 2, screenHeight = screen_space.size.y / 2;
+  if (projected.x + screenRadius < -screenWidth || projected.x - screenRadius > screenWidth)
+    return false;
+
+  if (projected.y + screenRadius < -screenHeight || projected.y - screenRadius > screenHeight)
+    return false;
+
+  // the sphere falls on the screen, we should at least try to render this chunk
+  return true;
 }
 
 psyqo::FixedPoint<> Renderer::GetFogFactor(uint32_t z) {

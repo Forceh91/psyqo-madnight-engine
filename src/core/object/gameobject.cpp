@@ -93,7 +93,7 @@ void GameObject::GenerateOBB(void)
 {
     if (m_mesh == nullptr)
     {
-        printf("GAME OBJECT: [WARNING] You tried to generate an OBB before you had a mesh assigned.\n");
+        // printf("GAME OBJECT: [WARNING] You tried to generate an OBB before you had a mesh assigned.\n");
         return;
     }
 

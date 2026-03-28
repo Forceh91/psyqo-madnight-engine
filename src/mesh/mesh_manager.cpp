@@ -1,6 +1,7 @@
 #include "mesh_manager.hh"
 #include "../helpers/cdrom.hh"
 #include "EASTL/string.h"
+#include "psyqo/soft-math.hh"
 #include "psyqo/xprintf.h"
 #include "skeleton/skeleton.hh"
 
@@ -183,6 +184,15 @@ psyqo::Coroutine<> MeshManager::LoadMeshFromCDROM(const char *meshName, MeshBin 
   ptr += sizeof(int16_t);
 
   loaded_mesh.mesh.collisionBox.max.z.value = static_cast<int32_t>(tempVal);
+
+  // figure out a sphere bounding box radius
+  auto extX = loaded_mesh.mesh.collisionBox.max.x.value - loaded_mesh.mesh.collisionBox.min.x.value;
+  auto extY = loaded_mesh.mesh.collisionBox.max.y.value - loaded_mesh.mesh.collisionBox.min.y.value;
+  auto extZ = loaded_mesh.mesh.collisionBox.max.z.value - loaded_mesh.mesh.collisionBox.min.z.value;
+
+  psyqo::FixedPoint<> squared;
+  squared.value = extX * extX + extY * extY + extZ * extZ;
+  loaded_mesh.mesh.boundingSphereRadius = psyqo::SoftMath::squareRoot(squared) / 2;
 
   // load skeleton bones
   if (loaded_mesh.mesh.version > 1 && loaded_mesh.mesh.hasSkeleton) {

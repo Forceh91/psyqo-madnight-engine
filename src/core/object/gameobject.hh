@@ -2,6 +2,7 @@
 #define _GAMEOBJECT_H
 
 #include "EASTL/fixed_string.h"
+#include "psyqo/fixed-point.hh"
 #include "psyqo/fragments.hh"
 #include "psyqo/trigonometry.hh"
 #include "psyqo/vector.hh"

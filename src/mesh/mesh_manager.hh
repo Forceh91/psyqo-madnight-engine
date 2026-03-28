@@ -5,6 +5,7 @@
 #include <stdint.h>
 
 #include "psyqo/coroutine.hh"
+#include "psyqo/fixed-point.hh"
 #include "psyqo/primitives/common.hh"
 #include "psyqo/vector.hh"
 
@@ -58,6 +59,8 @@ struct MeshBin {
 
   // basic min/max collision box
   AABBCollision collisionBox;
+
+  psyqo::FixedPoint<> boundingSphereRadius = 0;
 
   // TODO: make this a proper value so it can handle the right amount of verts
   psyqo::Vec3 verticesOnBonePos[400];
