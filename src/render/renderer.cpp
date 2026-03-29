@@ -23,10 +23,10 @@
 
 Renderer *Renderer::m_instance = nullptr;
 psyqo::Font<> Renderer::m_systemFont;
-static constexpr psyqo::Rect screen_space = {.pos = {0, 0}, .size = {320, 240}};
+static constexpr psyqo::Rect SCREEN_SPACE = {.pos = {0, 0}, .size = {320, 240}};
 static constexpr psyqo::Matrix33 identityMatrix = {
     {{1.0_fp, 0.0_fp, 0.0_fp}, {0.0_fp, 1.0_fp, 0.0_fp}, {0.0_fp, 0.0_fp, 1.0_fp}}};
-static constexpr uint8_t projectionDistance = 120;
+static constexpr uint8_t PROJECTION_DISTANCE = 120;
 
 #if ENABLE_BONE_DEBUG
 static constexpr psyqo::Color boneColours[MAX_BONES] = {
@@ -109,7 +109,7 @@ void Renderer::StartScene(void) {
   psyqo::GTE::write<psyqo::GTE::Register::OFY, psyqo::GTE::Unsafe>(psyqo::FixedPoint<16>(120.0).raw());
 
   // write the projection plane distance
-  psyqo::GTE::write<psyqo::GTE::Register::H, psyqo::GTE::Unsafe>(projectionDistance);
+  psyqo::GTE::write<psyqo::GTE::Register::H, psyqo::GTE::Unsafe>(PROJECTION_DISTANCE);
 
   // set the scaling for z averaging
   psyqo::GTE::write<psyqo::GTE::Register::ZSF3, psyqo::GTE::Unsafe>(ORDERING_TABLE_SIZE / 3);
@@ -327,7 +327,7 @@ void Renderer::RenderGameObjects(uint32_t deltaTime, const psyqo::Matrix33 &came
       psyqo::GTE::read<psyqo::GTE::Register::SXY2>(&projected[3].packed);
 
       // if its out of the screen space we can clip too
-      if (quad_clip(&screen_space, &projected[0], &projected[1], &projected[2], &projected[3]))
+      if (quad_clip(&SCREEN_SPACE, &projected[0], &projected[1], &projected[2], &projected[3]))
         continue;
 
       // now take a quad fragment from our array and:
@@ -344,15 +344,10 @@ void Renderer::RenderGameObjects(uint32_t deltaTime, const psyqo::Matrix33 &came
         colD = {mesh->vertexColours[mesh->vertexIndices[i].i4].r, mesh->vertexColours[mesh->vertexIndices[i].i4].g, mesh->vertexColours[mesh->vertexIndices[i].i4].b};
 
       if (m_isSimpleFogEnabled) {
-        auto sz0 = psyqo::GTE::readRaw<psyqo::GTE::Register::SZ0>();
-        auto sz1 = psyqo::GTE::readRaw<psyqo::GTE::Register::SZ1>();
-        auto sz2 = psyqo::GTE::readRaw<psyqo::GTE::Register::SZ2>();
-        auto sz3 = psyqo::GTE::readRaw<psyqo::GTE::Register::SZ3>();
-
-        ApplyFogToColour(&colA, GetFogFactor(sz0));
-        ApplyFogToColour(&colB, GetFogFactor(sz1));
-        ApplyFogToColour(&colC, GetFogFactor(sz2));
-        ApplyFogToColour(&colD, GetFogFactor(sz3));
+        ApplyFogToColour(&colA, GetFogFactor(psyqo::GTE::readRaw<psyqo::GTE::Register::SZ0>()));
+        ApplyFogToColour(&colB, GetFogFactor(psyqo::GTE::readRaw<psyqo::GTE::Register::SZ1>()));
+        ApplyFogToColour(&colC, GetFogFactor(psyqo::GTE::readRaw<psyqo::GTE::Register::SZ2>()));
+        ApplyFogToColour(&colD, GetFogFactor(psyqo::GTE::readRaw<psyqo::GTE::Register::SZ3>()));
       }
 
       // set its colour, and make it opaque
@@ -471,7 +466,7 @@ void Renderer::RenderBillboards(uint32_t deltaTime, const psyqo::Matrix33 &camer
     psyqo::GTE::read<psyqo::GTE::Register::SXY2>(&projected[3].packed);
 
     // out of screen space, it can be clipped
-    if (quad_clip(&screen_space, &projected[0], &projected[1], &projected[2], &projected[3]))
+    if (quad_clip(&SCREEN_SPACE, &projected[0], &projected[1], &projected[2], &projected[3]))
       continue;
 
     // generate its points
@@ -611,13 +606,13 @@ void Renderer::RenderParticles(uint32_t deltaTime, const psyqo::Matrix33 &camera
         psyqo::GTE::read<psyqo::GTE::Register::SXY2>(&vertex.packed);
 
         // calculate scaled size and make sure it doesnt go below 1
-        auto projectedSize = particle.size() * (1.0_fp * projectionDistance) / finalParticlePos.z;
+        auto projectedSize = particle.size() * (1.0_fp * PROJECTION_DISTANCE) / finalParticlePos.z;
         auto scaledSize = psyqo::Vertex{static_cast<int16_t>(projectedSize.x.integer()), static_cast<int16_t>(projectedSize.y.integer())};
         scaledSize = {eastl::clamp<int16_t>(scaledSize.x, 1, scaledSize.x), eastl::clamp<int16_t>(scaledSize.y, 1, scaledSize.y)};
 
         // make sure pos is sane
         auto pos = psyqo::Vertex{static_cast<int16_t>(vertex.x - scaledSize.x / 2), static_cast<int16_t>(vertex.y - scaledSize.y / 2)};
-        if (pos.x < 0 || pos.x >= screen_space.size.x || pos.y < 0 || pos.y >= screen_space.size.y)
+        if (pos.x < 0 || pos.x >= SCREEN_SPACE.size.x || pos.y < 0 || pos.y >= SCREEN_SPACE.size.y)
           continue;
 
         auto &sprite = allocator.allocateFragment<psyqo::Prim::Sprite>();
@@ -680,7 +675,7 @@ void Renderer::RenderParticles(uint32_t deltaTime, const psyqo::Matrix33 &camera
         psyqo::GTE::read<psyqo::GTE::Register::SXY2>(&projected[3].packed);
 
         // out of screen space, it can be clipped
-        if (quad_clip(&screen_space, &projected[0], &projected[1], &projected[2], &projected[3]))
+        if (quad_clip(&SCREEN_SPACE, &projected[0], &projected[1], &projected[2], &projected[3]))
           continue;
 
         // generate its points
@@ -840,10 +835,10 @@ bool Renderer::IsGameObjectVisible(const AABBCollision& collisionBox, const psyq
   if (sz <= 0) return true;
 
   // do some projection
-  int32_t screenRadius = (boundingSphereRadius.value * projectionDistance) / sz;
+  int32_t screenRadius = (boundingSphereRadius.value * PROJECTION_DISTANCE) / sz;
 
   // and see if its in the screen
-  auto screenWidth = screen_space.size.x / 2, screenHeight = screen_space.size.y / 2;
+  auto screenWidth = SCREEN_SPACE.size.x / 2, screenHeight = SCREEN_SPACE.size.y / 2;
   if (projected.x + screenRadius < -screenWidth || projected.x - screenRadius > screenWidth)
     return false;
 
