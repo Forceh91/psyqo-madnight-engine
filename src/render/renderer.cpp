@@ -822,8 +822,7 @@ bool Renderer::IsGameObjectVisible(const AABBCollision& collisionBox, const psyq
   };
   
   // this uses a rough bounding sphere radius to determine if the chunk is on screen (even just a tiny bit)
-  auto deltaPos = m_activeCamera->deltaOffset() + (centre - m_activeCamera->pos());
-  psyqo::GTE::writeSafe<psyqo::GTE::PseudoRegister::V0>(deltaPos);
+  psyqo::GTE::writeSafe<psyqo::GTE::PseudoRegister::V0>(centre);
   psyqo::GTE::Kernels::rtps();
 
   // read back screen x/y/z from the GTE
@@ -832,7 +831,7 @@ bool Renderer::IsGameObjectVisible(const AABBCollision& collisionBox, const psyq
 
   // handle right in front of camera
   auto sz = psyqo::GTE::readRaw<psyqo::GTE::Register::SZ0>();
-  if (sz <= 0) return true;
+  if (sz <= 1) return true;
 
   // do some projection
   int32_t screenRadius = (boundingSphereRadius.value * PROJECTION_DISTANCE) / sz;
