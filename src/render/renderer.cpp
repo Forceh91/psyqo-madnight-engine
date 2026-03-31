@@ -241,7 +241,7 @@ void Renderer::RenderGameObjects(uint32_t deltaTime, const psyqo::Matrix33 &came
     GTEMath::MultiplyMatrix33(cameraRotationMatrix, gameObject->rotationMatrix(), &finalCameraMatrix);
 
     // see if the entire chunk will be visible
-    auto deltaPos = TransformObjectToViewSpace(gameObject->pos(), cameraRotationMatrix, finalCameraMatrix);
+    TransformObjectToViewSpace(gameObject->pos(), cameraRotationMatrix, finalCameraMatrix);
     if (gameObject->HasRenderFlag(RF_DISTANCE_CHECK) && !IsGameObjectVisible(gameObject->mesh()->collisionBox, gameObject->mesh()->boundingSphereRadius))
       continue;
 
@@ -815,11 +815,7 @@ void Renderer::RenderSprite(const TimFile *texture, const psyqo::Rect rect, cons
 void Renderer::SetActiveCamera(Camera *camera) { m_activeCamera = camera; }
 
 bool Renderer::IsGameObjectVisible(const AABBCollision& collisionBox, const psyqo::FixedPoint<>& boundingSphereRadius) {
-  psyqo::Vec3 centre = {
-      (collisionBox.min.x + collisionBox.max.x) / 2,
-      (collisionBox.min.y + collisionBox.max.y) / 2,
-      (collisionBox.min.z + collisionBox.max.z) / 2,
-  };
+  psyqo::Vec3 centre = (collisionBox.min + collisionBox.max) / 2;
   
   // this uses a rough bounding sphere radius to determine if the chunk is on screen (even just a tiny bit)
   psyqo::GTE::writeSafe<psyqo::GTE::PseudoRegister::V0>(centre);
