@@ -184,7 +184,7 @@ void Renderer::Render(uint32_t deltaTime) {
   
   // chain the fill command to clear the buffer
   auto &clear = m_clear[frameBuffer];
-  m_gpu.getNextClear(clear.primitive, m_clearColour);
+  m_gpu.getNextClear(clear.primitive, DEFAULT_CLEAR_COLOR);
   m_gpu.chain(clear);
 
   // make use of `gpu.pumpCallbacks` at some point in here
@@ -771,12 +771,12 @@ void Renderer::RenderLoadingScreen(uint16_t loadPercentage) {
   m_systemFont.chainprintf(m_gpu, {10, 210}, COLOUR_WHITE, "Loading... (%d%%)", loadPercentage);
 }
 
-void Renderer::Clear() {
+void Renderer::Clear(psyqo::Color color) {
   uint32_t frameBuffer = m_gpu.getParity();
   auto &clear = m_clear[frameBuffer];
 
   // clear the buffer
-  m_gpu.getNextClear(clear.primitive, c_loadingBackgroundColour);
+  m_gpu.getNextClear(clear.primitive, color);
   m_gpu.chain(clear);
 }
 

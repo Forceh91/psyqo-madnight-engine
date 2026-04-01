@@ -138,7 +138,7 @@ public:
 
     uint8_t MoveSelectedMenuItemPrev()
     {
-        if (!m_isEnabled)
+        if (!m_isEnabled || !m_menuItems.size())
             return m_currentSelectedMenuItem;
 
         m_currentSelectedMenuItem = (m_currentSelectedMenuItem == 0) ? m_menuItems.size() - 1 : m_currentSelectedMenuItem - 1;
@@ -147,7 +147,7 @@ public:
 
     uint8_t MoveSelectedMenuItemNext()
     {
-        if (!m_isEnabled)
+        if (!m_isEnabled || !m_menuItems.size())
             return m_currentSelectedMenuItem;
 
         m_currentSelectedMenuItem = (m_currentSelectedMenuItem + 1) % m_menuItems.size();

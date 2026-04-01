@@ -17,7 +17,7 @@ static constexpr uint16_t ORDERING_TABLE_SIZE = 4'000;
 static constexpr uint16_t FULL_FOG_DISTANCE = 3'500; // screen z
 static constexpr uint16_t NEAR_FOG_DISTANCE = 2'000; // screen z
 static constexpr uint32_t BUMP_ALLOCATOR_BYTES = 125'000; // this is for each frame, so double what this number is is used up in RAM
-static constexpr psyqo::Color m_clearColour = {.r = 0, .g = 0, .b = 0};
+static constexpr psyqo::Color DEFAULT_CLEAR_COLOR = {.r = 0, .g = 0, .b = 0};
 static constexpr psyqo::Color c_loadingBackgroundColour = {.r = 0, .g = 0, .b = 0};
 
 class Renderer final {
@@ -71,7 +71,7 @@ public:
   uint32_t Process(void);
   void Render(void);
   void Render(uint32_t deltaTime);
-  void Clear(void);
+  void Clear(psyqo::Color clearColour = DEFAULT_CLEAR_COLOR);
   void RenderLoadingScreen(uint16_t loadPercentage);
   void RenderSprite(const TimFile *tim, const psyqo::Rect rect, const psyqo::PrimPieces::UVCoords uv);
   void SetActiveCamera(Camera *camera);
