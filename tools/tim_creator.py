@@ -104,48 +104,20 @@ def applyTransparentColor(imageObj: Image.Image, transparent_rgb: tuple[int, int
 	return Image.fromarray(data, "RGBA")
 
 
-def applyTransparentColorIndexed(imageObj: Image.Image, transparent_rgb: tuple[int, int, int]) -> Image.Image:
-	"""
-	For indexed (mode P) images, find palette entries matching transparent_rgb
-	and set their alpha to 0 in the palette. Also ensures the image uses RGBA palette mode.
-	"""
-	palette_mode = imageObj.palette.mode
-	color_depth  = {"RGB": 3, "RGBA": 4}[palette_mode]
-
-	clut: ndarray = numpy.frombuffer(imageObj.palette.palette, "B").copy()
-	num_colors    = clut.shape[0] // color_depth
-	clut          = clut.reshape((num_colors, color_depth))
-
-	r, g, b = transparent_rgb
-
-	if color_depth == 3:
-		# Expand palette to RGBA so we can set alpha
-		clut_rgba         = numpy.ones((num_colors, 4), "B") * 0xff
-		clut_rgba[:, :3]  = clut
-		clut              = clut_rgba
-		color_depth       = 4
-
-	# Zero out alpha for any palette entry matching the target color
-	mask = (clut[:, 0] == r) & (clut[:, 1] == g) & (clut[:, 2] == b)
-	if not mask.any():
-		print(
-			f"Warning: transparent color #{r:02X}{g:02X}{b:02X} not found in palette — "
-			"no changes made."
-		)
-
-	clut[mask, 3] = 0
-
-	new_image             = imageObj.copy()
-	new_image.palette.mode    = "RGBA"
-	new_image.palette.palette = clut.tobytes()
-	return new_image
-
-
-def _to16bpp(inputData: ndarray, forceSTP: bool) -> ndarray:
+def _to16bpp(inputData: ndarray, forceSTP: bool, fastConvert: bool = False) -> ndarray:
 	source: ndarray = inputData.astype("<H")
-	r:      ndarray = ((source[:, :, 0] * 249) + 1014) >> 11
-	g:      ndarray = ((source[:, :, 1] * 249) + 1014) >> 11
-	b:      ndarray = ((source[:, :, 2] * 249) + 1014) >> 11
+
+	if fastConvert:
+		# Straight bit shift — use when the image has already been pre-processed
+		# to 15-bit color (e.g. by ImageMagick -colors 32768) to avoid
+		# re-introducing rounding artifacts on top of already-quantized values.
+		r: ndarray = source[:, :, 0] >> 3
+		g: ndarray = source[:, :, 1] >> 3
+		b: ndarray = source[:, :, 2] >> 3
+	else:
+		r: ndarray = ((source[:, :, 0] * 249) + 1014) >> 11
+		g: ndarray = ((source[:, :, 1] * 249) + 1014) >> 11
+		b: ndarray = ((source[:, :, 2] * 249) + 1014) >> 11
 
 	solid:           ndarray = r | (g << 5) | (b << 10)
 	semitransparent: ndarray = solid | (1 << 15)
@@ -170,8 +142,9 @@ def _to16bpp(inputData: ndarray, forceSTP: bool) -> ndarray:
 	return data
 
 def convertIndexedImage(
-	imageObj: Image.Image,
-	forceSTP: bool = False
+	imageObj:    Image.Image,
+	forceSTP:    bool = False,
+	fastConvert: bool = False
 ) -> tuple[ndarray, ndarray]:
 	# Pillow has basically no support at all for palette manipulation, so nasty
 	# hacks are required here.
@@ -185,7 +158,7 @@ def convertIndexedImage(
 
 	# Pad the palette to 16 or 256 colors after converting it to 16bpp.
 	clut           = clut.reshape(( 1, numColors, colorDepth ))
-	clut           = _to16bpp(clut, forceSTP)
+	clut           = _to16bpp(clut, forceSTP, fastConvert)
 	padAmount: int = (16 if (numColors <= 16) else 256) - numColors
 
 	if padAmount:
@@ -206,16 +179,17 @@ def convertIndexedImage(
 	return image, clut
 
 def generateRawTIM(
-	imageObj: Image.Image,
-	imageX:   int,
-	imageY:   int,
-	forceSTP: bool = False
+	imageObj:    Image.Image,
+	imageX:      int,
+	imageY:      int,
+	forceSTP:    bool = False,
+	fastConvert: bool = False
 ) -> bytearray:
 	if (imageX < 0) or (imageX > 1023) or (imageY < 0) or (imageY > 1023):
 		raise ValueError("image X/Y coordinates must be in 0-1023 range")
 
 	image: ndarray = numpy.asarray(imageObj, "B")
-	image          = _to16bpp(image, forceSTP)
+	image          = _to16bpp(image, forceSTP, fastConvert)
 
 	data: bytearray = bytearray()
 	data           += _TIM_HEADER_STRUCT.pack(
@@ -235,19 +209,20 @@ def generateRawTIM(
 	return data
 
 def generateIndexedTIM(
-	imageObj: Image.Image,
-	imageX:   int,
-	imageY:   int,
-	clutX:    int,
-	clutY:    int,
-	forceSTP: bool = False
+	imageObj:    Image.Image,
+	imageX:      int,
+	imageY:      int,
+	clutX:       int,
+	clutY:       int,
+	forceSTP:    bool = False,
+	fastConvert: bool = False
 ) -> bytearray:
 	if (imageX < 0) or (imageX > 1023) or (imageY < 0) or (imageY > 1023):
 		raise ValueError("image X/Y coordinates must be in 0-1023 range")
 	if (clutX < 0) or (clutX > 1023) or (clutY < 0) or (clutY > 1023):
 		raise ValueError("palette X/Y coordinates must be in 0-1023 range")
 
-	image, clut          = convertIndexedImage(imageObj, forceSTP)
+	image, clut          = convertIndexedImage(imageObj, forceSTP, fastConvert)
 	flags: TIMHeaderFlag = TIMHeaderFlag.HAS_PALETTE
 
 	if clut.size <= 16:
@@ -298,10 +273,21 @@ def parse_args():
 		metavar="RRGGBB",
 		help=(
 			"Treat this hex color as fully transparent (e.g. FF00FF or #FF00FF). "
-			"For indexed images the matching palette entry's alpha is zeroed; "
-			"for RGB/RGBA images all matching pixels are set to alpha=0."
+			"For RGB/RGBA images all matching pixels are set to alpha=0. "
+			"For indexed images the image is converted to RGBA, transparency applied, "
+			"then re-quantized to the original color count."
 		),
 		default=None
+	)
+	parser.add_argument(
+		"--fast-convert",
+		action="store_true",
+		help=(
+			"Use a straight bit shift (>> 3) instead of the rounded formula when "
+			"converting to 15-bit color. Use this when the image has already been "
+			"pre-processed to 15-bit color (e.g. via ImageMagick -colors 32768) to "
+			"avoid re-introducing rounding artifacts."
+		)
 	)
 
 	return parser.parse_args()
@@ -335,16 +321,24 @@ def main():
 	if transparent_rgb is not None:
 		print("Applying transparent color...")
 		if image_obj.mode == "P":
-			image_obj = applyTransparentColorIndexed(image_obj, transparent_rgb)
+			palette_mode = image_obj.palette.mode
+			color_depth  = {"RGB": 3, "RGBA": 4}[palette_mode]
+			num_colors   = len(image_obj.palette.palette) // color_depth
+			print(f"Re-quantizing to {num_colors} colors to preserve bit depth...")
+			image_obj = image_obj.convert("RGBA")
+			image_obj = applyTransparentColor(image_obj, transparent_rgb)
+			image_obj = toIndexedImage(image_obj, num_colors)
 		else:
 			image_obj = applyTransparentColor(image_obj, transparent_rgb)
+
+	fast_convert: bool = args.fast_convert
 
 	# Generate TIM based on image mode
 	print("Generating TIM...")
 	if image_obj.mode == "P":
-		tim_data = generateIndexedTIM(image_obj, args.xcoord, args.ycoord, args.clut_x, args.clut_y, args.force_stp)
+		tim_data = generateIndexedTIM(image_obj, args.xcoord, args.ycoord, args.clut_x, args.clut_y, args.force_stp, fast_convert)
 	else:
-		tim_data = generateRawTIM(image_obj, args.xcoord, args.ycoord, args.force_stp)
+		tim_data = generateRawTIM(image_obj, args.xcoord, args.ycoord, args.force_stp, fast_convert)
 
 	# Define output file
 	output_file = args.output if args.output else f"{args.input_image.rsplit('.', 1)[0]}.tim"
@@ -359,4 +353,3 @@ def main():
 
 if __name__ == "__main__":
 	main()
-	

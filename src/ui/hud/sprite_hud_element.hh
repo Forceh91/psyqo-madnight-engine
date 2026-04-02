@@ -15,8 +15,11 @@ class SpriteHUDElement final : public HUDElement
 public:
     SpriteHUDElement() : HUDElement("", {0, 0}) {};
     SpriteHUDElement(const char *name, psyqo::Rect rect) : HUDElement(name, rect) {};
-    SpriteHUDElement(const char *name, psyqo::Rect rect, const char *texture, psyqo::PrimPieces::UVCoords uv);
+    SpriteHUDElement(const char *name, psyqo::Rect rect, const char *textureName, psyqo::PrimPieces::UVCoords uv);
     void Render(const psyqo::Rect &parentRect);
+
+    void SetSize(const psyqo::Vertex& size) { m_rect.size = size; }
+    void SetUV(const psyqo::PrimPieces::UVCoords uv) { m_spriteUV = uv; }
 };
 
 #endif
