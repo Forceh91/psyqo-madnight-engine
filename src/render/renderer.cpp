@@ -318,7 +318,7 @@ void Renderer::RenderGameObjects(uint32_t deltaTime, const psyqo::Matrix33 &came
       zIndex = psyqo::GTE::readRaw<psyqo::GTE::Register::OTZ>();
 
       // make sure we dont go out of bounds
-      if (zIndex == 0 || zIndex >= FULL_FOG_DISTANCE || zIndex >= ORDERING_TABLE_SIZE)
+      if (zIndex == 0 || (m_isSimpleFogEnabled && zIndex >= FULL_FOG_DISTANCE) || zIndex >= ORDERING_TABLE_SIZE)
         continue;
 
       // get the three remaining verts from the GTE
