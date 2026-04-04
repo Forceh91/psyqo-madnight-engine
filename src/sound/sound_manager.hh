@@ -12,7 +12,8 @@ static constexpr uint8_t MAX_VAG_FILE_COUNT = 24; // same as the PS1's SPU chann
 static constexpr int8_t INVALID_VAG_FILE_ID = -1;
 static constexpr uint32_t SPU_NOMINAL_PITCH = 4096;
 static constexpr uint32_t SPU_MEMORY_SIZE = 0x80000;
-static constexpr uint32_t INITIAL_SPU_ADDRESS = 0x1000 + 16;
+
+static constexpr uint32_t SPU_ADR_INSTANT_ATTACK_NO_DECAY = 0x80000000;
 
 typedef struct _VagEntry {
     int8_t id = INVALID_VAG_FILE_ID; // for quick reference
@@ -24,15 +25,18 @@ typedef struct _VagEntry {
 
 class SoundManager final {
 public:
+    // automatically called by the engine
     static void Init(void);
+
+    // resets the spuAllocPtr to initial, but doesn't clear anything from spu
     static void Dump(void);
     static psyqo::Coroutine<> LoadVAGFile(const eastl::fixed_string<char, MAX_CDROM_FILE_NAME_LEN>& fileName, VagEntry** out);
     static VagEntry* IsVAGLoaded(const eastl::fixed_string<char, MAX_CDROM_FILE_NAME_LEN>& fileName);
     static VagEntry* IsVAGLoaded(const uint8_t& fileName);
     static void SilenceChannels(const uint32_t channels);
-    static void PlayVAGFile(const VagEntry* vag, uint8_t channelId, const psyqo::SPU::ChannelPlaybackConfig &config, bool hardCut);
-    static void PlayVAGFile(const eastl::fixed_string<char, MAX_CDROM_FILE_NAME_LEN>& fileName, uint8_t channelId, const psyqo::SPU::ChannelPlaybackConfig &config, bool hardCut);
-    static void PlayVAGFile(const uint8_t& vagID, uint8_t channelId, const psyqo::SPU::ChannelPlaybackConfig &config, bool hardCut);
+    static void PlayVAGFile(const VagEntry* vag, uint8_t channelId, const psyqo::SPU::ChannelPlaybackConfig &config, bool hardCut = false);
+    static void PlayVAGFile(const eastl::fixed_string<char, MAX_CDROM_FILE_NAME_LEN>& fileName, uint8_t channelId, const psyqo::SPU::ChannelPlaybackConfig &config, bool hardCut = false);
+    static void PlayVAGFile(const uint8_t& vagID, uint8_t channelId, const psyqo::SPU::ChannelPlaybackConfig &config, bool hardCut = false);
 
 private:
     static eastl::fixed_vector<VagEntry, MAX_VAG_FILE_COUNT> m_vagFiles;

@@ -1,11 +1,16 @@
 #include "sound_manager.hh"
 #include "../helpers/cdrom.hh"
 #include "psyqo/spu.hh"
+#include "psyqo/fixed-point.hh"
 #include "psyqo/xprintf.h"
+
+using namespace psyqo::fixed_point_literals;
+
+#define SWAP32(x) ((x>>24) | ((x>>8)&0xFF00) | ((x<<8)&0xFF0000) | (x<<24))
 
 bool SoundManager::m_isInitialized = false;
 eastl::fixed_vector<VagEntry, MAX_VAG_FILE_COUNT> SoundManager::m_vagFiles;
-uint32_t SoundManager::m_spuAllocPtr = INITIAL_SPU_ADDRESS;
+uint32_t SoundManager::m_spuAllocPtr = psyqo::SPU::BASE_ALLOC_ADDR;
 
 void SoundManager::Init(void) {
     psyqo::SPU::initialize();
@@ -46,7 +51,7 @@ psyqo::Coroutine<> SoundManager::LoadVAGFile(const eastl::fixed_string<char, MAX
     // check the magic
     eastl::fixed_string<char, 5> magic;
     magic.assign(reinterpret_cast<char*>(ptr));
-    if (magic != "VAGp") {
+    if (magic.compare("VAGp")) {
         printf("VAG: Header magic is invalid, aborting.\n");
         buffer.clear();
         co_return;
@@ -56,7 +61,7 @@ psyqo::Coroutine<> SoundManager::LoadVAGFile(const eastl::fixed_string<char, MAX
     // version check
     uint32_t version;
     __builtin_memcpy(&version, ptr, sizeof(uint32_t));    
-    if (version != 0x00000020) {
+    if (SWAP32(version) != 0x00000020) {
         printf("VAG: Header version is invalid, aborting.\n");
         buffer.clear();
         co_return;
@@ -69,6 +74,7 @@ psyqo::Coroutine<> SoundManager::LoadVAGFile(const eastl::fixed_string<char, MAX
     // store the data size
     __builtin_memcpy(&vag.size, ptr, sizeof(uint32_t));
     ptr += sizeof(uint32_t);
+    vag.size = SWAP32(vag.size);
 
     // make sure it fits
     if (SPU_MEMORY_SIZE - m_spuAllocPtr < vag.size) {
@@ -80,7 +86,7 @@ psyqo::Coroutine<> SoundManager::LoadVAGFile(const eastl::fixed_string<char, MAX
     // store the pitch based off of sample rate
     uint32_t sampleRate;
     __builtin_memcpy(&sampleRate, ptr, sizeof(uint32_t));
-    vag.pitch = sampleRate * (SPU_NOMINAL_PITCH / psyqo::SPU::BASE_SAMPLE_RATE);
+    vag.pitch = SWAP32(sampleRate) * SPU_NOMINAL_PITCH / psyqo::SPU::BASE_SAMPLE_RATE;
     ptr += sizeof(uint32_t);
 
     // store our name for it
@@ -140,13 +146,13 @@ void SoundManager::PlayVAGFile(const uint8_t& vagID, uint8_t channelId, const ps
 }
 
 void SoundManager::PlayVAGFile(const VagEntry* vag, uint8_t channelId, const psyqo::SPU::ChannelPlaybackConfig &config, bool hardCut) {
-    if (!vag || !vag->size || vag->spuAddr <= INITIAL_SPU_ADDRESS) return;
+    if (!vag || !vag->size || vag->spuAddr < psyqo::SPU::BASE_ALLOC_ADDR) return;
 
     psyqo::SPU::playADPCM(channelId, vag->spuAddr, config, hardCut);
 }
 
 void SoundManager::Dump(void) {
     psyqo::SPU::silenceChannels(0xffffffff);
-    m_spuAllocPtr = INITIAL_SPU_ADDRESS;
+    m_spuAllocPtr = psyqo::SPU::BASE_ALLOC_ADDR;
     m_vagFiles.clear();
 }
