@@ -1,5 +1,6 @@
 #include "sound_manager.hh"
 #include "../helpers/cdrom.hh"
+#include "EASTL/algorithm.h"
 #include "psyqo/spu.hh"
 #include "psyqo/fixed-point.hh"
 #include "psyqo/xprintf.h"
@@ -147,7 +148,8 @@ void SoundManager::PlayVAGFile(const uint8_t& vagID, uint8_t channelId, const ps
 
 void SoundManager::PlayVAGFile(const VagEntry* vag, uint8_t channelId, const psyqo::SPU::ChannelPlaybackConfig &config, bool hardCut) {
     if (!vag || !vag->size || vag->spuAddr < psyqo::SPU::BASE_ALLOC_ADDR) return;
-
+    
+    channelId = eastl::min(channelId, SPU_MAX_CHANNEL_ID);
     psyqo::SPU::playADPCM(channelId, vag->spuAddr, config, hardCut);
 }
 

@@ -14,6 +14,7 @@ static constexpr uint32_t SPU_NOMINAL_PITCH = 4096;
 static constexpr uint32_t SPU_MEMORY_SIZE = 0x80000;
 
 static constexpr uint32_t SPU_ADR_INSTANT_ATTACK_NO_DECAY = 0x80000000;
+static constexpr uint8_t SPU_MAX_CHANNEL_ID = 23;
 
 typedef struct _VagEntry {
     int8_t id = INVALID_VAG_FILE_ID; // for quick reference
