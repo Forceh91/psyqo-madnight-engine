@@ -1,114 +1,152 @@
 #include "sound_manager.hh"
-#include "psyqo/xprintf.h"
 #include "../helpers/cdrom.hh"
-#include "../render/renderer.hh"
+#include "psyqo/spu.hh"
+#include "psyqo/xprintf.h"
 
-ModSoundFile SoundManager::m_currentSoundFile = {"", 0, false};
-unsigned SoundManager::m_musicTimer = 0;
-uint16_t SoundManager::m_musicVolume = DEFAULT_MUSIC_VOLUME;
+bool SoundManager::m_isInitialized = false;
+eastl::fixed_vector<VagEntry, MAX_VAG_FILE_COUNT> SoundManager::m_vagFiles;
+uint32_t SoundManager::m_spuAllocPtr = INITIAL_SPU_ADDRESS;
 
-psyqo::Coroutine<> SoundManager::LoadMODSoundFromCDRom(const char *modSoundFileName, ModSoundFile **modSoundFileOut)
-{
-    *modSoundFileOut = nullptr;
+void SoundManager::Init(void) {
+    psyqo::SPU::initialize();
+    m_isInitialized = true;
+}
 
-    // ok checks passed, get it off the CD
-    auto buffer = co_await CDRomHelper::LoadFile(modSoundFileName);
+psyqo::Coroutine<> SoundManager::LoadVAGFile(const eastl::fixed_string<char, MAX_CDROM_FILE_NAME_LEN>& fileName, VagEntry** out) {
+    if (!m_isInitialized)
+        Init();
+
+    // fallback response to nothing
+    if (out) *out = nullptr;
+
+    // did we already load this?
+    auto existingVag = IsVAGLoaded(fileName);
+    if (existingVag) {
+        if (out) *out = existingVag;
+        co_return;
+    }
+
+    // get the actual data off the cd and make sure its valid
+    auto buffer = co_await CDRomHelper::LoadFile(fileName.c_str());
     void *data = buffer.data();
     size_t size = buffer.size();
 
-    if (data == nullptr || size == 0)
-    {
-        printf("SOUND: Failed to load MOD file or it has no file size.\n");
+    if (!data || !size) {
+        buffer.clear();
+        printf("VAG: Failed to load VAG or it has no file size.\n");
+        co_return;
+    }
+
+    // begin loading data
+    VagEntry vag;
+    __builtin_memset(&vag, 0, sizeof(VagEntry));
+
+    uint8_t* ptr = (uint8_t*)data;
+
+    // check the magic
+    eastl::fixed_string<char, 5> magic;
+    magic.assign(reinterpret_cast<char*>(ptr));
+    if (magic != "VAGp") {
+        printf("VAG: Header magic is invalid, aborting.\n");
+        buffer.clear();
+        co_return;
+    }
+    ptr += 4;
+
+    // version check
+    uint32_t version;
+    __builtin_memcpy(&version, ptr, sizeof(uint32_t));    
+    if (version != 0x00000020) {
+        printf("VAG: Header version is invalid, aborting.\n");
+        buffer.clear();
+        co_return;
+    }
+    ptr += sizeof(uint32_t);
+
+    // skip over reserved block
+    ptr += sizeof(uint32_t);
+
+    // store the data size
+    __builtin_memcpy(&vag.size, ptr, sizeof(uint32_t));
+    ptr += sizeof(uint32_t);
+
+    // make sure it fits
+    if (SPU_MEMORY_SIZE - m_spuAllocPtr < vag.size) {
+        printf("VAG: Not enough space in SPU, aborting.\n");
         buffer.clear();
         co_return;
     }
 
-    ModSoundFile soundFile = {modSoundFileName, 0, false};
+    // store the pitch based off of sample rate
+    uint32_t sampleRate;
+    __builtin_memcpy(&sampleRate, ptr, sizeof(uint32_t));
+    vag.pitch = sampleRate * (SPU_NOMINAL_PITCH / psyqo::SPU::BASE_SAMPLE_RATE);
+    ptr += sizeof(uint32_t);
 
-    // load the data into the SPU
-    soundFile.size = MOD_Load((MODFileFormat *)data);
-    if (soundFile.size == 0)
-        co_return;
+    // store our name for it
+    vag.name.assign(fileName);
 
-    // loaded
-    soundFile.isLoaded = true;
+    // skip past the rest of the header
+    ptr += 28;
 
-    // put into our array/library/whatever you wanna call it
-    m_currentSoundFile = soundFile;
-    *modSoundFileOut = &m_currentSoundFile;
+    // upload data to spu ram and update where in ram we are
+    psyqo::SPU::dmaWrite(m_spuAllocPtr, ptr, vag.size, 16);
+    vag.spuAddr = m_spuAllocPtr;
+    m_spuAllocPtr += vag.size;
 
-    // done with the data, clear it
+    // all done?
+    m_vagFiles.push_back(vag);
+    if (out) *out = &m_vagFiles.back();
+
+    // dump it from memory
     buffer.clear();
-
-    printf("SOUND: Successfully loaded MOD file of %d bytes into SPU.\n", size);
+    printf("VAG: Successfully uploaded VAG of %d bytes into the SPU.\n", size);
 }
 
-void SoundManager::PlaySoundEffect(uint32_t channel, uint32_t sampleID, int32_t pitch, uint32_t volume)
-{
-    if (!m_currentSoundFile.isLoaded)
-        return;
-    MOD_PlaySoundEffect(channel, sampleID, pitch, volume);
+VagEntry* SoundManager::IsVAGLoaded(const eastl::fixed_string<char, MAX_CDROM_FILE_NAME_LEN>& fileName) {
+    VagEntry* loadedVAG;
+    for (auto& vag : m_vagFiles) {
+        if (vag.name == fileName)
+            return &vag;
+    }
+
+    // not loaded yet
+    return nullptr;
 }
 
-void SoundManager::PlayNote(uint32_t voiceID, uint32_t sampleID, uint32_t note, int16_t volume)
-{
-    if (!m_currentSoundFile.isLoaded)
-        return;
+VagEntry* SoundManager::IsVAGLoaded(const uint8_t& id) {
+    VagEntry* loadedVAG;
+    for (auto& vag : m_vagFiles) {
+        if (vag.id == id)
+            return &vag;
+    }
 
-    MOD_PlayNote(voiceID, sampleID, note, volume);
+    // not loaded yet
+    return nullptr;
 }
 
-void SoundManager::PlayMusic(void)
-{
-    if (!m_currentSoundFile.isLoaded)
-        return;
-
-    PlayMusic(m_musicVolume);
+void SoundManager::SilenceChannels(const uint32_t channelMask) {
+    psyqo::SPU::silenceChannels(channelMask);
 }
 
-void SoundManager::PlayMusic(uint16_t volume)
-{
-    if (!m_currentSoundFile.isLoaded)
-        return;
-
-    SetMusicVolume(volume);
-
-    // this will start playing the music in the mod file that was put into the SPU
-    auto &gpu = Renderer::Instance().GPU();
-    m_musicTimer = gpu.armPeriodicTimer(MOD_hblanks * psyqo::GPU::US_PER_HBLANK, [&](uint32_t)
-                                        {
-        MOD_Poll();
-
-        // There is no downside in changing the timer every time, in case the
-        // mod player wants to change the timing.
-        gpu.changeTimerPeriod(m_musicTimer, MOD_hblanks * psyqo::GPU::US_PER_HBLANK); });
+void SoundManager::PlayVAGFile(const eastl::fixed_string<char, MAX_CDROM_FILE_NAME_LEN>& fileName, uint8_t channelId, const psyqo::SPU::ChannelPlaybackConfig &config, bool hardCut) {
+    auto vag = IsVAGLoaded(fileName);
+    if (vag) PlayVAGFile(vag, channelId, config, hardCut);
 }
 
-void SoundManager::PauseMusic(void)
-{
-    if (!m_currentSoundFile.isLoaded)
-        return;
-
-    auto &gpu = Renderer::Instance().GPU();
-    gpu.cancelTimer(m_musicTimer);
-    MOD_SetMusicVolume(0);
+void SoundManager::PlayVAGFile(const uint8_t& vagID, uint8_t channelId, const psyqo::SPU::ChannelPlaybackConfig &config, bool hardCut) {
+    auto vag = IsVAGLoaded(vagID);
+    if (vag) PlayVAGFile(vag, channelId, config, hardCut);
 }
 
-void SoundManager::StopMusic(void)
-{
-    if (!m_currentSoundFile.isLoaded)
-        return;
+void SoundManager::PlayVAGFile(const VagEntry* vag, uint8_t channelId, const psyqo::SPU::ChannelPlaybackConfig &config, bool hardCut) {
+    if (!vag || !vag->size || vag->spuAddr <= INITIAL_SPU_ADDRESS) return;
 
-    auto &gpu = Renderer::Instance().GPU();
-    gpu.cancelTimer(m_musicTimer);
-    MOD_Silence();
+    psyqo::SPU::playADPCM(channelId, vag->spuAddr, config, hardCut);
 }
 
-void SoundManager::SetMusicVolume(uint16_t volume)
-{
-    if (!m_currentSoundFile.isLoaded)
-        return;
-
-    m_musicVolume = volume;
-    MOD_SetMusicVolume(m_musicVolume);
+void SoundManager::Dump(void) {
+    psyqo::SPU::silenceChannels(0xffffffff);
+    m_spuAllocPtr = INITIAL_SPU_ADDRESS;
+    m_vagFiles.clear();
 }

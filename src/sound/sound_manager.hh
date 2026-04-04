@@ -1,46 +1,41 @@
-#ifndef _SOUND_MANAGER_H
-#define _SOUND_MANAGER_H
+#pragma once
 
-#include <EASTL/array.h>
-#include "sound.hh"
+#include "EASTL/fixed_string.h"
+#include "../helpers/file_defs.hh"
+#include "EASTL/fixed_vector.h"
 #include "psyqo/coroutine.hh"
+#include "psyqo/spu.hh"
+#include <cstdint>
 
-static constexpr uint16_t MAX_MUSIC_VOLUME = 65535;
-static constexpr uint16_t DEFAULT_MUSIC_VOLUME = 16384;
+static constexpr uint8_t VAG_FILE_NAME_LEN = 16;
+static constexpr uint8_t MAX_VAG_FILE_COUNT = 24; // same as the PS1's SPU channel count for now
+static constexpr int8_t INVALID_VAG_FILE_ID = -1;
+static constexpr uint32_t SPU_NOMINAL_PITCH = 4096;
+static constexpr uint32_t SPU_MEMORY_SIZE = 0x80000;
+static constexpr uint32_t INITIAL_SPU_ADDRESS = 0x1000 + 16;
 
-class SoundManager final
-{
-    static ModSoundFile m_currentSoundFile;
-    static unsigned m_musicTimer;
-    static uint16_t m_musicVolume;
+typedef struct _VagEntry {
+    int8_t id = INVALID_VAG_FILE_ID; // for quick reference
+    eastl::fixed_string<char, MAX_CDROM_FILE_NAME_LEN> name; // the name we supplied for the cd rom, not the one from the header
+    uint32_t spuAddr;                       // where it lives in SPU RAM
+    uint32_t pitch;                         // precomputed from sample rate
+    uint32_t size;                          // how much SPU RAM it occupies
+} VagEntry;
 
+class SoundManager final {
 public:
-    // this will find a .MOD format file on the CD ROM, given the dir/name.ext format, and load it directly into the SPU
-    // the modplayer is designed in a such a way where you can have one .mod file in the SPU at once
-    // thereforce calling this again when a .mod file is already in the SPU will reset everything, and
-    // the newly loaded file will become the only file in the SPU
-    // as the SPU only contains 512K memory it is up to you to manage memory properly
-    // this will give back some basic info about the loaded file incase you feel it is relevant
-    // if it comes back as nullptr then something probably went wrong
-    static psyqo::Coroutine<> LoadMODSoundFromCDRom(const char *modSoundFileName, ModSoundFile **modSoundFileOut);
-    // not really important but added for convenience
-    static const ModSoundFile *CurrentMODSoundFile(void) { return &m_currentSoundFile; }
+    static void Init(void);
+    static void Dump(void);
+    static psyqo::Coroutine<> LoadVAGFile(const eastl::fixed_string<char, MAX_CDROM_FILE_NAME_LEN>& fileName, VagEntry** out);
+    static VagEntry* IsVAGLoaded(const eastl::fixed_string<char, MAX_CDROM_FILE_NAME_LEN>& fileName);
+    static VagEntry* IsVAGLoaded(const uint8_t& fileName);
+    static void SilenceChannels(const uint32_t channels);
+    static void PlayVAGFile(const VagEntry* vag, uint8_t channelId, const psyqo::SPU::ChannelPlaybackConfig &config, bool hardCut);
+    static void PlayVAGFile(const eastl::fixed_string<char, MAX_CDROM_FILE_NAME_LEN>& fileName, uint8_t channelId, const psyqo::SPU::ChannelPlaybackConfig &config, bool hardCut);
+    static void PlayVAGFile(const uint8_t& vagID, uint8_t channelId, const psyqo::SPU::ChannelPlaybackConfig &config, bool hardCut);
 
-    // see `MOD_PlaySoundEffect` on the best way to use this
-    static void PlaySoundEffect(uint32_t channel, uint32_t sampleID, int32_t pitch, uint32_t volume);
-    // see `MOD_PlayNote` on the best way to use this
-    static void PlayNote(uint32_t voiceID, uint32_t sampleID, uint32_t note, int16_t volume);
-    // plays the music in the MOD file using GPU timers/`MOD_Poll`, resets volume to
-    // what was previously set via either `PlayMusic(volume)` or `SetMusicVolume`
-    static void PlayMusic(void);
-    // plays the music in the MOD file using GPU timers/`MOD_Poll` whilst setting volume
-    static void PlayMusic(uint16_t volume);
-    // pauses the music in the MOD file. if you want to switch to a new track then you simply just `LoadMODSoundFromCDRom` again
-    static void PauseMusic(void);
-    // stops the music completely
-    static void StopMusic(void);
-    // see `MOD_SetMusicVolme` on the best way to use this
-    static void SetMusicVolume(uint16_t volume);
+private:
+    static eastl::fixed_vector<VagEntry, MAX_VAG_FILE_COUNT> m_vagFiles;
+    static bool m_isInitialized;
+    static uint32_t m_spuAllocPtr;
 };
-
-#endif
