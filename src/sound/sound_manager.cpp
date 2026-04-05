@@ -153,6 +153,24 @@ void SoundManager::PlayVAGFile(const VagEntry* vag, uint8_t channelId, const psy
     psyqo::SPU::playADPCM(channelId, vag->spuAddr, config, hardCut);
 }
 
+psyqo::SPU::ChannelPlaybackConfig SoundManager::CreatePlaybackConfig(const VagEntry* vag, uint16_t volume, uint32_t adsr) {
+    return CreatePlaybackConfig(vag, volume, volume, adsr);
+}
+
+psyqo::SPU::ChannelPlaybackConfig SoundManager::CreatePlaybackConfig(const VagEntry *vag, uint16_t volumeL, uint16_t volumeR, uint32_t adsr) {
+    if (!vag) return {0, 0, 0, 0};
+
+    psyqo::FixedPoint<12, uint16_t> pitch;
+    pitch.value = vag->pitch;    
+
+    return psyqo::SPU::ChannelPlaybackConfig{
+        pitch,
+        volumeL,
+        volumeR,
+        adsr
+    };
+}
+
 void SoundManager::Dump(void) {
     psyqo::SPU::silenceChannels(0xffffffff);
     m_spuAllocPtr = psyqo::SPU::BASE_ALLOC_ADDR;
