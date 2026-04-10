@@ -2,9 +2,7 @@
 
 #include "psyqo/soft-math.hh"
 #include "psyqo/fixed-point.hh"
-#include "psyqo/xprintf.h"
 #include "../../madnight.hh"
-#include "../collision.hh"
 
 using namespace psyqo::fixed_point_literals;
 

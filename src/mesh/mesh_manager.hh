@@ -5,7 +5,6 @@
 #include <stdint.h>
 
 #include "psyqo/coroutine.hh"
-#include "psyqo/fixed-point.hh"
 #include "psyqo/primitives/common.hh"
 #include "psyqo/vector.hh"
 
@@ -13,7 +12,7 @@
 #include "../helpers/file_defs.hh"
 #include "skeleton/skeleton.hh"
 
-static constexpr uint8_t MAX_LOADED_MESHES = 100;
+static constexpr uint8_t MAX_LOADED_MESHES = 250;
 static constexpr uint16_t MAX_FACES_PER_MESH = 1000;
 
 struct MeshBinVertexColours {
@@ -25,9 +24,6 @@ struct MeshBinIndex {
 };
 
 struct MeshBin {
-  // header
-  eastl::fixed_string<char, 7> magic; // MESHBIN
-  uint8_t version;                    // 2
   uint8_t type;                       // 1 = quads, 2 = tris (unused)
 
   // sub header
@@ -54,16 +50,12 @@ struct MeshBin {
   MeshBinIndex *uvIndices;
 
   // skeleton info
-  Skeleton skeleton;
+  Skeleton* skeleton;
   uint8_t *boneForVertex; // vertex index -> bone index
+  psyqo::Vec3* verticesOnBonePos;
 
   // basic min/max collision box
   AABBCollision collisionBox;
-
-  psyqo::FixedPoint<> boundingSphereRadius = 0;
-
-  // TODO: make this a proper value so it can handle the right amount of verts
-  psyqo::Vec3 verticesOnBonePos[400];
 };
 
 struct LoadedMeshBin {
