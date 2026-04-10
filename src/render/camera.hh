@@ -75,7 +75,7 @@ public:
     return {m_rotationMatrix.vs[0].x, m_rotationMatrix.vs[1].x, m_rotationMatrix.vs[2].x};
   }
 
-  const psyqo::Vec3 upVector(void) {
+  const psyqo::Vec3 upVector(void) const {
     return {m_rotationMatrix.vs[0].y, m_rotationMatrix.vs[1].y, m_rotationMatrix.vs[2].y};
   }
 

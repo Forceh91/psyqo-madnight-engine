@@ -253,8 +253,8 @@ void Renderer::RenderGameObjects(uint32_t deltaTime, const psyqo::Matrix33 &came
       SkeletonController::UpdateSkeletonBoneMatrices(&mesh->skeleton);
 
       // adjust pos of verts that are attached to bones
-      for (int i = 0; i < mesh->vertexCount; i++) {
-        auto &bone = mesh->skeleton.bones[mesh->boneForVertex[i]];
+      for (int32_t i = 0; i < mesh->vertexCount; i++) {
+        auto &bone = mesh->skeleton->bones[mesh->boneForVertex[i]];
 
         if (!bone.isDirty) continue;
 
@@ -291,10 +291,11 @@ void Renderer::RenderGameObjects(uint32_t deltaTime, const psyqo::Matrix33 &came
     }
 
     for (int i = 0; i < mesh->facesCount; i++) {
+      auto renderVerts = mesh->hasSkeleton ? mesh->verticesOnBonePos : mesh->vertices;
       // load the first 3 verts into the GTE. remember it can only handle 3 at a time
-      psyqo::GTE::writeSafe<psyqo::GTE::PseudoRegister::V0>(mesh->verticesOnBonePos[mesh->vertexIndices[i].i1]);
-      psyqo::GTE::writeSafe<psyqo::GTE::PseudoRegister::V1>(mesh->verticesOnBonePos[mesh->vertexIndices[i].i2]);
-      psyqo::GTE::writeSafe<psyqo::GTE::PseudoRegister::V2>(mesh->verticesOnBonePos[mesh->vertexIndices[i].i3]);
+      psyqo::GTE::writeSafe<psyqo::GTE::PseudoRegister::V0>(renderVerts[mesh->vertexIndices[i].i1]);
+      psyqo::GTE::writeSafe<psyqo::GTE::PseudoRegister::V1>(renderVerts[mesh->vertexIndices[i].i2]);
+      psyqo::GTE::writeSafe<psyqo::GTE::PseudoRegister::V2>(renderVerts[mesh->vertexIndices[i].i3]);
 
       // perform the rtpt (perspective transformation) on these three
       psyqo::GTE::Kernels::rtpt();
@@ -308,7 +309,7 @@ void Renderer::RenderGameObjects(uint32_t deltaTime, const psyqo::Matrix33 &came
 
       // store these verts so we can read the last one in
       psyqo::GTE::read<psyqo::GTE::Register::SXY0>(&projected[0].packed);
-      psyqo::GTE::writeSafe<psyqo::GTE::PseudoRegister::V0>(mesh->verticesOnBonePos[mesh->vertexIndices[i].i4]);
+      psyqo::GTE::writeSafe<psyqo::GTE::PseudoRegister::V0>(renderVerts[mesh->vertexIndices[i].i4]);
 
       // again we need to rtps it
       psyqo::GTE::Kernels::rtps();
@@ -385,8 +386,8 @@ void Renderer::RenderGameObjects(uint32_t deltaTime, const psyqo::Matrix33 &came
 
 #if ENABLE_BONE_DEBUG
     if (mesh->hasSkeleton && mesh->skeleton.numBones > 0) {
-      for (int j = 0; j < mesh->skeleton.numBones; j++) {         
-        auto &bone = mesh->skeleton.bones[j];
+      for (int j = 0; j < mesh->skeleton->numBones; j++) {         
+        auto &bone = mesh->skeleton->bones[j];
         psyqo::GTE::writeSafe<psyqo::GTE::PseudoRegister::V0>(bone.startPos);
         psyqo::GTE::writeSafe<psyqo::GTE::PseudoRegister::V1>(bone.endPos);
         psyqo::GTE::Kernels::rtpt();
