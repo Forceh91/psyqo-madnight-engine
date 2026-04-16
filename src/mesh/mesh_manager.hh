@@ -56,6 +56,7 @@ struct MeshBin {
 
   // basic min/max collision box
   AABBCollision collisionBox;
+  psyqo::FixedPoint<> boundingSphereRadius = 0;
 };
 
 struct LoadedMeshBin {
