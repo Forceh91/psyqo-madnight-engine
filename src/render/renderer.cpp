@@ -7,6 +7,7 @@
 #include "../core/object/gameobject_manager.hh"
 #include "../core/billboard/billboard_manager.hh"
 #include "../core/particles/particle_manager.hh"
+#include "../core/debug/perf_monitor.hh"
 #include "../math/gte-math.hh"
 #include "../defs.hh"
 
@@ -230,6 +231,7 @@ void Renderer::RenderGameObjects(uint32_t deltaTime, const psyqo::Matrix33 &came
     return;
 
   // now for each object...
+  int renderedObjects = 0;
   for (const auto &gameObject : gameObjects) {
     // we dont need to get mesh data for every single vert since it wont change, so lets only do that once
     const auto mesh = gameObject->mesh();
@@ -239,12 +241,17 @@ void Renderer::RenderGameObjects(uint32_t deltaTime, const psyqo::Matrix33 &came
     // get the rotation matrix for the game object and then combine with the camera rotations
     psyqo::Matrix33 finalCameraMatrix = {0};
     GTEMath::MultiplyMatrix33(cameraRotationMatrix, gameObject->rotationMatrix(), &finalCameraMatrix);
-
-    // see if the entire chunk will be visible
-    TransformObjectToViewSpace(gameObject->pos(), cameraRotationMatrix, finalCameraMatrix);
-    if (gameObject->HasRenderFlag(RF_DISTANCE_CHECK) && !IsGameObjectVisible(gameObject->mesh()->collisionBox, gameObject->mesh()->boundingSphereRadius))
+  
+    // see if the entire game object will be visible based off its aabb centre
+    psyqo::Vec3 centre = (gameObject->mesh()->collisionBox.min + gameObject->mesh()->collisionBox.max) / 2 + gameObject->pos();
+    auto deltaCentre = TransformObjectToViewSpace(centre, cameraRotationMatrix, finalCameraMatrix);
+    if (!IsGameObjectVisible(deltaCentre, gameObject->mesh()->collisionBox, gameObject->mesh()->boundingSphereRadius))
       continue;
 
+    // transform the game object into view space 
+    renderedObjects++;
+    TransformObjectToViewSpace(gameObject->pos(), cameraRotationMatrix, finalCameraMatrix);
+      
     // if we've got a skeleton on this mesh
     if (mesh->hasSkeleton) {
       SkeletonController::PlayAnimation(mesh->skeleton, deltaTime);
@@ -408,6 +415,8 @@ void Renderer::RenderGameObjects(uint32_t deltaTime, const psyqo::Matrix33 &came
     }
 #endif
   }
+
+  PerfMonitor::SetRenderedGameObjects(renderedObjects, gameObjects.size());
 }
 
 void Renderer::RenderBillboards(uint32_t deltaTime, const psyqo::Matrix33 &cameraRotationMatrix) {
@@ -815,34 +824,30 @@ void Renderer::RenderSprite(const TimFile *texture, const psyqo::Rect rect, cons
 
 void Renderer::SetActiveCamera(Camera *camera) { m_activeCamera = camera; }
 
-bool Renderer::IsGameObjectVisible(const AABBCollision& collisionBox, const psyqo::FixedPoint<>& boundingSphereRadius) {
-  psyqo::Vec3 centre = (collisionBox.min + collisionBox.max) / 2;
-  
-  // this uses a rough bounding sphere radius to determine if the chunk is on screen (even just a tiny bit)
-  psyqo::GTE::writeSafe<psyqo::GTE::PseudoRegister::V0>(centre);
-  psyqo::GTE::Kernels::rtps();
+bool Renderer::IsGameObjectVisible(const psyqo::Vec3& cameraPos, const AABBCollision& collisionBox, const psyqo::FixedPoint<>& boundingSphereRadius) {
+    int32_t cx = cameraPos.x.value;
+    int32_t cy = cameraPos.y.value;
+    int32_t cz = cameraPos.z.value;
+    int32_t r = boundingSphereRadius.value;
 
-  // read back screen x/y/z from the GTE
-  psyqo::Vertex projected;
-  psyqo::GTE::read<psyqo::GTE::Register::SXY0>(&projected.packed);
+    // reject if sphere is entirely behind near plane
+    if (cz + r <= 0) return false;
 
-  // handle right in front of camera
-  auto sz = psyqo::GTE::readRaw<psyqo::GTE::Register::SZ0>();
-  if (sz <= 1) return true;
+    // clamp to near plane to avoid divide by zero
+    if (cz < 1) cz = 1;
 
-  // do some projection
-  int32_t screenRadius = (boundingSphereRadius.value * PROJECTION_DISTANCE) / sz;
+    // project centre onto screen
+    int32_t sx = (cx * PROJECTION_DISTANCE) / cz + SCREEN_SPACE.size.x / 2;
+    int32_t sy = (cy * PROJECTION_DISTANCE) / cz + SCREEN_SPACE.size.y / 2;
 
-  // and see if its in the screen
-  auto screenWidth = SCREEN_SPACE.size.x / 2, screenHeight = SCREEN_SPACE.size.y / 2;
-  if (projected.x + screenRadius < -screenWidth || projected.x - screenRadius > screenWidth)
-    return false;
+    // screen space radius
+    int32_t sr = (r * PROJECTION_DISTANCE) / cz;
 
-  if (projected.y + screenRadius < -screenHeight || projected.y - screenRadius > screenHeight)
-    return false;
+    // reject if sphere projection does not overlap viewport
+    if (sx + sr < 0 || sx - sr > SCREEN_SPACE.size.x) return false;
+    if (sy + sr < 0 || sy - sr > SCREEN_SPACE.size.y) return false;
 
-  // the sphere falls on the screen, we should at least try to render this chunk
-  return true;
+    return true;
 }
 
 psyqo::FixedPoint<> Renderer::GetFogFactor(uint32_t z) {

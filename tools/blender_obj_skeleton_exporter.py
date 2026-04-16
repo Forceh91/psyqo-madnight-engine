@@ -118,12 +118,12 @@ def export_obj_skel(context, filepath, apply_modifiers=True, export_selected=Tru
                 min_coords, max_coords = generate_aabb_for_verts(mesh_eval.vertices)
             else:
                 # override — convert from Blender units to engine units
-                min_coords = [aabb_min[0],
-                              aabb_min[1],
-                              aabb_min[2]]
-                max_coords = [aabb_max[0],
-                              aabb_max[1],
-                              aabb_max[2]]
+                min_coords = [aabb_min[0] * ONE_ENGINE_METRE,
+                              aabb_min[1] * ONE_ENGINE_METRE,
+                              aabb_min[2] * ONE_ENGINE_METRE]
+                max_coords = [aabb_max[0] * ONE_ENGINE_METRE,
+                              aabb_max[1] * ONE_ENGINE_METRE,
+                              aabb_max[2] * ONE_ENGINE_METRE]
 
             f.write(f"aabb {min_coords[0]:.6f} {min_coords[1]:.6f} {min_coords[2]:.6f} "
                     f"{max_coords[0]:.6f} {max_coords[1]:.6f} {max_coords[2]:.6f}\n")
