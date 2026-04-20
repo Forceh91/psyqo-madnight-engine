@@ -1,6 +1,7 @@
 #include "mesh_manager.hh"
 #include "../helpers/cdrom.hh"
 #include "../helpers/world_space.hh"
+#include "psyqo/fixed-point.hh"
 #include "skeleton/skeleton.hh"
 
 #include "EASTL/string.h"
@@ -197,7 +198,10 @@ psyqo::Coroutine<> MeshManager::LoadMeshFromCDROM(const char *meshName, MeshBin 
   auto d = loaded_mesh.mesh.collisionBox.max - loaded_mesh.mesh.collisionBox.min;
 
   // radius = half diagonal, >> 1 is divide by 2 in fp12
-  auto radius = psyqo::SoftMath::squareRoot(d.x * d.x + d.y * d.y + d.z * d.x) >> 1;
+  int64_t sum = d.x.value * d.x.value + d.y.value * d.y.value + d.z.value * d.z.value;
+  psyqo::FixedPoint<> sumFP;
+  sumFP.value = sum;
+  auto radius = psyqo::SoftMath::squareRoot(sumFP) >> 1;
 
   // radius = half diagonal
   loaded_mesh.mesh.boundingSphereRadius = radius;
