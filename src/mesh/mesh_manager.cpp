@@ -194,17 +194,36 @@ psyqo::Coroutine<> MeshManager::LoadMeshFromCDROM(const char *meshName, MeshBin 
 
   loaded_mesh.mesh.collisionBox.max.z.value = static_cast<int32_t>(tempVal);
 
-  // figure out a sphere bounding box radius
-  auto d = loaded_mesh.mesh.collisionBox.max - loaded_mesh.mesh.collisionBox.min;
+  // load bounding sphere
+  if (version >= 3) {
+    tempVal = 0;
+    __builtin_memcpy(&tempVal, ptr, sizeof(int16_t));
+    ptr += sizeof(int16_t);
+    loaded_mesh.mesh.bsphere.centre.x.value = static_cast<int32_t>(tempVal);
 
-  // radius = half diagonal, >> 1 is divide by 2 in fp12
-  int64_t sum = d.x.value * d.x.value + d.y.value * d.y.value + d.z.value * d.z.value;
-  psyqo::FixedPoint<> sumFP;
-  sumFP.value = sum;
-  auto radius = psyqo::SoftMath::squareRoot(sumFP) >> 1;
+    __builtin_memcpy(&tempVal, ptr, sizeof(int16_t));
+    ptr += sizeof(int16_t);
+    loaded_mesh.mesh.bsphere.centre.y.value = static_cast<int32_t>(tempVal);
 
-  // radius = half diagonal
-  loaded_mesh.mesh.boundingSphereRadius = radius;
+    __builtin_memcpy(&tempVal, ptr, sizeof(int16_t));
+    ptr += sizeof(int16_t);
+    loaded_mesh.mesh.bsphere.centre.z.value = static_cast<int32_t>(tempVal);
+    
+    __builtin_memcpy(&loaded_mesh.mesh.bsphere.radius, ptr, sizeof(int32_t));
+    loaded_mesh.mesh.bsphere.radius += 6 * 128; // add a bit of leeway to the sphere
+  }
+
+  // if we didn't get bounding radius from the MB file, figure a rough one out
+  if (loaded_mesh.mesh.bsphere.radius == 0) {
+    loaded_mesh.mesh.bsphere.centre = (loaded_mesh.mesh.collisionBox.min + loaded_mesh.mesh.collisionBox.max) / 2;
+    
+    // figure out a sphere bounding box radius
+    auto d = loaded_mesh.mesh.collisionBox.max - loaded_mesh.mesh.collisionBox.min;
+    int32_t sum = d.x.integer() * d.x.integer() + d.y.integer() * d.y.integer() + d.z.integer() * d.z.integer();
+    
+    // radius = half diagonal, >> 1 is divide by 2 in fp12
+    loaded_mesh.mesh.bsphere.radius = (psyqo::SoftMath::squareRoot(1.0_fp * sum) >> 1).integer();
+  }
   
   // load skeleton bones
   if (version > 1 && loaded_mesh.mesh.hasSkeleton) {

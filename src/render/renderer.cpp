@@ -243,9 +243,9 @@ void Renderer::RenderGameObjects(uint32_t deltaTime, const psyqo::Matrix33 &came
     GTEMath::MultiplyMatrix33(cameraRotationMatrix, gameObject->rotationMatrix(), &finalCameraMatrix);
   
     // see if the entire game object will be visible based off its aabb centre
-    psyqo::Vec3 centre = (gameObject->mesh()->collisionBox.min + gameObject->mesh()->collisionBox.max) / 2 + gameObject->pos();
+    psyqo::Vec3 centre = gameObject->mesh()->bsphere.centre + gameObject->pos();
     auto deltaCentre = TransformObjectToViewSpace(centre, cameraRotationMatrix, finalCameraMatrix);
-    if (!IsGameObjectVisible(deltaCentre, gameObject->mesh()->collisionBox, gameObject->mesh()->boundingSphereRadius))
+    if (!IsGameObjectVisible(deltaCentre, gameObject->mesh()->collisionBox, gameObject->mesh()->bsphere.radius))
       continue;
 
     // transform the game object into view space 
@@ -824,11 +824,11 @@ void Renderer::RenderSprite(const TimFile *texture, const psyqo::Rect rect, cons
 
 void Renderer::SetActiveCamera(Camera *camera) { m_activeCamera = camera; }
 
-bool Renderer::IsGameObjectVisible(const psyqo::Vec3& cameraPos, const AABBCollision& collisionBox, const psyqo::FixedPoint<>& boundingSphereRadius) {
+bool Renderer::IsGameObjectVisible(const psyqo::Vec3& cameraPos, const AABBCollision& collisionBox, const int32_t& boundingSphereRadius) {
     int32_t cx = cameraPos.x.value;
     int32_t cy = cameraPos.y.value;
     int32_t cz = cameraPos.z.value;
-    int32_t r = boundingSphereRadius.value;
+    int32_t r = boundingSphereRadius;
 
     // reject if sphere is entirely behind near plane
     if (cz + r <= 0) return false;
@@ -844,8 +844,12 @@ bool Renderer::IsGameObjectVisible(const psyqo::Vec3& cameraPos, const AABBColli
     int32_t sr = (r * PROJECTION_DISTANCE) / cz;
 
     // reject if sphere projection does not overlap viewport
-    if (sx + sr < 0 || sx - sr > SCREEN_SPACE.size.x) return false;
-    if (sy + sr < 0 || sy - sr > SCREEN_SPACE.size.y) return false;
+    if (sx + sr < 0 || sx - sr > SCREEN_SPACE.size.x)
+      return false;
+
+    if (sy + sr < 0 || sy - sr > SCREEN_SPACE.size.y)
+      return false;
+
 
     return true;
 }

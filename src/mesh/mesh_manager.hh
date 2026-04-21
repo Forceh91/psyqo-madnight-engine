@@ -23,6 +23,11 @@ struct MeshBinIndex {
   uint16_t i1, i2, i3, i4;
 };
 
+struct BoundingSphere {
+  psyqo::Vec3 centre;
+  int32_t radius;
+};
+
 struct MeshBin {
   uint8_t type;                       // 1 = quads, 2 = tris (unused)
 
@@ -56,7 +61,7 @@ struct MeshBin {
 
   // basic min/max collision box
   AABBCollision collisionBox;
-  psyqo::FixedPoint<> boundingSphereRadius = 0;
+  BoundingSphere bsphere;
 };
 
 struct LoadedMeshBin {

@@ -162,7 +162,7 @@ def parse_obj_file_with_collision_data(path,texture_size):
                 bsphere_centre = [int(float(parts[1]) * ONE_ENGINE_METRE),
                                 int(float(parts[2]) * ONE_ENGINE_METRE),
                                 int(float(parts[3]) * ONE_ENGINE_METRE)]
-                bsphere_radius = int(float(parts[4]))
+                bsphere_radius = int(float(parts[4]) * ONE_ENGINE_METRE)
 
             elif line.startswith("skel "):
                 has_skeleton = True
@@ -241,7 +241,7 @@ def write_meshbin(filename, verts, norms, uvs, indices, uv_indices, normal_indic
 
         # bounding sphere
         f.write(struct.pack("<hhh", *bsphere_centre))
-        f.write(struct.pack("<h", bsphere_radius))
+        f.write(struct.pack("<i", bsphere_radius))
 
         # skeleton bones
         for bone in skeleton_bones:
