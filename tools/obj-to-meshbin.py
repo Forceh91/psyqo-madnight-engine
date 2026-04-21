@@ -157,6 +157,13 @@ def parse_obj_file_with_collision_data(path,texture_size):
                             int(float(parts[5]) * ONE_ENGINE_METRE),
                             int(float(parts[6]) * ONE_ENGINE_METRE)]
 
+            elif line.startswith('bsphere '):
+                parts = line.split()
+                bsphere_centre = [int(float(parts[1]) * ONE_ENGINE_METRE),
+                                int(float(parts[2]) * ONE_ENGINE_METRE),
+                                int(float(parts[3]) * ONE_ENGINE_METRE)]
+                bsphere_radius = int(float(parts[4]))
+
             elif line.startswith("skel "):
                 has_skeleton = True
                 skeleton_bone_count = int(line.strip().split()[1])
@@ -183,13 +190,13 @@ def parse_obj_file_with_collision_data(path,texture_size):
                 bone_id = line.strip().split()[2]
                 bone_id_for_vert_ix.append(int(bone_id))
 
-    return verts, norms, uvs, face_indices, uv_indices, normal_indices, num_faces, collision_verts, min_coords, max_coords, has_skeleton, skeleton_bone_count, skeleton_bones, bone_id_for_vert_ix
+    return verts, norms, uvs, face_indices, uv_indices, normal_indices, num_faces, collision_verts, min_coords, max_coords, has_skeleton, skeleton_bone_count, skeleton_bones, bone_id_for_vert_ix, bsphere_centre, bsphere_radius
 
 
-def write_meshbin(filename, verts, norms, uvs, indices, uv_indices, normal_indices, num_faces, collision_verts, min_coords, max_coords, has_skeleton, skeleton_bone_count, skeleton_bones, bone_id_for_vert_ix):
+def write_meshbin(filename, verts, norms, uvs, indices, uv_indices, normal_indices, num_faces, collision_verts, min_coords, max_coords, has_skeleton, skeleton_bone_count, skeleton_bones, bone_id_for_vert_ix, bsphere_centre, bsphere_radius):
     with open(filename, "wb") as f:
         f.write(b"MESHBIN") # magic
-        f.write(struct.pack("<B", 2)) # version
+        f.write(struct.pack("<B", 3)) # version
         f.write(struct.pack("<B", 1)) # type
 
         # subheader
@@ -232,6 +239,10 @@ def write_meshbin(filename, verts, norms, uvs, indices, uv_indices, normal_indic
         f.write(struct.pack("<hhh", *min_coords))
         f.write(struct.pack("<hhh", *max_coords))
 
+        # bounding sphere
+        f.write(struct.pack("<hhh", *bsphere_centre))
+        f.write(struct.pack("<h", bsphere_radius))
+
         # skeleton bones
         for bone in skeleton_bones:
             f.write(struct.pack("<b3i4h", *bone))
@@ -250,7 +261,7 @@ if __name__ == "__main__":
     output_bin = sys.argv[2]
     texture_size = sys.argv[3]
 
-    verts, norms, uvs, indices, uv_idx, norm_idx, num_faces, collision_verts, min_coords, max_coords, has_skeleton, skeleton_bone_count, skeleton_bones, bone_id_for_vert_ix = parse_obj_file_with_collision_data(input_obj, texture_size)
-    write_meshbin(output_bin, verts, norms, uvs, indices, uv_idx, norm_idx, num_faces, collision_verts, min_coords, max_coords, has_skeleton, skeleton_bone_count, skeleton_bones, bone_id_for_vert_ix)
+    verts, norms, uvs, indices, uv_idx, norm_idx, num_faces, collision_verts, min_coords, max_coords, has_skeleton, skeleton_bone_count, skeleton_bones, bone_id_for_vert_ix, bsphere_centre, bsphere_radius = parse_obj_file_with_collision_data(input_obj, texture_size)
+    write_meshbin(output_bin, verts, norms, uvs, indices, uv_idx, norm_idx, num_faces, collision_verts, min_coords, max_coords, has_skeleton, skeleton_bone_count, skeleton_bones, bone_id_for_vert_ix, bsphere_centre, bsphere_radius)
     print(f"Successfully wrote mesh binary to {output_bin}\n")
     print(f"verts: {len(verts)}. indices count: {len(indices)}. faces count: {num_faces}. uv count: {len(uvs)}. bone count: {skeleton_bone_count}")
