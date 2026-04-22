@@ -52,6 +52,8 @@ class Renderer final {
   psyqo::Vec3 TransformObjectToViewSpace(const psyqo::Vec3 &pos, const psyqo::Matrix33 &cameraRotationMatrix, const psyqo::Matrix33 &finalCameraMatrix);
 
   void RenderGameObjects(uint32_t deltaTime, const psyqo::Matrix33 &cameraRotationMatrix);
+  void SubdivideTexturedQuad(psyqo::Fragments::SimpleFragment<psyqo::Prim::GouraudTexturedQuad>* texturedQuad, uint32_t zIndex, psyqo::OrderingTable<ORDERING_TABLE_SIZE>* ot, uint8_t maxDepth = 1);
+
   void RenderBillboards(uint32_t deltaTime, const psyqo::Matrix33 &cameraRotationMatrix);
   void RenderParticles(uint32_t deltaTime, const psyqo::Matrix33 &cameraRotationMatrix);
   

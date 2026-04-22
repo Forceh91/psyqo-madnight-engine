@@ -12,10 +12,12 @@
 #include "../defs.hh"
 
 #include "psyqo/fixed-point.hh"
+#include "psyqo/fragment-concept.hh"
 #include "psyqo/fragments.hh"
 #include "psyqo/gte-kernels.hh"
 #include "psyqo/gte-registers.hh"
 #include "psyqo/matrix.hh"
+#include "psyqo/primitive-concept.hh"
 #include "psyqo/primitives/common.hh"
 #include "psyqo/primitives/control.hh"
 #include "psyqo/primitives/quads.hh"
@@ -220,6 +222,7 @@ void Renderer::RenderGameObjects(uint32_t deltaTime, const psyqo::Matrix33 &came
   uint32_t zIndex = 0;
   psyqo::PrimPieces::TPageAttr tpage;
   psyqo::Rect offset = {0,0};
+  psyqo::Matrix33 finalCameraMatrix = {0};
 
   auto frameBuffer = m_gpu.getParity();
   auto &allocator = m_allocators[frameBuffer];
@@ -239,7 +242,6 @@ void Renderer::RenderGameObjects(uint32_t deltaTime, const psyqo::Matrix33 &came
       continue;
 
     // get the rotation matrix for the game object and then combine with the camera rotations
-    psyqo::Matrix33 finalCameraMatrix = {0};
     GTEMath::MultiplyMatrix33(cameraRotationMatrix, gameObject->rotationMatrix(), &finalCameraMatrix);
   
     // see if the entire game object will be visible based off its aabb centre
@@ -288,7 +290,6 @@ void Renderer::RenderGameObjects(uint32_t deltaTime, const psyqo::Matrix33 &came
     // now we've done all this we can render the mesh and apply texture (if needed)
     // we dont need to get texture data for every single vert since it wont change, so lets only do that once
     // if its not a nullptr fill out some data so we don't have to do it every face
-    // NOTE: the nullptr check here is a free 0.2ms if you want it but it really should be done
     const auto texture = gameObject->texture();
     if (texture) {
       // get the tpage and uv offset info
@@ -297,8 +298,8 @@ void Renderer::RenderGameObjects(uint32_t deltaTime, const psyqo::Matrix33 &came
       offset.pos.y += (texture->height - 1);
     }
 
-    for (int i = 0; i < mesh->facesCount; i++) {
-      auto renderVerts = mesh->hasSkeleton ? mesh->verticesOnBonePos : mesh->vertices;
+    auto renderVerts = mesh->hasSkeleton ? mesh->verticesOnBonePos : mesh->vertices;
+    for (int32_t i = 0; i < mesh->facesCount; i++) {
       // load the first 3 verts into the GTE. remember it can only handle 3 at a time
       psyqo::GTE::writeSafe<psyqo::GTE::PseudoRegister::V0>(renderVerts[mesh->vertexIndices[i].i1]);
       psyqo::GTE::writeSafe<psyqo::GTE::PseudoRegister::V1>(renderVerts[mesh->vertexIndices[i].i2]);
@@ -388,7 +389,10 @@ void Renderer::RenderGameObjects(uint32_t deltaTime, const psyqo::Matrix33 &came
       }
 
       // finally we can insert the quad fragment into the ordering table at the calculated z-index
-      ot.insert(quad, zIndex);
+      if (zIndex <= 500)
+        SubdivideTexturedQuad(&quad, zIndex, &ot, 1);
+      else
+        ot.insert(quad, zIndex);
     };
 
 #if ENABLE_BONE_DEBUG
@@ -852,6 +856,115 @@ bool Renderer::IsGameObjectVisible(const psyqo::Vec3& cameraPos, const AABBColli
 
 
     return true;
+}
+
+void Renderer::SubdivideTexturedQuad(psyqo::Fragments::SimpleFragment<psyqo::Prim::GouraudTexturedQuad>* texturedQuad, uint32_t zIndex, psyqo::OrderingTable<ORDERING_TABLE_SIZE>* ot, uint8_t maxDepth) {
+  auto& q = texturedQuad->primitive;
+  auto& balloc = m_allocators[m_gpu.getParity()];
+
+  if (balloc.remaining() < sizeof(psyqo::Prim::GouraudTexturedQuad) + 20) {
+    ot->insert(*texturedQuad, zIndex);
+    return;
+  }
+
+  // out of recursion depth, just insert as-is
+  if (maxDepth == 0) {
+    ot->insert(*texturedQuad, zIndex);
+    return;
+  }
+
+  // check if quad is small enough to just insert
+  auto width = eastl::max(q.pointA.x, eastl::max(q.pointB.x, eastl::max(q.pointC.x, q.pointD.x))) -
+                eastl::min(q.pointA.x, eastl::min(q.pointB.x, eastl::min(q.pointC.x, q.pointD.x)));
+  auto height = eastl::max(q.pointA.y, eastl::max(q.pointB.y, eastl::max(q.pointC.y, q.pointD.y))) -
+                eastl::min(q.pointA.y, eastl::min(q.pointB.y, eastl::min(q.pointC.y, q.pointD.y)));
+
+  if (width < 32 && height < 32) {
+    ot->insert(*texturedQuad, zIndex);
+    return;
+  }
+
+  // Z order: A=TL, B=TR, C=BL, D=BR
+  // compare top edge (AB) vs left edge (AC) to decide split axis
+  int16_t spanAB_x = q.pointB.x - q.pointA.x;
+  int16_t spanAB_y = q.pointB.y - q.pointA.y;
+  int16_t spanAC_x = q.pointC.x - q.pointA.x;
+  int16_t spanAC_y = q.pointC.y - q.pointA.y;
+
+  int32_t lenAB = spanAB_x * spanAB_x + spanAB_y * spanAB_y;
+  int32_t lenAC = spanAC_x * spanAC_x + spanAC_y * spanAC_y;
+
+  if (lenAB >= lenAC) {
+    // split left/right: midpoints of AB (top) and CD (bottom)
+    psyqo::Vertex midAB = {int16_t((q.pointA.x + q.pointB.x) >> 1), int16_t((q.pointA.y + q.pointB.y) >> 1)};
+    psyqo::Vertex midCD = {int16_t((q.pointC.x + q.pointD.x) >> 1), int16_t((q.pointC.y + q.pointD.y) >> 1)};
+
+    psyqo::PrimPieces::UVCoords uvAB = {uint8_t((q.uvA.u + q.uvB.u) >> 1), uint8_t((q.uvA.v + q.uvB.v) >> 1)};
+    psyqo::PrimPieces::UVCoords uvCD = {uint8_t((q.uvC.u + q.uvD.u) >> 1), uint8_t((q.uvC.v + q.uvD.v) >> 1)};
+
+    psyqo::Color colAB = {uint8_t((q.getColorA().r + q.colorB.r) >> 1), uint8_t((q.getColorA().g + q.colorB.g) >> 1), uint8_t((q.getColorA().b + q.colorB.b) >> 1)};
+    psyqo::Color colCD = {uint8_t((q.colorC.r + q.colorD.r) >> 1), uint8_t((q.colorC.g + q.colorD.g) >> 1), uint8_t((q.colorC.b + q.colorD.b) >> 1)};
+
+    // save original data before overwriting q
+    auto origPointB = q.pointB;
+    auto origUvB = q.uvB;
+    auto origColorB = q.colorB;
+    auto origPointD = q.pointD;
+    auto origUvD = q.uvD;
+    auto origColorD = q.colorD;
+
+    // reuse original as left half: A(TL), midAB(TM), C(BL), midCD(BM)
+    q.pointB = midAB;     q.uvB = uvAB;     q.setColorB(colAB);
+    q.pointD = midCD;     q.uvD = {uvCD.u, uvCD.v, 0};     q.setColorD(colCD);
+    // pointA and pointC stay the same
+
+    // allocate one new quad for the right half: midAB(TM), B(TR), midCD(BM), D(BR)
+    auto& q2 = balloc.allocateFragment<psyqo::Prim::GouraudTexturedQuad>();
+    q2.primitive.pointA = midAB;        q2.primitive.uvA = uvAB;   q2.primitive.setColorA(colAB);
+    q2.primitive.pointB = origPointB;   q2.primitive.uvB = origUvB;               q2.primitive.setColorB(origColorB);
+    q2.primitive.pointC = midCD;        q2.primitive.uvC = {uvCD.u, uvCD.v, 0};   q2.primitive.setColorC(colCD);
+    q2.primitive.pointD = origPointD;     q2.primitive.uvD = origUvD;                 q2.primitive.setColorD(origColorD);
+    q2.primitive.tpage = q.tpage;       q2.primitive.clutIndex = q.clutIndex;
+    q2.primitive.setOpaque();
+
+    SubdivideTexturedQuad(texturedQuad, zIndex, ot, maxDepth - 1);
+    SubdivideTexturedQuad(&q2, zIndex, ot, maxDepth - 1);
+  } else {
+    // split top/bottom: midpoints of AC (left) and BD (right)
+    psyqo::Vertex midAC = {int16_t((q.pointA.x + q.pointC.x) >> 1), int16_t((q.pointA.y + q.pointC.y) >> 1)};
+    psyqo::Vertex midBD = {int16_t((q.pointB.x + q.pointD.x) >> 1), int16_t((q.pointB.y + q.pointD.y) >> 1)};
+
+    psyqo::PrimPieces::UVCoords uvAC = {uint8_t((q.uvA.u + q.uvC.u) >> 1), uint8_t((q.uvA.v + q.uvC.v) >> 1)};
+    psyqo::PrimPieces::UVCoords uvBD = {uint8_t((q.uvB.u + q.uvD.u) >> 1), uint8_t((q.uvB.v + q.uvD.v) >> 1)};
+
+    psyqo::Color colAC = {uint8_t((q.getColorA().r + q.colorC.r) >> 1), uint8_t((q.getColorA().g + q.colorC.g) >> 1), uint8_t((q.getColorA().b + q.colorC.b) >> 1)};
+    psyqo::Color colBD = {uint8_t((q.colorB.r + q.colorD.r) >> 1), uint8_t((q.colorB.g + q.colorD.g) >> 1), uint8_t((q.colorB.b + q.colorD.b) >> 1)};
+
+    // save original data before overwriting q
+    auto origPointC = q.pointC;
+    auto origUvC = q.uvC;
+    auto origColorC = q.colorC;
+    auto origPointD = q.pointD;
+    auto origUvD = q.uvD;
+    auto origColorD = q.colorD;
+
+    // reuse original as top half: A(TL), B(TR), midAC(ML), midBD(MR)
+    q.pointC = midAC;     q.uvC = {uvAC.u, uvAC.v, 0};     q.setColorC(colAC);
+    q.pointD = midBD;     q.uvD = {uvBD.u, uvBD.v, 0};     q.setColorD(colBD);
+    // pointA and pointB stay the same
+
+    // allocate one new quad for the bottom half: midAC(ML), midBD(MR), C(BL), D(BR)
+    auto& q2 = balloc.allocateFragment<psyqo::Prim::GouraudTexturedQuad>();
+    q2.primitive.pointA = midAC;        q2.primitive.uvA = uvAC;   q2.primitive.setColorA(colAC);
+    q2.primitive.pointB = midBD;        q2.primitive.uvB = uvBD;   q2.primitive.setColorB(colBD);
+    q2.primitive.pointC = origPointC;   q2.primitive.uvC = origUvC;               q2.primitive.setColorC(origColorC);
+    q2.primitive.pointD = origPointD;   q2.primitive.uvD = origUvD;               q2.primitive.setColorD(origColorD);
+    q2.primitive.tpage = q.tpage;       q2.primitive.clutIndex = q.clutIndex;
+    q2.primitive.setOpaque();
+
+    SubdivideTexturedQuad(texturedQuad, zIndex, ot, maxDepth - 1);
+    SubdivideTexturedQuad(&q2, zIndex, ot, maxDepth - 1);
+  }
 }
 
 psyqo::FixedPoint<> Renderer::GetFogFactor(uint32_t z) {
