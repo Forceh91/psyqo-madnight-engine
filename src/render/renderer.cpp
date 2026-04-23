@@ -405,7 +405,7 @@ void Renderer::RenderGameObjects(uint32_t deltaTime, const psyqo::Matrix33 &came
 
         // finally we can insert the quad fragment into the ordering table at the calculated z-index
         if (zIndex <= SUBDIVISION_DISTANCE)
-          SubdivideTexturedQuad(&quad, zIndex, &ot, 1);
+          SubdivideTexturedQuad(&quad, zIndex, &ot, 2);
         else
           ot.insert(quad, zIndex);
       } else {
@@ -449,7 +449,7 @@ void Renderer::RenderGameObjects(uint32_t deltaTime, const psyqo::Matrix33 &came
 
         // finally we can insert the quad fragment into the ordering table at the calculated z-index
         if (zIndex <= SUBDIVISION_DISTANCE)
-          SubdivideTexturedTri(&tri, zIndex, &ot, 1);
+          SubdivideTexturedTri(&tri, zIndex, &ot, 2);
         else
           ot.insert(tri, zIndex);
       }
@@ -944,6 +944,16 @@ void Renderer::SubdivideTexturedQuad(psyqo::Fragments::SimpleFragment<psyqo::Pri
     return;
   }
 
+  // dont subdivide if leaving screen space because it looks worse
+  if (q.pointA.x < -100 || q.pointA.y < -100 || 
+                    q.pointB.x < -100 || q.pointB.y < -100 ||
+                    q.pointC.x < -100 || q.pointC.y < -100 ||
+                    q.pointD.x < -100 || q.pointD.y < -100 ||
+                    width > 420 || height > 356) {
+    ot->insert(*texturedQuad, zIndex);
+    return;
+  }
+
   // Z order: A=TL, B=TR, C=BL, D=BR
   // compare top edge (AB) vs left edge (AC) to decide split axis
   int16_t spanAB_x = q.pointB.x - q.pointA.x;
@@ -1027,7 +1037,6 @@ void Renderer::SubdivideTexturedQuad(psyqo::Fragments::SimpleFragment<psyqo::Pri
   }
 }
 
-
 void Renderer::SubdivideTexturedTri(psyqo::Fragments::SimpleFragment<psyqo::Prim::GouraudTexturedTriangle>* tri, uint32_t zIndex, psyqo::OrderingTable<ORDERING_TABLE_SIZE>* ot, uint8_t maxDepth) {
   auto& t = tri->primitive;
   auto& balloc = m_allocators[m_gpu.getParity()];
@@ -1055,6 +1064,15 @@ void Renderer::SubdivideTexturedTri(psyqo::Fragments::SimpleFragment<psyqo::Prim
     ot->insert(*tri, zIndex);
     return;
   }
+
+  // dont subdivide if leaving screen space because it looks worse
+  if (t.pointA.x < -100 || t.pointA.y < -100 || 
+                    t.pointB.x < -100 || t.pointB.y < -100 ||
+                    t.pointC.x < -100 || t.pointC.y < -100 ||
+                    width > 420 || height > 356) {
+    ot->insert(*tri, zIndex);
+    return;
+  }  
 
   // edges: AB, BC, CA
   int16_t abx = t.pointB.x - t.pointA.x;
