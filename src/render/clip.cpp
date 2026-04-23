@@ -83,7 +83,7 @@ int quad_clip(const psyqo::Rect *clip, psyqo::Vertex *v0, psyqo::Vertex *v1, psy
 	return 1;
 }
 
-int tri_clip(psyqo::Rect *clip, psyqo::Vertex *v0, psyqo::Vertex *v1, psyqo::Vertex *v2) {
+int tri_clip(const psyqo::Rect *clip, psyqo::Vertex *v0, psyqo::Vertex *v1, psyqo::Vertex *v2) {
 
 	// Returns non-zero if a triangle is outside the screen boundaries
 

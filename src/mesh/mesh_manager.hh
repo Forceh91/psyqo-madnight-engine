@@ -20,7 +20,7 @@ struct MeshBinVertexColours {
 };
 
 struct MeshBinIndex {
-  uint16_t i1, i2, i3, i4;
+  int16_t i1, i2, i3, i4;
 };
 
 struct BoundingSphere {

@@ -143,10 +143,20 @@ def parse_obj_file_with_collision_data(path,texture_size):
                     face_indices.append(v_idx)
                     uv_indices.append(uv_idx)
                     normal_indices.append(n_idx)
-
-                    num_faces += 1
                 elif len(v_idx) == 3:
-                    print(f"Skipping triangle: {v_idx}")
+                    # Keep triangle, but pad to quad format with -1 in slot 1
+                    v_idx = [v_idx[0], -1, v_idx[1], v_idx[2]]
+
+                    if uv_idx:
+                        uv_idx = [uv_idx[0], -1, uv_idx[1], uv_idx[2]]
+                    if n_idx:
+                        n_idx = [n_idx[0], -1, n_idx[1], n_idx[2]]
+
+                    face_indices.append(v_idx)
+                    uv_indices.append(uv_idx)
+                    normal_indices.append(n_idx)
+
+                num_faces += 1
 
             elif line.startswith('aabb '):
                 parts = line.split()
