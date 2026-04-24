@@ -1,8 +1,13 @@
 #include "mesh_manager.hh"
 #include "../helpers/cdrom.hh"
-#include "EASTL/string.h"
-#include "psyqo/xprintf.h"
+#include "../helpers/world_space.hh"
+#include "psyqo/fixed-point.hh"
 #include "skeleton/skeleton.hh"
+
+#include "EASTL/string.h"
+#include "psyqo/alloc.h"
+#include "psyqo/soft-math.hh"
+#include "psyqo/xprintf.h"
 
 LoadedMeshBin MeshManager::mLoadedMeshes[MAX_LOADED_MESHES];
 
@@ -41,21 +46,24 @@ psyqo::Coroutine<> MeshManager::LoadMeshFromCDROM(const char *meshName, MeshBin 
   unsigned char *ptr = (unsigned char *)data;
 
   // meshbin header
-  // magic value
-  loaded_mesh.mesh.magic.assign(reinterpret_cast<char *>(ptr), 7);
-  ptr += 7;
-
-  // verify the magic value
-  if (loaded_mesh.mesh.magic.compare("MESHBIN") != 0) {
-    printf("MESH: Header is invalid. aborting.\n");
-    __builtin_memset(&loaded_mesh, 0, sizeof(LoadedMeshBin));
+  // check the magic
+  eastl::fixed_string<char, 7> magic;
+  magic.assign(reinterpret_cast<char*>(ptr), 7);
+  if (magic.compare("MESHBIN")) {
+    printf("MESH: Header is invalid. aborting (%s).\n", magic.c_str());
     buffer.clear();
     co_return;
   }
+  ptr += 7;
 
   // version + type
-  __builtin_memcpy(&loaded_mesh.mesh.version, ptr++, 1); // 1 bytes
-  __builtin_memcpy(&loaded_mesh.mesh.type, ptr++, 1);    // 1 bytes
+  uint8_t version;
+  __builtin_memcpy(&version, ptr, sizeof(uint8_t));    
+  ptr += sizeof(uint8_t);
+
+  uint8_t type;
+  __builtin_memcpy(&type, ptr, sizeof(uint8_t));    
+  ptr += sizeof(uint8_t);
 
   // subheader (counts basically)
   __builtin_memcpy(&loaded_mesh.mesh.vertexCount, ptr, sizeof(uint32_t)); // 4 bytes
@@ -75,7 +83,7 @@ psyqo::Coroutine<> MeshManager::LoadMeshFromCDROM(const char *meshName, MeshBin 
 
   // skeleton exists and how many bones?
   // v2 onwards has skeleton data
-  if (loaded_mesh.mesh.version > 1) {
+  if (version > 1) {
     __builtin_memcpy(&loaded_mesh.mesh.hasSkeleton, ptr++, sizeof(uint8_t)); // 1 byte
     __builtin_memcpy(&loaded_mesh.mesh.numBones, ptr++, sizeof(uint8_t));    // 1 byte
   }
@@ -92,7 +100,7 @@ psyqo::Coroutine<> MeshManager::LoadMeshFromCDROM(const char *meshName, MeshBin 
   size_t verticesSize = sizeof(psyqo::Vec3) * loaded_mesh.mesh.vertexCount;
   loaded_mesh.mesh.vertices = (psyqo::Vec3 *)psyqo_malloc(verticesSize);
 
-  for (int i = 0; i < loaded_mesh.mesh.vertexCount; i++) {
+  for (int32_t i = 0; i < loaded_mesh.mesh.vertexCount; i++) {
     __builtin_memcpy(&loaded_mesh.mesh.vertices[i].x.value, ptr, sizeof(int32_t));
     ptr += sizeof(int32_t);
 
@@ -103,8 +111,10 @@ psyqo::Coroutine<> MeshManager::LoadMeshFromCDROM(const char *meshName, MeshBin 
     ptr += sizeof(int32_t);
   }
 
-  for (int i = 0; i < loaded_mesh.mesh.vertexCount; i++) {
-    loaded_mesh.mesh.verticesOnBonePos[i] = loaded_mesh.mesh.vertices[i];
+  if (loaded_mesh.mesh.hasSkeleton) {
+    for (int32_t i = 0; i < loaded_mesh.mesh.vertexCount; i++) {
+      loaded_mesh.mesh.verticesOnBonePos[i] = loaded_mesh.mesh.vertices[i];
+    }
   }
 
   // read the vert colours data
@@ -184,46 +194,83 @@ psyqo::Coroutine<> MeshManager::LoadMeshFromCDROM(const char *meshName, MeshBin 
 
   loaded_mesh.mesh.collisionBox.max.z.value = static_cast<int32_t>(tempVal);
 
+  // load bounding sphere
+  if (version >= 3) {
+    tempVal = 0;
+    __builtin_memcpy(&tempVal, ptr, sizeof(int16_t));
+    ptr += sizeof(int16_t);
+    loaded_mesh.mesh.bsphere.centre.x.value = static_cast<int32_t>(tempVal);
+
+    __builtin_memcpy(&tempVal, ptr, sizeof(int16_t));
+    ptr += sizeof(int16_t);
+    loaded_mesh.mesh.bsphere.centre.y.value = static_cast<int32_t>(tempVal);
+
+    __builtin_memcpy(&tempVal, ptr, sizeof(int16_t));
+    ptr += sizeof(int16_t);
+    loaded_mesh.mesh.bsphere.centre.z.value = static_cast<int32_t>(tempVal);
+    
+    __builtin_memcpy(&loaded_mesh.mesh.bsphere.radius, ptr, sizeof(int32_t));
+    loaded_mesh.mesh.bsphere.radius += 6 * 128; // add a bit of leeway to the sphere
+  }
+
+  // if we didn't get bounding radius from the MB file, figure a rough one out
+  if (loaded_mesh.mesh.bsphere.radius == 0) {
+    loaded_mesh.mesh.bsphere.centre = (loaded_mesh.mesh.collisionBox.min + loaded_mesh.mesh.collisionBox.max) / 2;
+    
+    // figure out a sphere bounding box radius
+    auto d = loaded_mesh.mesh.collisionBox.max - loaded_mesh.mesh.collisionBox.min;
+    int32_t sum = d.x.integer() * d.x.integer() + d.y.integer() * d.y.integer() + d.z.integer() * d.z.integer();
+    
+    // radius = half diagonal, >> 1 is divide by 2 in fp12
+    loaded_mesh.mesh.bsphere.radius = (psyqo::SoftMath::squareRoot(1.0_fp * sum) >> 1).integer();
+  }
+  
   // load skeleton bones
-  if (loaded_mesh.mesh.version > 1 && loaded_mesh.mesh.hasSkeleton) {
-    __builtin_memset(&loaded_mesh.mesh.skeleton, 0, sizeof(Skeleton));
-    __builtin_memset(&loaded_mesh.mesh.skeleton.bones, 0, sizeof(SkeletonBone) * MAX_BONES);
+  if (version > 1 && loaded_mesh.mesh.hasSkeleton) {
+    loaded_mesh.mesh.skeleton = (Skeleton *)psyqo_malloc(sizeof(Skeleton));
+    loaded_mesh.mesh.verticesOnBonePos = (psyqo::Vec3 *)psyqo_malloc(sizeof(psyqo::Vec3) * loaded_mesh.mesh.vertexCount);
+
+    __builtin_memset(loaded_mesh.mesh.skeleton, 0, sizeof(Skeleton));
+    __builtin_memset(&loaded_mesh.mesh.skeleton->bones, 0, sizeof(SkeletonBone) * MAX_BONES);
 
     // number of bones
-    loaded_mesh.mesh.skeleton.numBones = loaded_mesh.mesh.numBones;
+    loaded_mesh.mesh.skeleton->numBones = loaded_mesh.mesh.numBones;
 
     // individual bone data
     for (int32_t i = 0; i < loaded_mesh.mesh.numBones; i++) {
-      loaded_mesh.mesh.skeleton.bones[i].id = i;
+      loaded_mesh.mesh.skeleton->bones[i].id = i;
+
+      if (i >= MAX_BONES)
+        break;
 
       // parent bone
-      __builtin_memcpy(&loaded_mesh.mesh.skeleton.bones[i].parent, ptr++, sizeof(int8_t)); // 1 byte
+      __builtin_memcpy(&loaded_mesh.mesh.skeleton->bones[i].parent, ptr++, sizeof(int8_t)); // 1 byte
 
       // local pos
-      __builtin_memcpy(&loaded_mesh.mesh.skeleton.bones[i].localPos.x.value, ptr, sizeof(int32_t)); // 4 bytes
+      __builtin_memcpy(&loaded_mesh.mesh.skeleton->bones[i].localPos.x.value, ptr, sizeof(int32_t)); // 4 bytes
       ptr += sizeof(int32_t);
 
-      __builtin_memcpy(&loaded_mesh.mesh.skeleton.bones[i].localPos.y.value, ptr, sizeof(int32_t)); // 4 bytes
+      __builtin_memcpy(&loaded_mesh.mesh.skeleton->bones[i].localPos.y.value, ptr, sizeof(int32_t)); // 4 bytes
       ptr += sizeof(int32_t);
 
-      __builtin_memcpy(&loaded_mesh.mesh.skeleton.bones[i].localPos.z.value, ptr, sizeof(int32_t)); // 4 bytes
+      __builtin_memcpy(&loaded_mesh.mesh.skeleton->bones[i].localPos.z.value, ptr, sizeof(int32_t)); // 4 bytes
       ptr += sizeof(int32_t);
 
       // local rotation
-      __builtin_memcpy(&loaded_mesh.mesh.skeleton.bones[i].localRotation.w.value, ptr, sizeof(int16_t)); // 2 bytes
+      __builtin_memcpy(&loaded_mesh.mesh.skeleton->bones[i].localRotation.w.value, ptr, sizeof(int16_t)); // 2 bytes
       ptr += sizeof(int16_t);
 
-      __builtin_memcpy(&loaded_mesh.mesh.skeleton.bones[i].localRotation.x.value, ptr, sizeof(int16_t)); // 2 bytes
+      __builtin_memcpy(&loaded_mesh.mesh.skeleton->bones[i].localRotation.x.value, ptr, sizeof(int16_t)); // 2 bytes
       ptr += sizeof(int16_t);
 
-      __builtin_memcpy(&loaded_mesh.mesh.skeleton.bones[i].localRotation.y.value, ptr, sizeof(int16_t)); // 2 bytes
+      __builtin_memcpy(&loaded_mesh.mesh.skeleton->bones[i].localRotation.y.value, ptr, sizeof(int16_t)); // 2 bytes
       ptr += sizeof(int16_t);
 
-      __builtin_memcpy(&loaded_mesh.mesh.skeleton.bones[i].localRotation.z.value, ptr, sizeof(int16_t)); // 2 bytes
+      __builtin_memcpy(&loaded_mesh.mesh.skeleton->bones[i].localRotation.z.value, ptr, sizeof(int16_t)); // 2 bytes
       ptr += sizeof(int16_t);
 
       // mark as dirty initially
-      loaded_mesh.mesh.skeleton.bones[i].isDirty = true;
+      loaded_mesh.mesh.skeleton->bones[i].isDirty = true;
     }
 
     // map a bone id to a vertex ix
@@ -240,7 +287,7 @@ psyqo::Coroutine<> MeshManager::LoadMeshFromCDROM(const char *meshName, MeshBin 
   mLoadedMeshes[meshIx] = loaded_mesh;
 
   // now generate the skeleton bones matrix's + bindpose etc.
-  SkeletonController::UpdateSkeletonBoneMatrices(&mLoadedMeshes[meshIx].mesh.skeleton);
+  if (loaded_mesh.mesh.hasSkeleton) SkeletonController::UpdateSkeletonBoneMatrices(mLoadedMeshes[meshIx].mesh.skeleton);
 
   // free the data
   buffer.clear();
@@ -288,6 +335,11 @@ void MeshManager::UnloadMesh(const char *mesh_name) {
     // find the first loaded mesh that matches this mesh_name
     loaded_mesh = &mLoadedMeshes[i];
     if (loaded_mesh && eastl_mesh_name == FixedString(loaded_mesh->meshName)) {
+      if (loaded_mesh->mesh.hasSkeleton && loaded_mesh->mesh.skeleton) {
+        psyqo_free(loaded_mesh->mesh.skeleton);
+        psyqo_free(loaded_mesh->mesh.verticesOnBonePos);
+      }
+
       __builtin_memset(loaded_mesh, 0, sizeof(LoadedMeshBin));
       break;
     }
@@ -298,8 +350,8 @@ void MeshManager::GetMeshFromName(const char *meshName, MeshBin **meshOut) { *me
 
 void MeshManager::Dump(void) {
   // clear out every instance of loaded_mesh, putting it back to zero
-  for (int8_t i = 0; i < MAX_LOADED_MESHES; i++) {
-    mLoadedMeshes[i] = {"", false};
+  for (uint8_t i = 0; i < MAX_LOADED_MESHES; i++) {
     __builtin_memset(&mLoadedMeshes[i].mesh, 0, sizeof(MeshBin));
+    mLoadedMeshes[i].meshName = "";
   }
 }

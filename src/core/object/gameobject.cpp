@@ -2,9 +2,7 @@
 
 #include "psyqo/soft-math.hh"
 #include "psyqo/fixed-point.hh"
-#include "psyqo/xprintf.h"
 #include "../../madnight.hh"
-#include "../collision.hh"
 
 using namespace psyqo::fixed_point_literals;
 
@@ -93,7 +91,7 @@ void GameObject::GenerateOBB(void)
 {
     if (m_mesh == nullptr)
     {
-        printf("GAME OBJECT: [WARNING] You tried to generate an OBB before you had a mesh assigned.\n");
+        // printf("GAME OBJECT: [WARNING] You tried to generate an OBB before you had a mesh assigned.\n");
         return;
     }
 

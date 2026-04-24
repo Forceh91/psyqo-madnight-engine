@@ -2,6 +2,7 @@
 #define _GAMEOBJECT_H
 
 #include "EASTL/fixed_string.h"
+#include "psyqo/fixed-point.hh"
 #include "psyqo/fragments.hh"
 #include "psyqo/trigonometry.hh"
 #include "psyqo/vector.hh"
@@ -25,6 +26,8 @@ typedef struct _GAMEOBJECT_ROTATION {
   psyqo::Angle x, y, z;
 } GameObjectRotation;
 
+enum RenderFlags { RF_NONE = 0, RF_DISTANCE_CHECK = 1 };
+
 class GameObject final {
   eastl::fixed_string<char, MAX_CDROM_FILE_NAME_LEN> m_name = "";
   uint8_t m_id = INVALID_GAMEOBJECT_ID;
@@ -37,6 +40,7 @@ class GameObject final {
   TimFile *m_texture = nullptr;
   OBB m_obb = {0};
   CollisionType m_collisionType = CollisionType::SOLID;
+  uint16_t m_renderFlags = 0;
 
   void GenerateRotationMatrix(void);
   void GenerateOBB(void);
@@ -80,6 +84,10 @@ public:
   // note: doesn't actually do anything yet. need to figure it out later when its important
   void SetQuadType(const GameObjectQuadType quadType) { m_quadType = quadType; }
   void SetAsTrigger(const psyqo::Vec3 &size);
+  bool HasRenderFlag(const RenderFlags &rf) { return m_renderFlags & (1 << rf); }
+  void SetRenderFlag(const RenderFlags &rf) { m_renderFlags |= (1 << rf); }
+  void ClearRenderFlag(const RenderFlags &rf) { m_renderFlags &= ~(1 << rf); }
+  void ClearRenderFlags(void) { m_renderFlags = RF_NONE; }
 };
 
 #endif

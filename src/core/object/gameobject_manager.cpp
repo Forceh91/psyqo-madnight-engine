@@ -1,7 +1,11 @@
 #include "gameobject_manager.hh"
 
+#include "EASTL/fixed_string.h"
+#include "EASTL/span.h"
+
 eastl::array<GameObject, MAX_GAME_OBJECTS> GameObjectManager::m_gameObjects;
 eastl::fixed_vector<GameObject *, MAX_GAME_OBJECTS> GameObjectManager::m_activeGameObjects;
+eastl::fixed_vector<GameObject *, MAX_GAME_OBJECTS> GameObjectManager::m_renderableGameObjects;
 
 GameObject *GameObjectManager::CreateGameObject(const char *name, psyqo::Vec3 pos, GameObjectRotation rotation, GameObjectTag tag)
 {
@@ -34,6 +38,10 @@ void GameObjectManager::DestroyGameObject(GameObject *object)
 
 const eastl::fixed_vector<GameObject *, MAX_GAME_OBJECTS> &GameObjectManager::GetActiveGameObjects(void)
 {
+    // take renderable game objects first if we have them
+    if (m_renderableGameObjects.size() > 0)
+        return m_renderableGameObjects;
+
     m_activeGameObjects.clear();
 
     // get all game objects that are actually initialized
@@ -44,6 +52,19 @@ const eastl::fixed_vector<GameObject *, MAX_GAME_OBJECTS> &GameObjectManager::Ge
     }
 
     return m_activeGameObjects;
+}
+
+void GameObjectManager::ClearRenderableGameObjects(void) {
+    m_renderableGameObjects.clear();
+}
+
+void GameObjectManager::SetRenderableGameObjects(const eastl::span<GameObject*> renderList) {
+    m_renderableGameObjects.clear();
+
+    for (const auto &object : renderList) {
+        if (object->id() != INVALID_GAMEOBJECT_ID)
+            m_renderableGameObjects.push_back(object);
+    }
 }
 
 const eastl::fixed_vector<GameObject *, MAX_GAME_OBJECTS> &GameObjectManager::GetGameObjectsWithTag(GameObjectTag tag)
@@ -70,4 +91,13 @@ GameObject *GameObjectManager::GetGameObjectByName(const char *name)
     };
 
     return nullptr;
+}
+
+void GameObjectManager::Dump(void) {
+    // get all game objects that are actually initialized
+    for (auto &gameObject : m_gameObjects)
+    {
+        if (gameObject.id() != INVALID_GAMEOBJECT_ID)
+            gameObject.Destroy();
+    }
 }

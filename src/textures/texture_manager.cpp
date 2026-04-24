@@ -1,4 +1,5 @@
 #include "texture_manager.hh"
+#include "psyqo/alloc.h"
 #include "psyqo/xprintf.h"
 #include "../helpers/cdrom.hh"
 #include "../render/renderer.hh"
@@ -172,6 +173,9 @@ psyqo::Coroutine<> TextureManager::LoadTIMFromCDRom(const char *textureName, uin
     // upload it to the vram
     Renderer::Instance().VRamUpload(imageData, timFile.x, timFile.y, timFile.width, timFile.height);
 
+    // now its uploaded to ram we can free the image data back up
+    psyqo_free(imageData);
+
     // store this into our pool
     m_textures[freeIx] = timFile;
 
@@ -203,14 +207,14 @@ psyqo::PrimPieces::TPageAttr TextureManager::GetTPageAttr(const TimFile &tim)
 psyqo::Rect TextureManager::GetTPageUVForTim(const TimFile &tim)
 {
     uint16_t tpageX = (tim.x / texturePageWidth) * texturePageWidth, tpageY = (tim.y / texturePageHeight) * texturePageHeight;
-    psyqo::Rect rect = {.pos{(tim.x - tpageX), (tim.y - tpageY)}};
+    psyqo::Rect rect = {.pos{static_cast<int16_t>((tim.x - tpageX)), static_cast<int16_t>((tim.y - tpageY))}};
     return rect;
 }
 
 psyqo::Rect TextureManager::GetTPageUVForTim(const TimFile *tim)
 {
     uint16_t tpageX = (tim->x / texturePageWidth) * texturePageWidth, tpageY = (tim->y / texturePageHeight) * texturePageHeight;
-    psyqo::Rect rect = {.pos{(tim->x - tpageX), (tim->y - tpageY)}};
+    psyqo::Rect rect = {.pos{static_cast<int16_t>((tim->x - tpageX)), static_cast<int16_t>((tim->y - tpageY))}};
     return rect;
 }
 

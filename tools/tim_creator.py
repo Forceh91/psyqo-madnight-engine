@@ -65,11 +65,59 @@ _UPPER_ALPHA_BOUND: int = 0xe0
 _TRANSPARENT_COLOR: int = 0x0000
 _BLACK_COLOR:       int = 0x0421
 
-def _to16bpp(inputData: ndarray, forceSTP: bool) -> ndarray:
+
+def parse_hex_color(hex_str: str) -> tuple[int, int, int]:
+	"""Parse a hex color string (e.g. '#FF00FF' or 'FF00FF') into an (R, G, B) tuple."""
+	hex_str = hex_str.lstrip("#")
+	if len(hex_str) != 6:
+		raise argparse.ArgumentTypeError(
+			f"Invalid hex color '{hex_str}': must be a 6-digit hex value (e.g. FF00FF)"
+		)
+	try:
+		r = int(hex_str[0:2], 16)
+		g = int(hex_str[2:4], 16)
+		b = int(hex_str[4:6], 16)
+	except ValueError:
+		raise argparse.ArgumentTypeError(
+			f"Invalid hex color '{hex_str}': contains non-hex characters"
+		)
+	return (r, g, b)
+
+
+def applyTransparentColor(imageObj: Image.Image, transparent_rgb: tuple[int, int, int]) -> Image.Image:
+	"""
+	Replace pixels matching transparent_rgb with fully transparent pixels (alpha=0).
+	Converts the image to RGBA if it isn't already.
+	"""
+	if imageObj.mode != "RGBA":
+		imageObj = imageObj.convert("RGBA")
+
+	data: ndarray = numpy.asarray(imageObj, "B").copy()
+	r, g, b = transparent_rgb
+
+	# Build a mask of pixels that match the target color (ignoring existing alpha)
+	mask = (data[:, :, 0] == r) & (data[:, :, 1] == g) & (data[:, :, 2] == b)
+
+	# Set those pixels to fully transparent
+	data[mask, 3] = 0
+
+	return Image.fromarray(data, "RGBA")
+
+
+def _to16bpp(inputData: ndarray, forceSTP: bool, fastConvert: bool = False) -> ndarray:
 	source: ndarray = inputData.astype("<H")
-	r:      ndarray = ((source[:, :, 0] * 249) + 1014) >> 11
-	g:      ndarray = ((source[:, :, 1] * 249) + 1014) >> 11
-	b:      ndarray = ((source[:, :, 2] * 249) + 1014) >> 11
+
+	if fastConvert:
+		# Straight bit shift — use when the image has already been pre-processed
+		# to 15-bit color (e.g. by ImageMagick -colors 32768) to avoid
+		# re-introducing rounding artifacts on top of already-quantized values.
+		r: ndarray = source[:, :, 0] >> 3
+		g: ndarray = source[:, :, 1] >> 3
+		b: ndarray = source[:, :, 2] >> 3
+	else:
+		r: ndarray = ((source[:, :, 0] * 249) + 1014) >> 11
+		g: ndarray = ((source[:, :, 1] * 249) + 1014) >> 11
+		b: ndarray = ((source[:, :, 2] * 249) + 1014) >> 11
 
 	solid:           ndarray = r | (g << 5) | (b << 10)
 	semitransparent: ndarray = solid | (1 << 15)
@@ -94,8 +142,9 @@ def _to16bpp(inputData: ndarray, forceSTP: bool) -> ndarray:
 	return data
 
 def convertIndexedImage(
-	imageObj: Image.Image,
-	forceSTP: bool = False
+	imageObj:    Image.Image,
+	forceSTP:    bool = False,
+	fastConvert: bool = False
 ) -> tuple[ndarray, ndarray]:
 	# Pillow has basically no support at all for palette manipulation, so nasty
 	# hacks are required here.
@@ -109,7 +158,7 @@ def convertIndexedImage(
 
 	# Pad the palette to 16 or 256 colors after converting it to 16bpp.
 	clut           = clut.reshape(( 1, numColors, colorDepth ))
-	clut           = _to16bpp(clut, forceSTP)
+	clut           = _to16bpp(clut, forceSTP, fastConvert)
 	padAmount: int = (16 if (numColors <= 16) else 256) - numColors
 
 	if padAmount:
@@ -130,16 +179,17 @@ def convertIndexedImage(
 	return image, clut
 
 def generateRawTIM(
-	imageObj: Image.Image,
-	imageX:   int,
-	imageY:   int,
-	forceSTP: bool = False
+	imageObj:    Image.Image,
+	imageX:      int,
+	imageY:      int,
+	forceSTP:    bool = False,
+	fastConvert: bool = False
 ) -> bytearray:
 	if (imageX < 0) or (imageX > 1023) or (imageY < 0) or (imageY > 1023):
 		raise ValueError("image X/Y coordinates must be in 0-1023 range")
 
 	image: ndarray = numpy.asarray(imageObj, "B")
-	image          = _to16bpp(image, forceSTP)
+	image          = _to16bpp(image, forceSTP, fastConvert)
 
 	data: bytearray = bytearray()
 	data           += _TIM_HEADER_STRUCT.pack(
@@ -159,19 +209,20 @@ def generateRawTIM(
 	return data
 
 def generateIndexedTIM(
-	imageObj: Image.Image,
-	imageX:   int,
-	imageY:   int,
-	clutX:    int,
-	clutY:    int,
-	forceSTP: bool = False
+	imageObj:    Image.Image,
+	imageX:      int,
+	imageY:      int,
+	clutX:       int,
+	clutY:       int,
+	forceSTP:    bool = False,
+	fastConvert: bool = False
 ) -> bytearray:
 	if (imageX < 0) or (imageX > 1023) or (imageY < 0) or (imageY > 1023):
 		raise ValueError("image X/Y coordinates must be in 0-1023 range")
 	if (clutX < 0) or (clutX > 1023) or (clutY < 0) or (clutY > 1023):
 		raise ValueError("palette X/Y coordinates must be in 0-1023 range")
 
-	image, clut          = convertIndexedImage(imageObj, forceSTP)
+	image, clut          = convertIndexedImage(imageObj, forceSTP, fastConvert)
 	flags: TIMHeaderFlag = TIMHeaderFlag.HAS_PALETTE
 
 	if clut.size <= 16:
@@ -204,55 +255,101 @@ def generateIndexedTIM(
 
 # Argument parsing function
 def parse_args():
-    parser = argparse.ArgumentParser(description="Convert images to TIM format for PS1.")
-    
-    # Required arguments
-    parser.add_argument("input_image", help="Path to the input image file")
-    
-    # Optional arguments
-    parser.add_argument("-o", "--output", help="Output TIM file name (default: input_image.tim)", default=None)
-    parser.add_argument("-x", "--xcoord", type=int, help="X coordinate for image placement (0-1023)", default=0)
-    parser.add_argument("-y", "--ycoord", type=int, help="Y coordinate for image placement (0-1023)", default=0)
-    parser.add_argument("-c", "--clut_x", type=int, help="X coordinate for CLUT placement (0-1023)", default=0)
-    parser.add_argument("-d", "--clut_y", type=int, help="Y coordinate for CLUT placement (0-1023)", default=0)
-    parser.add_argument("--force_stp", action="store_true", help="Force STP (semi-transparent) color processing")
-    parser.add_argument("--quantize", type=int, help="Quantize image to a specified number of colors (e.g. 16, 256)", default=None)
+	parser = argparse.ArgumentParser(description="Convert images to TIM format for PS1.")
 
-    return parser.parse_args()
+	# Required arguments
+	parser.add_argument("input_image", help="Path to the input image file")
+
+	# Optional arguments
+	parser.add_argument("-o", "--output", help="Output TIM file name (default: input_image.tim)", default=None)
+	parser.add_argument("-x", "--xcoord", type=int, help="X coordinate for image placement (0-1023)", default=0)
+	parser.add_argument("-y", "--ycoord", type=int, help="Y coordinate for image placement (0-1023)", default=0)
+	parser.add_argument("-c", "--clut_x", type=int, help="X coordinate for CLUT placement (0-1023)", default=0)
+	parser.add_argument("-d", "--clut_y", type=int, help="Y coordinate for CLUT placement (0-1023)", default=0)
+	parser.add_argument("--force_stp", action="store_true", help="Force STP (semi-transparent) color processing")
+	parser.add_argument("--quantize", type=int, help="Quantize image to a specified number of colors (e.g. 16, 256)", default=None)
+	parser.add_argument(
+		"--transparent",
+		metavar="RRGGBB",
+		help=(
+			"Treat this hex color as fully transparent (e.g. FF00FF or #FF00FF). "
+			"For RGB/RGBA images all matching pixels are set to alpha=0. "
+			"For indexed images the image is converted to RGBA, transparency applied, "
+			"then re-quantized to the original color count."
+		),
+		default=None
+	)
+	parser.add_argument(
+		"--fast-convert",
+		action="store_true",
+		help=(
+			"Use a straight bit shift (>> 3) instead of the rounded formula when "
+			"converting to 15-bit color. Use this when the image has already been "
+			"pre-processed to 15-bit color (e.g. via ImageMagick -colors 32768) to "
+			"avoid re-introducing rounding artifacts."
+		)
+	)
+
+	return parser.parse_args()
 
 def main():
-    args = parse_args()
-    
-    try:
-        # Load the image
-        image_obj = Image.open(args.input_image)
-    except Exception as e:
-        print(f"Error opening image: {e}")
-        sys.exit(1)
+	args = parse_args()
 
-    # Quantize the image if needed
-    if args.quantize:
-        print(f"Quantizing image to {args.quantize} colors...")
-        image_obj = toIndexedImage(image_obj, args.quantize)
-    
-    # Generate TIM based on user input
-    print("Generating TIM...")
-    if image_obj.mode == "P":  # Indexed color image
-        tim_data = generateIndexedTIM(image_obj, args.xcoord, args.ycoord, args.clut_x, args.clut_y, args.force_stp)
-    else:  # RGB or RGBA image
-        tim_data = generateRawTIM(image_obj, args.xcoord, args.ycoord, args.force_stp)
+	# Parse transparent color early so bad input fails before any file I/O
+	transparent_rgb: tuple[int, int, int] | None = None
+	if args.transparent:
+		try:
+			transparent_rgb = parse_hex_color(args.transparent)
+			r, g, b = transparent_rgb
+			print(f"Transparent color set to #{r:02X}{g:02X}{b:02X}")
+		except argparse.ArgumentTypeError as e:
+			print(f"Error: {e}")
+			sys.exit(1)
 
-    # Define output file
-    output_file = args.output if args.output else f"{args.input_image.rsplit('.', 1)[0]}.tim"
-    
-    # Write the TIM data to the output file
-    try:
-        with open(output_file, "wb") as f:
-            f.write(tim_data)
-        print(f"TIM file successfully saved to {output_file}")
-    except Exception as e:
-        print(f"Error saving TIM file: {e}")
-        sys.exit(1)
+	try:
+		image_obj = Image.open(args.input_image)
+	except Exception as e:
+		print(f"Error opening image: {e}")
+		sys.exit(1)
+
+	# Quantize the image if needed
+	if args.quantize:
+		print(f"Quantizing image to {args.quantize} colors...")
+		image_obj = toIndexedImage(image_obj, args.quantize)
+
+	# Apply transparent color substitution
+	if transparent_rgb is not None:
+		print("Applying transparent color...")
+		if image_obj.mode == "P":
+			palette_mode = image_obj.palette.mode
+			color_depth  = {"RGB": 3, "RGBA": 4}[palette_mode]
+			num_colors   = len(image_obj.palette.palette) // color_depth
+			print(f"Re-quantizing to {num_colors} colors to preserve bit depth...")
+			image_obj = image_obj.convert("RGBA")
+			image_obj = applyTransparentColor(image_obj, transparent_rgb)
+			image_obj = toIndexedImage(image_obj, num_colors)
+		else:
+			image_obj = applyTransparentColor(image_obj, transparent_rgb)
+
+	fast_convert: bool = args.fast_convert
+
+	# Generate TIM based on image mode
+	print("Generating TIM...")
+	if image_obj.mode == "P":
+		tim_data = generateIndexedTIM(image_obj, args.xcoord, args.ycoord, args.clut_x, args.clut_y, args.force_stp, fast_convert)
+	else:
+		tim_data = generateRawTIM(image_obj, args.xcoord, args.ycoord, args.force_stp, fast_convert)
+
+	# Define output file
+	output_file = args.output if args.output else f"{args.input_image.rsplit('.', 1)[0]}.tim"
+
+	try:
+		with open(output_file, "wb") as f:
+			f.write(tim_data)
+		print(f"TIM file successfully saved to {output_file}")
+	except Exception as e:
+		print(f"Error saving TIM file: {e}")
+		sys.exit(1)
 
 if __name__ == "__main__":
-    main()
+	main()
