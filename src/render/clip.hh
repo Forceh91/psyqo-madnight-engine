@@ -11,7 +11,7 @@
  * v0,v1,v2		- Triangle coordinates
  *
  */
-int tri_clip(psyqo::Rect *clip, psyqo::Vertex *v0, psyqo::Vertex *v1, psyqo::Vertex *v2);
+int tri_clip(const psyqo::Rect *clip, psyqo::Vertex *v0, psyqo::Vertex *v1, psyqo::Vertex *v2);
 
 /* quad_clip
  *

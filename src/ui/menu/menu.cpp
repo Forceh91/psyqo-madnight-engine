@@ -1,5 +1,4 @@
 #include "menu.hh"
-#include "psyqo/xprintf.h"
 #include "../../madnight.hh"
 #include "../../render/renderer.hh"
 
@@ -70,7 +69,7 @@ void Menu::SetCustomInputCallbackButtons(const eastl::array<psyqo::AdvancedPad::
 
 void Menu::ProcessInputs(const psyqo::AdvancedPad::Event &event)
 {
-    if (event.type != m_keyBindings.onEventType.type || !m_isEnabled)
+    if (event.type != m_keyBindings.onEventType.type || !m_isEnabled || !m_menuItems.size())
         return;
 
     if (event.button == m_keyBindings.menuItemNext)

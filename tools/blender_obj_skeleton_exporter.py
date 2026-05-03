@@ -12,6 +12,7 @@ import bpy
 import mathutils
 from bpy_extras.io_utils import ExportHelper, axis_conversion
 from bpy.props import StringProperty, BoolProperty, FloatProperty, EnumProperty, FloatVectorProperty
+from mathutils import Vector
 
 # Go from Blender's coordinate system into PS1's coordinate system:
 axis_basis_change = mathutils.Matrix(
@@ -127,6 +128,17 @@ def export_obj_skel(context, filepath, apply_modifiers=True, export_selected=Tru
 
             f.write(f"aabb {min_coords[0]:.6f} {min_coords[1]:.6f} {min_coords[2]:.6f} "
                     f"{max_coords[0]:.6f} {max_coords[1]:.6f} {max_coords[2]:.6f}\n")
+
+            # bounding sphere from actual verts
+            verts_world = [mesh_eval.vertices[v.index].co for v in mesh_eval.vertices]
+            centroid = sum((Vector(v) for v in verts_world), Vector()) / len(verts_world)
+            radius = max((Vector(v) - centroid).length for v in verts_world)
+
+            # convert to engine units
+            centroid_engine = [centroid.x * ONE_ENGINE_METRE, centroid.y * ONE_ENGINE_METRE, centroid.z * ONE_ENGINE_METRE]
+            radius_engine = radius * ONE_ENGINE_METRE
+
+            f.write(f"bsphere {centroid_engine[0]:.6f} {centroid_engine[1]:.6f} {centroid_engine[2]:.6f} {radius_engine:.6f}\n")                    
 
             # Skeleton
             if arm:

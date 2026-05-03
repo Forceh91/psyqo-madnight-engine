@@ -18,6 +18,6 @@ void SpriteHUDElement::Render(const psyqo::Rect &parentRect)
     if (!m_isEnabled)
         return;
 
-    psyqo::Rect rect = {.pos = {parentRect.pos.x + m_rect.pos.x, parentRect.pos.y + m_rect.pos.y}, .size = m_rect.size};
+    psyqo::Rect rect = {.pos = {static_cast<int16_t>(parentRect.pos.x + m_rect.pos.x), static_cast<int16_t>(parentRect.pos.y + m_rect.pos.y)}, .size = m_rect.size};
     Renderer::Instance().RenderSprite(m_tim, rect, m_spriteUV);
 }

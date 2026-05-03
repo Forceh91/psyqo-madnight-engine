@@ -12,21 +12,23 @@
 #include "../helpers/file_defs.hh"
 #include "skeleton/skeleton.hh"
 
-#define MAX_LOADED_MESHES 32
-static constexpr uint16_t MAX_FACES_PER_MESH = 1024;
+static constexpr uint8_t MAX_LOADED_MESHES = 250;
+static constexpr uint16_t MAX_FACES_PER_MESH = 1000;
 
 struct MeshBinVertexColours {
   uint8_t r, g, b; // -1 if not present. otherwise 0-255
 };
 
 struct MeshBinIndex {
-  uint16_t i1, i2, i3, i4;
+  int16_t i1, i2, i3, i4;
+};
+
+struct BoundingSphere {
+  psyqo::Vec3 centre;
+  int32_t radius;
 };
 
 struct MeshBin {
-  // header
-  eastl::fixed_string<char, 7> magic; // MESHBIN
-  uint8_t version;                    // 2
   uint8_t type;                       // 1 = quads, 2 = tris (unused)
 
   // sub header
@@ -53,15 +55,13 @@ struct MeshBin {
   MeshBinIndex *uvIndices;
 
   // skeleton info
-  Skeleton skeleton;
+  Skeleton* skeleton;
   uint8_t *boneForVertex; // vertex index -> bone index
+  psyqo::Vec3* verticesOnBonePos;
 
   // basic min/max collision box
   AABBCollision collisionBox;
-
-  // TODO: make this a proper value so it can handle the right amount of verts
-  psyqo::Vec3 verticesOnBonePos[MAX_FACES_PER_MESH];
-  psyqo::Vec3 bonePos[MAX_FACES_PER_MESH];
+  BoundingSphere bsphere;
 };
 
 struct LoadedMeshBin {

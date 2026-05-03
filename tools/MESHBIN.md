@@ -2,6 +2,9 @@
 
 ## Changelog
 
+### Version 3 (2026-04-21)
+- Add bounding sphere
+
 ### Version 2 (2025-10-07)
 - Implement skeleton data
 
@@ -39,6 +42,8 @@
 | uvIndices           | int16_t[4]      | 8 * indicesCount                  | UV indices per face                          |
 | AABBMin           | int16_t[3]      | 6 bytes                  | Min coords (x,y,z) for AABB box |
 | AABBMax           | int16_t[3]      | 6 bytes                  | Max coords (x,y,z) for AABB box |
+| Bounding Sphere Centre   | int16_t[3]   | 6 bytes          | Bounding sphere centre (x,y,z)                            |
+| Bounding Sphere Radius   | int32_t      | 4 bytes          | Bounding sphere radius                                    |
 | bones           | `SkeletonBone`      | 24 * boneCount                | Bone data including parent, local pos, and local rotation (quaternion) |
 | vertexToBoneID           | uint8_t[vertexCount]      | 1 * vertexCount                | Vertex index to bone ID, array indexes match vertex index
 

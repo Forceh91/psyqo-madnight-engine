@@ -10,6 +10,7 @@
 
 #include "game.hh"
 #include "scenes/loading.hh"
+#include "sound/sound_manager.hh"
 
 using namespace psyqo::fixed_point_literals;
 
@@ -32,6 +33,7 @@ void MadnightEngine::prepare() {
 
   // hardware inits
   CDRomHelper::init();
+  SoundManager::Init();
   // Unlike the `SimplePad` class, the `AdvancedPad` class doesn't need to be initialized
   // in the `start` method of the root `Scene` object. It can be initialized here.
   // PollingMode::Fast is used to reduce input lag, but it will increase CPU usage.
