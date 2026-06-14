@@ -188,7 +188,7 @@ void Renderer::Render(uint32_t deltaTime) {
   
   // chain the fill command to clear the buffer
   auto &clear = m_clear[frameBuffer];
-  m_gpu.getNextClear(clear.primitive, DEFAULT_CLEAR_COLOR);
+  m_gpu.getNextClear(clear.primitive, Lighting::instance().m_fogColour);
   m_gpu.chain(clear);
 
   // make use of `gpu.pumpCallbacks` at some point in here
@@ -336,7 +336,7 @@ void Renderer::RenderGameObjects(uint32_t deltaTime, const psyqo::Matrix33 &came
     
       zIndex = psyqo::GTE::readRaw<psyqo::GTE::Register::OTZ>();
       // make sure we dont go out of bounds
-      if (zIndex == 0 || (m_isSimpleFogEnabled && zIndex >= FULL_FOG_DISTANCE) || zIndex >= ORDERING_TABLE_SIZE)
+      if (zIndex == 0 || (Lighting::instance().m_isSimpleFogEnabled && zIndex >= FULL_FOG_DISTANCE) || zIndex >= ORDERING_TABLE_SIZE)
         continue;
 
       // get the three remaining verts from the GTE
@@ -373,7 +373,12 @@ void Renderer::RenderGameObjects(uint32_t deltaTime, const psyqo::Matrix33 &came
           colC = {mesh->vertexColours[mesh->vertexIndices[i].i3].r, mesh->vertexColours[mesh->vertexIndices[i].i3].g, mesh->vertexColours[mesh->vertexIndices[i].i3].b},
           colD = {mesh->vertexColours[mesh->vertexIndices[i].i4].r, mesh->vertexColours[mesh->vertexIndices[i].i4].g, mesh->vertexColours[mesh->vertexIndices[i].i4].b};
 
-        if (m_isSimpleFogEnabled) {
+        ApplyAmbientToColour(&colA);
+        ApplyAmbientToColour(&colB);
+        ApplyAmbientToColour(&colC);
+        ApplyAmbientToColour(&colD);
+
+        if (Lighting::instance().m_isSimpleFogEnabled) {
           ApplyFogToColour(&colA, GetFogFactor(psyqo::GTE::readRaw<psyqo::GTE::Register::SZ0>()));
           ApplyFogToColour(&colB, GetFogFactor(psyqo::GTE::readRaw<psyqo::GTE::Register::SZ1>()));
           ApplyFogToColour(&colC, GetFogFactor(psyqo::GTE::readRaw<psyqo::GTE::Register::SZ2>()));
@@ -420,7 +425,11 @@ void Renderer::RenderGameObjects(uint32_t deltaTime, const psyqo::Matrix33 &came
           colB = {mesh->vertexColours[mesh->vertexIndices[i].i3].r, mesh->vertexColours[mesh->vertexIndices[i].i3].g, mesh->vertexColours[mesh->vertexIndices[i].i3].b},
           colC = {mesh->vertexColours[mesh->vertexIndices[i].i4].r, mesh->vertexColours[mesh->vertexIndices[i].i4].g, mesh->vertexColours[mesh->vertexIndices[i].i4].b};
 
-        if (m_isSimpleFogEnabled) {
+        ApplyAmbientToColour(&colA);
+        ApplyAmbientToColour(&colB);
+        ApplyAmbientToColour(&colC);
+
+        if (Lighting::instance().m_isSimpleFogEnabled) {
           ApplyFogToColour(&colA, GetFogFactor(psyqo::GTE::readRaw<psyqo::GTE::Register::SZ0>()));
           ApplyFogToColour(&colB, GetFogFactor(psyqo::GTE::readRaw<psyqo::GTE::Register::SZ1>()));
           ApplyFogToColour(&colC, GetFogFactor(psyqo::GTE::readRaw<psyqo::GTE::Register::SZ2>()));
@@ -551,9 +560,12 @@ void Renderer::RenderBillboards(uint32_t deltaTime, const psyqo::Matrix33 &camer
       quad.primitive.pointC = projected[2];
       quad.primitive.pointD = projected[3];
 
+      
       // handle fog
       auto colour = billboard->colour();
-      if (m_isSimpleFogEnabled) {
+      ApplyAmbientToColour(&colour);
+
+      if (Lighting::instance().m_isSimpleFogEnabled) {
         auto sz = psyqo::GTE::readRaw<psyqo::GTE::Register::SZ1>();
         ApplyFogToColour(&colour, GetFogFactor(sz));
       }
@@ -578,7 +590,9 @@ void Renderer::RenderBillboards(uint32_t deltaTime, const psyqo::Matrix33 &camer
 
       // handle fog
       auto colour = billboard->colour();
-      if (m_isSimpleFogEnabled) {
+      ApplyAmbientToColour(&colour);
+
+      if (Lighting::instance().m_isSimpleFogEnabled) {
         auto sz = psyqo::GTE::readRaw<psyqo::GTE::Register::SZ1>();
         ApplyFogToColour(&colour, GetFogFactor(sz));
       }
@@ -704,7 +718,9 @@ void Renderer::RenderParticles(uint32_t deltaTime, const psyqo::Matrix33 &camera
 
         // handle fog
         auto colour = particle.colour();
-        if (m_isSimpleFogEnabled) {
+        ApplyAmbientToColour(&colour);
+
+        if (Lighting::instance().m_isSimpleFogEnabled) {
           auto sz = psyqo::GTE::readRaw<psyqo::GTE::Register::SZ1>();
           ApplyFogToColour(&colour, GetFogFactor(sz));
         }
@@ -762,7 +778,9 @@ void Renderer::RenderParticles(uint32_t deltaTime, const psyqo::Matrix33 &camera
 
           // handle fog
           auto colour = particle.colour();
-          if (m_isSimpleFogEnabled) {
+          ApplyAmbientToColour(&colour);
+
+          if (Lighting::instance().m_isSimpleFogEnabled) {
             auto sz = psyqo::GTE::readRaw<psyqo::GTE::Register::SZ1>();
             ApplyFogToColour(&colour, GetFogFactor(sz));
           }
@@ -787,7 +805,10 @@ void Renderer::RenderParticles(uint32_t deltaTime, const psyqo::Matrix33 &camera
 
           // handle fog
           auto colour = particle.colour();
-          if (m_isSimpleFogEnabled) {
+
+          ApplyAmbientToColour(&colour);
+
+          if (Lighting::instance().m_isSimpleFogEnabled) {
             auto sz = psyqo::GTE::readRaw<psyqo::GTE::Register::SZ1>();
             ApplyFogToColour(&colour, GetFogFactor(sz));
           }
@@ -1217,8 +1238,19 @@ psyqo::FixedPoint<> Renderer::GetFogFactor(uint32_t z) {
   return ((z - NEAR_FOG_DISTANCE) * 1.0_fp) / (FULL_FOG_DISTANCE - NEAR_FOG_DISTANCE);
 }
 
+void Renderer::ApplyAmbientToColour(psyqo::Color* col) {
+    auto& ambient = Lighting::instance().m_ambient;
+    col->r = (col->r * ambient.r) >> 7;
+    col->g = (col->g * ambient.g) >> 7;
+    col->b = (col->b * ambient.b) >> 7;
+}
+
 void Renderer::ApplyFogToColour(psyqo::Color* col, psyqo::FixedPoint<> fogFactor) {
-  col->r = ((col->r * (1.0_fp - fogFactor)).value) >> 12;
-  col->g = ((col->g * (1.0_fp - fogFactor)).value) >> 12;
-  col->b = ((col->b * (1.0_fp - fogFactor)).value) >> 12;
+  auto& lighting = Lighting::instance();
+  if (!lighting.m_isSimpleFogEnabled) return;
+
+  auto inv = 1.0_fp - fogFactor;
+  col->r = (((col->r * inv) + (lighting.m_fogColour.r * fogFactor)).value) >> 12;
+  col->g = (((col->g * inv) + (lighting.m_fogColour.g * fogFactor)).value) >> 12;
+  col->b = (((col->b * inv) + (lighting.m_fogColour.b * fogFactor)).value) >> 12;
 }

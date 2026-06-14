@@ -3,6 +3,7 @@
 
 #include "../textures/texture_manager.hh"
 #include "../core/collision_types.hh"
+#include "lighting.hh"
 
 #include "camera.hh"
 #include "psyqo/bump-allocator.hh"
@@ -18,7 +19,6 @@ static constexpr uint16_t FULL_FOG_DISTANCE = 3'500; // screen z
 static constexpr uint16_t NEAR_FOG_DISTANCE = 2'000; // screen z
 static constexpr uint32_t BUMP_ALLOCATOR_BYTES = 125'000; // this is for each frame, so double what this number is is used up in RAM
 static constexpr uint16_t SUBDIVISION_DISTANCE = 750; // after view space transformation
-static constexpr psyqo::Color DEFAULT_CLEAR_COLOR = {.r = 0, .g = 0, .b = 0};
 static constexpr psyqo::Color c_loadingBackgroundColour = {.r = 0, .g = 0, .b = 0};
 
 class Renderer final {
@@ -29,7 +29,6 @@ class Renderer final {
   uint32_t m_lastFrameCounter = 0;
   Camera *m_activeCamera;
   psyqo::Vec3 m_gteCameraPos = {0, 0, 0};
-  bool m_isSimpleFogEnabled = false;
 
   // create 2 ordering tables, one for each frame buffer
   psyqo::OrderingTable<ORDERING_TABLE_SIZE> m_orderingTables[2];
@@ -62,6 +61,8 @@ class Renderer final {
   bool IsGameObjectVisible(const psyqo::Vec3& objectPos, const AABBCollision& collisionBox, const int32_t& boundingSphereRadius);
 
   psyqo::FixedPoint<> GetFogFactor(uint32_t z);
+
+  void ApplyAmbientToColour(psyqo::Color* col);
   void ApplyFogToColour(psyqo::Color* col, psyqo::FixedPoint<> fogFactor);
 public:
   static void Init(psyqo::GPU &gpuInstance);
@@ -75,14 +76,13 @@ public:
   uint32_t Process(void);
   void Render(void);
   void Render(uint32_t deltaTime);
-  void Clear(psyqo::Color clearColour = DEFAULT_CLEAR_COLOR);
+  void Clear(psyqo::Color clearColour = Lighting::instance().m_fogColour);
   void RenderLoadingScreen(uint16_t loadPercentage);
   void RenderSprite(const TimFile *tim, const psyqo::Rect rect, const psyqo::PrimPieces::UVCoords uv);
   void SetActiveCamera(Camera *camera);
   const Camera* ActiveCamera(void) const { return m_activeCamera; }
-  const bool& IsSimpleFogEnabled(void) const { return m_isSimpleFogEnabled; }
-  void EnableSimpleFog(void) { m_isSimpleFogEnabled = true; }
-  void DisableSimpleFog(void) { m_isSimpleFogEnabled = false; }
+  const bool& IsSimpleFogEnabled(void) const { return Lighting::instance().m_isSimpleFogEnabled; }
+
 
   static Renderer &Instance() { return *m_instance; }
   psyqo::GPU &GPU() { return m_gpu; }
