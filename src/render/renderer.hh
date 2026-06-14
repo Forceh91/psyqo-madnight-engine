@@ -62,7 +62,9 @@ class Renderer final {
 
   psyqo::FixedPoint<> GetFogFactor(uint32_t z);
 
-  void ApplyAmbientToColour(psyqo::Color* col);
+  void ApplyAmbientToColour(psyqo::Color* colA);
+  void ApplyAmbientToColours(psyqo::Color* colA, psyqo::Color* colB, psyqo::Color* colC);
+  void ApplyAmbientToColours(psyqo::Color* colA, psyqo::Color* colB, psyqo::Color* colC, psyqo::Color* colD);
   void ApplyFogToColour(psyqo::Color* col, psyqo::FixedPoint<> fogFactor);
 public:
   static void Init(psyqo::GPU &gpuInstance);

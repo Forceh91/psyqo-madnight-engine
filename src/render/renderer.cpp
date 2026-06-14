@@ -373,10 +373,7 @@ void Renderer::RenderGameObjects(uint32_t deltaTime, const psyqo::Matrix33 &came
           colC = {mesh->vertexColours[mesh->vertexIndices[i].i3].r, mesh->vertexColours[mesh->vertexIndices[i].i3].g, mesh->vertexColours[mesh->vertexIndices[i].i3].b},
           colD = {mesh->vertexColours[mesh->vertexIndices[i].i4].r, mesh->vertexColours[mesh->vertexIndices[i].i4].g, mesh->vertexColours[mesh->vertexIndices[i].i4].b};
 
-        ApplyAmbientToColour(&colA);
-        ApplyAmbientToColour(&colB);
-        ApplyAmbientToColour(&colC);
-        ApplyAmbientToColour(&colD);
+        ApplyAmbientToColours(&colA, &colB, &colC, &colD);
 
         if (Lighting::instance().m_isSimpleFogEnabled) {
           ApplyFogToColour(&colA, GetFogFactor(psyqo::GTE::readRaw<psyqo::GTE::Register::SZ0>()));
@@ -425,9 +422,7 @@ void Renderer::RenderGameObjects(uint32_t deltaTime, const psyqo::Matrix33 &came
           colB = {mesh->vertexColours[mesh->vertexIndices[i].i3].r, mesh->vertexColours[mesh->vertexIndices[i].i3].g, mesh->vertexColours[mesh->vertexIndices[i].i3].b},
           colC = {mesh->vertexColours[mesh->vertexIndices[i].i4].r, mesh->vertexColours[mesh->vertexIndices[i].i4].g, mesh->vertexColours[mesh->vertexIndices[i].i4].b};
 
-        ApplyAmbientToColour(&colA);
-        ApplyAmbientToColour(&colB);
-        ApplyAmbientToColour(&colC);
+        ApplyAmbientToColours(&colA, &colB, &colC);
 
         if (Lighting::instance().m_isSimpleFogEnabled) {
           ApplyFogToColour(&colA, GetFogFactor(psyqo::GTE::readRaw<psyqo::GTE::Register::SZ0>()));
@@ -1238,11 +1233,40 @@ psyqo::FixedPoint<> Renderer::GetFogFactor(uint32_t z) {
   return ((z - NEAR_FOG_DISTANCE) * 1.0_fp) / (FULL_FOG_DISTANCE - NEAR_FOG_DISTANCE);
 }
 
-void Renderer::ApplyAmbientToColour(psyqo::Color* col) {
+void Renderer::ApplyAmbientToColour(psyqo::Color* colA) {
     auto& ambient = Lighting::instance().m_ambient;
-    col->r = (col->r * ambient.r) >> 7;
-    col->g = (col->g * ambient.g) >> 7;
-    col->b = (col->b * ambient.b) >> 7;
+    colA->r = (colA->r * ambient.r) >> 7;
+    colA->g = (colA->g * ambient.g) >> 7;
+    colA->b = (colA->b * ambient.b) >> 7;
+}
+
+void Renderer::ApplyAmbientToColours(psyqo::Color* colA, psyqo::Color* colB, psyqo::Color* colC) {
+    auto& ambient = Lighting::instance().m_ambient;
+    colA->r = (colA->r * ambient.r) >> 7;
+    colA->g = (colA->g * ambient.g) >> 7;
+    colA->b = (colA->b * ambient.b) >> 7;
+    colB->r = (colB->r * ambient.r) >> 7;
+    colB->g = (colB->g * ambient.g) >> 7;
+    colB->b = (colB->b * ambient.b) >> 7;
+    colC->r = (colC->r * ambient.r) >> 7;
+    colC->g = (colC->g * ambient.g) >> 7;
+    colC->b = (colC->b * ambient.b) >> 7;
+}
+
+void Renderer::ApplyAmbientToColours(psyqo::Color* colA, psyqo::Color* colB, psyqo::Color* colC, psyqo::Color* colD) {
+    auto& ambient = Lighting::instance().m_ambient;
+    colA->r = (colA->r * ambient.r) >> 7;
+    colA->g = (colA->g * ambient.g) >> 7;
+    colA->b = (colA->b * ambient.b) >> 7;
+    colB->r = (colB->r * ambient.r) >> 7;
+    colB->g = (colB->g * ambient.g) >> 7;
+    colB->b = (colB->b * ambient.b) >> 7;
+    colC->r = (colC->r * ambient.r) >> 7;
+    colC->g = (colC->g * ambient.g) >> 7;
+    colC->b = (colC->b * ambient.b) >> 7;
+    colD->r = (colD->r * ambient.r) >> 7;
+    colD->g = (colD->g * ambient.g) >> 7;
+    colD->b = (colD->b * ambient.b) >> 7;
 }
 
 void Renderer::ApplyFogToColour(psyqo::Color* col, psyqo::FixedPoint<> fogFactor) {
