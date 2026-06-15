@@ -66,6 +66,9 @@ class Renderer final {
   void ApplyAmbientToColours(psyqo::Color* colA, psyqo::Color* colB, psyqo::Color* colC);
   void ApplyAmbientToColours(psyqo::Color* colA, psyqo::Color* colB, psyqo::Color* colC, psyqo::Color* colD);
   void ApplyFogToColour(psyqo::Color* col, psyqo::FixedPoint<> fogFactor);
+  psyqo::Color ApplyFogToColourGTE(psyqo::Color input, uint32_t p);
+
+  void SetFarColour(void);
 public:
   static void Init(psyqo::GPU &gpuInstance);
 

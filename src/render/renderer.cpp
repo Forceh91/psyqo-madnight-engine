@@ -118,6 +118,15 @@ void Renderer::StartScene(void) {
   // set the scaling for z averaging
   psyqo::GTE::write<psyqo::GTE::Register::ZSF3, psyqo::GTE::Unsafe>(ORDERING_TABLE_SIZE / 3);
   psyqo::GTE::write<psyqo::GTE::Register::ZSF4, psyqo::GTE::Unsafe>(ORDERING_TABLE_SIZE / 4);
+
+  // set fog colour (FC)
+  SetFarColour();
+}
+
+void Renderer::SetFarColour(void) {
+  psyqo::GTE::write<psyqo::GTE::Register::RFC, psyqo::GTE::Unsafe>(Lighting::instance().m_fogColour.r << 4);
+  psyqo::GTE::write<psyqo::GTE::Register::GFC, psyqo::GTE::Unsafe>(Lighting::instance().m_fogColour.g << 4);
+  psyqo::GTE::write<psyqo::GTE::Register::BFC, psyqo::GTE::Unsafe>(Lighting::instance().m_fogColour.b << 4);
 }
 
 /* this must be called at the start of each frame */
@@ -301,163 +310,179 @@ void Renderer::RenderGameObjects(uint32_t deltaTime, const psyqo::Matrix33 &came
 
     auto renderVerts = mesh->hasSkeleton ? mesh->verticesOnBonePos : mesh->vertices;
     for (int32_t i = 0; i < mesh->facesCount; i++) {
-      auto isQuad = mesh->vertexIndices[i].i2 != -1;
+        auto isQuad = mesh->vertexIndices[i].i2 != -1;
 
-      // load the first 3 verts into the GTE. remember it can only handle 3 at a time
-      psyqo::GTE::writeSafe<psyqo::GTE::PseudoRegister::V0>(renderVerts[mesh->vertexIndices[i].i1]);
-      psyqo::GTE::writeSafe<psyqo::GTE::PseudoRegister::V1>(isQuad ? renderVerts[mesh->vertexIndices[i].i2] : renderVerts[mesh->vertexIndices[i].i3]);
-      psyqo::GTE::writeSafe<psyqo::GTE::PseudoRegister::V2>(isQuad ? renderVerts[mesh->vertexIndices[i].i3] : renderVerts[mesh->vertexIndices[i].i4]);
+        // load the first 3 verts into the GTE. remember it can only handle 3 at a time
+        psyqo::GTE::writeSafe<psyqo::GTE::PseudoRegister::V0>(renderVerts[mesh->vertexIndices[i].i1]);
+        psyqo::GTE::writeSafe<psyqo::GTE::PseudoRegister::V1>(isQuad ? renderVerts[mesh->vertexIndices[i].i2] : renderVerts[mesh->vertexIndices[i].i3]);
+        psyqo::GTE::writeSafe<psyqo::GTE::PseudoRegister::V2>(isQuad ? renderVerts[mesh->vertexIndices[i].i3] : renderVerts[mesh->vertexIndices[i].i4]);
 
-      // perform the rtpt (perspective transformation) on these three
-      psyqo::GTE::Kernels::rtpt();
+        // perform the rtpt (perspective transformation) on these three
+        psyqo::GTE::Kernels::rtpt();
 
-      // nclip determines the winding order of the vertices. if they are clockwise then it is facing towards us
-      psyqo::GTE::Kernels::nclip();
+        // nclip determines the winding order of the vertices. if they are clockwise then it is facing towards us
+        psyqo::GTE::Kernels::nclip();
 
-      // read the result of this and skip rendering if its backfaced
-      if (psyqo::GTE::readRaw<psyqo::GTE::Register::MAC0>() == 0)
-        continue;
+        // read the result of this and skip rendering if its backfaced
+        if (psyqo::GTE::readRaw<psyqo::GTE::Register::MAC0>() == 0)
+            continue;
 
-      // store these verts so we can read the last one in
-      psyqo::GTE::read<psyqo::GTE::Register::SXY0>(&projected[0].packed);
+        // store these verts so we can read the last one in
+        psyqo::GTE::read<psyqo::GTE::Register::SXY0>(&projected[0].packed);
 
-      if (isQuad) {
-        psyqo::GTE::writeSafe<psyqo::GTE::PseudoRegister::V0>(renderVerts[mesh->vertexIndices[i].i4]);
+        if (isQuad) {
+            psyqo::GTE::writeSafe<psyqo::GTE::PseudoRegister::V0>(renderVerts[mesh->vertexIndices[i].i4]);
+            psyqo::GTE::Kernels::rtps();
 
-        // again we need to rtps it
+            psyqo::GTE::read<psyqo::GTE::Register::SXY0>(&projected[1].packed);
+            psyqo::GTE::read<psyqo::GTE::Register::SXY1>(&projected[2].packed);
+            psyqo::GTE::read<psyqo::GTE::Register::SXY2>(&projected[3].packed);
+            
+            psyqo::GTE::Kernels::avsz4();
+        } else {
+            psyqo::GTE::read<psyqo::GTE::Register::SXY1>(&projected[1].packed);
+            psyqo::GTE::read<psyqo::GTE::Register::SXY2>(&projected[2].packed);
+            psyqo::GTE::Kernels::avsz3();
+        }
+
+        zIndex = psyqo::GTE::readRaw<psyqo::GTE::Register::OTZ>();
+        // make sure we dont go out of bounds
+        if (zIndex == 0 || (Lighting::instance().m_isSimpleFogEnabled && zIndex >= FULL_FOG_DISTANCE) || zIndex >= ORDERING_TABLE_SIZE)
+            continue;
+
+        // if its out of the screen space we can clip too
+        if ((isQuad && quad_clip(&SCREEN_SPACE, &projected[0], &projected[1], &projected[2], &projected[3])) || (!isQuad && tri_clip(&SCREEN_SPACE, &projected[0], &projected[1], &projected[2])))
+            continue;
+
+        // face is visible, re-transform each vert individually to get IR0 for per-vertex fog
+        psyqo::Color colA = {mesh->vertexColours[mesh->vertexIndices[i].i1].r, mesh->vertexColours[mesh->vertexIndices[i].i1].g, mesh->vertexColours[mesh->vertexIndices[i].i1].b};
+        psyqo::Color colB, colC;
+        if (isQuad) {
+            colB = {mesh->vertexColours[mesh->vertexIndices[i].i2].r, mesh->vertexColours[mesh->vertexIndices[i].i2].g, mesh->vertexColours[mesh->vertexIndices[i].i2].b};
+            colC = {mesh->vertexColours[mesh->vertexIndices[i].i3].r, mesh->vertexColours[mesh->vertexIndices[i].i3].g, mesh->vertexColours[mesh->vertexIndices[i].i3].b};
+        } else {
+            colB = {mesh->vertexColours[mesh->vertexIndices[i].i3].r, mesh->vertexColours[mesh->vertexIndices[i].i3].g, mesh->vertexColours[mesh->vertexIndices[i].i3].b};
+            colC = {mesh->vertexColours[mesh->vertexIndices[i].i4].r, mesh->vertexColours[mesh->vertexIndices[i].i4].g, mesh->vertexColours[mesh->vertexIndices[i].i4].b};
+        }
+
+        psyqo::GTE::writeSafe<psyqo::GTE::PseudoRegister::V0>(renderVerts[mesh->vertexIndices[i].i1]);
         psyqo::GTE::Kernels::rtps();
+        
+        ApplyAmbientToColour(&colA);
+        
+        if (Lighting::instance().m_isSimpleFogEnabled) {
+          uint32_t p = psyqo::GTE::readRaw<psyqo::GTE::Register::IR0>();
+          colA = ApplyFogToColourGTE(colA, p);
+        }
 
-        // average z index for ordering
-        psyqo::GTE::Kernels::avsz4();
-      } else {
-        // average z index for ordering
-        psyqo::GTE::Kernels::avsz3();
-      }
-    
-      zIndex = psyqo::GTE::readRaw<psyqo::GTE::Register::OTZ>();
-      // make sure we dont go out of bounds
-      if (zIndex == 0 || (Lighting::instance().m_isSimpleFogEnabled && zIndex >= FULL_FOG_DISTANCE) || zIndex >= ORDERING_TABLE_SIZE)
-        continue;
+        psyqo::GTE::writeSafe<psyqo::GTE::PseudoRegister::V0>(isQuad ? renderVerts[mesh->vertexIndices[i].i2] : renderVerts[mesh->vertexIndices[i].i3]);
+        psyqo::GTE::Kernels::rtps();
+        ApplyAmbientToColour(&colB);
+        
+        if (Lighting::instance().m_isSimpleFogEnabled) {
+          uint32_t p = psyqo::GTE::readRaw<psyqo::GTE::Register::IR0>();
+          colB = ApplyFogToColourGTE(colB, p);
+        }
 
-      // get the three remaining verts from the GTE
-      if (isQuad) {
-        psyqo::GTE::read<psyqo::GTE::Register::SXY0>(&projected[1].packed);
-        psyqo::GTE::read<psyqo::GTE::Register::SXY1>(&projected[2].packed);
-        psyqo::GTE::read<psyqo::GTE::Register::SXY2>(&projected[3].packed);
-      } else {
-        psyqo::GTE::read<psyqo::GTE::Register::SXY1>(&projected[1].packed);
-        psyqo::GTE::read<psyqo::GTE::Register::SXY2>(&projected[2].packed);        
-      }
-
-      // if its out of the screen space we can clip too
-      if ((isQuad && quad_clip(&SCREEN_SPACE, &projected[0], &projected[1], &projected[2], &projected[3])) || !isQuad && tri_clip(&SCREEN_SPACE, &projected[0], &projected[1], &projected[2]))
-        continue;
-
-      auto applyUV = [&](auto& uvDest, int index) {
-        auto uv = mesh->uvs[index];
-        uvDest.u = offset.pos.x + uv.u;
-        uvDest.v = offset.pos.y - uv.v;
-      };
-
-      if (isQuad) {
-        // now take a quad fragment from our array and:
-        // set its vertices
-        auto &quad = allocator.allocateFragment<psyqo::Prim::GouraudTexturedQuad>();
-        quad.primitive.pointA = projected[0];
-        quad.primitive.pointB = projected[1];
-        quad.primitive.pointC = projected[2];
-        quad.primitive.pointD = projected[3];
-
-        psyqo::Color colA = {mesh->vertexColours[mesh->vertexIndices[i].i1].r, mesh->vertexColours[mesh->vertexIndices[i].i1].g, mesh->vertexColours[mesh->vertexIndices[i].i1].b},
-          colB = {mesh->vertexColours[mesh->vertexIndices[i].i2].r, mesh->vertexColours[mesh->vertexIndices[i].i2].g, mesh->vertexColours[mesh->vertexIndices[i].i2].b},
-          colC = {mesh->vertexColours[mesh->vertexIndices[i].i3].r, mesh->vertexColours[mesh->vertexIndices[i].i3].g, mesh->vertexColours[mesh->vertexIndices[i].i3].b},
-          colD = {mesh->vertexColours[mesh->vertexIndices[i].i4].r, mesh->vertexColours[mesh->vertexIndices[i].i4].g, mesh->vertexColours[mesh->vertexIndices[i].i4].b};
-
-        ApplyAmbientToColours(&colA, &colB, &colC, &colD);
+        psyqo::GTE::writeSafe<psyqo::GTE::PseudoRegister::V0>(isQuad ? renderVerts[mesh->vertexIndices[i].i3] : renderVerts[mesh->vertexIndices[i].i4]);
+        psyqo::GTE::Kernels::rtps();
+        ApplyAmbientToColour(&colC);
 
         if (Lighting::instance().m_isSimpleFogEnabled) {
-          ApplyFogToColour(&colA, GetFogFactor(psyqo::GTE::readRaw<psyqo::GTE::Register::SZ0>()));
-          ApplyFogToColour(&colB, GetFogFactor(psyqo::GTE::readRaw<psyqo::GTE::Register::SZ1>()));
-          ApplyFogToColour(&colC, GetFogFactor(psyqo::GTE::readRaw<psyqo::GTE::Register::SZ2>()));
-          ApplyFogToColour(&colD, GetFogFactor(psyqo::GTE::readRaw<psyqo::GTE::Register::SZ3>()));
+          uint32_t p = psyqo::GTE::readRaw<psyqo::GTE::Register::IR0>();
+          colC = ApplyFogToColourGTE(colC, p);
         }
 
-        // set its colour, and make it opaque
-        quad.primitive.setColorA(colA);
-        quad.primitive.setColorB(colB);
-        quad.primitive.setColorC(colC);
-        quad.primitive.setColorD(colD);
-        quad.primitive.setOpaque();
+        auto applyUV = [&](auto& uvDest, int index) {
+            auto uv = mesh->uvs[index];
+            uvDest.u = offset.pos.x + uv.u;
+            uvDest.v = offset.pos.y - uv.v;
+        };
 
-        // do we have a texture for this?
-        if (texture) {
-          // set its tpage
-          quad.primitive.tpage = tpage;
+        if (isQuad) {
+            psyqo::Color colD = {mesh->vertexColours[mesh->vertexIndices[i].i4].r, mesh->vertexColours[mesh->vertexIndices[i].i4].g, mesh->vertexColours[mesh->vertexIndices[i].i4].b};
+            
+            psyqo::GTE::writeSafe<psyqo::GTE::PseudoRegister::V0>(renderVerts[mesh->vertexIndices[i].i4]);
+            psyqo::GTE::Kernels::rtps();
+            ApplyAmbientToColour(&colD);
+            
+            if (Lighting::instance().m_isSimpleFogEnabled) {
+              uint32_t p = psyqo::GTE::readRaw<psyqo::GTE::Register::IR0>();
+              colD = ApplyFogToColourGTE(colD, p);
+            }
 
-          // set its clut if it has one
-          if (texture->hasClut)
-            quad.primitive.clutIndex = {texture->clutX, texture->clutY};
+            // now take a quad fragment from our array and:
+            // set its vertices
+            auto &quad = allocator.allocateFragment<psyqo::Prim::GouraudTexturedQuad>();
+            quad.primitive.pointA = projected[0];
+            quad.primitive.pointB = projected[1];
+            quad.primitive.pointC = projected[2];
+            quad.primitive.pointD = projected[3];
 
-          // set its uv coords
-          applyUV(quad.primitive.uvA, mesh->uvIndices[i].i1);
-          applyUV(quad.primitive.uvB, mesh->uvIndices[i].i2);
-          applyUV(quad.primitive.uvC, mesh->uvIndices[i].i3);
-          applyUV(quad.primitive.uvD, mesh->uvIndices[i].i4);
+            // set its colour, and make it opaque
+            quad.primitive.setColorA(colA);
+            quad.primitive.setColorB(colB);
+            quad.primitive.setColorC(colC);
+            quad.primitive.setColorD(colD);
+            quad.primitive.setOpaque();
+
+            // do we have a texture for this?
+            if (texture) {
+                // set its tpage
+                quad.primitive.tpage = tpage;
+
+                // set its clut if it has one
+                if (texture->hasClut)
+                    quad.primitive.clutIndex = {texture->clutX, texture->clutY};
+
+                // set its uv coords
+                applyUV(quad.primitive.uvA, mesh->uvIndices[i].i1);
+                applyUV(quad.primitive.uvB, mesh->uvIndices[i].i2);
+                applyUV(quad.primitive.uvC, mesh->uvIndices[i].i3);
+                applyUV(quad.primitive.uvD, mesh->uvIndices[i].i4);
+            }
+
+            // finally we can insert the quad fragment into the ordering table at the calculated z-index
+            if (zIndex <= SUBDIVISION_DISTANCE)
+                SubdivideTexturedQuad(&quad, zIndex, &ot, 2);
+            else
+                ot.insert(quad, zIndex);
+        } else {
+            // now take a tri fragment from our array and:
+            // set its vertices
+            auto &tri = allocator.allocateFragment<psyqo::Prim::GouraudTexturedTriangle>();
+            tri.primitive.pointA = projected[0];
+            tri.primitive.pointB = projected[1];
+            tri.primitive.pointC = projected[2];
+
+            // set its colour, and make it opaque
+            tri.primitive.setColorA(colA);
+            tri.primitive.setColorB(colB);
+            tri.primitive.setColorC(colC);
+            tri.primitive.setOpaque();
+
+            // do we have a texture for this?
+            if (texture) {
+                // set its tpage
+                tri.primitive.tpage = tpage;
+
+                // set its clut if it has one
+                if (texture->hasClut)
+                    tri.primitive.clutIndex = {texture->clutX, texture->clutY};
+
+                // set its uv coords
+                applyUV(tri.primitive.uvA, mesh->uvIndices[i].i3);
+                applyUV(tri.primitive.uvB, mesh->uvIndices[i].i1);
+                applyUV(tri.primitive.uvC, mesh->uvIndices[i].i4);
+            }
+
+            // finally we can insert the tri fragment into the ordering table at the calculated z-index
+            if (zIndex <= SUBDIVISION_DISTANCE)
+                SubdivideTexturedTri(&tri, zIndex, &ot, 2);
+            else
+                ot.insert(tri, zIndex);
         }
-
-        // finally we can insert the quad fragment into the ordering table at the calculated z-index
-        if (zIndex <= SUBDIVISION_DISTANCE)
-          SubdivideTexturedQuad(&quad, zIndex, &ot, 2);
-        else
-          ot.insert(quad, zIndex);
-      } else {
-        // now take a tri fragment from our array and:
-        // set its vertices
-        auto &tri = allocator.allocateFragment<psyqo::Prim::GouraudTexturedTriangle>();
-        tri.primitive.pointA = projected[0];
-        tri.primitive.pointB = projected[1];
-        tri.primitive.pointC = projected[2];
-
-        psyqo::Color colA = {mesh->vertexColours[mesh->vertexIndices[i].i1].r, mesh->vertexColours[mesh->vertexIndices[i].i1].g, mesh->vertexColours[mesh->vertexIndices[i].i1].b},
-          colB = {mesh->vertexColours[mesh->vertexIndices[i].i3].r, mesh->vertexColours[mesh->vertexIndices[i].i3].g, mesh->vertexColours[mesh->vertexIndices[i].i3].b},
-          colC = {mesh->vertexColours[mesh->vertexIndices[i].i4].r, mesh->vertexColours[mesh->vertexIndices[i].i4].g, mesh->vertexColours[mesh->vertexIndices[i].i4].b};
-
-        ApplyAmbientToColours(&colA, &colB, &colC);
-
-        if (Lighting::instance().m_isSimpleFogEnabled) {
-          ApplyFogToColour(&colA, GetFogFactor(psyqo::GTE::readRaw<psyqo::GTE::Register::SZ0>()));
-          ApplyFogToColour(&colB, GetFogFactor(psyqo::GTE::readRaw<psyqo::GTE::Register::SZ1>()));
-          ApplyFogToColour(&colC, GetFogFactor(psyqo::GTE::readRaw<psyqo::GTE::Register::SZ2>()));
-        }
-
-        // set its colour, and make it opaque
-        tri.primitive.setColorA(colA);
-        tri.primitive.setColorB(colB);
-        tri.primitive.setColorC(colC);
-        tri.primitive.setOpaque();
-
-        // do we have a texture for this?
-        if (texture) {
-          // set its tpage
-          tri.primitive.tpage = tpage;
-
-          // set its clut if it has one
-          if (texture->hasClut)
-            tri.primitive.clutIndex = {texture->clutX, texture->clutY};
-
-          // set its uv coords
-          applyUV(tri.primitive.uvA, mesh->uvIndices[i].i3);
-          applyUV(tri.primitive.uvB, mesh->uvIndices[i].i1);
-          applyUV(tri.primitive.uvC, mesh->uvIndices[i].i4);
-        }
-
-        // finally we can insert the quad fragment into the ordering table at the calculated z-index
-        if (zIndex <= SUBDIVISION_DISTANCE)
-          SubdivideTexturedTri(&tri, zIndex, &ot, 2);
-        else
-          ot.insert(tri, zIndex);
-      }
-    };
+    }
 
 #if ENABLE_BONE_DEBUG
     if (mesh->hasSkeleton && mesh->skeleton.numBones > 0) {
@@ -1277,4 +1302,12 @@ void Renderer::ApplyFogToColour(psyqo::Color* col, psyqo::FixedPoint<> fogFactor
   col->r = (((col->r * inv) + (lighting.m_fogColour.r * fogFactor)).value) >> 12;
   col->g = (((col->g * inv) + (lighting.m_fogColour.g * fogFactor)).value) >> 12;
   col->b = (((col->b * inv) + (lighting.m_fogColour.b * fogFactor)).value) >> 12;
+}
+
+// Interpolate from input to FC
+psyqo::Color Renderer::ApplyFogToColourGTE(psyqo::Color input, uint32_t p) {
+    psyqo::GTE::write<psyqo::GTE::Register::IR0, psyqo::GTE::Unsafe>(p);
+    psyqo::GTE::write<psyqo::GTE::Register::RGB, psyqo::GTE::Safe>(input.packed);
+    psyqo::GTE::Kernels::dpcs();
+    return {.packed = psyqo::GTE::readRaw<psyqo::GTE::Register::RGB2>()};
 }
