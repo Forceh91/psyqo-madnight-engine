@@ -560,13 +560,19 @@ void Renderer::RenderBillboards(uint32_t deltaTime, const psyqo::Matrix33 &camer
     psyqo::GTE::read<psyqo::GTE::Register::SXY0>(&projected[0].packed);
     psyqo::GTE::writeSafe<psyqo::GTE::PseudoRegister::V0>(billboard->corners()[3]);
 
-    psyqo::GTE::Kernels::rtps();
+    psyqo::GTE::Kernels::rtps();    
 
     psyqo::GTE::Kernels::avsz4();
     zIndex = psyqo::GTE::readRaw<psyqo::GTE::Register::OTZ>();
 
     if (zIndex == 0 || zIndex >= ORDERING_TABLE_SIZE)
       continue;
+
+    // handle fog
+    auto colour = billboard->colour();
+    ApplyAmbientToColour(&colour);
+
+    colour = ApplyFogToColourGTE(colour);
 
     // read the last three verts from GTE
     psyqo::GTE::read<psyqo::GTE::Register::SXY0>(&projected[1].packed);
@@ -584,16 +590,6 @@ void Renderer::RenderBillboards(uint32_t deltaTime, const psyqo::Matrix33 &camer
       quad.primitive.pointB = projected[1];
       quad.primitive.pointC = projected[2];
       quad.primitive.pointD = projected[3];
-
-      
-      // handle fog
-      auto colour = billboard->colour();
-      ApplyAmbientToColour(&colour);
-
-      if (Lighting::instance().m_isSimpleFogEnabled) {
-        auto sz = psyqo::GTE::readRaw<psyqo::GTE::Register::SZ1>();
-        ApplyFogToColour(&colour, GetFogFactor(sz));
-      }
 
       // set colour
       quad.primitive.setColorA(colour);
@@ -755,125 +751,110 @@ void Renderer::RenderParticles(uint32_t deltaTime, const psyqo::Matrix33 &camera
 
         ot.insert(sprite, zIndex);
       } else {
-        if (texture) {
-          tpage = TextureManager::GetTPageAttr(texture);
-          offset = TextureManager::GetTPageUVForTim(texture);
-          offset.pos.y += (texture->height - 1);
-        }
-
-        // load first 3 verts into GTE
-        psyqo::GTE::writeSafe<psyqo::GTE::PseudoRegister::V0>(particle.corners()[0]);
-        psyqo::GTE::writeSafe<psyqo::GTE::PseudoRegister::V1>(particle.corners()[1]);
-        psyqo::GTE::writeSafe<psyqo::GTE::PseudoRegister::V2>(particle.corners()[2]);
-
-        psyqo::GTE::Kernels::rtpt();
-        psyqo::GTE::Kernels::nclip();
-
-        if (!psyqo::GTE::readRaw<psyqo::GTE::Register::MAC0>())
-          continue;
-
-        // store the first vert so we can read the last one in
-        psyqo::GTE::read<psyqo::GTE::Register::SXY0>(&projected[0].packed);
-        psyqo::GTE::writeSafe<psyqo::GTE::PseudoRegister::V0>(particle.corners()[3]);
-
-        psyqo::GTE::Kernels::rtps();
-
-        psyqo::GTE::Kernels::avsz4();
-        zIndex = psyqo::GTE::readRaw<psyqo::GTE::Register::OTZ>();
-
-        if (zIndex == 0 || zIndex >= ORDERING_TABLE_SIZE)
-          continue;
-
-        // read the last three verts from GTE
-        psyqo::GTE::read<psyqo::GTE::Register::SXY0>(&projected[1].packed);
-        psyqo::GTE::read<psyqo::GTE::Register::SXY1>(&projected[2].packed);
-        psyqo::GTE::read<psyqo::GTE::Register::SXY2>(&projected[3].packed);
-
-        // out of screen space, it can be clipped
-        if (quad_clip(&SCREEN_SPACE, &projected[0], &projected[1], &projected[2], &projected[3]))
-          continue;
-
-        // generate its points
-        if (!texture) {
-          auto &quad = allocator.allocateFragment<psyqo::Prim::GouraudQuad>();
-          quad.primitive.pointA = projected[0];
-          quad.primitive.pointB = projected[1];
-          quad.primitive.pointC = projected[2];
-          quad.primitive.pointD = projected[3];
-
-          // handle fog
-          auto colour = particle.colour();
-          ApplyAmbientToColour(&colour);
-
-          if (Lighting::instance().m_isSimpleFogEnabled) {
-            auto sz = psyqo::GTE::readRaw<psyqo::GTE::Register::SZ1>();
-            ApplyFogToColour(&colour, GetFogFactor(sz));
+          if (texture) {
+              tpage = TextureManager::GetTPageAttr(texture);
+              offset = TextureManager::GetTPageUVForTim(texture);
+              offset.pos.y += (texture->height - 1);
           }
 
-          // set colour
-          quad.primitive.setColorA(colour);
-          quad.primitive.setColorB(colour);
-          quad.primitive.setColorC(colour);
-          quad.primitive.setColorD(colour);
+          // load first 3 verts into GTE
+          psyqo::GTE::writeSafe<psyqo::GTE::PseudoRegister::V0>(particle.corners()[0]);
+          psyqo::GTE::writeSafe<psyqo::GTE::PseudoRegister::V1>(particle.corners()[1]);
+          psyqo::GTE::writeSafe<psyqo::GTE::PseudoRegister::V2>(particle.corners()[2]);
+          psyqo::GTE::Kernels::rtpt();
+          psyqo::GTE::Kernels::nclip();
+          if (!psyqo::GTE::readRaw<psyqo::GTE::Register::MAC0>())
+              continue;
+
+          // store the first vert so we can read the last one in
+          psyqo::GTE::read<psyqo::GTE::Register::SXY0>(&projected[0].packed);
+
+          psyqo::GTE::writeSafe<psyqo::GTE::PseudoRegister::V0>(particle.corners()[3]);
+          psyqo::GTE::Kernels::rtps();
           
-          // make opaque
-          quad.primitive.setOpaque();
+          psyqo::GTE::Kernels::avsz4();
+          zIndex = psyqo::GTE::readRaw<psyqo::GTE::Register::OTZ>();
+          if (zIndex == 0 || zIndex >= ORDERING_TABLE_SIZE)
+              continue;
 
-          // insert into OT
-          ot.insert(quad, zIndex);
-        } else {
-          auto &quad = allocator.allocateFragment<psyqo::Prim::GouraudTexturedQuad>();
-          quad.primitive.pointA = projected[0];
-          quad.primitive.pointB = projected[1];
-          quad.primitive.pointC = projected[2];
-          quad.primitive.pointD = projected[3];
+          // read the last three verts from GTE
+          psyqo::GTE::read<psyqo::GTE::Register::SXY0>(&projected[1].packed);
+          psyqo::GTE::read<psyqo::GTE::Register::SXY1>(&projected[2].packed);
+          psyqo::GTE::read<psyqo::GTE::Register::SXY2>(&projected[3].packed);
 
-          // handle fog
+          // out of screen space, it can be clipped
+          if (quad_clip(&SCREEN_SPACE, &projected[0], &projected[1], &projected[2], &projected[3]))
+              continue;
+
+          // handle colour + fog — particles use same colour for all verts so one rtps for IR0 is enough
+          // re-transform corner 0 to get a representative IR0 for fog
+          psyqo::GTE::writeSafe<psyqo::GTE::PseudoRegister::V0>(particle.corners()[0]);
+          psyqo::GTE::Kernels::rtps();
           auto colour = particle.colour();
-
           ApplyAmbientToColour(&colour);
+          colour = ApplyFogToColourGTE(colour);
 
-          if (Lighting::instance().m_isSimpleFogEnabled) {
-            auto sz = psyqo::GTE::readRaw<psyqo::GTE::Register::SZ1>();
-            ApplyFogToColour(&colour, GetFogFactor(sz));
+          if (!texture) {
+              auto &quad = allocator.allocateFragment<psyqo::Prim::GouraudQuad>();
+              quad.primitive.pointA = projected[0];
+              quad.primitive.pointB = projected[1];
+              quad.primitive.pointC = projected[2];
+              quad.primitive.pointD = projected[3];
+
+              // set colour
+              quad.primitive.setColorA(colour);
+              quad.primitive.setColorB(colour);
+              quad.primitive.setColorC(colour);
+              quad.primitive.setColorD(colour);
+
+              // make opaque
+              quad.primitive.setOpaque();
+
+              // insert into OT
+              ot.insert(quad, zIndex);
+          } else {
+              auto &quad = allocator.allocateFragment<psyqo::Prim::GouraudTexturedQuad>();
+              quad.primitive.pointA = projected[0];
+              quad.primitive.pointB = projected[1];
+              quad.primitive.pointC = projected[2];
+              quad.primitive.pointD = projected[3];
+
+              // set colour
+              quad.primitive.setColorA(colour);
+              quad.primitive.setColorB(colour);
+              quad.primitive.setColorC(colour);
+              quad.primitive.setColorD(colour);
+
+              // make opaque
+              quad.primitive.setOpaque();
+
+              // set its tpage
+              quad.primitive.tpage = tpage;
+
+              // set its clut if it has one
+              if (texture->hasClut)
+                  quad.primitive.clutIndex = {texture->clutX, texture->clutY};
+
+              // set its uv coords
+              auto uvA = particle.uv()[0];
+              quad.primitive.uvA.u = offset.pos.x + uvA.u;
+              quad.primitive.uvA.v = offset.pos.y - uvA.v;
+
+              auto uvB = particle.uv()[1];
+              quad.primitive.uvB.u = offset.pos.x + uvB.u;
+              quad.primitive.uvB.v = offset.pos.y - uvB.v;
+
+              auto uvC = particle.uv()[2];
+              quad.primitive.uvC.u = offset.pos.x + uvC.u;
+              quad.primitive.uvC.v = offset.pos.y - uvC.v;
+
+              auto uvD = particle.uv()[3];
+              quad.primitive.uvD.u = offset.pos.x + uvD.u;
+              quad.primitive.uvD.v = offset.pos.y - uvD.v;
+
+              // insert into OT
+              ot.insert(quad, zIndex);
           }
-
-          // set colour
-          quad.primitive.setColorA(colour);
-          quad.primitive.setColorB(colour);
-          quad.primitive.setColorC(colour);
-          quad.primitive.setColorD(colour);
-          
-          // make opaque
-          quad.primitive.setOpaque();
-
-          // set its tpage
-          quad.primitive.tpage = tpage;
-
-          // set its clut if it has one
-          if (texture->hasClut)
-            quad.primitive.clutIndex = {texture->clutX, texture->clutY};
-
-          // set its uv coords
-          auto uvA = particle.uv()[0];
-          quad.primitive.uvA.u = offset.pos.x + uvA.u;
-          quad.primitive.uvA.v = offset.pos.y - uvA.v;
-
-          auto uvB = particle.uv()[1];
-          quad.primitive.uvB.u = offset.pos.x + uvB.u;
-          quad.primitive.uvB.v = offset.pos.y - uvB.v;
-
-          auto uvC = particle.uv()[2];
-          quad.primitive.uvC.u = offset.pos.x + uvC.u;
-          quad.primitive.uvC.v = offset.pos.y - uvC.v;
-
-          auto uvD = particle.uv()[3];
-          quad.primitive.uvD.u = offset.pos.x + uvD.u;
-          quad.primitive.uvD.v = offset.pos.y - uvD.v;
-
-          // insert into OT
-          ot.insert(quad, zIndex);
-        }
       }
     }
   }
