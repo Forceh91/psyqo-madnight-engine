@@ -45,6 +45,9 @@ class Renderer final {
   eastl::array<psyqo::Fragments::SimpleFragment<psyqo::Prim::Sprite>, 40> m_sprites[2];
   uint8_t m_currentSpriteFragment = 0;
 
+  // lighting, cached at start of scene
+  Lighting* m_lighting = nullptr;
+
   Renderer(psyqo::GPU &gpuInstance) : m_gpu(gpuInstance){};
   ~Renderer(){};
 

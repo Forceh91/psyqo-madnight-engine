@@ -103,6 +103,9 @@ void Renderer::VRamUpload(const uint16_t *data, int16_t x, int16_t y, int16_t wi
 }
 
 void Renderer::StartScene(void) {
+  // update lighting instance
+  m_lighting = &Lighting::instance();
+
   // clear translation registers
   psyqo::GTE::clear<psyqo::GTE::Register::TRX, psyqo::GTE::Unsafe>();
   psyqo::GTE::clear<psyqo::GTE::Register::TRY, psyqo::GTE::Unsafe>();
@@ -1245,14 +1248,14 @@ psyqo::FixedPoint<> Renderer::GetFogFactor(uint32_t z) {
 }
 
 void Renderer::ApplyAmbientToColour(psyqo::Color* colA) {
-    auto& ambient = Lighting::instance().m_ambient;
+    auto& ambient = m_lighting->m_ambient;
     colA->r = (colA->r * ambient.r) >> 7;
     colA->g = (colA->g * ambient.g) >> 7;
     colA->b = (colA->b * ambient.b) >> 7;
 }
 
 void Renderer::ApplyAmbientToColours(psyqo::Color* colA, psyqo::Color* colB, psyqo::Color* colC) {
-    auto& ambient = Lighting::instance().m_ambient;
+    auto& ambient = m_lighting->m_ambient;
     colA->r = (colA->r * ambient.r) >> 7;
     colA->g = (colA->g * ambient.g) >> 7;
     colA->b = (colA->b * ambient.b) >> 7;
@@ -1265,7 +1268,7 @@ void Renderer::ApplyAmbientToColours(psyqo::Color* colA, psyqo::Color* colB, psy
 }
 
 void Renderer::ApplyAmbientToColours(psyqo::Color* colA, psyqo::Color* colB, psyqo::Color* colC, psyqo::Color* colD) {
-    auto& ambient = Lighting::instance().m_ambient;
+    auto& ambient = m_lighting->m_ambient;
     colA->r = (colA->r * ambient.r) >> 7;
     colA->g = (colA->g * ambient.g) >> 7;
     colA->b = (colA->b * ambient.b) >> 7;
@@ -1281,18 +1284,17 @@ void Renderer::ApplyAmbientToColours(psyqo::Color* colA, psyqo::Color* colB, psy
 }
 
 void Renderer::ApplyFogToColour(psyqo::Color* col, psyqo::FixedPoint<> fogFactor) {
-  auto& lighting = Lighting::instance();
-  if (!lighting.m_isSimpleFogEnabled) return;
+  if (!m_lighting->m_isSimpleFogEnabled) return;
 
   auto inv = 1.0_fp - fogFactor;
-  col->r = (((col->r * inv) + (lighting.m_fogColour.r * fogFactor)).value) >> 12;
-  col->g = (((col->g * inv) + (lighting.m_fogColour.g * fogFactor)).value) >> 12;
-  col->b = (((col->b * inv) + (lighting.m_fogColour.b * fogFactor)).value) >> 12;
+  col->r = (((col->r * inv) + (m_lighting->m_fogColour.r * fogFactor)).value) >> 12;
+  col->g = (((col->g * inv) + (m_lighting->m_fogColour.g * fogFactor)).value) >> 12;
+  col->b = (((col->b * inv) + (m_lighting->m_fogColour.b * fogFactor)).value) >> 12;
 }
 
 // Interpolate from input to FC
 psyqo::Color Renderer::ApplyFogToColourGTE(psyqo::Color input) {
-    if (!Lighting::instance().m_isSimpleFogEnabled)
+    if (!m_lighting->m_isSimpleFogEnabled)
       return input;
 
     psyqo::GTE::write<psyqo::GTE::Register::RGB, psyqo::GTE::Safe>(input.packed);
