@@ -329,17 +329,32 @@ void Renderer::RenderGameObjects(uint32_t deltaTime, const psyqo::Matrix33 &came
       offset.pos.y += (texture->height - 1);
     }
 
+    auto applyUV = [&](auto& uvDest, int index) {
+      auto uv = mesh->uvs[index];
+      uvDest.u = offset.pos.x + uv.u;
+      uvDest.v = offset.pos.y - uv.v;
+    };
+
     auto renderVerts = mesh->hasSkeleton ? mesh->verticesOnBonePos : mesh->vertices;
     for (int32_t i = 0; i < mesh->facesCount; i++) {
         auto isQuad = mesh->vertexIndices[i].i2 != -1;
 
-        // load the first 3 verts into the GTE. remember it can only handle 3 at a time
-        psyqo::GTE::writeSafe<psyqo::GTE::PseudoRegister::V0>(renderVerts[mesh->vertexIndices[i].i1]);
-        psyqo::GTE::writeSafe<psyqo::GTE::PseudoRegister::V1>(isQuad ? renderVerts[mesh->vertexIndices[i].i2] : renderVerts[mesh->vertexIndices[i].i3]);
-        psyqo::GTE::writeSafe<psyqo::GTE::PseudoRegister::V2>(isQuad ? renderVerts[mesh->vertexIndices[i].i3] : renderVerts[mesh->vertexIndices[i].i4]);
+        uint32_t pA, pB, pC, pD;
 
-        // perform the rtpt (perspective transformation) on these three
-        psyqo::GTE::Kernels::rtpt();
+        // vert 1
+        psyqo::GTE::writeSafe<psyqo::GTE::PseudoRegister::V0>(renderVerts[mesh->vertexIndices[i].i1]);
+        psyqo::GTE::Kernels::rtps();
+        pA = psyqo::GTE::readRaw<psyqo::GTE::Register::IR0>();
+
+        // vert 2
+        psyqo::GTE::writeSafe<psyqo::GTE::PseudoRegister::V0>(isQuad ? renderVerts[mesh->vertexIndices[i].i2] : renderVerts[mesh->vertexIndices[i].i3]);
+        psyqo::GTE::Kernels::rtps();
+        pB = psyqo::GTE::readRaw<psyqo::GTE::Register::IR0>();
+
+        // vert 3
+        psyqo::GTE::writeSafe<psyqo::GTE::PseudoRegister::V0>(isQuad ? renderVerts[mesh->vertexIndices[i].i3] : renderVerts[mesh->vertexIndices[i].i4]);
+        psyqo::GTE::Kernels::rtps();
+        pC = psyqo::GTE::readRaw<psyqo::GTE::Register::IR0>();
 
         // nclip determines the winding order of the vertices. if they are clockwise then it is facing towards us
         psyqo::GTE::Kernels::nclip();
@@ -348,21 +363,22 @@ void Renderer::RenderGameObjects(uint32_t deltaTime, const psyqo::Matrix33 &came
         if (psyqo::GTE::readRaw<psyqo::GTE::Register::MAC0>() == 0)
             continue;
 
-        // store these verts so we can read the last one in
+        // read projected verts from SXY0/1/2
         psyqo::GTE::read<psyqo::GTE::Register::SXY0>(&projected[0].packed);
+        psyqo::GTE::read<psyqo::GTE::Register::SXY1>(&projected[1].packed);
+        psyqo::GTE::read<psyqo::GTE::Register::SXY2>(&projected[2].packed);
 
         if (isQuad) {
+            // vert 4
             psyqo::GTE::writeSafe<psyqo::GTE::PseudoRegister::V0>(renderVerts[mesh->vertexIndices[i].i4]);
             psyqo::GTE::Kernels::rtps();
-
-            psyqo::GTE::read<psyqo::GTE::Register::SXY0>(&projected[1].packed);
-            psyqo::GTE::read<psyqo::GTE::Register::SXY1>(&projected[2].packed);
+            pD = psyqo::GTE::readRaw<psyqo::GTE::Register::IR0>();
             psyqo::GTE::read<psyqo::GTE::Register::SXY2>(&projected[3].packed);
-            
+
+            // average z index for ordering
             psyqo::GTE::Kernels::avsz4();
         } else {
-            psyqo::GTE::read<psyqo::GTE::Register::SXY1>(&projected[1].packed);
-            psyqo::GTE::read<psyqo::GTE::Register::SXY2>(&projected[2].packed);
+            // average z index for ordering
             psyqo::GTE::Kernels::avsz3();
         }
 
@@ -375,7 +391,7 @@ void Renderer::RenderGameObjects(uint32_t deltaTime, const psyqo::Matrix33 &came
         if ((isQuad && quad_clip(&SCREEN_SPACE, &projected[0], &projected[1], &projected[2], &projected[3])) || (!isQuad && tri_clip(&SCREEN_SPACE, &projected[0], &projected[1], &projected[2])))
             continue;
 
-        // face is visible, re-transform each vert individually to get IR0 for per-vertex fog
+        // now apply colours using stored IR0 values
         psyqo::Color colA = {mesh->vertexColours[mesh->vertexIndices[i].i1].r, mesh->vertexColours[mesh->vertexIndices[i].i1].g, mesh->vertexColours[mesh->vertexIndices[i].i1].b};
         psyqo::Color colB, colC;
         if (isQuad) {
@@ -386,38 +402,17 @@ void Renderer::RenderGameObjects(uint32_t deltaTime, const psyqo::Matrix33 &came
             colC = {mesh->vertexColours[mesh->vertexIndices[i].i4].r, mesh->vertexColours[mesh->vertexIndices[i].i4].g, mesh->vertexColours[mesh->vertexIndices[i].i4].b};
         }
 
-        psyqo::GTE::writeSafe<psyqo::GTE::PseudoRegister::V0>(renderVerts[mesh->vertexIndices[i].i1]);
-        psyqo::GTE::Kernels::rtps();
-        
         ApplyAmbientToColour(&colA);
-        colA = ApplyFogToColourGTE(colA);
-
-        psyqo::GTE::writeSafe<psyqo::GTE::PseudoRegister::V0>(isQuad ? renderVerts[mesh->vertexIndices[i].i2] : renderVerts[mesh->vertexIndices[i].i3]);
-        psyqo::GTE::Kernels::rtps();
-        
-        ApplyAmbientToColour(&colB);       
-        colB = ApplyFogToColourGTE(colB);
-
-        psyqo::GTE::writeSafe<psyqo::GTE::PseudoRegister::V0>(isQuad ? renderVerts[mesh->vertexIndices[i].i3] : renderVerts[mesh->vertexIndices[i].i4]);
-        psyqo::GTE::Kernels::rtps();
-        
+        colA = ApplyFogToColourGTE(colA, pA);
+        ApplyAmbientToColour(&colB);
+        colB = ApplyFogToColourGTE(colB, pB);
         ApplyAmbientToColour(&colC);
-        colC = ApplyFogToColourGTE(colC);
-
-        auto applyUV = [&](auto& uvDest, int index) {
-            auto uv = mesh->uvs[index];
-            uvDest.u = offset.pos.x + uv.u;
-            uvDest.v = offset.pos.y - uv.v;
-        };
+        colC = ApplyFogToColourGTE(colC, pC);
 
         if (isQuad) {
             psyqo::Color colD = {mesh->vertexColours[mesh->vertexIndices[i].i4].r, mesh->vertexColours[mesh->vertexIndices[i].i4].g, mesh->vertexColours[mesh->vertexIndices[i].i4].b};
-            
-            psyqo::GTE::writeSafe<psyqo::GTE::PseudoRegister::V0>(renderVerts[mesh->vertexIndices[i].i4]);
-            psyqo::GTE::Kernels::rtps();
-
             ApplyAmbientToColour(&colD);
-            colD = ApplyFogToColourGTE(colD);
+            colD = ApplyFogToColourGTE(colD, pD);
 
             // now take a quad fragment from our array and:
             // set its vertices
@@ -543,119 +538,94 @@ void Renderer::RenderBillboards(uint32_t deltaTime, const psyqo::Matrix33 &camer
 
     const auto texture = billboard->pTexture();
     if (texture) {
-      tpage = TextureManager::GetTPageAttr(texture);
-      offset = TextureManager::GetTPageUVForTim(texture);
-      offset.pos.y += (texture->height - 1);
+        tpage = TextureManager::GetTPageAttr(texture);
+        offset = TextureManager::GetTPageUVForTim(texture);
+        offset.pos.y += (texture->height - 1);
     }
 
     // load first 3 verts into GTE
     psyqo::GTE::writeSafe<psyqo::GTE::PseudoRegister::V0>(billboard->corners()[0]);
     psyqo::GTE::writeSafe<psyqo::GTE::PseudoRegister::V1>(billboard->corners()[1]);
     psyqo::GTE::writeSafe<psyqo::GTE::PseudoRegister::V2>(billboard->corners()[2]);
-
     psyqo::GTE::Kernels::rtpt();
     psyqo::GTE::Kernels::nclip();
 
     if (!psyqo::GTE::readRaw<psyqo::GTE::Register::MAC0>())
-      continue;
+        continue;
 
     // store the first vert so we can read the last one in
     psyqo::GTE::read<psyqo::GTE::Register::SXY0>(&projected[0].packed);
-    psyqo::GTE::writeSafe<psyqo::GTE::PseudoRegister::V0>(billboard->corners()[3]);
 
-    psyqo::GTE::Kernels::rtps();    
+    psyqo::GTE::writeSafe<psyqo::GTE::PseudoRegister::V0>(billboard->corners()[3]);
+    psyqo::GTE::Kernels::rtps();
+    uint32_t p = psyqo::GTE::readRaw<psyqo::GTE::Register::IR0>();
 
     psyqo::GTE::Kernels::avsz4();
     zIndex = psyqo::GTE::readRaw<psyqo::GTE::Register::OTZ>();
-
     if (zIndex == 0 || zIndex >= ORDERING_TABLE_SIZE)
-      continue;
-
-    // handle fog
-    auto colour = billboard->colour();
-    ApplyAmbientToColour(&colour);
-
-    colour = ApplyFogToColourGTE(colour);
+        continue;
 
     // read the last three verts from GTE
     psyqo::GTE::read<psyqo::GTE::Register::SXY0>(&projected[1].packed);
     psyqo::GTE::read<psyqo::GTE::Register::SXY1>(&projected[2].packed);
     psyqo::GTE::read<psyqo::GTE::Register::SXY2>(&projected[3].packed);
 
-    // out of screen space, it can be clipped
     if (quad_clip(&SCREEN_SPACE, &projected[0], &projected[1], &projected[2], &projected[3]))
-      continue;
+        continue;
 
-    // generate its points
+    // handle colour + fog — all verts share same colour on a billboard
+    auto colour = billboard->colour();
+    ApplyAmbientToColour(&colour);
+    colour = ApplyFogToColourGTE(colour, p);
+
     if (!texture) {
-      auto &quad = allocator.allocateFragment<psyqo::Prim::GouraudQuad>();
-      quad.primitive.pointA = projected[0];
-      quad.primitive.pointB = projected[1];
-      quad.primitive.pointC = projected[2];
-      quad.primitive.pointD = projected[3];
+        auto &quad = allocator.allocateFragment<psyqo::Prim::GouraudQuad>();
+        quad.primitive.pointA = projected[0];
+        quad.primitive.pointB = projected[1];
+        quad.primitive.pointC = projected[2];
+        quad.primitive.pointD = projected[3];
 
-      // set colour
-      quad.primitive.setColorA(colour);
-      quad.primitive.setColorB(colour);
-      quad.primitive.setColorC(colour);
-      quad.primitive.setColorD(colour);
-      
-      // make opaque
-      quad.primitive.setOpaque();
+        quad.primitive.setColorA(colour);
+        quad.primitive.setColorB(colour);
+        quad.primitive.setColorC(colour);
+        quad.primitive.setColorD(colour);
+        quad.primitive.setOpaque();
 
-      // insert into OT
-      ot.insert(quad, zIndex);
+        ot.insert(quad, zIndex);
     } else {
-      auto &quad = allocator.allocateFragment<psyqo::Prim::GouraudTexturedQuad>();
-      quad.primitive.pointA = projected[0];
-      quad.primitive.pointB = projected[1];
-      quad.primitive.pointC = projected[2];
-      quad.primitive.pointD = projected[3];
+        auto &quad = allocator.allocateFragment<psyqo::Prim::GouraudTexturedQuad>();
+        quad.primitive.pointA = projected[0];
+        quad.primitive.pointB = projected[1];
+        quad.primitive.pointC = projected[2];
+        quad.primitive.pointD = projected[3];
 
-      // handle fog
-      auto colour = billboard->colour();
-      ApplyAmbientToColour(&colour);
+        quad.primitive.setColorA(colour);
+        quad.primitive.setColorB(colour);
+        quad.primitive.setColorC(colour);
+        quad.primitive.setColorD(colour);
+        quad.primitive.setOpaque();
 
-      if (Lighting::instance().m_isSimpleFogEnabled) {
-        auto sz = psyqo::GTE::readRaw<psyqo::GTE::Register::SZ1>();
-        ApplyFogToColour(&colour, GetFogFactor(sz));
-      }
+        quad.primitive.tpage = tpage;
+        if (texture->hasClut)
+            quad.primitive.clutIndex = {texture->clutX, texture->clutY};
 
-      // set colour
-      quad.primitive.setColorA(colour);
-      quad.primitive.setColorB(colour);
-      quad.primitive.setColorC(colour);
-      quad.primitive.setColorD(colour);
-      
-      // make opaque
-      quad.primitive.setOpaque();
+        auto uvA = billboard->uv()[0];
+        quad.primitive.uvA.u = offset.pos.x + uvA.u;
+        quad.primitive.uvA.v = offset.pos.y - uvA.v;
 
-      // set its tpage
-      quad.primitive.tpage = tpage;
+        auto uvB = billboard->uv()[1];
+        quad.primitive.uvB.u = offset.pos.x + uvB.u;
+        quad.primitive.uvB.v = offset.pos.y - uvB.v;
 
-      // set its clut if it has one
-      if (texture->hasClut)
-        quad.primitive.clutIndex = {texture->clutX, texture->clutY};
+        auto uvC = billboard->uv()[2];
+        quad.primitive.uvC.u = offset.pos.x + uvC.u;
+        quad.primitive.uvC.v = offset.pos.y - uvC.v;
 
-      // set its uv coords
-      auto uvA = billboard->uv()[0];
-      quad.primitive.uvA.u = offset.pos.x + uvA.u;
-      quad.primitive.uvA.v = offset.pos.y - uvA.v;
+        auto uvD = billboard->uv()[3];
+        quad.primitive.uvD.u = offset.pos.x + uvD.u;
+        quad.primitive.uvD.v = offset.pos.y - uvD.v;
 
-      auto uvB = billboard->uv()[1];
-      quad.primitive.uvB.u = offset.pos.x + uvB.u;
-      quad.primitive.uvB.v = offset.pos.y - uvB.v;
-
-      auto uvC = billboard->uv()[2];
-      quad.primitive.uvC.u = offset.pos.x + uvC.u;
-      quad.primitive.uvC.v = offset.pos.y - uvC.v;
-
-      auto uvD = billboard->uv()[3];
-      quad.primitive.uvD.u = offset.pos.x + uvD.u;
-      quad.primitive.uvD.v = offset.pos.y - uvD.v;
-
-      // insert into OT
-      ot.insert(quad, zIndex);
+        ot.insert(quad, zIndex);
     }
   }
 }
@@ -744,7 +714,7 @@ void Renderer::RenderParticles(uint32_t deltaTime, const psyqo::Matrix33 &camera
         auto colour = particle.colour();
         ApplyAmbientToColour(&colour);
 
-        if (Lighting::instance().m_isSimpleFogEnabled) {
+        if (m_lighting->m_isSimpleFogEnabled) {
           auto sz = psyqo::GTE::readRaw<psyqo::GTE::Register::SZ1>();
           ApplyFogToColour(&colour, GetFogFactor(sz));
         }
@@ -793,9 +763,11 @@ void Renderer::RenderParticles(uint32_t deltaTime, const psyqo::Matrix33 &camera
           // re-transform corner 0 to get a representative IR0 for fog
           psyqo::GTE::writeSafe<psyqo::GTE::PseudoRegister::V0>(particle.corners()[0]);
           psyqo::GTE::Kernels::rtps();
+          uint32_t p = psyqo::GTE::readRaw<psyqo::GTE::Register::IR0>();
+
           auto colour = particle.colour();
           ApplyAmbientToColour(&colour);
-          colour = ApplyFogToColourGTE(colour);
+          colour = ApplyFogToColourGTE(colour, p);
 
           if (!texture) {
               auto &quad = allocator.allocateFragment<psyqo::Prim::GouraudQuad>();
@@ -1293,11 +1265,12 @@ void Renderer::ApplyFogToColour(psyqo::Color* col, psyqo::FixedPoint<> fogFactor
 }
 
 // Interpolate from input to FC
-psyqo::Color Renderer::ApplyFogToColourGTE(psyqo::Color input) {
-    if (!m_lighting->m_isSimpleFogEnabled)
-      return input;
+psyqo::Color Renderer::ApplyFogToColourGTE(psyqo::Color input, uint32_t p) {
+  if (!m_lighting->m_isSimpleFogEnabled)
+    return input;
 
-    psyqo::GTE::write<psyqo::GTE::Register::RGB, psyqo::GTE::Safe>(input.packed);
-    psyqo::GTE::Kernels::dpcs();
-    return {.packed = psyqo::GTE::readRaw<psyqo::GTE::Register::RGB2>()};
+  psyqo::GTE::write<psyqo::GTE::Register::IR0, psyqo::GTE::Unsafe>(p);
+  psyqo::GTE::write<psyqo::GTE::Register::RGB, psyqo::GTE::Safe>(input.packed);
+  psyqo::GTE::Kernels::dpcs();
+  return {.packed = psyqo::GTE::readRaw<psyqo::GTE::Register::RGB2>()};
 }
