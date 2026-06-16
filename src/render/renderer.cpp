@@ -127,6 +127,24 @@ void Renderer::SetFarColour(void) {
   psyqo::GTE::write<psyqo::GTE::Register::RFC, psyqo::GTE::Unsafe>(Lighting::instance().m_fogColour.r << 4);
   psyqo::GTE::write<psyqo::GTE::Register::GFC, psyqo::GTE::Unsafe>(Lighting::instance().m_fogColour.g << 4);
   psyqo::GTE::write<psyqo::GTE::Register::BFC, psyqo::GTE::Unsafe>(Lighting::instance().m_fogColour.b << 4);
+
+  SetFogNearFar(0.5_fp, 1.55_fp);
+}
+
+void Renderer::SetFogNearFar(psyqo::FixedPoint<> near, psyqo::FixedPoint<> far) {
+    if (near == 0.0_fp || far == 0.0_fp) return;
+
+    const auto a = near.value;
+    const auto b = far.value;
+    const auto h = SCREEN_SPACE.size.x / 2;
+
+    // TODO: rewrite this to use fixed point numbers directly
+    const auto dqa = ((-a * b / (b - a)) << 8) / h;
+    const auto dqaF = eastl::clamp(dqa, -32767, 32767);
+    const auto dqbF = ((b << 12) / (b - a) << 12);
+
+    psyqo::GTE::write<psyqo::GTE::Register::DQA, psyqo::GTE::Unsafe>(dqaF);
+    psyqo::GTE::write<psyqo::GTE::Register::DQB, psyqo::GTE::Safe>(dqbF);
 }
 
 /* this must be called at the start of each frame */
@@ -345,9 +363,9 @@ void Renderer::RenderGameObjects(uint32_t deltaTime, const psyqo::Matrix33 &came
             psyqo::GTE::Kernels::avsz3();
         }
 
-        zIndex = psyqo::GTE::readRaw<psyqo::GTE::Register::OTZ>();
         // make sure we dont go out of bounds
-        if (zIndex == 0 || (Lighting::instance().m_isSimpleFogEnabled && zIndex >= FULL_FOG_DISTANCE) || zIndex >= ORDERING_TABLE_SIZE)
+        zIndex = psyqo::GTE::readRaw<psyqo::GTE::Register::OTZ>();
+        if (zIndex == 0 || zIndex >= ORDERING_TABLE_SIZE)
             continue;
 
         // if its out of the screen space we can clip too
@@ -369,29 +387,19 @@ void Renderer::RenderGameObjects(uint32_t deltaTime, const psyqo::Matrix33 &came
         psyqo::GTE::Kernels::rtps();
         
         ApplyAmbientToColour(&colA);
-        
-        if (Lighting::instance().m_isSimpleFogEnabled) {
-          uint32_t p = psyqo::GTE::readRaw<psyqo::GTE::Register::IR0>();
-          colA = ApplyFogToColourGTE(colA, p);
-        }
+        colA = ApplyFogToColourGTE(colA);
 
         psyqo::GTE::writeSafe<psyqo::GTE::PseudoRegister::V0>(isQuad ? renderVerts[mesh->vertexIndices[i].i2] : renderVerts[mesh->vertexIndices[i].i3]);
         psyqo::GTE::Kernels::rtps();
-        ApplyAmbientToColour(&colB);
         
-        if (Lighting::instance().m_isSimpleFogEnabled) {
-          uint32_t p = psyqo::GTE::readRaw<psyqo::GTE::Register::IR0>();
-          colB = ApplyFogToColourGTE(colB, p);
-        }
+        ApplyAmbientToColour(&colB);       
+        colB = ApplyFogToColourGTE(colB);
 
         psyqo::GTE::writeSafe<psyqo::GTE::PseudoRegister::V0>(isQuad ? renderVerts[mesh->vertexIndices[i].i3] : renderVerts[mesh->vertexIndices[i].i4]);
         psyqo::GTE::Kernels::rtps();
+        
         ApplyAmbientToColour(&colC);
-
-        if (Lighting::instance().m_isSimpleFogEnabled) {
-          uint32_t p = psyqo::GTE::readRaw<psyqo::GTE::Register::IR0>();
-          colC = ApplyFogToColourGTE(colC, p);
-        }
+        colC = ApplyFogToColourGTE(colC);
 
         auto applyUV = [&](auto& uvDest, int index) {
             auto uv = mesh->uvs[index];
@@ -404,12 +412,9 @@ void Renderer::RenderGameObjects(uint32_t deltaTime, const psyqo::Matrix33 &came
             
             psyqo::GTE::writeSafe<psyqo::GTE::PseudoRegister::V0>(renderVerts[mesh->vertexIndices[i].i4]);
             psyqo::GTE::Kernels::rtps();
+
             ApplyAmbientToColour(&colD);
-            
-            if (Lighting::instance().m_isSimpleFogEnabled) {
-              uint32_t p = psyqo::GTE::readRaw<psyqo::GTE::Register::IR0>();
-              colD = ApplyFogToColourGTE(colD, p);
-            }
+            colD = ApplyFogToColourGTE(colD);
 
             // now take a quad fragment from our array and:
             // set its vertices
@@ -1305,8 +1310,10 @@ void Renderer::ApplyFogToColour(psyqo::Color* col, psyqo::FixedPoint<> fogFactor
 }
 
 // Interpolate from input to FC
-psyqo::Color Renderer::ApplyFogToColourGTE(psyqo::Color input, uint32_t p) {
-    psyqo::GTE::write<psyqo::GTE::Register::IR0, psyqo::GTE::Unsafe>(p);
+psyqo::Color Renderer::ApplyFogToColourGTE(psyqo::Color input) {
+    if (!Lighting::instance().m_isSimpleFogEnabled)
+      return input;
+
     psyqo::GTE::write<psyqo::GTE::Register::RGB, psyqo::GTE::Safe>(input.packed);
     psyqo::GTE::Kernels::dpcs();
     return {.packed = psyqo::GTE::readRaw<psyqo::GTE::Register::RGB2>()};

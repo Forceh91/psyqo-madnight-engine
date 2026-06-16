@@ -14,7 +14,7 @@
 #include "psyqo/matrix.hh"
 #include "psyqo/primitives/common.hh"
 
-static constexpr uint16_t ORDERING_TABLE_SIZE = 4'000;
+static constexpr uint16_t ORDERING_TABLE_SIZE = 10'000;
 static constexpr uint16_t FULL_FOG_DISTANCE = 3'500; // screen z
 static constexpr uint16_t NEAR_FOG_DISTANCE = 2'000; // screen z
 static constexpr uint32_t BUMP_ALLOCATOR_BYTES = 125'000; // this is for each frame, so double what this number is is used up in RAM
@@ -66,9 +66,10 @@ class Renderer final {
   void ApplyAmbientToColours(psyqo::Color* colA, psyqo::Color* colB, psyqo::Color* colC);
   void ApplyAmbientToColours(psyqo::Color* colA, psyqo::Color* colB, psyqo::Color* colC, psyqo::Color* colD);
   void ApplyFogToColour(psyqo::Color* col, psyqo::FixedPoint<> fogFactor);
-  psyqo::Color ApplyFogToColourGTE(psyqo::Color input, uint32_t p);
-
+  psyqo::Color ApplyFogToColourGTE(psyqo::Color input);
+  
   void SetFarColour(void);
+  void SetFogNearFar(psyqo::FixedPoint<> near, psyqo::FixedPoint<> far);
 public:
   static void Init(psyqo::GPU &gpuInstance);
 
