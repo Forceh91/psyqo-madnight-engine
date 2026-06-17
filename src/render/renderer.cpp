@@ -126,10 +126,15 @@ void Renderer::StartScene(void) {
   SetFarColour();
 }
 
+void Renderer::SetFogColour(const psyqo::Color &colour) {
+  m_lighting->SetFogColour(colour);
+  SetFarColour();
+}
+
 void Renderer::SetFarColour(void) {
-  psyqo::GTE::write<psyqo::GTE::Register::RFC, psyqo::GTE::Unsafe>(Lighting::instance().m_fogColour.r << 4);
-  psyqo::GTE::write<psyqo::GTE::Register::GFC, psyqo::GTE::Unsafe>(Lighting::instance().m_fogColour.g << 4);
-  psyqo::GTE::write<psyqo::GTE::Register::BFC, psyqo::GTE::Unsafe>(Lighting::instance().m_fogColour.b << 4);
+  psyqo::GTE::write<psyqo::GTE::Register::RFC, psyqo::GTE::Unsafe>(m_lighting->m_fogColour.r << 4);
+  psyqo::GTE::write<psyqo::GTE::Register::GFC, psyqo::GTE::Unsafe>(m_lighting->m_fogColour.g << 4);
+  psyqo::GTE::write<psyqo::GTE::Register::BFC, psyqo::GTE::Unsafe>(m_lighting->m_fogColour.b << 4);
 
   SetFogNearFar(0.5_fp, 1.55_fp);
 }
@@ -218,7 +223,7 @@ void Renderer::Render(uint32_t deltaTime) {
   
   // chain the fill command to clear the buffer
   auto &clear = m_clear[frameBuffer];
-  m_gpu.getNextClear(clear.primitive, Lighting::instance().m_fogColour);
+  m_gpu.getNextClear(clear.primitive, m_lighting->m_fogColour);
   m_gpu.chain(clear);
 
   // make use of `gpu.pumpCallbacks` at some point in here

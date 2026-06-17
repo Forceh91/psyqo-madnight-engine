@@ -90,7 +90,9 @@ public:
   void RenderSprite(const TimFile *tim, const psyqo::Rect rect, const psyqo::PrimPieces::UVCoords uv);
   void SetActiveCamera(Camera *camera);
   const Camera* ActiveCamera(void) const { return m_activeCamera; }
-  const bool& IsSimpleFogEnabled(void) const { return Lighting::instance().m_isSimpleFogEnabled; }
+  
+  void SetFogColour(const psyqo::Color &colour);
+  const bool& IsSimpleFogEnabled(void) const { return m_lighting->m_isSimpleFogEnabled; }
 
 
   static Renderer &Instance() { return *m_instance; }
