@@ -3,6 +3,7 @@
 
 #include "../textures/texture_manager.hh"
 #include "../core/collision_types.hh"
+#include "lighting.hh"
 
 #include "camera.hh"
 #include "psyqo/bump-allocator.hh"
@@ -13,12 +14,11 @@
 #include "psyqo/matrix.hh"
 #include "psyqo/primitives/common.hh"
 
-static constexpr uint16_t ORDERING_TABLE_SIZE = 4'000;
+static constexpr uint16_t ORDERING_TABLE_SIZE = 10'000;
 static constexpr uint16_t FULL_FOG_DISTANCE = 3'500; // screen z
 static constexpr uint16_t NEAR_FOG_DISTANCE = 2'000; // screen z
 static constexpr uint32_t BUMP_ALLOCATOR_BYTES = 125'000; // this is for each frame, so double what this number is is used up in RAM
 static constexpr uint16_t SUBDIVISION_DISTANCE = 750; // after view space transformation
-static constexpr psyqo::Color DEFAULT_CLEAR_COLOR = {.r = 0, .g = 0, .b = 0};
 static constexpr psyqo::Color c_loadingBackgroundColour = {.r = 0, .g = 0, .b = 0};
 
 class Renderer final {
@@ -29,7 +29,6 @@ class Renderer final {
   uint32_t m_lastFrameCounter = 0;
   Camera *m_activeCamera;
   psyqo::Vec3 m_gteCameraPos = {0, 0, 0};
-  bool m_isSimpleFogEnabled = false;
 
   // create 2 ordering tables, one for each frame buffer
   psyqo::OrderingTable<ORDERING_TABLE_SIZE> m_orderingTables[2];
@@ -45,6 +44,9 @@ class Renderer final {
   eastl::array<psyqo::Fragments::SimpleFragment<psyqo::Prim::TPage>, 40> m_tpages[2];
   eastl::array<psyqo::Fragments::SimpleFragment<psyqo::Prim::Sprite>, 40> m_sprites[2];
   uint8_t m_currentSpriteFragment = 0;
+
+  // lighting, cached at start of scene
+  Lighting* m_lighting = nullptr;
 
   Renderer(psyqo::GPU &gpuInstance) : m_gpu(gpuInstance){};
   ~Renderer(){};
@@ -62,7 +64,15 @@ class Renderer final {
   bool IsGameObjectVisible(const psyqo::Vec3& objectPos, const AABBCollision& collisionBox, const int32_t& boundingSphereRadius);
 
   psyqo::FixedPoint<> GetFogFactor(uint32_t z);
+
+  void ApplyAmbientToColour(psyqo::Color* colA);
+  void ApplyAmbientToColours(psyqo::Color* colA, psyqo::Color* colB, psyqo::Color* colC);
+  void ApplyAmbientToColours(psyqo::Color* colA, psyqo::Color* colB, psyqo::Color* colC, psyqo::Color* colD);
   void ApplyFogToColour(psyqo::Color* col, psyqo::FixedPoint<> fogFactor);
+  psyqo::Color ApplyFogToColourGTE(psyqo::Color input, uint32_t p = 0);
+  
+  void SetFarColour(void);
+  void SetFogNearFar(psyqo::FixedPoint<> near, psyqo::FixedPoint<> far);
 public:
   static void Init(psyqo::GPU &gpuInstance);
 
@@ -75,14 +85,15 @@ public:
   uint32_t Process(void);
   void Render(void);
   void Render(uint32_t deltaTime);
-  void Clear(psyqo::Color clearColour = DEFAULT_CLEAR_COLOR);
+  void Clear(psyqo::Color clearColour = Lighting::instance().m_fogColour);
   void RenderLoadingScreen(uint16_t loadPercentage);
   void RenderSprite(const TimFile *tim, const psyqo::Rect rect, const psyqo::PrimPieces::UVCoords uv);
   void SetActiveCamera(Camera *camera);
   const Camera* ActiveCamera(void) const { return m_activeCamera; }
-  const bool& IsSimpleFogEnabled(void) const { return m_isSimpleFogEnabled; }
-  void EnableSimpleFog(void) { m_isSimpleFogEnabled = true; }
-  void DisableSimpleFog(void) { m_isSimpleFogEnabled = false; }
+  
+  void SetFogColour(const psyqo::Color &colour);
+  const bool& IsSimpleFogEnabled(void) const { return m_lighting->m_isSimpleFogEnabled; }
+
 
   static Renderer &Instance() { return *m_instance; }
   psyqo::GPU &GPU() { return m_gpu; }
