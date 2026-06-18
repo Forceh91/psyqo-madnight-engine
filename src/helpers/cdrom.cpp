@@ -1,42 +1,77 @@
+#include "cdrom.hh"
 #include "psyqo/alloc.h"
 #include "psyqo/xprintf.h"
-#include "cdrom.hh"
+
+#ifndef PCDRV
 
 psyqo::CDRomDevice CDRomHelper::m_cdrom;
 psyqo::ISO9660Parser CDRomHelper::m_isoParser = psyqo::ISO9660Parser(&m_cdrom);
 psyqo::paths::CDRomLoader CDRomHelper::m_cdromLoader;
 char CDRomHelper::m_loadingFileName[MAX_CDROM_FILE_NAME_LEN];
 
-void CDRomHelper::init()
-{
-    m_cdrom.prepare();
-    m_cdrom.reset();
+#else
+
+#include "common/kernel/pcdrv.h"
+
+#endif
+
+void CDRomHelper::init() {
+#ifndef PCDRV
+	m_cdrom.prepare();
+	m_cdrom.reset();
+#else
+	PCinit();
+#endif
 }
 
-// reads a file off of the cd rom into memory (most likely a file full of binary data)
-// dont forget to free the returned data when you're done with it
-// allows you to wait for a file to be ready off cdrom without being stuck in callback hell
-psyqo::Coroutine<psyqo::Buffer<uint8_t>> CDRomHelper::LoadFile(const char *fileName)
-{
-    get_iso_file_name(fileName, m_loadingFileName);
-    printf("CD ROM: Attempting to read %s...\n", m_loadingFileName);
+psyqo::Coroutine<psyqo::Buffer<uint8_t>> CDRomHelper::LoadFile(const char *fileName) {
+#ifndef PCDRV
+	get_iso_file_name(fileName, m_loadingFileName);
+	printf("CDRom: Attempting to read %s...\n", m_loadingFileName);
 
-    auto buffer = co_await m_cdromLoader.readFile(m_loadingFileName, m_isoParser);
-    printf("CD ROM: Finished reading file (%d bytes) from cd rom.\n", buffer.size());
+	auto buffer = co_await m_cdromLoader.readFile(m_loadingFileName, m_isoParser);
+	if (buffer.empty())
+		printf("CDRom: File %s not found or empty\n", m_loadingFileName);
+	else
+		printf("CDRom: Read %d bytes\n", buffer.size());
+	
+        co_return eastl::move(buffer);
+#else
+	printf("PCDrv: Attempting to read %s...\n", fileName);
 
-    // the file isnt there or its empty
-    if (buffer.empty())
-    {
-        buffer.clear();
-        printf("CD ROM: File %s not found on CD or file is empty\n", m_loadingFileName);
-    }
+	psyqo::Buffer<uint8_t> buffer;
 
-    // callback to the loader
-    co_return eastl::move(buffer);
+	int fd = PCopen(fileName, 0, 0);
+	if (fd < 0) {
+		printf("PCDrv: Failed to open %s\n", fileName);
+		co_return eastl::move(buffer);
+	}
+
+	int size = PClseek(fd, 0, 2); // SEEK_END
+	if (size <= 0) {
+		printf("PCDrv: Failed to get size of %s\n", fileName);
+		PCclose(fd);
+		co_return eastl::move(buffer);
+	}
+	PClseek(fd, 0, 0); // SEEK_SET
+
+	buffer = psyqo::Buffer<uint8_t>(static_cast<size_t>(size));
+	int bytesRead = PCread(fd, buffer.data(), size);
+	PCclose(fd);
+
+	if (bytesRead != size) {
+		printf("PCDrv: Short read on %s (%d of %d bytes)\n", fileName, bytesRead, size);
+		buffer.clear();
+		co_return eastl::move(buffer);
+	}
+
+	printf("PCDrv: Read %d bytes from %s\n", size, fileName);
+	co_return eastl::move(buffer);
+#endif
 }
 
-void CDRomHelper::get_iso_file_name(const char *file_name, char *iso_filename)
-{
-    // modify the given file name into the correct format for the ps1 to read it
-    snprintf(iso_filename, MAX_CDROM_FILE_NAME_LEN, "%s;1", file_name);
+#ifndef PCDRV
+void CDRomHelper::get_iso_file_name(const char *file_name, char *iso_filename) {
+	snprintf(iso_filename, MAX_CDROM_FILE_NAME_LEN, "%s;1", file_name);
 }
+#endif
