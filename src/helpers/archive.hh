@@ -11,7 +11,7 @@ constexpr uint8_t MAX_ARCHIVE_FILE_NAME_LEN = 255;
 
 class ArchiveHelper final {
 public:
-    static void init();
+    static void init(eastl::function<void()> cb);
     static psyqo::Coroutine<psyqo::Buffer<uint8_t>> LoadFile(const char* fileName);
 private:
 #ifdef PCDRV

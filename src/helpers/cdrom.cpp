@@ -18,7 +18,7 @@ char CDRomHelper::m_loadingFileName[MAX_CDROM_FILE_NAME_LEN];
 
 #endif
 
-void CDRomHelper::init() {
+void CDRomHelper::init(eastl::function<void()> cb) {
 #ifndef PCDRV
 	m_cdrom.prepare();
 	m_cdrom.resetBlocking(Renderer::Instance().GPU());
@@ -26,7 +26,7 @@ void CDRomHelper::init() {
 	PCinit();
 #endif
 
-  ArchiveHelper::init();
+  ArchiveHelper::init(cb);
 }
 
 psyqo::Coroutine<psyqo::Buffer<uint8_t>> CDRomHelper::LoadFile(const char *fileName) {

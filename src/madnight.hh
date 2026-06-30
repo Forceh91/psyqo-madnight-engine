@@ -13,7 +13,6 @@
 class MadnightEngine final : public psyqo::Application
 {
     void prepare() override;
-    void createScene() override;
 
     psyqo::Coroutine<> m_initialLoadRoutine;
 public:

@@ -14,14 +14,12 @@
 class CDRomHelper final
 {
 public:
-    static void init();
+    static void init(eastl::function<void()> cb);
     static psyqo::Coroutine<psyqo::Buffer<uint8_t>> LoadFile(const char *fileName);
 
 #ifndef PCDRV
     static psyqo::CDRomDevice& CDRomDevice() { return m_cdrom; }
-#endif
 private:
-#ifndef PCDRV
     static psyqo::CDRomDevice m_cdrom;
     static psyqo::ISO9660Parser m_isoParser;
     static psyqo::paths::CDRomLoader m_cdromLoader;

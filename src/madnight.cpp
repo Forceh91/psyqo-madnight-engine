@@ -2,6 +2,7 @@
 
 #include "helpers/archive.hh"
 #include "psyqo/scene.hh"
+#include "psyqo/xprintf.h"
 
 #include "core/debug/debug_menu.hh"
 #include "helpers/cdrom.hh"
@@ -25,32 +26,35 @@ static LoadingScene loadingScene;
 void MadnightEngine::prepare() {
   // gpu config comes first, along with initialize.
   // once we call initialize then we can start using the vram etc.
-  psyqo::GPU::Configuration gpu_config;
-  gpu_config.set(psyqo::GPU::Resolution::W320)
+  psyqo::GPU::Configuration gpuConfig;
+  gpuConfig.set(psyqo::GPU::Resolution::W320)
       .set(psyqo::GPU::VideoMode::NTSC)
       .set(psyqo::GPU::ColorMode::C15BITS)
       .set(psyqo::GPU::Interlace::PROGRESSIVE);
-  gpu().initialize(gpu_config);
+  gpu().initialize(gpuConfig);
 
   // gpu inits
   Renderer::Init(gpu());
 
+  // push a scene to display whilst we do hardware inits
+  pushScene(&loadingScene);
+
   // hardware inits
-  CDRomHelper::init();
-  SoundManager::Init();
-  // Unlike the `SimplePad` class, the `AdvancedPad` class doesn't need to be initialized
-  // in the `start` method of the root `Scene` object. It can be initialized here.
-  // PollingMode::Fast is used to reduce input lag, but it will increase CPU usage.
-  // PollingMode::Normal is the default, and will poll one port per frame.
-  m_input.initialize(psyqo::AdvancedPad::PollingMode::Fast);
+  CDRomHelper::init([this]() {
+    SoundManager::Init();
+    // Unlike the `SimplePad` class, the `AdvancedPad` class doesn't need to be initialized
+    // in the `start` method of the root `Scene` object. It can be initialized here.
+    // PollingMode::Fast is used to reduce input lag, but it will increase CPU usage.
+    // PollingMode::Normal is the default, and will poll one port per frame.
+    m_input.initialize(psyqo::AdvancedPad::PollingMode::Fast);
 
-  // our application inits
-  DebugMenu::Init();
-}
+    // our application inits
+    DebugMenu::Init();
 
-void MadnightEngine::createScene() {
-  m_initialLoadRoutine = InitialLoad();
-  m_initialLoadRoutine.resume();
+    // hook into the game code
+    m_initialLoadRoutine = InitialLoad();
+    m_initialLoadRoutine.resume();
+  });
 }
 
 psyqo::Coroutine<> MadnightEngine::InitialLoad(void) { co_await g_madnightEngineGame.InitialLoad(); }
