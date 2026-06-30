@@ -17,6 +17,9 @@ public:
     static void init();
     static psyqo::Coroutine<psyqo::Buffer<uint8_t>> LoadFile(const char *fileName);
 
+#ifndef PCDRV
+    static psyqo::CDRomDevice& CDRomDevice() { return m_cdrom; }
+#endif
 private:
 #ifndef PCDRV
     static psyqo::CDRomDevice m_cdrom;

@@ -41,6 +41,9 @@ psyqo::Coroutine<> LoadingScene::LoadFiles(eastl::vector<LoadQueue> &&files, boo
 	m_loadFilesCount = m_queue.size();
 	m_loadFilesLoadedCount = 0;
 
+	if (!m_queue.size())
+		co_return;
+
 	// load it backwards so we can erase as we go
 	// for (int i = m_queue.size() - 1; i >= 0; i--) {
 	for (auto const &file : m_queue) {

@@ -1,6 +1,9 @@
 #include "cdrom.hh"
 #include "psyqo/alloc.h"
+#include "psyqo/coroutine.hh"
 #include "psyqo/xprintf.h"
+#include "../render/renderer.hh"
+#include "archive.hh"
 
 #ifndef PCDRV
 
@@ -18,10 +21,12 @@ char CDRomHelper::m_loadingFileName[MAX_CDROM_FILE_NAME_LEN];
 void CDRomHelper::init() {
 #ifndef PCDRV
 	m_cdrom.prepare();
-	m_cdrom.reset();
+	m_cdrom.resetBlocking(Renderer::Instance().GPU());
 #else
 	PCinit();
 #endif
+
+  ArchiveHelper::init();
 }
 
 psyqo::Coroutine<psyqo::Buffer<uint8_t>> CDRomHelper::LoadFile(const char *fileName) {

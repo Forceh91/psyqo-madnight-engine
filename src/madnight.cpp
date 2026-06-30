@@ -1,5 +1,6 @@
 /* based off the psyqo cube example */
 
+#include "helpers/archive.hh"
 #include "psyqo/scene.hh"
 
 #include "core/debug/debug_menu.hh"
@@ -31,6 +32,9 @@ void MadnightEngine::prepare() {
       .set(psyqo::GPU::Interlace::PROGRESSIVE);
   gpu().initialize(gpu_config);
 
+  // gpu inits
+  Renderer::Init(gpu());
+
   // hardware inits
   CDRomHelper::init();
   SoundManager::Init();
@@ -39,9 +43,6 @@ void MadnightEngine::prepare() {
   // PollingMode::Fast is used to reduce input lag, but it will increase CPU usage.
   // PollingMode::Normal is the default, and will poll one port per frame.
   m_input.initialize(psyqo::AdvancedPad::PollingMode::Fast);
-
-  // gpu inits
-  Renderer::Init(gpu());
 
   // our application inits
   DebugMenu::Init();
