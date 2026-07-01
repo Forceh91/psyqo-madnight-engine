@@ -1,5 +1,5 @@
 #include "colbin_manager.hh"
-#include "../helpers/cdrom.hh"
+#include "../helpers/archive.hh"
 #include "psyqo/alloc.h"
 #include "psyqo/coroutine.hh"
 #include "psyqo/xprintf.h"
@@ -11,7 +11,7 @@ psyqo::Coroutine<> ColbinManager::LoadColbin(const eastl::fixed_string<char, MAX
     // just incase something goes wrong
     *colbinOut = nullptr;
 
-    auto buffer = co_await CDRomHelper::LoadFile(name.c_str());
+    auto buffer = co_await ArchiveHelper::LoadFile(name.c_str());
     void *data = buffer.data();
     size_t size = buffer.size();
 

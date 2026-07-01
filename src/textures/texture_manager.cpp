@@ -1,7 +1,7 @@
 #include "texture_manager.hh"
 #include "psyqo/alloc.h"
 #include "psyqo/xprintf.h"
-#include "../helpers/cdrom.hh"
+#include "../helpers/archive.hh"
 #include "../render/renderer.hh"
 
 /*
@@ -57,7 +57,7 @@ psyqo::Coroutine<> TextureManager::LoadTIMFromCDRom(const char *textureName, uin
     if (freeIx == -1)
         co_return;
 
-    auto buffer = co_await CDRomHelper::LoadFile(textureName);
+    auto buffer = co_await ArchiveHelper::LoadFile(textureName);
 
     void *data = buffer.data();
     size_t size = buffer.size();

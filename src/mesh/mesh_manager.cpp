@@ -1,6 +1,5 @@
 #include "mesh_manager.hh"
-#include "../helpers/cdrom.hh"
-#include "../helpers/world_space.hh"
+#include "../helpers/archive.hh"
 #include "psyqo/fixed-point.hh"
 #include "skeleton/skeleton.hh"
 
@@ -27,7 +26,7 @@ psyqo::Coroutine<> MeshManager::LoadMeshFromCDROM(const char *meshName, MeshBin 
   if (meshIx == -1)
     co_return;
 
-  auto buffer = co_await CDRomHelper::LoadFile(meshName);
+  auto buffer = co_await ArchiveHelper::LoadFile(meshName);
 
   void *data = buffer.data();
   size_t size = buffer.size();
