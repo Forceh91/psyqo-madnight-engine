@@ -10,7 +10,7 @@
 
 LoadedMeshBin MeshManager::mLoadedMeshes[MAX_LOADED_MESHES];
 
-psyqo::Coroutine<> MeshManager::LoadMeshFromCDROM(const char *meshName, MeshBin **meshOut) {
+psyqo::Coroutine<> MeshManager::LoadMesh(const char *meshName, MeshBin **meshOut) {
   // make sure we get a valid response at least
   *meshOut = nullptr;
 

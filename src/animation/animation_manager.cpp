@@ -6,7 +6,7 @@
 
 AnimationBin AnimationManager::m_loadedAnimBin = {0, {}};
 
-psyqo::Coroutine<> AnimationManager::LoadAnimationFromCDRom(const char *animationsFile) {
+psyqo::Coroutine<> AnimationManager::LoadAnimation(const char *animationsFile) {
   auto buffer = co_await ArchiveHelper::LoadFile(animationsFile);
 
   void *data = buffer.data();

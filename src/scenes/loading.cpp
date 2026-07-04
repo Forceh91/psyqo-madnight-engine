@@ -50,24 +50,24 @@ psyqo::Coroutine<> LoadingScene::LoadFiles(eastl::vector<LoadQueue> &&files, boo
 		switch (file.type) {
 			case LoadFileType::OBJECT: {
 				MeshBin *mesh = nullptr;
-				co_await MeshManager::LoadMeshFromCDROM(file.name.c_str(), &mesh);
+				co_await MeshManager::LoadMesh(file.name.c_str(), &mesh);
 				break;
 			}
 
 			case LoadFileType::TEXTURE: {
 				TimFile *tim = nullptr;
-				co_await TextureManager::LoadTIMFromCDRom(file.name.c_str(), file.x, file.y, file.clutX, file.clutY, &tim);
+				co_await TextureManager::LoadTIM(file.name.c_str(), file.x, file.y, file.clutX, file.clutY, &tim);
 				break;
 			}
 
 			case LoadFileType::MOD_FILE: {
 				ModSoundFile *modSound = nullptr;
-				co_await ModSoundManager::LoadMODSoundFromCDRom(file.name.c_str(), &modSound);
+				co_await ModSoundManager::LoadMODSound(file.name.c_str(), &modSound);
 				break;
 			}
 
 			case LoadFileType::ANIMATION:
-				co_await AnimationManager::LoadAnimationFromCDRom(file.name.c_str());
+				co_await AnimationManager::LoadAnimation(file.name.c_str());
 				break;
 
 			case LoadFileType::COLBIN: {

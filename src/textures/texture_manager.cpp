@@ -40,7 +40,7 @@
 
 eastl::array<TimFile, MAX_TEXTURES> TextureManager::m_textures;
 
-psyqo::Coroutine<> TextureManager::LoadTIMFromCDRom(const char *textureName, uint16_t x, uint16_t y, uint16_t clutX, uint16_t clutY, TimFile **timOut)
+psyqo::Coroutine<> TextureManager::LoadTIM(const char *textureName, uint16_t x, uint16_t y, uint16_t clutX, uint16_t clutY, TimFile **timOut)
 {
     *timOut = nullptr;
 

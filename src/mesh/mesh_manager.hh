@@ -77,7 +77,7 @@ class MeshManager {
   static int8_t FindSpaceForMesh(void);
 
 public:
-  static psyqo::Coroutine<> LoadMeshFromCDROM(const char *meshName, MeshBin **meshOut);
+  static psyqo::Coroutine<> LoadMesh(const char *meshName, MeshBin **meshOut);
   static void GetMeshFromName(const char *meshName, MeshBin **meshOut);
   static void UnloadMesh(const char *mesh_name);
 

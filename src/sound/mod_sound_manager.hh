@@ -22,7 +22,7 @@ public:
     // as the SPU only contains 512K memory it is up to you to manage memory properly
     // this will give back some basic info about the loaded file incase you feel it is relevant
     // if it comes back as nullptr then something probably went wrong
-    static psyqo::Coroutine<> LoadMODSoundFromCDRom(const char *modSoundFileName, ModSoundFile **modSoundFileOut);
+    static psyqo::Coroutine<> LoadMODSound(const char *modSoundFileName, ModSoundFile **modSoundFileOut);
     // not really important but added for convenience
     static const ModSoundFile *CurrentMODSoundFile(void) { return &m_currentSoundFile; }
 
