@@ -14,10 +14,10 @@ I wanted to open-source this now as there is zero advantage for both myself or M
 
 This engine is just a library that links into your game code and so you will need to create a new Git repository with the engine as a submodule, along with the nugget submodule that is inside of that.
 
-### CD-ROM
-If you wish to make your game run from an ISO and make use of the PS1 CD-ROM drive, then you will also need to make sure you have [mkpsxiso](https://github.com/Lameguy64/mkpsxiso).
+### Asset Usage
+If you wish to dynamically load assets rather than having them hardcoded as header files or whatever then you will need to take a look at pcsx-redux's [authoring tool](https://github.com/grumpycoders/pcsx-redux/tree/main/tools/authoring). 
 
-In the `cdrom` directory you will see an example of an XML file that mkpsxiso can use. `iso.xml` and `system.cnf` have already been setup in such a way that they should be plug and play.
+In the `cdrom` directory you will see an example [toc.json](./cdrom/toc.json) that you can pass into the authoring tool to generate your ISO.
 
 ### Creating your game
 
