@@ -1,13 +1,13 @@
 #include "animation_manager.hh"
-#include "../helpers/cdrom.hh"
+#include "../helpers/archive.hh"
 #include "EASTL/fixed_string.h"
 #include "animation.hh"
 #include "psyqo/xprintf.h"
 
 AnimationBin AnimationManager::m_loadedAnimBin = {0, {}};
 
-psyqo::Coroutine<> AnimationManager::LoadAnimationFromCDRom(const char *animationsFile) {
-  auto buffer = co_await CDRomHelper::LoadFile(animationsFile);
+psyqo::Coroutine<> AnimationManager::LoadAnimation(const char *animationsFile) {
+  auto buffer = co_await ArchiveHelper::LoadFile(animationsFile);
 
   void *data = buffer.data();
   size_t size = buffer.size();

@@ -1,5 +1,5 @@
 #include "sound_manager.hh"
-#include "../helpers/cdrom.hh"
+#include "../helpers/archive.hh"
 #include "EASTL/algorithm.h"
 #include "psyqo/spu.hh"
 #include "psyqo/fixed-point.hh"
@@ -33,7 +33,7 @@ psyqo::Coroutine<> SoundManager::LoadVAGFile(const eastl::fixed_string<char, MAX
     }
 
     // get the actual data off the cd and make sure its valid
-    auto buffer = co_await CDRomHelper::LoadFile(fileName.c_str());
+    auto buffer = co_await ArchiveHelper::LoadFile(fileName.c_str());
     void *data = buffer.data();
     size_t size = buffer.size();
 

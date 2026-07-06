@@ -1,18 +1,18 @@
 #include "mod_sound_manager.hh"
 #include "psyqo/xprintf.h"
-#include "../helpers/cdrom.hh"
+#include "../helpers/archive.hh"
 #include "../render/renderer.hh"
 
 ModSoundFile ModSoundManager::m_currentSoundFile = {"", 0, false};
 unsigned ModSoundManager::m_musicTimer = 0;
 uint16_t ModSoundManager::m_musicVolume = DEFAULT_MUSIC_VOLUME;
 
-psyqo::Coroutine<> ModSoundManager::LoadMODSoundFromCDRom(const char *modSoundFileName, ModSoundFile **modSoundFileOut)
+psyqo::Coroutine<> ModSoundManager::LoadMODSound(const char *modSoundFileName, ModSoundFile **modSoundFileOut)
 {
     *modSoundFileOut = nullptr;
 
     // ok checks passed, get it off the CD
-    auto buffer = co_await CDRomHelper::LoadFile(modSoundFileName);
+    auto buffer = co_await ArchiveHelper::LoadFile(modSoundFileName);
     void *data = buffer.data();
     size_t size = buffer.size();
 

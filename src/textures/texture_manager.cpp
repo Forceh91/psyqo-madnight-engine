@@ -1,7 +1,7 @@
 #include "texture_manager.hh"
 #include "psyqo/alloc.h"
 #include "psyqo/xprintf.h"
-#include "../helpers/cdrom.hh"
+#include "../helpers/archive.hh"
 #include "../render/renderer.hh"
 
 /*
@@ -40,7 +40,7 @@
 
 eastl::array<TimFile, MAX_TEXTURES> TextureManager::m_textures;
 
-psyqo::Coroutine<> TextureManager::LoadTIMFromCDRom(const char *textureName, uint16_t x, uint16_t y, uint16_t clutX, uint16_t clutY, TimFile **timOut)
+psyqo::Coroutine<> TextureManager::LoadTIM(const char *textureName, uint16_t x, uint16_t y, uint16_t clutX, uint16_t clutY, TimFile **timOut)
 {
     *timOut = nullptr;
 
@@ -57,7 +57,7 @@ psyqo::Coroutine<> TextureManager::LoadTIMFromCDRom(const char *textureName, uin
     if (freeIx == -1)
         co_return;
 
-    auto buffer = co_await CDRomHelper::LoadFile(textureName);
+    auto buffer = co_await ArchiveHelper::LoadFile(textureName);
 
     void *data = buffer.data();
     size_t size = buffer.size();

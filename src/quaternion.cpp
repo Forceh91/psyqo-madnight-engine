@@ -95,7 +95,7 @@ Quaternion Slerp(const Quaternion &q1, const Quaternion &q2, psyqo::FixedPoint<>
   return slerpedQ;
 }
 
-Quaternion FindRotationQuat(const psyqo::Vec3 &v1, const psyqo::Vec3 &v2, psyqo::Trig<> &trig) {}
+Quaternion FindRotationQuat(const psyqo::Vec3 &v1, const psyqo::Vec3 &v2, psyqo::Trig<> &trig) { return {0,0,0,0}; }
 
 Quaternion operator*(const Quaternion &q1, const Quaternion &q2) {
   return Quaternion{

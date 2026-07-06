@@ -148,7 +148,7 @@ void Renderer::SetFogNearFar(psyqo::FixedPoint<> near, psyqo::FixedPoint<> far) 
 
     // TODO: rewrite this to use fixed point numbers directly
     const auto dqa = ((-a * b / (b - a)) << 8) / h;
-    const auto dqaF = eastl::clamp(dqa, -32767, 32767);
+    const auto dqaF = eastl::clamp<int16_t>(dqa, -32767, 32767);
     const auto dqbF = ((b << 12) / (b - a) << 12);
 
     psyqo::GTE::write<psyqo::GTE::Register::DQA, psyqo::GTE::Unsafe>(dqaF);

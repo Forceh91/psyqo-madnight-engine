@@ -1,0 +1,20 @@
+{
+    "executable": "../../build/ssweep.ps-exe",
+    "pvd": {
+        "system_id": "PLAYSTATION",
+        "volume_id": "MADNIGHT_ENGINE",
+        "volume_set_id": "MADNIGHT_ENGINE",
+        "publisher": "MADNIGHT GAMES",
+        "preparer": "MADNIGHT GAMES",
+        "application_id": "SLUS-9999",
+        "copyright": "COPYRIGHT MADNIGHT GAMES 2025-2026",
+        "abstract": "MY_ABSTRACT",
+        "bibliographic": "MY_BIBLIOGRAPHIC"
+    },
+
+    "files": [
+        { "path": "assets/cube.meshbin", "name": "MODELS/CUBE.MB" },
+        { "path": "assets/residential_street.meshbin", "name": "MODELS/STREET.MB" },
+        { "path": "assets/residential_street.tim", "name": "TEXTURES/STREET.TIM" }
+    ]
+}
