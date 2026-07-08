@@ -298,7 +298,7 @@ psyqo::Coroutine<> MeshManager::LoadMesh(const char *meshName, MeshBin **meshOut
 }
 
 MeshBin *MeshManager::IsMeshLoaded(const char *meshName) {
-  using FixedString = eastl::fixed_string<char, MAX_CDROM_FILE_NAME_LEN>;
+  using FixedString = eastl::fixed_string<char, MAX_ARCHIVE_FILE_NAME_LEN>;
   FixedString eastl_mesh_name(meshName);
 
   LoadedMeshBin *loadedMesh = nullptr;
@@ -326,7 +326,7 @@ int8_t MeshManager::FindSpaceForMesh(void) {
 }
 
 void MeshManager::UnloadMesh(const char *mesh_name) {
-  using FixedString = eastl::fixed_string<char, MAX_CDROM_FILE_NAME_LEN>;
+  using FixedString = eastl::fixed_string<char, MAX_ARCHIVE_FILE_NAME_LEN>;
   FixedString eastl_mesh_name(mesh_name);
 
   LoadedMeshBin *loaded_mesh = nullptr;
