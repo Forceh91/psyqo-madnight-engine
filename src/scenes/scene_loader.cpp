@@ -3,13 +3,13 @@
 #include "psyqo/xprintf.h"
 #include <cstdint>
 
-psyqo::Coroutine<> SceneLoader::LoadScene(const eastl::fixed_string<char, MAX_ARCHIVE_FILE_NAME_LEN> &sceneFile, eastl::vector<LoadQueue>** loadQueueOut) {
+psyqo::Coroutine<> SceneLoader::LoadScene(const eastl::fixed_string<char, MAX_ARCHIVE_FILE_NAME_LEN> &sceneFile, eastl::vector<LoadQueue>* loadQueueOut) {
     if (loadQueueOut == nullptr) {
         printf("SCENE: Invalid out queue.\n");
         co_return;        
     }
     
-    (*loadQueueOut)->clear();
+    loadQueueOut->clear();
 
     // load the file from the archive
     auto buffer = co_await ArchiveHelper::LoadFile(sceneFile.c_str());
@@ -41,9 +41,10 @@ psyqo::Coroutine<> SceneLoader::LoadScene(const eastl::fixed_string<char, MAX_AR
 
     for (int i = 0; i < fileCount; i++) {
         // file type
-        LoadFileType type;
-        __builtin_memcpy(&type, ptr, sizeof(uint8_t));
+        uint8_t typeByte = 0;
+        __builtin_memcpy(&typeByte, ptr, sizeof(uint8_t));
         ptr += sizeof(uint8_t);
+        LoadFileType type = static_cast<LoadFileType>(typeByte);
 
         // how long is the file name
         uint8_t nameLen = 0;
@@ -60,10 +61,28 @@ psyqo::Coroutine<> SceneLoader::LoadScene(const eastl::fixed_string<char, MAX_AR
         eastl::fixed_string<char, MAX_ARCHIVE_FILE_NAME_LEN + 1> fileName(reinterpret_cast<char*>(ptr), nameLen);
         ptr += nameLen;
 
-        // add this to the out queue
-        (*loadQueueOut)->push_back({fileName.c_str(), type});
+        // if its a tim then we have extra data like x, y, clutx, cluty
+        if (type == TEXTURE) {
+            uint16_t vramX = 0, vramY = 0, clutX = 0, clutY = 0;
+            
+            __builtin_memcpy(&vramX, ptr, sizeof(uint16_t));
+            ptr += sizeof(uint16_t);
+
+            __builtin_memcpy(&vramY, ptr, sizeof(uint16_t));
+            ptr += sizeof(uint16_t);
+            
+            __builtin_memcpy(&clutX, ptr, sizeof(uint16_t));
+            ptr += sizeof(uint16_t);
+            
+            __builtin_memcpy(&clutY, ptr, sizeof(uint16_t));
+            ptr += sizeof(uint16_t);
+
+            // add this to the out queue
+            loadQueueOut->push_back({fileName.c_str(), type, vramX, vramY, clutX, clutY});
+        } else // add this to the out queue
+            loadQueueOut->push_back({fileName.c_str(), type});
     }
 
     buffer.clear();
-    printf("SCENE: Successfully added %d files to the load queue.\n", (*loadQueueOut)->size());
+    printf("SCENE: Successfully added %d files to the load queue.\n", loadQueueOut->size());
 }

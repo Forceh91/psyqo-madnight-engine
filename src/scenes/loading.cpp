@@ -9,7 +9,9 @@
 #include "../sound/mod_sound_manager.hh"
 #include "../textures/texture_manager.hh"
 
+#include "EASTL/vector.h"
 #include "psyqo/fixed-point.hh"
+#include "scene_loader.hh"
 
 void LoadingScene::start(StartReason reason) { Renderer::Instance().StartScene(); }
 
@@ -38,15 +40,19 @@ psyqo::Coroutine<> LoadingScene::LoadFiles(eastl::vector<LoadQueue> &&files, boo
 	}
 
 	m_queue = eastl::move(files);
-	m_loadFilesCount = m_queue.size();
 	m_loadFilesLoadedCount = 0;
+	m_loadFilesCount = m_queue.size();
 
 	if (!m_queue.size())
 		co_return;
 
-	// load it backwards so we can erase as we go
-	// for (int i = m_queue.size() - 1; i >= 0; i--) {
-	for (auto const &file : m_queue) {
+	// FIFO worklist - both the manifest (initial m_queue) and any nested scene's contents load in reverse order
+	// nothing in here should depend on each other existing, or, if they do, then put them backwards in the manifest
+	eastl::vector<LoadQueue> pending(m_queue.begin(), m_queue.end());
+	while (m_loadFilesLoadedCount != m_loadFilesCount) {
+		auto file = pending.back();
+		pending.pop_back();
+
 		switch (file.type) {
 			case LoadFileType::OBJECT: {
 				MeshBin *mesh = nullptr;
@@ -81,10 +87,24 @@ psyqo::Coroutine<> LoadingScene::LoadFiles(eastl::vector<LoadQueue> &&files, boo
 				co_await SoundManager::LoadVAGFile(file.name, &vag);
 				break;
 			}
+
+			case LoadFileType::SCENE: {
+				eastl::vector<LoadQueue> sceneQueue;
+				co_await SceneLoader::LoadScene(file.name, &sceneQueue);
+
+				if (sceneQueue.size()) {
+					m_loadFilesCount += sceneQueue.size();
+					pending.insert(pending.end(), sceneQueue.begin(), sceneQueue.end());
+					sceneQueue.clear();
+				}
+				
+				break;
+			}
 		}
 
 		m_loadFilesLoadedCount++;
 	}
 
 	m_queue.clear();
+	pending.clear();
 }

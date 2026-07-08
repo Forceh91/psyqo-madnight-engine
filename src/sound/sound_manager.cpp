@@ -1,5 +1,4 @@
 #include "sound_manager.hh"
-#include "../helpers/archive.hh"
 #include "EASTL/algorithm.h"
 #include "psyqo/spu.hh"
 #include "psyqo/fixed-point.hh"
@@ -18,7 +17,7 @@ void SoundManager::Init(void) {
     m_isInitialized = true;
 }
 
-psyqo::Coroutine<> SoundManager::LoadVAGFile(const eastl::fixed_string<char, MAX_CDROM_FILE_NAME_LEN>& fileName, VagEntry** out) {
+psyqo::Coroutine<> SoundManager::LoadVAGFile(const eastl::fixed_string<char, MAX_ARCHIVE_FILE_NAME_LEN>& fileName, VagEntry** out) {
     if (!m_isInitialized)
         Init();
 
@@ -110,7 +109,7 @@ psyqo::Coroutine<> SoundManager::LoadVAGFile(const eastl::fixed_string<char, MAX
     printf("VAG: Successfully uploaded VAG of %d bytes into the SPU.\n", size);
 }
 
-VagEntry* SoundManager::IsVAGLoaded(const eastl::fixed_string<char, MAX_CDROM_FILE_NAME_LEN>& fileName) {
+VagEntry* SoundManager::IsVAGLoaded(const eastl::fixed_string<char, MAX_ARCHIVE_FILE_NAME_LEN>& fileName) {
     VagEntry* loadedVAG;
     for (auto& vag : m_vagFiles) {
         if (vag.name == fileName)
@@ -136,7 +135,7 @@ void SoundManager::SilenceChannels(const uint32_t channelMask) {
     psyqo::SPU::silenceChannels(channelMask);
 }
 
-void SoundManager::PlayVAGFile(const eastl::fixed_string<char, MAX_CDROM_FILE_NAME_LEN>& fileName, uint8_t channelId, const psyqo::SPU::ChannelPlaybackConfig &config, bool hardCut) {
+void SoundManager::PlayVAGFile(const eastl::fixed_string<char, MAX_ARCHIVE_FILE_NAME_LEN>& fileName, uint8_t channelId, const psyqo::SPU::ChannelPlaybackConfig &config, bool hardCut) {
     auto vag = IsVAGLoaded(fileName);
     if (vag) PlayVAGFile(vag, channelId, config, hardCut);
 }
