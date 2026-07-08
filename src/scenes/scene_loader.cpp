@@ -3,14 +3,7 @@
 #include "psyqo/xprintf.h"
 #include <cstdint>
 
-psyqo::Coroutine<> SceneLoader::LoadScene(const eastl::fixed_string<char, MAX_ARCHIVE_FILE_NAME_LEN> &sceneFile, eastl::vector<LoadQueue>* loadQueueOut) {
-    if (loadQueueOut == nullptr) {
-        printf("SCENE: Invalid out queue.\n");
-        co_return;        
-    }
-    
-    loadQueueOut->clear();
-
+psyqo::Coroutine<> SceneLoader::LoadScene(const eastl::fixed_string<char, MAX_ARCHIVE_FILE_NAME_LEN> &sceneFile, eastl::vector<LoadQueue> &queue) {
     // load the file from the archive
     auto buffer = co_await ArchiveHelper::LoadFile(sceneFile.c_str());
     uint8_t* data = buffer.data();
@@ -78,11 +71,11 @@ psyqo::Coroutine<> SceneLoader::LoadScene(const eastl::fixed_string<char, MAX_AR
             ptr += sizeof(uint16_t);
 
             // add this to the out queue
-            loadQueueOut->push_back({fileName.c_str(), type, vramX, vramY, clutX, clutY});
+            queue.push_back({fileName.c_str(), type, vramX, vramY, clutX, clutY});
         } else // add this to the out queue
-            loadQueueOut->push_back({fileName.c_str(), type});
+            queue.push_back({fileName.c_str(), type});
     }
 
     buffer.clear();
-    printf("SCENE: Successfully added %d files to the load queue.\n", loadQueueOut->size());
+    printf("SCENE: Successfully added %d files to the load queue.\n", queue.size());
 }

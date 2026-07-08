@@ -6,6 +6,6 @@
 
 class SceneLoader final {
 public:
-    static psyqo::Coroutine<> LoadScene(const eastl::fixed_string<char, MAX_ARCHIVE_FILE_NAME_LEN>& sceneFile, eastl::vector<LoadQueue>* loadQueueOut);
+    static psyqo::Coroutine<> LoadScene(const eastl::fixed_string<char, MAX_ARCHIVE_FILE_NAME_LEN>& sceneFile, eastl::vector<LoadQueue> &queue);
 private:
 };
