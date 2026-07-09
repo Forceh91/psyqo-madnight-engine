@@ -2,7 +2,6 @@
 #define _LOAD_QUEUE_H
 
 #include "EASTL/fixed_string.h"
-#include "file_defs.hh"
 #include "archive.hh"
 
 enum LoadFileType { OBJECT, TEXTURE, MOD_FILE, ANIMATION, COLBIN, VAG, SCENE = 255 };

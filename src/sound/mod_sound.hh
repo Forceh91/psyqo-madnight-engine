@@ -2,7 +2,7 @@
 #define _SOUND_H
 
 #include <EASTL/fixed_string.h>
-#include "../helpers/file_defs.hh"
+#include "../helpers/archive.hh"
 
 extern "C"
 {
@@ -11,7 +11,7 @@ extern "C"
 
 struct ModSoundFile
 {
-    eastl::fixed_string<char, MAX_CDROM_FILE_NAME_LEN> name;
+    eastl::fixed_string<char, MAX_ARCHIVE_FILE_NAME_LEN> name;
     uint32_t size;
     bool isLoaded;
 };

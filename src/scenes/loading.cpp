@@ -49,7 +49,7 @@ psyqo::Coroutine<> LoadingScene::LoadFiles(eastl::vector<LoadQueue> &&files, boo
 	// FIFO worklist - both the manifest (initial m_queue) and any nested scene's contents load in reverse order
 	// nothing in here should depend on each other existing, or, if they do, then put them backwards in the manifest
 	while (m_loadFilesLoadedCount != m_loadFilesCount) {
-		auto file = m_queue.back();
+		auto const &file = m_queue.back();
 		m_queue.pop_back();
 
 		switch (file.type) {
