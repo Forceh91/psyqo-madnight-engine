@@ -102,7 +102,7 @@ void ParticleEmitter::SetParticleColour(const psyqo::Color &particleColour, cons
     m_particleEndColour = particleEndColour;
 }
 
-void ParticleEmitter::SetParticleTexture(const eastl::fixed_string<char, MAX_CDROM_FILE_NAME_LEN> &textureName, const eastl::array<psyqo::PrimPieces::UVCoords, 4> &uv) {
+void ParticleEmitter::SetParticleTexture(const eastl::fixed_string<char, MAX_ARCHIVE_FILE_NAME_LEN> &textureName, const eastl::array<psyqo::PrimPieces::UVCoords, 4> &uv) {
     TextureManager::GetTextureFromName(textureName.c_str(), &m_particleTexture);
     m_particleUVCoords = uv;
 }

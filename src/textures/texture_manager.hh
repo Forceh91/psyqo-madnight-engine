@@ -6,7 +6,7 @@
 #include <EASTL/fixed_string.h>
 #include "psyqo/coroutine.hh"
 #include "psyqo/primitives.hh"
-#include "../helpers/file_defs.hh"
+#include "../helpers/archive.hh"
 
 static constexpr uint16_t texturePageWidth = 64;
 static constexpr uint16_t texturePageHeight = 256;
@@ -15,7 +15,7 @@ static constexpr uint8_t MAX_TEXTURES = 32; // this will need tweaking later
 
 typedef struct _TIM_FILE
 {
-    eastl::fixed_string<char, MAX_CDROM_FILE_NAME_LEN> name;
+    eastl::fixed_string<char, MAX_ARCHIVE_FILE_NAME_LEN> name;
     uint16_t x, y, width, height;                 // pos in vram + width/height
     psyqo::Prim::TPageAttr::ColorMode colourMode; // bits per pixel (4, 8, 16)
 

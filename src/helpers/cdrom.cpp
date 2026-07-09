@@ -10,7 +10,7 @@
 psyqo::CDRomDevice CDRomHelper::m_cdrom;
 psyqo::ISO9660Parser CDRomHelper::m_isoParser = psyqo::ISO9660Parser(&m_cdrom);
 psyqo::paths::CDRomLoader CDRomHelper::m_cdromLoader;
-char CDRomHelper::m_loadingFileName[MAX_CDROM_FILE_NAME_LEN];
+char CDRomHelper::m_loadingFileName[MAX_ARCHIVE_FILE_NAME_LEN];
 
 #else
 
@@ -77,6 +77,6 @@ psyqo::Coroutine<psyqo::Buffer<uint8_t>> CDRomHelper::LoadFile(const char *fileN
 
 #ifndef PCDRV
 void CDRomHelper::get_iso_file_name(const char *file_name, char *iso_filename) {
-	snprintf(iso_filename, MAX_CDROM_FILE_NAME_LEN, "%s;1", file_name);
+	snprintf(iso_filename, 32, "%s;1", file_name);
 }
 #endif

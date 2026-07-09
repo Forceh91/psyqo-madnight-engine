@@ -37,7 +37,7 @@ public:
     void SetColour(const psyqo::Color colour);
 
     const TimFile *pTexture() const { return m_texture; }
-    void SetTexture(const eastl::fixed_string<char, MAX_CDROM_FILE_NAME_LEN> &textureName, const eastl::array<psyqo::PrimPieces::UVCoords, 4> &uv);
+    void SetTexture(const eastl::fixed_string<char, MAX_ARCHIVE_FILE_NAME_LEN> &textureName, const eastl::array<psyqo::PrimPieces::UVCoords, 4> &uv);
     void SetTexture(TimFile *texture, const eastl::array<psyqo::PrimPieces::UVCoords, 4> &uv);
 
     const eastl::array<psyqo::Vec3, 4> &corners() const { return m_quadCorners; }

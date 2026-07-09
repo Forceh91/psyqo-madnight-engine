@@ -57,7 +57,7 @@ public:
     void SetParticleColour(const psyqo::Color &particleColour);
     void SetParticleColour(const psyqo::Color &particleColour, const psyqo::Color &particleEndColour);
 
-    void SetParticleTexture(const eastl::fixed_string<char, MAX_CDROM_FILE_NAME_LEN> &textureName, const eastl::array<psyqo::PrimPieces::UVCoords, 4> &uv);
+    void SetParticleTexture(const eastl::fixed_string<char, MAX_ARCHIVE_FILE_NAME_LEN> &textureName, const eastl::array<psyqo::PrimPieces::UVCoords, 4> &uv);
     void SetParticleUVCoords(const eastl::array<psyqo::PrimPieces::UVCoords, 4> &uv);
 
     const TimFile *pParticleTexture() const { return m_particleTexture; }

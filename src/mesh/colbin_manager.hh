@@ -1,7 +1,7 @@
 #ifndef _COLBIN_MANAGER_HH
 #define _COLBIN_MANAGER_HH
 
-#include "../helpers/file_defs.hh"
+#include "../helpers/archive.hh"
 #include "../core/collision_types.hh"
 #include "EASTL/fixed_string.h"
 #include "EASTL/span.h"
@@ -45,7 +45,7 @@ struct ColBin {
 
 class ColbinManager {
 public:
-    static psyqo::Coroutine<> LoadColbin(const eastl::fixed_string<char, MAX_CDROM_FILE_NAME_LEN> &name, ColBin **colbinOut);
+    static psyqo::Coroutine<> LoadColbin(const eastl::fixed_string<char, MAX_ARCHIVE_FILE_NAME_LEN> &name, ColBin **colbinOut);
     static ColBin *Colbin(void) { return &m_colbin; }
     static void Dump(void);
     static eastl::span<OBB> walls(void) { return {m_colbin.walls, m_colbin.header.wallOBBCount}; };

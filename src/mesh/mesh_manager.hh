@@ -9,7 +9,7 @@
 #include "psyqo/vector.hh"
 
 #include "../core/collision_types.hh"
-#include "../helpers/file_defs.hh"
+#include "../helpers/archive.hh"
 #include "skeleton/skeleton.hh"
 
 static constexpr uint8_t MAX_LOADED_MESHES = 250;
@@ -65,7 +65,7 @@ struct MeshBin {
 };
 
 struct LoadedMeshBin {
-  eastl::fixed_string<char, MAX_CDROM_FILE_NAME_LEN> meshName;
+  eastl::fixed_string<char, MAX_ARCHIVE_FILE_NAME_LEN> meshName;
   bool isLoaded;
   MeshBin mesh;
 };

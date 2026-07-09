@@ -7,7 +7,7 @@
 #include "psyqo/trigonometry.hh"
 #include "psyqo/vector.hh"
 
-#include "../../helpers/file_defs.hh"
+#include "../../helpers/archive.hh"
 #include "../../mesh/mesh_manager.hh"
 #include "../../textures/texture_manager.hh"
 #include "../collision_types.hh"
@@ -29,7 +29,7 @@ typedef struct _GAMEOBJECT_ROTATION {
 enum RenderFlags { RF_NONE = 0, RF_DISTANCE_CHECK = 1 };
 
 class GameObject final {
-  eastl::fixed_string<char, MAX_CDROM_FILE_NAME_LEN> m_name = "";
+  eastl::fixed_string<char, MAX_ARCHIVE_FILE_NAME_LEN> m_name = "";
   uint8_t m_id = INVALID_GAMEOBJECT_ID;
   GameObjectQuadType m_quadType = GameObjectQuadType::Quad;
   GameObjectTag m_tag = GameObjectTag::NONE;
@@ -59,7 +59,7 @@ public:
   };
   void Destroy(void);
 
-  const eastl::fixed_string<char, MAX_CDROM_FILE_NAME_LEN> &name() { return m_name; }
+  const eastl::fixed_string<char, MAX_ARCHIVE_FILE_NAME_LEN> &name() { return m_name; }
   const uint8_t &id() const { return m_id; };
   const psyqo::Vec3 &pos() const { return m_pos; }
 

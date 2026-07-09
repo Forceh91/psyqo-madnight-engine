@@ -1,5 +1,4 @@
 #include "colbin_manager.hh"
-#include "../helpers/archive.hh"
 #include "psyqo/alloc.h"
 #include "psyqo/coroutine.hh"
 #include "psyqo/xprintf.h"
@@ -7,7 +6,7 @@
 
 ColBin ColbinManager::m_colbin = {{"", 0, 0, 0,}, 0, 0, 0, 0, 0, nullptr, nullptr, nullptr};
 
-psyqo::Coroutine<> ColbinManager::LoadColbin(const eastl::fixed_string<char, MAX_CDROM_FILE_NAME_LEN> &name, ColBin **colbinOut) {
+psyqo::Coroutine<> ColbinManager::LoadColbin(const eastl::fixed_string<char, MAX_ARCHIVE_FILE_NAME_LEN> &name, ColBin **colbinOut) {
     // just incase something goes wrong
     *colbinOut = nullptr;
 
