@@ -6,10 +6,7 @@
 - Initial scene manifest format
 - Variable-length, type-tagged file entries
 - Texture entries carry extra VRAM/CLUT placement data
-- `SCENE` (nested scene reference) intentionally **not yet supported** — the
-  type field is a `uint8_t` and `LoadFileType::SCENE` is `9999`, which does
-  not fit. Deferred until the type field is widened or SCENE is given a
-  wire-safe value.
+- `SCENE` (nested scene reference) **not yet supported**
 
 ---
 
@@ -61,7 +58,7 @@ non-texture entry.
 ### LoadFileType
 
 ```cpp
-enum LoadFileType { OBJECT, TEXTURE, MOD_FILE, ANIMATION, COLBIN, VAG, SCENE = 9999 };
+enum LoadFileType { OBJECT, TEXTURE, MOD_FILE, ANIMATION, COLBIN, VAG, SCENE = 255 };
 ```
 
 | Value | Name      | Source extension | Extra payload |
@@ -72,7 +69,7 @@ enum LoadFileType { OBJECT, TEXTURE, MOD_FILE, ANIMATION, COLBIN, VAG, SCENE = 9
 | 3     | ANIMATION | —                 | none           |
 | 4     | COLBIN    | `.COLBIN` / `.CB` | none           |
 | 5     | VAG       | `.VAG`            | none           |
-| 9999  | SCENE     | —                 | **not supported by this format yet** |
+| 255  | SCENE     | —                 | **not supported by this format yet** |
 
 Source-file type names (human-editable format, see below) are the enum
 names lowercased: `object`, `texture`, `mod_file`, `animation`, `colbin`,
@@ -140,4 +137,4 @@ object MODELS/SCART.MB
    ships, rather than showing up as a corrupted texture on hardware.
 5. **SCENE is deferred.** Do not add `scene` entries to source files until
    the type-field width question is resolved — the converter will reject
-   the type name outright rather than silently truncating `9999`.
+   the type name outright rather than silently truncating `255`.
