@@ -10,7 +10,7 @@
 psyqo::CDRomDevice CDRomHelper::m_cdrom;
 psyqo::ISO9660Parser CDRomHelper::m_isoParser = psyqo::ISO9660Parser(&m_cdrom);
 psyqo::paths::CDRomLoader CDRomHelper::m_cdromLoader;
-char CDRomHelper::m_loadingFileName[MAX_ARCHIVE_FILE_NAME_LEN];
+char CDRomHelper::m_loadingFileName[32];
 
 #else
 
