@@ -15,7 +15,7 @@ void GameObject::Destroy(void)
     m_mesh = nullptr;
     m_texture = nullptr;
     m_rotationMatrix = {0};
-    m_obb = {0};
+    m_obb = {{0, 0, 0}, {{0, 0, 0}, {0, 0, 0}, {0, 0, 0}}, {0, 0, 0}, 0};
     m_collisionType = CollisionType::SOLID;
     m_id = INVALID_GAMEOBJECT_ID;
 }
@@ -33,7 +33,7 @@ void GameObject::SetTexture(const char *textureName)
 
 void GameObject::SetPosition(const psyqo::Vec3 &pos) {
     m_pos = pos;
-    GenerateOBB();
+    UpdateOBB();
 }
 
 void GameObject::SetPosition(psyqo::FixedPoint<12> x, psyqo::FixedPoint<12> y, psyqo::FixedPoint<12> z)
@@ -43,7 +43,7 @@ void GameObject::SetPosition(psyqo::FixedPoint<12> x, psyqo::FixedPoint<12> y, p
     m_pos.z = z;
 
     // update the OBB
-    GenerateOBB();
+    UpdateOBB();
 }
 
 void GameObject::SetRotation(const GameObjectRotation &rotation) {

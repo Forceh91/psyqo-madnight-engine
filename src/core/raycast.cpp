@@ -1,7 +1,6 @@
 #include "raycast.hh"
-#include "collision.hh"
-#include "../render/camera.hh"
 #include "object/gameobject_manager.hh"
+#include "psyqo/fixed-point.hh"
 #include "psyqo/soft-math.hh"
 
 bool Raycast::RaycastScene(const Ray &ray, GameObjectTag targetTag, RayHit *hitOut)
@@ -18,10 +17,12 @@ bool Raycast::RaycastScene(const Ray &ray, GameObjectTag targetTag, RayHit *hitO
     {
         for (auto &object : objects)
         {
-            if ((hitOut->hit = DoesRaycastInterceptAABB(ray, object)))
+            psyqo::FixedPoint<> distance;
+            if ((hitOut->hit = DoesRaycastInterceptAABB(ray, object, &distance)))
             {
-                // hitOut->distance = distance; // get distance? do we need it
+                hitOut->distance = distance; // get distance? do we need it
                 hitOut->object = object;
+                hitOut->hitPos = ray.origin + ray.direction * distance;
                 return true;
             }
         }
@@ -32,16 +33,27 @@ bool Raycast::RaycastScene(const Ray &ray, GameObjectTag targetTag, RayHit *hitO
 
 // NOTE: this will be very inaccurate if the object is rotated at all.
 // TODO: implement an OBB/SAT versin of this
-bool Raycast::DoesRaycastInterceptAABB(const Ray &ray, const GameObject *object)
+bool Raycast::DoesRaycastInterceptAABB(const Ray &ray, const GameObject *object, psyqo::FixedPoint<> *outDistance)
 {
     // make sure the mesh is valid
     if (object == nullptr)
         return false;
 
     // get AABB box for the mesh
-    AABBCollision aabbBox = object->mesh()->collisionBox;
-    if (aabbBox.min.x == UINT16_MAX)
-        return false;
+    AABBCollision aabbBox;
+    if (object->mesh() != nullptr)
+    {
+        aabbBox = object->mesh()->collisionBox;
+        if (aabbBox.min.x == UINT16_MAX)
+            return false;
+    }
+    else
+    {
+        // mesh-less object (e.g. a trigger) - derive an AABB from its OBB
+        OBB obb = object->obb();
+        aabbBox.min = obb.center - obb.halfExtents;
+        aabbBox.max = obb.center + obb.halfExtents;
+    }
 
     psyqo::FixedPoint<> tMin = -1000.0_fp;
     psyqo::FixedPoint<> tMax = 1000.0_fp;
@@ -82,6 +94,10 @@ bool Raycast::DoesRaycastInterceptAABB(const Ray &ray, const GameObject *object)
     // is the box behind or too far?
     if (tMin < 0 || tMin > ray.maxDistance)
         return false;
+
+    // how far away was it
+    if (outDistance != nullptr)
+        *outDistance = tMin;
 
     return true;
 }
