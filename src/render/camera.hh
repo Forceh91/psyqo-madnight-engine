@@ -65,8 +65,8 @@ public:
 
   const psyqo::Vec3 pos(void) const { return m_pos; };
   const psyqo::Vec3 deltaOffset(void) const { return m_cameraMode != CameraMode::FOLLOW ? psyqo::Vec3{0, 0, 0} : m_pos; }
-  const psyqo::Vec3 *posPtr(void) { return &m_pos; }
-  const CameraAngle *angle(void) { return &m_angle; }
+  const psyqo::Vec3 *posPtr(void) const { return &m_pos; }
+  const CameraAngle *angle(void) const { return &m_angle; }
   const psyqo::Vec3 forwardVector(void) const {
     return {-m_rotationMatrix.vs[0].z, m_rotationMatrix.vs[1].z, m_rotationMatrix.vs[2].z};
   }

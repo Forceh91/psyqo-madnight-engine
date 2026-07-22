@@ -1,7 +1,6 @@
 #ifndef _RAYCAST_H
 #define _RAYCAST_H
 
-#include "../mesh/mesh_manager.hh"
 #include "object/gameobject.hh"
 #include "world_defs.hh"
 
@@ -20,12 +19,13 @@ typedef struct _RAY_HIT
 {
     bool hit;
     psyqo::FixedPoint<> distance;
+    psyqo::Vec3 hitPos; // world-space hit
     GameObject *object;
 } RayHit;
 
 class Raycast
 {
-    static bool DoesRaycastInterceptAABB(const Ray &ray, const GameObject *object);
+    static bool DoesRaycastInterceptAABB(const Ray &ray, const GameObject *object, psyqo::FixedPoint<> *outDistance);
 
 public:
     static bool RaycastScene(const Ray &ray, GameObjectTag targetTag, RayHit *hitOut);

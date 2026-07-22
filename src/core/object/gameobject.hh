@@ -74,6 +74,7 @@ public:
   const GameObjectTag &tag() { return m_tag; }
   const GameObjectQuadType &quadType() { return m_quadType; }
   const OBB &obb() { return m_obb; }
+  const OBB &obb() const { return m_obb; }
 
   void SetPosition(const psyqo::Vec3& pos);
   void SetPosition(psyqo::FixedPoint<12> x, psyqo::FixedPoint<12> y, psyqo::FixedPoint<12> z);
