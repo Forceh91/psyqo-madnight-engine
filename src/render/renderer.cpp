@@ -26,7 +26,7 @@
 #include "psyqo/vector.hh"
 
 Renderer *Renderer::m_instance = nullptr;
-psyqo::Font<> Renderer::m_systemFont;
+psyqo::Font<100> Renderer::m_systemFont;
 static constexpr psyqo::Rect SCREEN_SPACE = {.pos = {0, 0}, .size = {320, 240}};
 static constexpr psyqo::Matrix33 identityMatrix = {
     {{1.0_fp, 0.0_fp, 0.0_fp}, {0.0_fp, 1.0_fp, 0.0_fp}, {0.0_fp, 0.0_fp, 1.0_fp}}};

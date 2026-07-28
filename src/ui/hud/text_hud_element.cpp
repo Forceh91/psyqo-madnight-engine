@@ -6,7 +6,7 @@ void TextHUDElement::Render(const psyqo::Rect &parentRect)
     Render(parentRect, nullptr);
 }
 
-void TextHUDElement::Render(const psyqo::Rect &parentRect, psyqo::Font<> *fallbackFont)
+void TextHUDElement::Render(const psyqo::Rect &parentRect, psyqo::Font<100> *fallbackFont)
 {
     if (!m_isEnabled)
         return;
@@ -17,5 +17,5 @@ void TextHUDElement::Render(const psyqo::Rect &parentRect, psyqo::Font<> *fallba
         m_font = fallbackFont == nullptr ? rendererInstance.SystemFont() : fallbackFont;
 
     psyqo::Vertex posInParent = {static_cast<int16_t>(parentRect.pos.x + m_rect.pos.x), static_cast<int16_t>(parentRect.pos.y + m_rect.pos.y)};
-    m_font->chainprint(rendererInstance.GPU(), m_displayText.c_str(), posInParent, m_colour);
+    m_font->chainprint(rendererInstance.GPU(), m_displayText, posInParent, m_colour);
 }

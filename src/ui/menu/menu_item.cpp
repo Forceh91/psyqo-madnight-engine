@@ -1,6 +1,6 @@
 #include "menu_item.hh"
 
-void MenuItem::Render(const psyqo::Rect parentRect, const bool isSelected, psyqo::Font<> *defaultFont)
+void MenuItem::Render(const psyqo::Rect parentRect, const bool isSelected, psyqo::Font<100> *defaultFont)
 {
     if (!m_isEnabled)
         return;

@@ -23,7 +23,7 @@ static constexpr psyqo::Color c_loadingBackgroundColour = {.r = 0, .g = 0, .b = 
 
 class Renderer final {
   static Renderer *m_instance;
-  static psyqo::Font<> m_systemFont;
+  static psyqo::Font<100> m_systemFont;
 
   psyqo::GPU &m_gpu;
   uint32_t m_lastFrameCounter = 0;
@@ -97,7 +97,7 @@ public:
 
   static Renderer &Instance() { return *m_instance; }
   psyqo::GPU &GPU() { return m_gpu; }
-  psyqo::Font<> *SystemFont() { return &m_systemFont; }
+  psyqo::Font<100> *SystemFont() { return &m_systemFont; }
 };
 
 #endif

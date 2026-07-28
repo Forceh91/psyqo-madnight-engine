@@ -26,7 +26,7 @@ class GameplayHUD final
     bool m_isEnabled = false;
     eastl::fixed_string<char, GAMEPLAY_HUD_MAX_NAME_LEN> m_name;
     psyqo::Rect m_rect = {0};
-    eastl::fixed_vector<TextHUDElement, 20, false> m_textHUDElements;
+    eastl::fixed_vector<TextHUDElement, 50, false> m_textHUDElements;
     eastl::fixed_vector<SpriteHUDElement, 40, false> m_spriteHUDElements;
 
 public:
@@ -50,7 +50,6 @@ public:
     void Render(void);
 
     // dont lose track of the hud element!
-    // has a limit of 20 elements for now, i don't see why you would want more than that
     TextHUDElement *AddTextHUDElement(TextHUDElement &&textElement)
     {
         m_textHUDElements.push_back(eastl::move(textElement));

@@ -49,10 +49,10 @@ public:
 
     void Enable() { m_isEnabled = true; }
     void Disable() { m_isEnabled = false; }
-    void Render(const psyqo::Rect parentRect, const bool isSelected, psyqo::Font<> *fallbackFont);
+    void Render(const psyqo::Rect parentRect, const bool isSelected, psyqo::Font<100> *fallbackFont);
 
     void SetSpriteElement(const SpriteHUDElement &sprite) { m_sprite = sprite; }
-    void SetFont(psyqo::Font<> *font) { m_text.SetFont(font); }
+    void SetFont(psyqo::Font<100> *font) { m_text.SetFont(font); }
     void SetTextElement(const TextHUDElement &text) { m_text = text; }
     void SetText(const char *text) { m_text.SetDisplayText(text); }
     void SetTextColour(const psyqo::Color colour) { m_text.SetColour(colour); }
