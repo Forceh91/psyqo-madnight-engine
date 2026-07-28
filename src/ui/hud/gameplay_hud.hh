@@ -26,7 +26,7 @@ class GameplayHUD final
     bool m_isEnabled = false;
     eastl::fixed_string<char, GAMEPLAY_HUD_MAX_NAME_LEN> m_name;
     psyqo::Rect m_rect = {0};
-    eastl::fixed_vector<TextHUDElement, 100, false> m_textHUDElements;
+    eastl::fixed_vector<TextHUDElement, 50, false> m_textHUDElements;
     eastl::fixed_vector<SpriteHUDElement, 40, false> m_spriteHUDElements;
 
 public:
