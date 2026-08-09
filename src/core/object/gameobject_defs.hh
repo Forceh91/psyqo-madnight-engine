@@ -5,7 +5,10 @@ enum GameObjectTag
 {
     NONE,
     ENVIRONMENT,
-    INTERACTABLE
+    INTERACTABLE,
+    PORTAL,
+    PORTAL_ENTRANCE,
+    PORTAL_EXIT,
 };
 
 #endif

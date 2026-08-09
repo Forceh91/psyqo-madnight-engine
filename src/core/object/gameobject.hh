@@ -3,7 +3,6 @@
 
 #include "EASTL/fixed_string.h"
 #include "psyqo/fixed-point.hh"
-#include "psyqo/fragments.hh"
 #include "psyqo/trigonometry.hh"
 #include "psyqo/vector.hh"
 
@@ -41,6 +40,7 @@ class GameObject final {
   OBB m_obb = {0};
   CollisionType m_collisionType = CollisionType::SOLID;
   uint16_t m_renderFlags = 0;
+  uint32_t m_flags = 0;
 
   void GenerateRotationMatrix(void);
   void GenerateOBB(void);
@@ -89,6 +89,11 @@ public:
   void SetRenderFlag(const RenderFlags &rf) { m_renderFlags |= (1 << rf); }
   void ClearRenderFlag(const RenderFlags &rf) { m_renderFlags &= ~(1 << rf); }
   void ClearRenderFlags(void) { m_renderFlags = RF_NONE; }
+
+  bool HasFlag(const uint32_t &rf) { return m_flags & (1 << rf); }
+  void SetFlag(const uint32_t &rf) { m_flags |= (1 << rf); }
+  void ClearFlag(const uint32_t &rf) { m_flags &= ~(1 << rf); }
+  void ClearFlags(void) { m_flags = 0; }
 };
 
 #endif
