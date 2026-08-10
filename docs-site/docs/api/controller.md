@@ -23,4 +23,18 @@ public:
 };
 ```
 
-`GetNormalizedAnalogStickInput` applies the relevant deadzone for the requested axis and returns a normalized value — use `IsPadAnalog` first to check the connected pad actually supports analog input before reading stick axes from it.
+`GetNormalizedAnalogStickInput` returns the raw stick value re-centered around zero (`adc - 0x80`, so roughly `-128..127`), with the Y axes sign-flipped so "up" on the stick reads positive. Use `IsPadAnalog` first to check the connected pad actually supports analog input before reading stick axes from it.
+
+### Usage
+
+```cpp
+if (ControllerHelper::IsPadAnalog(psyqo::AdvancedPad::Pad::Pad1a)) {
+    int rx = ControllerHelper::GetNormalizedAnalogStickInput(pad, ControllerHelper::RightStickX);
+    int ry = ControllerHelper::GetNormalizedAnalogStickInput(pad, ControllerHelper::RightStickY);
+    camera.UpdateOrbitAngles(ry * ORBIT_SPEED, rx * ORBIT_SPEED, deltaTime);
+}
+```
+
+### Internals
+
+- No deadzone is actually applied by `GetNormalizedAnalogStickInput` despite the `ANALOG_STICK_DEADZONE*` constants existing in the header — apply your own thresholding on the returned value if stick drift near center is an issue.

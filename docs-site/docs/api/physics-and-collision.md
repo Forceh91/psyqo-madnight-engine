@@ -31,6 +31,21 @@ public:
 
 `OBB` and `AABBCollision` themselves are defined in `src/core/collision_types.hh` — see [Core → Collision types](./core#collision-types).
 
+### Usage
+
+Push-out collision response between two game objects, the standard pattern (also shown, commented out, in the engine's own `GameplayScene`):
+
+```cpp
+CollisionTest result;
+if (Collision::IsSATCollision(player->obb(), wall->obb(), &result))
+    player->SetPosition(player->pos() + result.mtv);
+```
+
+### Internals
+
+- `IsSATCollision` checks 15 axes total (each box's 3 face normals, plus the 9 pairwise cross products between them) and tracks whichever axis has the *smallest* overlap — that's what ends up as the resolution `mtv`.
+- `GenerateAABBForMesh` is marked `[[deprecated]]` in-source ("should be done offline, DO NOT USE") — collision boxes are meant to be baked into the mesh at export time, not computed at runtime.
+
 ## Raycast
 
 `src/core/raycast.hh`
@@ -58,6 +73,20 @@ public:
 ```
 
 `RaycastScene` only tests against game objects carrying the given `GameObjectTag` (see [Core → GameObjectTag](./core#gameobjecttag)) — pass a specific tag to avoid testing against everything in the world, e.g. `INTERACTABLE` for a "what am I looking at" prompt. Internally it tests the ray against each candidate object's AABB.
+
+### Usage
+
+```cpp
+Ray ray = {.origin = camera->pos(), .direction = camera->forwardVector(), .maxDistance = 2.0_ws};
+RayHit hit = {0};
+if (Raycast::RaycastScene(ray, GameObjectTag::INTERACTABLE, &hit))
+    ShowInteractPrompt(hit.object);
+```
+
+### Internals
+
+- Returns the **first** object hit while iterating the tagged list, not the closest one — if two interactables overlap along the ray, which one you get depends on iteration order, not distance.
+- The header itself notes this is inaccurate for rotated objects — it's a straight AABB test, no OBB/SAT version yet.
 
 ## ColbinManager
 
@@ -100,3 +129,21 @@ public:
 ```
 
 Unlike `MeshManager`/`TextureManager`, `ColbinManager` holds a single collision mesh at a time (`m_colbin` is a lone static instance, not a pool) — one `.COLBIN` per loaded scene/level.
+
+### Usage
+
+```cpp
+ColBin *level;
+co_await ColbinManager::LoadColbin("level01.colbin", &level);
+
+for (auto &wall : ColbinManager::walls()) {
+    CollisionTest result;
+    if (Collision::IsSATCollision(player->obb(), wall, &result))
+        player->SetPosition(player->pos() + result.mtv);
+}
+```
+
+### Internals
+
+- Loading a new `.COLBIN` fully overwrites `m_colbin` — there's no unload/reload-alongside step, so swap it out only when you're actually changing levels/rooms.
+- The spatial grid (`gridCells`) buckets wall indices per cell for broad-phase lookups; see the [COLBIN format spec](../guides/colbin) for exactly how a world position maps to a cell.

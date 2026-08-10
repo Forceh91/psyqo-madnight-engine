@@ -31,7 +31,7 @@ psyqo::Matrix33 TransposeMatrix33(const psyqo::Matrix33 &rotationMatrix);
 psyqo::Matrix33 InverseMatrix33(const psyqo::Matrix33 &rotationMatrix);
 ```
 
-For an orthonormal rotation matrix, the transpose *is* the inverse — `InverseMatrix33` exists as the semantically clearer name to reach for at call sites (e.g. `Camera::inverseRotationMatrix`).
+For an orthonormal rotation matrix, the transpose *is* the inverse — `InverseMatrix33` exists as the semantically clearer name to reach for at call sites (e.g. `Camera::inverseRotationMatrix`). If the matrix is near-degenerate (determinant close to zero), it returns the input matrix unchanged rather than dividing by a tiny number.
 
 ## Vector
 
@@ -64,7 +64,8 @@ psyqo::Angle atan2_fixed(int16_t y, int16_t x);
 psyqo::Angle LerpAngle(const psyqo::Angle &a, const psyqo::Angle &b, const psyqo::FixedPoint<10> &t);
 ```
 
-`LerpAngle` interpolates around the shortest angular path between `a` and `b`, rather than doing a naive linear lerp that can wrap the long way round.
+- `atan2_fixed` uses a compass convention, not standard math atan2: `0.0_pi` = up, `0.5_pi` = right, rotating clockwise — matches how the engine's angles are used elsewhere (e.g. `GameObjectRotation`), but don't assume the usual "0 = right, counter-clockwise" convention here.
+- `LerpAngle` is a plain linear lerp of the two angle values — it does **not** take the shortest path around the wrap point, so interpolating e.g. from `0.9_pi` to `-0.9_pi` will swing the long way round through `0` rather than the short way through `±π`.
 
 ## Rand
 
@@ -84,4 +85,9 @@ public:
   // GPU::now() so you don't get the same sequence every run.
   void seed(uint32_t seed);
 };
+```
+
+```cpp
+g_madnightEngine.m_rand.seed(Renderer::Instance().GPU().now());
+auto roll = g_madnightEngine.m_rand.rand(1, 6); // 1..5 -- rand(min, max) is exclusive of max
 ```

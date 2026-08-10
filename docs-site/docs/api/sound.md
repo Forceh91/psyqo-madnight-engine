@@ -51,6 +51,21 @@ public:
 
 Typical flow: `LoadVAGFile` once at load time, `CreatePlaybackConfig` to build a channel config for it (mono or stereo volume), then `PlayVAGFile` on whichever channel you want it to occupy. `hardCut = true` cuts the sample off immediately rather than releasing it naturally — useful when you need a channel back right away.
 
+### Usage
+
+```cpp
+VagEntry *jumpSfx;
+co_await SoundManager::LoadVAGFile("jump.vag", &jumpSfx);
+
+auto config = SoundManager::CreatePlaybackConfig(jumpSfx, /*volume*/ 0x3FFF);
+SoundManager::PlayVAGFile(jumpSfx, /*channelId*/ 0, config);
+```
+
+### Internals
+
+- SPU memory allocation is a simple bump pointer (`m_spuAllocPtr`) that only ever grows — `Dump()` resets the pointer and clears the loaded-file list, but doesn't erase the sample bytes already written to SPU RAM.
+- `channelId` is silently clamped to `SPU_MAX_CHANNEL_ID` (23), so passing an out-of-range channel doesn't crash, it just reuses the last channel.
+
 ## ModSoundManager
 
 `src/sound/mod_sound_manager.hh`
@@ -86,3 +101,11 @@ public:
 ```
 
 To switch tracks, just call `LoadMODSound` again with the new file — no explicit unload step is needed.
+
+### Usage
+
+```cpp
+ModSoundFile *track;
+co_await ModSoundManager::LoadMODSound("level01.mod", &track);
+ModSoundManager::PlayMusic(20000);
+```
