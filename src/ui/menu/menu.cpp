@@ -39,8 +39,16 @@ void Menu::frame(void)
         sprite.Render(m_rect);
 
     uint32_t i = 0;
-    for (auto &menuItem : m_menuItems)
-        menuItem.Render(m_rect, m_currentSelectedMenuItem == i++, m_defaultFont);
+    for (auto &menuItem : m_menuItems) {
+        auto selected = m_currentSelectedMenuItem == i++;
+        // if the menu item is selected but not enabled, move to the next one
+        if (selected && !menuItem.IsEnabled()) {
+            selected = false;
+            MoveSelectedMenuItemNext();
+        }
+
+        menuItem.Render(m_rect, selected, m_defaultFont);
+    }
 }
 
 void Menu::Activate()

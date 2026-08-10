@@ -6,6 +6,7 @@
 #include <EASTL/fixed_vector.h>
 #include <EASTL/functional.h>
 
+#include "EASTL/algorithm.h"
 #include "psyqo/primitives/common.hh"
 #include "psyqo/scene.hh"
 
@@ -46,6 +47,7 @@ class Menu : public psyqo::Scene
         .menuItemConfirm = psyqo::AdvancedPad::Button::Cross,
         .menuItemBackCancel = psyqo::AdvancedPad::Button::Triangle};
 
+    // callback when `frame` is called, will not callback if delta time is 0
     eastl::function<void(uint32_t)> m_onFrame;
     eastl::function<void(void)> m_onActivate;
     eastl::function<void(void)> m_onDeactivate;
@@ -66,6 +68,24 @@ class Menu : public psyqo::Scene
         if (m_onDeactivate)
             m_onDeactivate();
     }
+
+    uint8_t MoveSelectedMenuItemPrev()
+    {
+        if (!m_isEnabled || !m_menuItems.size())
+            return m_currentSelectedMenuItem;
+
+        m_currentSelectedMenuItem = (m_currentSelectedMenuItem == 0) ? m_menuItems.size() - 1 : m_currentSelectedMenuItem - 1;
+        return m_currentSelectedMenuItem;
+    }
+
+    uint8_t MoveSelectedMenuItemNext()
+    {
+        if (!m_isEnabled || !m_menuItems.size())
+            return m_currentSelectedMenuItem;
+
+        m_currentSelectedMenuItem = (m_currentSelectedMenuItem + 1) % m_menuItems.size();
+        return m_currentSelectedMenuItem;
+    }    
 
 public:
     Menu() = default;
@@ -135,23 +155,9 @@ public:
     MenuItem *AddMenuItem(const char *name, const char *displayText, const psyqo::Rect posSize);
     void AddMenuItems(const eastl::span<MenuItem> &items);
     void SetDefaultFont(psyqo::Font<100> *font) { m_defaultFont = font; }
-
-    uint8_t MoveSelectedMenuItemPrev()
-    {
-        if (!m_isEnabled || !m_menuItems.size())
-            return m_currentSelectedMenuItem;
-
-        m_currentSelectedMenuItem = (m_currentSelectedMenuItem == 0) ? m_menuItems.size() - 1 : m_currentSelectedMenuItem - 1;
-        return m_currentSelectedMenuItem;
-    }
-
-    uint8_t MoveSelectedMenuItemNext()
-    {
-        if (!m_isEnabled || !m_menuItems.size())
-            return m_currentSelectedMenuItem;
-
-        m_currentSelectedMenuItem = (m_currentSelectedMenuItem + 1) % m_menuItems.size();
-        return m_currentSelectedMenuItem;
+    void SetSelectedMenuItem(uint8_t ix) {
+        ix = eastl::clamp<uint8_t>(ix, 0, m_menuItems.size() - 1);
+        m_currentSelectedMenuItem = ix;
     }
 };
 
