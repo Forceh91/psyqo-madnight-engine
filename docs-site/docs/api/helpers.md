@@ -25,6 +25,10 @@ public:
 
 `MAX_ARCHIVE_FILE_NAME_LEN` is the shared name-length constant used throughout the engine for fixed-capacity asset name strings (mesh names, texture names, VAG names, and so on).
 
+### Internals
+
+- `init()` is asynchronous (callback-based, sets up the archive's decompressor and initializes against the CD-ROM device) — calling `LoadFile` before that callback has fired just logs a warning and returns an empty buffer, it doesn't queue or wait.
+
 ## CDRomHelper
 
 `src/helpers/cdrom.hh`
@@ -61,6 +65,17 @@ struct LoadQueue {
 ```
 
 See [SCENEBIN → Types](../guides/scenebin#types) for the full type table and the on-disk manifest format this is parsed from.
+
+### Usage
+
+```cpp
+eastl::vector<LoadQueue> files;
+co_await SceneLoader::LoadScene("level01.scenebin", files); // parses the manifest into a queue
+
+// hands the queue to the engine's built-in loading scene, which loads everything
+// then switches to postLoadScene once done
+co_await g_madnightEngine.HardLoadingScreen(eastl::move(files), &gameplayScene);
+```
 
 ## World-space literals
 

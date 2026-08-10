@@ -86,6 +86,35 @@ public:
 - The `deltaTime`-suffixed overloads of `UpdateAngles`/`UpdateOrbitAngles` scale the rotation delta by frame time; the non-`deltaTime` overloads expect an already-scaled delta.
 - `SetFixed`/`SetFreeLook`/`SetFollow` are mutually exclusive — switching modes updates `m_cameraMode`, and `ClearFixed` restores whichever mode was active before the most recent `SetFixed` call.
 
+### Usage
+
+Third-person orbit camera, driven by the right stick:
+
+```cpp
+Camera camera;
+camera.SetFollow(player->posPtr(), /*distance*/ 3.0_ws);
+Renderer::Instance().SetActiveCamera(&camera);
+
+// per-frame, feeding controller input into the orbit
+auto rx = ControllerHelper::GetNormalizedAnalogStickInput(pad, ControllerHelper::RightStickX);
+auto ry = ControllerHelper::GetNormalizedAnalogStickInput(pad, ControllerHelper::RightStickY);
+camera.UpdateOrbitAngles(ry * ORBIT_SPEED, rx * ORBIT_SPEED, deltaTime);
+camera.Process(deltaTime); // recalculates orbit position + LookAt
+```
+
+First-person free-look, driven by the same stick input, with you owning position updates:
+
+```cpp
+camera.SetFreeLook(player->pos());
+camera.UpdateAngles(ry * LOOK_SPEED, rx * LOOK_SPEED, 0, deltaTime);
+camera.SetPosition(player->pos()); // camera doesn't follow on its own in this mode
+```
+
+### Internals
+
+- `FOLLOW` mode recomputes position via `CalculateOrbitPosition()` every `Process()` call — it derives forward/right/up from `m_orbitAngle` and steps back from the tracked point by `distance`, so orbiting is really just "point the camera, then back up".
+- Orbit pitch is clamped tighter than yaw (`±0.21π` vs full `±π`) to stop the camera flipping over the top/bottom of whatever it's orbiting.
+
 ## Renderer
 
 `src/render/renderer.hh`
@@ -136,6 +165,30 @@ Key constants (`src/render/renderer.hh`):
 
 Fog is GTE-accelerated: `ApplyFogToColourGTE` uses the GTE's depth-cueing (`dpcs`) and perspective (`rtps`) registers rather than doing the lerp on the CPU per-vertex, and colour work is deferred until after visibility culling so only visible faces pay the cost.
 
+### Usage
+
+```cpp
+void GameplayScene::start(StartReason reason) {
+  Renderer::Instance().StartScene();
+  m_camera = new Camera();
+  Renderer::Instance().SetActiveCamera(m_camera);
+}
+
+void GameplayScene::frame() {
+  auto &renderInstance = Renderer::Instance();
+  uint32_t deltaTime = renderInstance.Process();
+  if (deltaTime == 0) return; // nothing to do this call
+
+  m_camera->Process(deltaTime);
+  renderInstance.Render(deltaTime); // draws every renderable game object, billboard, and particle
+}
+```
+
+### Internals
+
+- `Process()` diffs `m_gpu.getFrameCount()` against the last call and returns 0 if nothing's changed yet — that's the "early return on 0" the header comment recommends, and it's how the engine avoids doing GTE/render work more than once per actual display refresh.
+- `Render()` walks game objects, then billboards, then particles, all against the *same* per-frame ordering table — draw order between those three categories is fixed, not something you control per-call.
+
 ## Lighting
 
 `src/render/lighting.hh`
@@ -156,6 +209,11 @@ public:
   void SetAmbient(psyqo::Color colour);
   void SetFogColour(psyqo::Color colour);
 };
+```
+
+```cpp
+Lighting::instance().SetAmbient({80, 80, 100});   // dim, slightly blue ambient
+Renderer::Instance().SetFogColour({20, 20, 30});  // also updates the GTE's far-colour registers
 ```
 
 ## Colour constants

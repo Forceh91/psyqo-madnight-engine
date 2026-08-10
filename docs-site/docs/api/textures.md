@@ -43,3 +43,22 @@ public:
 - `LoadTIM` takes the target VRAM placement (`x`, `y`) and CLUT placement (`clutX`, `clutY`) explicitly — the engine doesn't do automatic VRAM packing, so placement has to be planned per-texture (this is exactly what the `TEXTURE` entry fields in a [SCENEBIN manifest](../guides/scenebin#texture-placement-texture-entries-only) carry).
 - `GetTPageAttr`/`GetTPageUVForTim` convert a loaded `TimFile`'s VRAM placement into the texture-page attribute and UV rect a draw primitive needs — used internally by `GameObject`/`Billboard` rendering and `Renderer::RenderSprite`.
 - Up to `MAX_TEXTURES` (32) textures can be resident at once.
+
+### Usage
+
+```cpp
+TimFile *crateTex;
+co_await TextureManager::LoadTIM("crate.tim", /*x*/ 320, /*y*/ 0, /*clutX*/ 0, /*clutY*/ 240, &crateTex);
+crateGameObject->SetTexture("crate.tim"); // looks it up by the same name afterwards
+```
+
+### Internals
+
+VRAM placement is entirely manual, and getting `x`/`y`/`clutX`/`clutY` right requires understanding the layout (spelled out in a long comment at the top of `texture_manager.cpp`):
+
+- The frame buffers occupy VRAM `0-319, 0-479`, so the first free texture page starts at `x=320`.
+- Pages are `64×256` px each, so a texture must fit within 1, 2, or 4 *contiguous* pages depending on colour depth — 4-bit textures are squeezed to 1/4 width in VRAM, 8-bit to 1/2 width, 16-bit at full width.
+- You can't mix colour depths within one page.
+- CLUTs have known-safe rows at `y=240-255` and `y=496-511` (X must be a multiple of 16), which is why the usage example above places the CLUT at `y=240`.
+
+Getting this wrong doesn't crash — textures can silently overlap or clip in VRAM. The [SCENEBIN format](../guides/scenebin#texture-placement-texture-entries-only) is the intended way to keep placement authoritative and consistent per-scene rather than hardcoding coordinates per texture.

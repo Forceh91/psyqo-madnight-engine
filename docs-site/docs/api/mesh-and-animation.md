@@ -59,6 +59,19 @@ struct MeshBin {
 
 `GameObject::mesh()` returns a pointer into a manager-owned `MeshBin` — meshes are shared across every `GameObject` that references the same name, not duplicated per-instance.
 
+### Usage
+
+```cpp
+MeshBin *crateMesh;
+co_await MeshManager::LoadMesh("crate", &crateMesh); // must be co_awaited inside a coroutine
+
+crateGameObject->SetMesh("crate"); // looks it up by name once loaded
+```
+
+### Internals
+
+- `LoadMesh` checks `IsMeshLoaded` first, so calling it again with an already-loaded name is cheap — it just hands back the cached pointer instead of re-reading the file.
+
 ## Skeleton & SkeletonController
 
 `src/mesh/skeleton/skeleton.hh`
@@ -104,6 +117,24 @@ public:
 - `PlayAnimation` advances `animationCurrentFrame` and marks affected bones dirty; `UpdateSkeletonBoneMatrices` then recomputes each dirty bone's local/world matrices (parent-relative, walking up the hierarchy via `parent`).
 - `bindPose`/`bindPoseInverse` are captured once when the skeleton is first loaded and used to skin vertices back into their animated position each frame.
 
+### Usage
+
+```cpp
+Animation *walkAnim = AnimationManager::GetAnimationFromName("walk");
+SkeletonController::SetAnimation(mesh->skeleton, walkAnim);
+
+// per-frame:
+SkeletonController::PlayAnimation(mesh->skeleton, deltaTime);
+SkeletonController::UpdateSkeletonBoneMatrices(mesh->skeleton);
+SkeletonController::MarkBonesClean(mesh->skeleton); // once you're done reading this frame's matrices
+```
+
+### Internals
+
+- `SetAnimation` just overwrites the current animation and resets to frame 0 — there's no blending between the old and new animation.
+- Only `ROTATION` keys are actually applied — `TRANSLATION` tracks are read but not yet wired up (marked `TODO` in-source).
+- Dirty state propagates down the hierarchy: a bone is recomputed if it changed *or* its parent did, so posing the hips also quietly re-dirties everything below it.
+
 ## AnimationManager
 
 `src/animation/animation_manager.hh`
@@ -117,6 +148,8 @@ public:
 ```
 
 Loads a whole `.ANIMBIN` file (see the [file format spec](../guides/animbin)) at once — a single `.ANIMBIN` can contain up to `MAX_ANIMATIONS` (5) named animations, retrieved individually afterwards by name.
+
+Like [`ColbinManager`](./physics-and-collision#colbinmanager), this holds one loaded `.ANIMBIN` at a time (a single static `AnimationBin`, not a pool) — loading a new file replaces whatever was loaded before.
 
 ### Animation data types
 

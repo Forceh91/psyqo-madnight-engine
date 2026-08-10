@@ -56,13 +56,45 @@ public:
 - **`RenderFlags::RF_DISTANCE_CHECK`** opts an object into distance-based culling in the renderer.
 - The object's OBB (`obb()`) and rotation matrix are (re)computed internally when position/rotation change — you don't need to update them yourself.
 
+### Usage
+
+```cpp
+#include "core/object/gameobject_manager.hh"
+
+// spawn a static prop
+GameObject *crate = GameObjectManager::CreateGameObject(
+    "crate_01",
+    psyqo::Vec3{2.0_ws, 0.0_ws, 5.0_ws},
+    GameObjectRotation{0, 0, 0},
+    GameObjectTag::ENVIRONMENT);
+
+crate->SetMesh("crate");      // must already be loaded via MeshManager::LoadMesh
+crate->SetTexture("crate");   // must already be loaded via TextureManager::LoadTIM
+
+// later, e.g. on level unload
+GameObjectManager::DestroyGameObject(crate);
+```
+
+To turn the same object into an interaction trigger instead of solid geometry:
+
+```cpp
+GameObject *doorTrigger = GameObjectManager::CreateGameObject(
+    "door_trigger", doorPos, {0, 0, 0}, GameObjectTag::INTERACTABLE);
+doorTrigger->SetAsTrigger(psyqo::Vec3{1.0_ws, 2.0_ws, 1.0_ws}); // no mesh needed
+```
+
+### Internals
+
+- `SetPosition`/`SetRotation` both recompute the OBB on every call — no dirty-flag batching, so setting both in one frame means two recomputations.
+- A `SOLID` object's half-extents come from the mesh's baked collision box, set at asset-export time — not derived at runtime.
+
 ### GameObjectTag
 
 ```cpp
 enum GameObjectTag { NONE, ENVIRONMENT, INTERACTABLE };
 ```
 
-Used to filter/query objects (see `GameObjectManager::GetGameObjectsWithTag` and `Raycast::RaycastScene`, which raycasts only against objects with a specific tag).
+Used to filter/query objects (see `GameObjectManager::GetGameObjectsWithTag` and [`Raycast::RaycastScene`](./physics-and-collision#raycast), which raycasts only against objects with a specific tag).
 
 ## GameObjectManager
 
@@ -87,6 +119,30 @@ public:
 
 - **Active vs. renderable:** "active" objects are all objects currently alive in the world; "renderable" is a separate, explicitly-set subset (`SetRenderableGameObjects`) that the [`Renderer`](./render#renderer) actually draws each frame — useful for e.g. only rendering objects in the current room/cell.
 - **`Dump`** frees every game object at once — intended for scene teardown (see `MadnightEngine::HardLoadingScreen`), not for per-object cleanup.
+
+### Usage
+
+```cpp
+// query everything tagged as environment geometry, e.g. to feed collision checks
+auto walls = GameObjectManager::GetGameObjectsWithTag(GameObjectTag::ENVIRONMENT);
+for (auto *wall : walls) {
+    CollisionTest result;
+    if (Collision::IsSATCollision(player->obb(), wall->obb(), &result))
+        player->SetPosition(player->pos() + result.mtv);
+}
+
+// restrict rendering to just the objects in the current room
+eastl::fixed_vector<GameObject*, 32> roomObjects = /* ...gathered elsewhere... */;
+GameObjectManager::SetRenderableGameObjects(roomObjects);
+// later, e.g. leaving the room:
+GameObjectManager::ClearRenderableGameObjects(); // falls back to all active objects
+```
+
+### Internals
+
+- Finding a free slot is a linear scan over all 250 — fine normally, but worth knowing if you're creating/destroying many objects in one frame.
+- `GetActiveGameObjects()` silently returns the renderable list instead if one's been set via `SetRenderableGameObjects` — call `ClearRenderableGameObjects()` to go back to "all active objects".
+- `GetGameObjectsWithTag` and `GetActiveGameObjects` share the same internal scratch buffer — don't hold a reference from one across a call to the other.
 
 ## Billboard
 
@@ -119,6 +175,19 @@ public:
 };
 ```
 
+### Usage
+
+```cpp
+Billboard *glow = BillboardManager::CreateBillboard("torch_glow", torchPos, {1.0_ws, 1.0_ws});
+glow->SetColour({255, 200, 120});
+// no SetTexture call -> renders as a flat Gouraud-shaded quad instead of a textured one
+```
+
+### Internals
+
+- Corners are stored flat, centered on the origin — camera-facing happens entirely on the render side (`Renderer::RenderBillboards`), not in `Billboard` itself.
+- Skipping `SetTexture` is a valid, supported state — it just renders as a flat coloured quad instead of a textured one.
+
 ## BillboardManager
 
 `src/core/billboard/billboard_manager.hh`
@@ -135,6 +204,8 @@ public:
   static Billboard* GetBillboardByName(const eastl::fixed_string<char, MAX_BILLBOARD_NAME_LENGTH> name);
 };
 ```
+
+Same create/destroy/slot-reuse pattern as [`GameObjectManager`](#gameobjectmanager), just over a 200-entry pool.
 
 ## Particle
 
@@ -157,6 +228,10 @@ public:
 ```
 
 `lifetime` is in whole seconds; `Process` advances the particle's age and interpolates its visual/velocity state accordingly.
+
+### Internals
+
+- `Process` lerps colour, size, and velocity together based on age/lifetime, then applies velocity as a straight per-frame displacement (not an accumulated integration).
 
 ## ParticleEmitter
 
@@ -196,6 +271,26 @@ public:
 - The single-value `Set*` overloads set both the start and end value to the same thing (no interpolation over lifetime); the two-value overloads set distinct start/end values for the particle to lerp between.
 - `SetRotation` applies an emitter-space rotation matrix so particles are emitted in a consistent cone/spread direction, then rotated into world space.
 
+### Usage
+
+```cpp
+ParticleEmitter *sparks = ParticleEmitterManager::CreateParticleEmitter(
+    "torch_sparks", torchPos, /*radius*/ 0.1_ws, /*particlesPerSecond*/ 8, /*lifetimeSecs*/ 2);
+
+sparks->SetParticleSize({0.1_ws, 0.1_ws}, {0.02_ws, 0.02_ws});       // shrink over life
+sparks->SetParticleColour({255, 180, 60}, {80, 20, 20});             // orange -> dark red
+sparks->SetParticleVelocity({0.0_ws, 0.5_ws, 0.0_ws}, {0.0_ws, 0.1_ws, 0.0_ws}); // rise, then slow
+sparks->Start();
+
+// per-frame, wherever your emitters get updated:
+sparks->Process(deltaTime);
+```
+
+### Internals
+
+- Even while stopped (`Stop()`), `Process` still advances and prunes existing particles — only *new* spawns are gated on `Start()`/`Stop()`.
+- Spawn points land on the circumference of a ring around the emitter, not scattered through a sphere's volume — despite the "spherical volume" framing in the header.
+
 ## ParticleEmitterManager
 
 `src/core/particles/particle_manager.hh`
@@ -213,27 +308,11 @@ public:
 };
 ```
 
-## Debug tooling
+:::note Only 3 emitters at once
+`MAX_PARTICLE_EMITTERS` is 3 — noticeably smaller than the 200/250-entry pools for billboards and game objects. Budget emitters carefully (e.g. one for the player, one or two for the current room's environmental effects) rather than one per particle-emitting object in a scene.
+:::
 
-### DebugMenu
-
-`src/core/debug/debug_menu.hh`
-
-An in-game debug overlay (toggled via a captured input sequence) exposing engine-internal state while testing — e.g. a configurable raycast distance and an optional debug HUD.
-
-```cpp
-class DebugMenu final {
-public:
-  static void Init(void);
-  static void Process(void);
-  static void Draw(psyqo::GPU &gpu);
-  static bool IsEnabled();
-  static uint8_t RaycastDistance();
-  static bool DisplayDebugHUD();
-};
-```
-
-### PerfMonitor
+## PerfMonitor
 
 `src/core/debug/perf_monitor.hh`
 
@@ -247,6 +326,24 @@ public:
   static void SetRenderedGameObjects(uint8_t renderedObjects, uint8_t totalObjects);
 };
 ```
+
+### Usage
+
+```cpp
+void GameplayScene::frame() {
+  auto &renderInstance = Renderer::Instance();
+  uint32_t deltaTime = renderInstance.Process();
+  if (deltaTime == 0) return;
+
+  renderInstance.Render();
+  PerfMonitor::Render(deltaTime); // last, after everything else has drawn
+}
+```
+
+### Internals
+
+- No `Init()` call needed — it lazily sets itself up the first time `Render` runs.
+- The FPS shown is a 30-frame rolling average, not an instantaneous per-frame value, so it updates a couple of times a second rather than every frame.
 
 ## Collision types
 

@@ -48,7 +48,7 @@ public:
 };
 ```
 
-Defaults to [`COLOUR_WHITE`](./render#colour-constants) if no colour is set. If no font is set via `SetFont`, the `Render(parentRect, defaultFont)` overload falls back to whatever font is passed in — typically `Renderer::Instance().SystemFont()`.
+Defaults to [`COLOUR_WHITE`](./render#colour-constants) if no colour is set. If no font is set via `SetFont`, the `Render(parentRect, defaultFont)` overload falls back to whatever font is passed in — typically `Renderer::Instance().SystemFont()` — and then **keeps** that fallback font for future renders, rather than re-resolving it every frame.
 
 ## SpriteHUDElement
 
@@ -95,6 +95,22 @@ public:
 
 Backed by fixed-capacity vectors (50 text elements, 40 sprite elements) — `Add*HUDElement` moves the element in and returns a stable pointer into that storage, which you hold onto to update or later remove it. [`PerfMonitor`](./core#perfmonitor) is built on top of this class.
 
+### Usage
+
+```cpp
+GameplayHUD hud("Gameplay HUD", {.pos = {5, 5}, .size = {100, 20}});
+auto *healthText = hud.AddTextHUDElement(TextHUDElement("Health", {.pos = {0, 0}, .size = {100, 10}}));
+hud.Enable();
+
+// per-frame:
+healthText->SetDisplayText("HP: 80/100");
+hud.Render();
+```
+
+### Internals
+
+- Every element's position is relative to the HUD's own `m_rect` — `GameplayHUD::Render` passes its own rect down to each child's `Render(parentRect)` call, so an element's on-screen position is `parentRect.pos + element.m_rect.pos`.
+
 ## Menu
 
 `src/ui/menu/menu.hh`
@@ -137,6 +153,27 @@ public:
 
 - Capacities: up to `MENU_MAX_TEXT_ELEMENTS` (20) text elements, `MENU_MAX_SPRITE_ELEMENTS` (50) sprite elements, `MENU_MAX_MENU_ITEMS` (10) [`MenuItem`](#menuitem)s.
 - `MoveSelectedMenuItemPrev`/`Next` wrap around the item list and update the internal selection index — call these from your controller-binds handling, or rely on the defaults below.
+
+### Usage
+
+The pause-menu pattern from the engine's own `GameplayScene` — bind `Start` to open the menu, and let the menu's own default bindings handle navigation and closing it:
+
+```cpp
+Menu pauseMenu("Pause", {.pos = {80, 60}, .size = {160, 100}});
+pauseMenu.AddMenuItem("resume", "Resume", {.pos = {0, 0}, .size = {100, 10}})
+    ->SetOnConfirm([&]{ pauseMenu.Deactivate(); });
+pauseMenu.AddMenuItem("quit", "Quit", {.pos = {0, 15}, .size = {100, 10}})
+    ->SetOnConfirm([]{ /* ... */ });
+
+g_madnightEngine.m_input.setOnEvent([&](auto event) {
+    if (event.type == psyqo::AdvancedPad::Event::ButtonReleased && event.button == psyqo::AdvancedPad::Button::Start)
+        pauseMenu.Activate();
+});
+```
+
+### Internals
+
+- Backing out via the bound cancel button (`Triangle` by default) doesn't call `Deactivate()` immediately — it just sets a flag that's checked at the top of the *next* `frame()` call, so there's a one-frame delay. Calling `Deactivate()` yourself (e.g. from an `OnConfirm` callback, as above) pops the scene immediately.
 
 ### MenuControllerBinds
 
@@ -186,3 +223,7 @@ public:
 ```
 
 Defaults to [`COLOUR_WHITE`](./render#colour-constants) for unselected text and [`COLOUR_YELLOW`](./render#colour-constants) for the selected item — override both via the four-argument constructor or `SetTextColour`.
+
+### Internals
+
+- `MenuItem::Render` has a `// TODO: handle is focused etc. etc.` marker in-source — selection currently only changes text colour, nothing else.
