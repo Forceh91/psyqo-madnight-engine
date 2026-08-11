@@ -61,6 +61,19 @@ auto config = SoundManager::CreatePlaybackConfig(jumpSfx, /*volume*/ 0x3FFF);
 SoundManager::PlayVAGFile(jumpSfx, /*channelId*/ 0, config);
 ```
 
+Checking whether a looping music/ambience sample is already loaded (e.g. preloaded during a level's asset manifest) before playing it, then silencing everything before switching scenes:
+
+```cpp
+auto vag = SoundManager::IsVAGLoaded("SFX/FCNTNA.VAG"); // nullptr if not loaded
+if (vag) {
+    auto volume = saveData->GetMusicVolumeSPU();
+    SoundManager::PlayVAGFile(vag, SPU_MAX_CHANNEL_ID, SoundManager::CreatePlaybackConfig(vag, volume));
+}
+
+// later, e.g. right before switching scenes:
+SoundManager::SilenceChannels(1 << SPU_MAX_CHANNEL_ID); // bitmask, one bit per channel
+```
+
 ### Internals
 
 - SPU memory allocation is a simple bump pointer (`m_spuAllocPtr`) that only ever grows — `Dump()` resets the pointer and clears the loaded-file list, but doesn't erase the sample bytes already written to SPU RAM.

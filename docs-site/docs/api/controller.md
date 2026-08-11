@@ -27,11 +27,16 @@ public:
 
 ### Usage
 
+The deadzone thresholding shipped games actually do, since the engine doesn't apply one for you:
+
 ```cpp
 if (ControllerHelper::IsPadAnalog(psyqo::AdvancedPad::Pad::Pad1a)) {
     int rx = ControllerHelper::GetNormalizedAnalogStickInput(pad, ControllerHelper::RightStickX);
     int ry = ControllerHelper::GetNormalizedAnalogStickInput(pad, ControllerHelper::RightStickY);
-    camera.UpdateOrbitAngles(ry * ORBIT_SPEED, rx * ORBIT_SPEED, deltaTime);
+
+    constexpr int deadzone = 16;
+    if (ry < -deadzone || ry > deadzone) camera.UpdateOrbitAngles(ry * ORBIT_SPEED, 0, deltaTime);
+    if (rx < -deadzone || rx > deadzone) camera.UpdateOrbitAngles(0, rx * ORBIT_SPEED, deltaTime);
 }
 ```
 
