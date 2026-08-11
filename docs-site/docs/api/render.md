@@ -110,6 +110,41 @@ camera.UpdateAngles(ry * LOOK_SPEED, rx * LOOK_SPEED, 0, deltaTime);
 camera.SetPosition(player->pos()); // camera doesn't follow on its own in this mode
 ```
 
+A static camera — `FIXED` is the default mode, so a menu/cutscene camera that never moves needs nothing beyond construction and an angle:
+
+```cpp
+m_camera = new Camera(psyqo::Vec3{22.5_ws, -1.75_ws, -2.5_ws});
+m_camera->SetAngle({0, 1.0_pi, 0}); // face back along Z
+instance.SetActiveCamera(m_camera);
+```
+
+A third pattern seen in shipped game code: a `FIXED` camera that tracks a target's X/Z position every frame while you drive rotation manually — a lighter-weight alternative to `FOLLOW`/`FREE_LOOK` when you don't need true orbiting, just a camera that stays behind the player and lets them look around:
+
+```cpp
+m_camera->SetFixed({0, -1.0_ws, 0}, {0, 0, 0});
+
+// per-frame:
+int rotationX = 0, rotationY = 0;
+if (input.isButtonPressed(pad1, psyqo::AdvancedPad::L2)) rotationY = -128;
+if (input.isButtonPressed(pad1, psyqo::AdvancedPad::R2)) rotationY = 128;
+
+if (ControllerHelper::IsPadAnalog(pad1)) {
+    auto rx = ControllerHelper::GetNormalizedAnalogStickInput(pad1, ControllerHelper::RightStickX);
+    auto ry = ControllerHelper::GetNormalizedAnalogStickInput(pad1, ControllerHelper::RightStickY);
+    // GetNormalizedAnalogStickInput applies no deadzone itself (see Controller) -- thresholded here
+    constexpr int deadzone = 16;
+    if (ry < -deadzone || ry > deadzone) rotationX = ry;
+    if (rx < -deadzone || rx > deadzone) rotationY = rx;
+}
+
+auto pos = m_character->posPtr();
+m_camera->SetPosition(pos->x, -0.75_ws, pos->z); // follow the player on X/Z every frame
+
+auto angle = m_camera->angle();
+auto pitch = angle->x + (rotationX >> 5) * 0.005_pi * deltaTime;
+m_camera->SetAngle(eastl::clamp(pitch, -0.3_pi, 0.3_pi), angle->y + (rotationY >> 5) * 0.005_pi * deltaTime, angle->z);
+```
+
 ### Internals
 
 - `FOLLOW` mode recomputes position via `CalculateOrbitPosition()` every `Process()` call — it derives forward/right/up from `m_orbitAngle` and steps back from the tracked point by `distance`, so orbiting is really just "point the camera, then back up".

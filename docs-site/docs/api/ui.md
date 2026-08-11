@@ -50,6 +50,21 @@ public:
 
 Defaults to [`COLOUR_WHITE`](./render#colour-constants) if no colour is set. If no font is set via `SetFont`, the `Render(parentRect, defaultFont)` overload falls back to whatever font is passed in — typically `Renderer::Instance().SystemFont()` — and then **keeps** that fallback font for future renders, rather than re-resolving it every frame.
 
+### Usage
+
+A debug/status readout that updates every frame — format into a stack buffer and push it in with `SetDisplayText`:
+
+```cpp
+m_posText = m_hud.AddTextHUDElement(TextHUDElement("POS", {.pos = {5, 0}, .size = {100, 100}}));
+m_posText->SetFont(Renderer::Instance().SystemFont());
+
+// per-frame:
+char pos[GAMEPLAY_HUD_ELEMENT_MAX_STR_LEN];
+snprintf(pos, GAMEPLAY_HUD_ELEMENT_MAX_STR_LEN, "POS %.2f,%.2f,%.2f", playerPos.x, playerPos.y, playerPos.z);
+m_posText->SetDisplayText(pos);
+m_hud.Render();
+```
+
 ## SpriteHUDElement
 
 `src/ui/hud/sprite_hud_element.hh`
@@ -66,6 +81,26 @@ public:
   void SetUV(const psyqo::PrimPieces::UVCoords uv);
 };
 ```
+
+### Usage
+
+A stat bar that animates its width in — a flat-colour sprite (single-pixel UV) scaled by `SetSize`, with the width lerped from its previous value to the new one over a fixed duration:
+
+```cpp
+auto *capacityBar = m_menu.AddSpriteHUDElement(SpriteHUDElement("CS_CAPACITY_BAR", {165, 100, 0, 10}, "UI/CS_UI.TIM", {0, 129}));
+
+// per-frame, once a new stat value has been picked:
+uint8_t LerpStatValue(uint8_t oldValue, uint8_t newValue) {
+    auto delta = (Renderer::Instance().GPU().now() - m_switchTime) / MICROSECONDS_IN_A_MILLISECOND;
+    if (delta >= LERP_TIME_MS) return newValue;
+    auto t = (1.0_fp * delta) / LERP_TIME_MS;
+    return Lerp(1.0_fp * oldValue, 1.0_fp * newValue, t).integer();
+}
+
+capacityBar->SetSize({static_cast<int16_t>(remap(LerpStatValue(lastCapacity, currentCapacity), MAX_STAT_VALUE, 128)), 10});
+```
+
+Only the width changes here — height stays fixed at `10`, and a small `remap()` helper (linearly rescaling one range to another) converts the stat's own value range into a pixel width. Neither `remap()` nor `MICROSECONDS_IN_A_MILLISECOND` are part of the engine — both are small helpers defined game-side; `GPU().now()` (see [`Renderer`](./render#renderer)) and [`Lerp`](./math#vector) are the only engine calls doing real work here.
 
 ## GameplayHUD
 
@@ -174,6 +209,25 @@ g_madnightEngine.m_input.setOnEvent([&](auto event) {
 ### Internals
 
 - Backing out via the bound cancel button (`Triangle` by default) doesn't call `Deactivate()` immediately — it just sets a flag that's checked at the top of the *next* `frame()` call, so there's a one-frame delay. Calling `Deactivate()` yourself (e.g. from an `OnConfirm` callback, as above) pops the scene immediately.
+
+Menus aren't limited to "list of items, navigate up/down" — a single `MenuItem` with `SetOnInputCallback` can act as a left/right selector over a completely different data set instead of a list of item states, using `SetCustomInputCallbackButtons` to opt those buttons in:
+
+```cpp
+m_menu.SetCustomInputCallbackButtons({psyqo::AdvancedPad::Button::Left, psyqo::AdvancedPad::Button::Right});
+
+auto *cartName = m_menu.AddMenuItem(MenuItem("CART_NAME", {165, 50, 0, 0}));
+cartName->SetText(CART_DATA[0].name());
+cartName->SetOnInputCallback([this](const psyqo::AdvancedPad::Button button) {
+    if (button == psyqo::AdvancedPad::Button::Left)
+        m_selectedIx = m_selectedIx == 0 ? NUM_CARTS - 1 : m_selectedIx - 1;
+    if (button == psyqo::AdvancedPad::Button::Right)
+        m_selectedIx = (m_selectedIx + 1) % NUM_CARTS;
+
+    cartName->SetText(CART_DATA[m_selectedIx].name());
+});
+```
+
+Also worth using `SetOnFrame` for menu-driven per-frame logic (e.g. animating a preview model or lerping stat bars, as in [`SpriteHUDElement`'s usage example](#spritehudelement)) — the callback runs from the menu's own scene `frame()`, so it fires while the menu is active without you needing a separate scene subclass.
 
 ### MenuControllerBinds
 
