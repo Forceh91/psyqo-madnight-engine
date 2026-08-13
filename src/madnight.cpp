@@ -59,11 +59,13 @@ void MadnightEngine::prepare() {
 
 psyqo::Coroutine<> MadnightEngine::InitialLoad(void) { co_await g_madnightEngineGame.InitialLoad(); }
 
-void MadnightEngine::SwitchScene(psyqo::Scene *newScene, bool keepPrevious) {
+psyqo::Scene* MadnightEngine::SwitchScene(psyqo::Scene *newScene, bool keepPrevious) {
+  psyqo::Scene* prevScene = nullptr;
   if (!keepPrevious)
-    popScene();
+    prevScene = popScene();
 
   pushScene(newScene);
+  return prevScene;
 }
 
 psyqo::Coroutine<> MadnightEngine::HardLoadingScreen(eastl::vector<LoadQueue> &&files, psyqo::Scene *postLoadScene) {

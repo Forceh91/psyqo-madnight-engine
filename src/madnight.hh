@@ -2,6 +2,7 @@
 #define _HELLO3D_H_
 
 #include "helpers/load_queue.hh"
+#include "psyqo/scene.hh"
 #include "rand.hh"
 
 #include "psyqo/coroutine.hh"
@@ -25,7 +26,7 @@ public:
 
     // you probably want to use hardloadingscreen below, but if you have no files to load then no need, just use this instead
     // this will pop the existing scene unless you specify `true` for keepPreviousscene
-    void SwitchScene(psyqo::Scene *scene, bool keepPrevious = false);
+    psyqo::Scene* SwitchScene(psyqo::Scene *scene, bool keepPrevious = false);
 
     // shows a loading screen and unloads all known meshes and textures
     // this will also unload the current scene, and start the requested scene fresh, so if you have
