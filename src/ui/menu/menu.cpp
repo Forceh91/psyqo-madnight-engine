@@ -65,6 +65,17 @@ void Menu::Deactivate(void)
     OnDeactivate();
 }
 
+void Menu::Destroy(void) {
+    m_isEnabled = false;
+    g_madnightEngine.popScene();
+
+    m_textElements.clear(true);
+    m_spriteElements.clear(true);
+    m_menuItems.clear(true);
+
+    OnDestroy();
+}
+
 void Menu::SetControllerBindings(const MenuControllerBinds &bindings)
 {
     m_keyBindings = bindings;

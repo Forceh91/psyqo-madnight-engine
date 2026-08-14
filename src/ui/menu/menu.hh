@@ -51,6 +51,7 @@ class Menu : public psyqo::Scene
     eastl::function<void(uint32_t)> m_onFrame;
     eastl::function<void(void)> m_onActivate;
     eastl::function<void(void)> m_onDeactivate;
+    eastl::function<void(void)> m_onDestroy;
 
     void Process(void);
     void ProcessInputs(const psyqo::AdvancedPad::Event &event);
@@ -68,6 +69,12 @@ class Menu : public psyqo::Scene
         if (m_onDeactivate)
             m_onDeactivate();
     }
+
+    void OnDestroy(void)
+    {
+        if (m_onDestroy)
+            m_onDestroy();
+    }    
 
     uint8_t MoveSelectedMenuItemPrev()
     {
@@ -102,7 +109,10 @@ public:
     // activate the menu
     void Activate(void);
     // deactivate the menu and go back to the previous scene/menu/whatever
-    void Deactivate();
+    void Deactivate(void);
+
+    // deactive the menu and destroy everything it was holding
+    void Destroy(void);
 
     // will use defaults if not called
     void SetControllerBindings(const MenuControllerBinds &bindings);
@@ -120,6 +130,9 @@ public:
 
     // callback when menu is deactivated
     void SetOnDeactivate(eastl::function<void(void)> callback) { m_onDeactivate = eastl::move(callback); }
+
+    // callback when menu is destroyed
+    void SetOnDestroy(eastl::function<void(void)> callback) { m_onDestroy = eastl::move(callback); }
 
     // dont lose track of the hud element!
     TextHUDElement *AddTextHUDElement(TextHUDElement &&textElement)
