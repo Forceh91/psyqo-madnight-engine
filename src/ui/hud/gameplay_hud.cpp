@@ -18,3 +18,10 @@ void GameplayHUD::Render(void)
         element.Render(m_rect);
     }
 }
+
+void GameplayHUD::Destroy(void) {
+    m_isEnabled = false;
+    
+    m_textHUDElements.clear(true);
+    m_spriteHUDElements.clear(true);
+}
