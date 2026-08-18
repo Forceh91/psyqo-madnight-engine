@@ -47,6 +47,7 @@ public:
 
     void Enable() { m_isEnabled = true; }
     void Disable() { m_isEnabled = false; }
+    bool IsEnabled(void) { return m_isEnabled; }
     void Destroy(void);
     void Render(void);
 
