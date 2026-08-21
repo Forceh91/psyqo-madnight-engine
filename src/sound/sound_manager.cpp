@@ -71,10 +71,10 @@ psyqo::Coroutine<> SoundManager::LoadVAGFile(const eastl::fixed_string<char, MAX
     // skip over reserved block
     ptr += sizeof(uint32_t);
 
-    // store the data size
+    // store the data size which is aligned to the nearest 64 bytes (upwards)
     __builtin_memcpy(&vag.size, ptr, sizeof(uint32_t));
     ptr += sizeof(uint32_t);
-    vag.size = SWAP32(vag.size);
+    vag.size = (SWAP32(vag.size) + 63) & ~63;
 
     // make sure it fits
     if (SPU_MEMORY_SIZE - m_spuAllocPtr < vag.size) {
