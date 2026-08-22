@@ -86,7 +86,6 @@ public:
   void Render(void);
   void Render(uint32_t deltaTime);
   void Clear(psyqo::Color clearColour = Lighting::instance().GetFogColour());
-  void RenderLoadingScreen(uint16_t loadPercentage);
   void RenderSprite(const TimFile *tim, const psyqo::Rect rect, const psyqo::PrimPieces::UVCoords uv);
   void SetActiveCamera(Camera *camera);
   const Camera* ActiveCamera(void) const { return m_activeCamera; }

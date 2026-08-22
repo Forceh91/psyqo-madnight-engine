@@ -838,18 +838,6 @@ void Renderer::RenderParticles(uint32_t deltaTime, const psyqo::Matrix33 &camera
   }
 }
 
-void Renderer::RenderLoadingScreen(uint16_t loadPercentage) {
-  uint32_t frameBuffer = m_gpu.getParity();
-  auto &clear = m_clear[frameBuffer];
-
-  // clear the buffer
-  m_gpu.getNextClear(clear.primitive, c_loadingBackgroundColour);
-  m_gpu.chain(clear);
-
-  // render the actual loading sprite/font/whatever
-  m_systemFont.chainprintf(m_gpu, {10, 210}, COLOUR_WHITE, "Loading... (%d%%)", loadPercentage);
-}
-
 void Renderer::Clear(psyqo::Color color) {
   uint32_t frameBuffer = m_gpu.getParity();
   auto &clear = m_clear[frameBuffer];

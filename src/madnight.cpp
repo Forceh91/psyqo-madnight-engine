@@ -1,5 +1,6 @@
 /* based off the psyqo cube example */
 
+#include "file_loader.hh"
 #include "helpers/archive.hh"
 #include "psyqo/scene.hh"
 #include "psyqo/xprintf.h"
@@ -72,7 +73,7 @@ psyqo::Coroutine<> MadnightEngine::HardLoadingScreen(eastl::vector<LoadQueue> &&
   popScene();
   pushScene(&loadingScene);
 
-  co_await loadingScene.LoadFiles(eastl::move(files), true);
+  co_await FileLoader::LoadFiles(eastl::move(files));
 
   popScene();
   pushScene(postLoadScene);
