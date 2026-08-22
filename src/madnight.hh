@@ -1,6 +1,4 @@
-#ifndef _HELLO3D_H_
-#define _HELLO3D_H_
-
+#pragma once
 #include "helpers/load_queue.hh"
 #include "psyqo/scene.hh"
 #include "rand.hh"
@@ -32,7 +30,18 @@ public:
     // this will also unload the current scene, and start the requested scene fresh, so if you have
     // stuff that occurs in startscene, you need to make sure you don't do it again
     // as this will trigger a `Start` reason, and not `Resume`
-    psyqo::Coroutine<> HardLoadingScreen(eastl::vector<LoadQueue> &&files, psyqo::Scene *postLoadScene);
+    psyqo::Coroutine<> HardLoadingScreen(eastl::vector<LoadQueue>&& files, psyqo::Scene* postLoadScene);
+
+    // show your custom loading screen and unloads all known meshes, textures, etc.
+    // on top of that the current scene is unloaded and replaced with what is specified in `loadingScene`
+    psyqo::Coroutine<> HardLoadingScreen(eastl::vector<LoadQueue>&& files, psyqo::Scene* loadingScene, psyqo::Scene* postLoadScene);
+
+    // shows a loading screen but keeps your current scene on the stack, which will be returned to once loading is done
+    // this will not unload any data from pools such as meshes, textures, game objects, etc.
+    psyqo::Coroutine<> SoftLoadingScreen(eastl::vector<LoadQueue>&& files);
+    // shows your custom loading screen but keeps your current scene on the stack, which will be returned to once loading is done
+    // this will not unload any data from pools such as meshes, textures, game objects, etc.
+    psyqo::Coroutine<> SoftLoadingScreen(eastl::vector<LoadQueue>&& files, psyqo::Scene* loadingScene);
 
     /*
      * this is the very first thing that is called once the engine is initialized and ready
@@ -56,4 +65,3 @@ static inline void exitBreak(int code) {
 
 extern MadnightEngine g_madnightEngine;
 
-#endif

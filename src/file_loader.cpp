@@ -4,6 +4,7 @@
 #include "mesh/colbin_manager.hh"
 #include "mesh/mesh_manager.hh"
 #include "scenes/scene_loader.hh"
+#include "sound/mod_sound.hh"
 #include "sound/mod_sound_manager.hh"
 #include "sound/sound_manager.hh"
 
@@ -41,17 +42,20 @@ psyqo::Coroutine<> FileLoader::LoadFiles(eastl::vector<LoadQueue>&& files, bool 
         auto const& file = m_queue[m_loadedFiles];
         switch (file.type) {
             case OBJECT: {
-                co_await MeshManager::LoadMesh(file.name.c_str(), nullptr);
+                MeshBin* out = nullptr;
+                co_await MeshManager::LoadMesh(file.name.c_str(), &out);
                 break;
             }
 
             case TEXTURE: {
-                co_await TextureManager::LoadTIM(file.name.c_str(), file.x, file.y, file.clutX, file.clutY, nullptr);
+                TimFile* out = nullptr;
+                co_await TextureManager::LoadTIM(file.name.c_str(), file.x, file.y, file.clutX, file.clutY, &out);
                 break;
             }
 
             case MOD_FILE: {
-                co_await ModSoundManager::LoadMODSound(file.name.c_str(), nullptr);
+                ModSoundFile* out = nullptr;
+                co_await ModSoundManager::LoadMODSound(file.name.c_str(), &out);
                 break;
             }
 
@@ -61,12 +65,14 @@ psyqo::Coroutine<> FileLoader::LoadFiles(eastl::vector<LoadQueue>&& files, bool 
             }
 
             case COLBIN: {
-                co_await ColbinManager::LoadColbin(file.name, nullptr);
+                ColBin* out = nullptr;
+                co_await ColbinManager::LoadColbin(file.name, &out);
                 break;
             }
 
             case VAG: {
-                co_await SoundManager::LoadVAGFile(file.name, nullptr);
+                VagEntry* out = nullptr;
+                co_await SoundManager::LoadVAGFile(file.name, &out);
                 break;
             }
 
