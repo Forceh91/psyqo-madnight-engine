@@ -12,12 +12,10 @@
 #include "../defs.hh"
 
 #include "psyqo/fixed-point.hh"
-#include "psyqo/fragment-concept.hh"
 #include "psyqo/fragments.hh"
 #include "psyqo/gte-kernels.hh"
 #include "psyqo/gte-registers.hh"
 #include "psyqo/matrix.hh"
-#include "psyqo/primitive-concept.hh"
 #include "psyqo/primitives/common.hh"
 #include "psyqo/primitives/control.hh"
 #include "psyqo/primitives/quads.hh"
@@ -132,9 +130,9 @@ void Renderer::SetFogColour(const psyqo::Color &colour) {
 }
 
 void Renderer::SetFarColour(void) {
-  psyqo::GTE::write<psyqo::GTE::Register::RFC, psyqo::GTE::Unsafe>(m_lighting->m_fogColour.r << 4);
-  psyqo::GTE::write<psyqo::GTE::Register::GFC, psyqo::GTE::Unsafe>(m_lighting->m_fogColour.g << 4);
-  psyqo::GTE::write<psyqo::GTE::Register::BFC, psyqo::GTE::Unsafe>(m_lighting->m_fogColour.b << 4);
+  psyqo::GTE::write<psyqo::GTE::Register::RFC, psyqo::GTE::Unsafe>(m_lighting->GetFogColour().r << 4);
+  psyqo::GTE::write<psyqo::GTE::Register::GFC, psyqo::GTE::Unsafe>(m_lighting->GetFogColour().g << 4);
+  psyqo::GTE::write<psyqo::GTE::Register::BFC, psyqo::GTE::Unsafe>(m_lighting->GetFogColour().b << 4);
 
   SetFogNearFar(0.5_fp, 1.55_fp);
 }
@@ -223,7 +221,7 @@ void Renderer::Render(uint32_t deltaTime) {
   
   // chain the fill command to clear the buffer
   auto &clear = m_clear[frameBuffer];
-  m_gpu.getNextClear(clear.primitive, m_lighting->m_fogColour);
+  m_gpu.getNextClear(clear.primitive, m_lighting->GetFogColour());
   m_gpu.chain(clear);
 
   // make use of `gpu.pumpCallbacks` at some point in here
@@ -719,7 +717,7 @@ void Renderer::RenderParticles(uint32_t deltaTime, const psyqo::Matrix33 &camera
         auto colour = particle.colour();
         ApplyAmbientToColour(&colour);
 
-        if (m_lighting->m_isSimpleFogEnabled) {
+        if (m_lighting->IsSimpleFogEnabled()) {
           auto sz = psyqo::GTE::readRaw<psyqo::GTE::Register::SZ1>();
           ApplyFogToColour(&colour, GetFogFactor(sz));
         }
@@ -1225,14 +1223,14 @@ psyqo::FixedPoint<> Renderer::GetFogFactor(uint32_t z) {
 }
 
 void Renderer::ApplyAmbientToColour(psyqo::Color* colA) {
-    auto& ambient = m_lighting->m_ambient;
+    auto& ambient = m_lighting->GetAmbientColour();
     colA->r = (colA->r * ambient.r) >> 7;
     colA->g = (colA->g * ambient.g) >> 7;
     colA->b = (colA->b * ambient.b) >> 7;
 }
 
 void Renderer::ApplyAmbientToColours(psyqo::Color* colA, psyqo::Color* colB, psyqo::Color* colC) {
-    auto& ambient = m_lighting->m_ambient;
+    auto& ambient = m_lighting->GetAmbientColour();
     colA->r = (colA->r * ambient.r) >> 7;
     colA->g = (colA->g * ambient.g) >> 7;
     colA->b = (colA->b * ambient.b) >> 7;
@@ -1245,7 +1243,7 @@ void Renderer::ApplyAmbientToColours(psyqo::Color* colA, psyqo::Color* colB, psy
 }
 
 void Renderer::ApplyAmbientToColours(psyqo::Color* colA, psyqo::Color* colB, psyqo::Color* colC, psyqo::Color* colD) {
-    auto& ambient = m_lighting->m_ambient;
+    auto& ambient = m_lighting->GetAmbientColour();
     colA->r = (colA->r * ambient.r) >> 7;
     colA->g = (colA->g * ambient.g) >> 7;
     colA->b = (colA->b * ambient.b) >> 7;
@@ -1261,17 +1259,18 @@ void Renderer::ApplyAmbientToColours(psyqo::Color* colA, psyqo::Color* colB, psy
 }
 
 void Renderer::ApplyFogToColour(psyqo::Color* col, psyqo::FixedPoint<> fogFactor) {
-  if (!m_lighting->m_isSimpleFogEnabled) return;
+  if (!m_lighting->IsSimpleFogEnabled()) return;
 
   auto inv = 1.0_fp - fogFactor;
-  col->r = (((col->r * inv) + (m_lighting->m_fogColour.r * fogFactor)).value) >> 12;
-  col->g = (((col->g * inv) + (m_lighting->m_fogColour.g * fogFactor)).value) >> 12;
-  col->b = (((col->b * inv) + (m_lighting->m_fogColour.b * fogFactor)).value) >> 12;
+  auto& fog = m_lighting->GetFogColour();
+  col->r = (((col->r * inv) + (fog.r * fogFactor)).value) >> 12;
+  col->g = (((col->g * inv) + (fog.g * fogFactor)).value) >> 12;
+  col->b = (((col->b * inv) + (fog.b * fogFactor)).value) >> 12;
 }
 
 // Interpolate from input to FC
 psyqo::Color Renderer::ApplyFogToColourGTE(psyqo::Color input, uint32_t p) {
-  if (!m_lighting->m_isSimpleFogEnabled)
+  if (!m_lighting->IsSimpleFogEnabled())
     return input;
 
   psyqo::GTE::write<psyqo::GTE::Register::IR0, psyqo::GTE::Unsafe>(p);
