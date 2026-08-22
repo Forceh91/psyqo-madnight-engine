@@ -3,6 +3,8 @@
 #include "helpers/load_queue.hh"
 #include <psyqo/coroutine.hh>
 
+enum LOAD_STATE : uint8_t { UNKNOWN, LOADING, COMPLETE };
+
 class FileLoader final {
 public:
     // will load the provided queue, `clearPools` will dump all existing game objects, textures,
@@ -13,6 +15,13 @@ public:
     static uint16_t TotalFiles(void) { return m_totalFiles; }
     // how many files in total *have* been loaded.
     static uint16_t LoadedFiles(void) { return m_loadedFiles; }
+
+    static LOAD_STATE LoadState(void) {
+        if (!m_totalFiles) return UNKNOWN;
+        if (m_totalFiles > 0 && m_loadedFiles != m_totalFiles) return LOADING;
+
+        return COMPLETE;
+    }
 private:
     // the file(s) that will be loaded
     static eastl::vector<LoadQueue> m_queue;
