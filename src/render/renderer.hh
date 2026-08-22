@@ -70,6 +70,8 @@ class Renderer final {
   void ApplyAmbientToColours(psyqo::Color* colA, psyqo::Color* colB, psyqo::Color* colC, psyqo::Color* colD);
   void ApplyFogToColour(psyqo::Color* col, psyqo::FixedPoint<> fogFactor);
   psyqo::Color ApplyFogToColourGTE(psyqo::Color input, uint32_t p = 0);
+
+  void ApplyGTELightingToColour(psyqo::Color* col, psyqo::Color* gteCol);
   
   void SetFarColour(void);
   void SetFogNearFar(psyqo::FixedPoint<> near, psyqo::FixedPoint<> far);
@@ -85,14 +87,14 @@ public:
   uint32_t Process(void);
   void Render(void);
   void Render(uint32_t deltaTime);
-  void Clear(psyqo::Color clearColour = Lighting::instance().m_fogColour);
+  void Clear(psyqo::Color clearColour = Lighting::instance().GetFogColour());
   void RenderLoadingScreen(uint16_t loadPercentage);
   void RenderSprite(const TimFile *tim, const psyqo::Rect rect, const psyqo::PrimPieces::UVCoords uv);
   void SetActiveCamera(Camera *camera);
   const Camera* ActiveCamera(void) const { return m_activeCamera; }
   
   void SetFogColour(const psyqo::Color &colour);
-  const bool& IsSimpleFogEnabled(void) const { return m_lighting->m_isSimpleFogEnabled; }
+  const bool IsSimpleFogEnabled(void) const { return m_lighting->IsSimpleFogEnabled(); }
 
 
   static Renderer &Instance() { return *m_instance; }

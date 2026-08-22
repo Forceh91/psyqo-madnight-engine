@@ -12,12 +12,10 @@
 #include "../defs.hh"
 
 #include "psyqo/fixed-point.hh"
-#include "psyqo/fragment-concept.hh"
 #include "psyqo/fragments.hh"
 #include "psyqo/gte-kernels.hh"
 #include "psyqo/gte-registers.hh"
 #include "psyqo/matrix.hh"
-#include "psyqo/primitive-concept.hh"
 #include "psyqo/primitives/common.hh"
 #include "psyqo/primitives/control.hh"
 #include "psyqo/primitives/quads.hh"
@@ -132,9 +130,9 @@ void Renderer::SetFogColour(const psyqo::Color &colour) {
 }
 
 void Renderer::SetFarColour(void) {
-  psyqo::GTE::write<psyqo::GTE::Register::RFC, psyqo::GTE::Unsafe>(m_lighting->m_fogColour.r << 4);
-  psyqo::GTE::write<psyqo::GTE::Register::GFC, psyqo::GTE::Unsafe>(m_lighting->m_fogColour.g << 4);
-  psyqo::GTE::write<psyqo::GTE::Register::BFC, psyqo::GTE::Unsafe>(m_lighting->m_fogColour.b << 4);
+  psyqo::GTE::write<psyqo::GTE::Register::RFC, psyqo::GTE::Unsafe>(m_lighting->GetFogColour().r << 4);
+  psyqo::GTE::write<psyqo::GTE::Register::GFC, psyqo::GTE::Unsafe>(m_lighting->GetFogColour().g << 4);
+  psyqo::GTE::write<psyqo::GTE::Register::BFC, psyqo::GTE::Unsafe>(m_lighting->GetFogColour().b << 4);
 
   SetFogNearFar(0.5_fp, 1.55_fp);
 }
@@ -223,7 +221,7 @@ void Renderer::Render(uint32_t deltaTime) {
   
   // chain the fill command to clear the buffer
   auto &clear = m_clear[frameBuffer];
-  m_gpu.getNextClear(clear.primitive, m_lighting->m_fogColour);
+  m_gpu.getNextClear(clear.primitive, m_lighting->GetFogColour());
   m_gpu.chain(clear);
 
   // make use of `gpu.pumpCallbacks` at some point in here
@@ -274,8 +272,53 @@ void Renderer::RenderGameObjects(uint32_t deltaTime, const psyqo::Matrix33 &came
   for (const auto &gameObject : gameObjects) {
     // we dont need to get mesh data for every single vert since it wont change, so lets only do that once
     const auto mesh = gameObject->mesh();
-    if (!mesh)
+    if (!mesh) {
+// collision box
+    auto& obb = gameObject->obb();
+    psyqo::Vec3 centre = gameObject->pos();
+    TransformObjectToViewSpace(centre, cameraRotationMatrix, finalCameraMatrix);
+
+        // X axis
+    psyqo::GTE::writeSafe<psyqo::GTE::PseudoRegister::V0>(psyqo::Vec3{centre.x - obb.halfExtents.x, centre.y, centre.z});
+    psyqo::GTE::writeSafe<psyqo::GTE::PseudoRegister::V1>(psyqo::Vec3{centre.x + obb.halfExtents.x, centre.y, centre.z});
+    psyqo::GTE::Kernels::rtpt();
+    psyqo::GTE::read<psyqo::GTE::Register::SXY0>(&projected[0].packed);
+    psyqo::GTE::read<psyqo::GTE::Register::SXY1>(&projected[1].packed);
+    auto& lineX = allocator.allocateFragment<psyqo::Prim::Line>();
+    lineX.primitive.pointA = projected[0];
+    lineX.primitive.pointB = projected[1];
+    lineX.primitive.setColor({255, 0, 0});
+    lineX.primitive.setOpaque();
+    ot.insert(lineX, 1);
+
+    // Y axis
+    psyqo::GTE::writeSafe<psyqo::GTE::PseudoRegister::V0>(psyqo::Vec3{centre.x, centre.y - obb.halfExtents.y, centre.z});
+    psyqo::GTE::writeSafe<psyqo::GTE::PseudoRegister::V1>(psyqo::Vec3{centre.x, centre.y + obb.halfExtents.y, centre.z});
+    psyqo::GTE::Kernels::rtpt();
+    psyqo::GTE::read<psyqo::GTE::Register::SXY0>(&projected[0].packed);
+    psyqo::GTE::read<psyqo::GTE::Register::SXY1>(&projected[1].packed);
+    auto& lineY = allocator.allocateFragment<psyqo::Prim::Line>();
+    lineY.primitive.pointA = projected[0];
+    lineY.primitive.pointB = projected[1];
+    lineY.primitive.setColor({0, 255, 0});
+    lineY.primitive.setOpaque();
+    ot.insert(lineY, 1);
+
+    // Z axis
+    psyqo::GTE::writeSafe<psyqo::GTE::PseudoRegister::V0>(psyqo::Vec3{centre.x, centre.y, centre.z - obb.halfExtents.z});
+    psyqo::GTE::writeSafe<psyqo::GTE::PseudoRegister::V1>(psyqo::Vec3{centre.x, centre.y, centre.z + obb.halfExtents.z});
+    psyqo::GTE::Kernels::rtpt();
+    psyqo::GTE::read<psyqo::GTE::Register::SXY0>(&projected[0].packed);
+    psyqo::GTE::read<psyqo::GTE::Register::SXY1>(&projected[1].packed);
+    auto& lineZ = allocator.allocateFragment<psyqo::Prim::Line>();
+    lineZ.primitive.pointA = projected[0];
+    lineZ.primitive.pointB = projected[1];
+    lineZ.primitive.setColor({0, 0, 255});
+    lineZ.primitive.setOpaque();
+    ot.insert(lineZ, 1);
+// end collision box      
       continue;
+    }
 
     // get the rotation matrix for the game object and then combine with the camera rotations
     GTEMath::MultiplyMatrix33(cameraRotationMatrix, gameObject->rotationMatrix(), &finalCameraMatrix);
@@ -341,6 +384,7 @@ void Renderer::RenderGameObjects(uint32_t deltaTime, const psyqo::Matrix33 &came
     };
 
     auto renderVerts = mesh->hasSkeleton ? mesh->verticesOnBonePos : mesh->vertices;
+    auto renderNormals = mesh->normals;
     for (int32_t i = 0; i < mesh->facesCount; i++) {
         auto isQuad = mesh->vertexIndices[i].i2 != -1;
 
@@ -406,17 +450,57 @@ void Renderer::RenderGameObjects(uint32_t deltaTime, const psyqo::Matrix33 &came
             colB = {mesh->vertexColours[mesh->vertexIndices[i].i3].r, mesh->vertexColours[mesh->vertexIndices[i].i3].g, mesh->vertexColours[mesh->vertexIndices[i].i3].b};
             colC = {mesh->vertexColours[mesh->vertexIndices[i].i4].r, mesh->vertexColours[mesh->vertexIndices[i].i4].g, mesh->vertexColours[mesh->vertexIndices[i].i4].b};
         }
+        psyqo::Color gteColA, gteColB, gteColC, gteColD;
+
+        // now we can do lighting if its enabled
+        auto shouldApplyGTELighting = m_lighting->ShouldApplyGTELighting();
+        if (shouldApplyGTELighting) {
+          // move light directions into world space
+          auto worldSpaceLLM = m_lighting->GetLightDirMatrix();
+          psyqo::GTE::writeUnsafe<psyqo::GTE::PseudoRegister::Light>(worldSpaceLLM);
+
+          // setup the colours
+          auto colours = m_lighting->GetLightColourMatrix();
+          for (auto i = 0; i < 3; i++) {
+            if (!m_lighting->IsLightEnabled(0)) colours.vs[i].x = 0.0_fp;
+            if (!m_lighting->IsLightEnabled(1)) colours.vs[i].x = 0.0_fp;
+            if (!m_lighting->IsLightEnabled(2)) colours.vs[i].x = 0.0_fp;
+          }
+
+          psyqo::GTE::writeSafe<psyqo::GTE::PseudoRegister::Color>(colours);
+
+          // get each normal for the mesh and ncct them
+          psyqo::GTE::writeSafe<psyqo::GTE::PseudoRegister::V0>(renderNormals[mesh->normalIndices[i].i1]);
+          psyqo::GTE::writeSafe<psyqo::GTE::PseudoRegister::V1>(isQuad ? renderNormals[mesh->normalIndices[i].i2] : renderNormals[mesh->normalIndices[i].i3]);
+          psyqo::GTE::writeSafe<psyqo::GTE::PseudoRegister::V2>(isQuad ? renderNormals[mesh->normalIndices[i].i3] : renderNormals[mesh->normalIndices[i].i4]);
+          psyqo::GTE::Kernels::ncct();
+
+          // then read colours back in
+          gteColA.packed = psyqo::GTE::readRaw<psyqo::GTE::Register::RGB0>();
+          gteColB.packed = psyqo::GTE::readRaw<psyqo::GTE::Register::RGB1>();
+          gteColC.packed = psyqo::GTE::readRaw<psyqo::GTE::Register::RGB2>();
+          
+          if (isQuad) {
+            psyqo::GTE::writeSafe<psyqo::GTE::PseudoRegister::V0>(renderNormals[mesh->normalIndices[i].i1]);
+            psyqo::GTE::Kernels::nccs();
+            gteColD.packed = psyqo::GTE::readRaw<psyqo::GTE::Register::RGB2>();
+          }
+        }
 
         ApplyAmbientToColour(&colA);
+        if (shouldApplyGTELighting) ApplyGTELightingToColour(&colA, &gteColA);
         colA = ApplyFogToColourGTE(colA, pA);
         ApplyAmbientToColour(&colB);
+        if (shouldApplyGTELighting) ApplyGTELightingToColour(&colB, &gteColB);
         colB = ApplyFogToColourGTE(colB, pB);
         ApplyAmbientToColour(&colC);
-        colC = ApplyFogToColourGTE(colC, pC);
+        if (shouldApplyGTELighting) ApplyGTELightingToColour(&colC, &gteColC);
+        colC = ApplyFogToColourGTE(colC, pC);        
 
         if (isQuad) {
             psyqo::Color colD = {mesh->vertexColours[mesh->vertexIndices[i].i4].r, mesh->vertexColours[mesh->vertexIndices[i].i4].g, mesh->vertexColours[mesh->vertexIndices[i].i4].b};
             ApplyAmbientToColour(&colD);
+            if (shouldApplyGTELighting) ApplyGTELightingToColour(&colD, &gteColD);
             colD = ApplyFogToColourGTE(colD, pD);
 
             // now take a quad fragment from our array and:
@@ -719,7 +803,7 @@ void Renderer::RenderParticles(uint32_t deltaTime, const psyqo::Matrix33 &camera
         auto colour = particle.colour();
         ApplyAmbientToColour(&colour);
 
-        if (m_lighting->m_isSimpleFogEnabled) {
+        if (m_lighting->IsSimpleFogEnabled()) {
           auto sz = psyqo::GTE::readRaw<psyqo::GTE::Register::SZ1>();
           ApplyFogToColour(&colour, GetFogFactor(sz));
         }
@@ -1225,14 +1309,14 @@ psyqo::FixedPoint<> Renderer::GetFogFactor(uint32_t z) {
 }
 
 void Renderer::ApplyAmbientToColour(psyqo::Color* colA) {
-    auto& ambient = m_lighting->m_ambient;
+    auto& ambient = m_lighting->GetAmbient();
     colA->r = (colA->r * ambient.r) >> 7;
     colA->g = (colA->g * ambient.g) >> 7;
     colA->b = (colA->b * ambient.b) >> 7;
 }
 
 void Renderer::ApplyAmbientToColours(psyqo::Color* colA, psyqo::Color* colB, psyqo::Color* colC) {
-    auto& ambient = m_lighting->m_ambient;
+    auto& ambient = m_lighting->GetAmbient();
     colA->r = (colA->r * ambient.r) >> 7;
     colA->g = (colA->g * ambient.g) >> 7;
     colA->b = (colA->b * ambient.b) >> 7;
@@ -1245,7 +1329,7 @@ void Renderer::ApplyAmbientToColours(psyqo::Color* colA, psyqo::Color* colB, psy
 }
 
 void Renderer::ApplyAmbientToColours(psyqo::Color* colA, psyqo::Color* colB, psyqo::Color* colC, psyqo::Color* colD) {
-    auto& ambient = m_lighting->m_ambient;
+    auto& ambient = m_lighting->GetAmbient();
     colA->r = (colA->r * ambient.r) >> 7;
     colA->g = (colA->g * ambient.g) >> 7;
     colA->b = (colA->b * ambient.b) >> 7;
@@ -1261,21 +1345,27 @@ void Renderer::ApplyAmbientToColours(psyqo::Color* colA, psyqo::Color* colB, psy
 }
 
 void Renderer::ApplyFogToColour(psyqo::Color* col, psyqo::FixedPoint<> fogFactor) {
-  if (!m_lighting->m_isSimpleFogEnabled) return;
+  if (!m_lighting->IsSimpleFogEnabled()) return;
 
   auto inv = 1.0_fp - fogFactor;
-  col->r = (((col->r * inv) + (m_lighting->m_fogColour.r * fogFactor)).value) >> 12;
-  col->g = (((col->g * inv) + (m_lighting->m_fogColour.g * fogFactor)).value) >> 12;
-  col->b = (((col->b * inv) + (m_lighting->m_fogColour.b * fogFactor)).value) >> 12;
+  col->r = (((col->r * inv) + (m_lighting->GetFogColour().r * fogFactor)).value) >> 12;
+  col->g = (((col->g * inv) + (m_lighting->GetFogColour().g * fogFactor)).value) >> 12;
+  col->b = (((col->b * inv) + (m_lighting->GetFogColour().b * fogFactor)).value) >> 12;
 }
 
 // Interpolate from input to FC
 psyqo::Color Renderer::ApplyFogToColourGTE(psyqo::Color input, uint32_t p) {
-  if (!m_lighting->m_isSimpleFogEnabled)
+  if (!m_lighting->IsSimpleFogEnabled())
     return input;
 
   psyqo::GTE::write<psyqo::GTE::Register::IR0, psyqo::GTE::Unsafe>(p);
   psyqo::GTE::write<psyqo::GTE::Register::RGB, psyqo::GTE::Safe>(input.packed);
   psyqo::GTE::Kernels::dpcs();
   return {.packed = psyqo::GTE::readRaw<psyqo::GTE::Register::RGB2>()};
+}
+
+void Renderer::ApplyGTELightingToColour(psyqo::Color* col, psyqo::Color* gteCol) {
+    col->r = (col->r * gteCol->r) >> 7;
+    col->g = (col->g * gteCol->g) >> 7;
+    col->b = (col->b * gteCol->b) >> 7;
 }
