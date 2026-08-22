@@ -1,8 +1,4 @@
-/* based off the psyqo cube example */
-
-#include "helpers/archive.hh"
-#include "psyqo/scene.hh"
-#include "psyqo/xprintf.h"
+#include "file_loader.hh"
 
 #include "core/debug/debug_menu.hh"
 #include "helpers/cdrom.hh"
@@ -14,6 +10,9 @@
 #include "scenes/loading.hh"
 #include "sound/sound_manager.hh"
 
+#include <psyqo/coroutine.hh>
+#include <psyqo/scene.hh>
+
 using namespace psyqo::fixed_point_literals;
 
 // Our global application object. This is the only global
@@ -21,7 +20,7 @@ using namespace psyqo::fixed_point_literals;
 // other necessary classes.
 MadnightEngine g_madnightEngine;
 
-static LoadingScene loadingScene;
+static LoadingScene defaultLoadingScene;
 
 void MadnightEngine::prepare() {
   // gpu config comes first, along with initialize.
@@ -37,7 +36,7 @@ void MadnightEngine::prepare() {
   Renderer::Init(gpu());
 
   // push a scene to display whilst we do hardware inits
-  pushScene(&loadingScene);
+  pushScene(&defaultLoadingScene);
 
   // hardware inits
   CDRomHelper::init([this]() {
@@ -59,19 +58,36 @@ void MadnightEngine::prepare() {
 
 psyqo::Coroutine<> MadnightEngine::InitialLoad(void) { co_await g_madnightEngineGame.InitialLoad(); }
 
-void MadnightEngine::SwitchScene(psyqo::Scene *newScene, bool keepPrevious) {
+psyqo::Scene* MadnightEngine::SwitchScene(psyqo::Scene *newScene, bool keepPrevious) {
+  psyqo::Scene* prevScene = nullptr;
   if (!keepPrevious)
-    popScene();
+    prevScene = popScene();
 
   pushScene(newScene);
+  return prevScene;
 }
 
-psyqo::Coroutine<> MadnightEngine::HardLoadingScreen(eastl::vector<LoadQueue> &&files, psyqo::Scene *postLoadScene) {
-  popScene();
-  pushScene(&loadingScene);
+psyqo::Coroutine<> MadnightEngine::HardLoadingScreen(eastl::vector<LoadQueue>&& files, psyqo::Scene* postLoadScene) {
+  co_await HardLoadingScreen(eastl::move(files), &defaultLoadingScene, postLoadScene);
+}
 
-  co_await loadingScene.LoadFiles(eastl::move(files), true);
+psyqo::Coroutine<> MadnightEngine::HardLoadingScreen(eastl::vector<LoadQueue>&& files, psyqo::Scene* loadingScene, psyqo::Scene* postLoadScene) {
+  popScene();
+  pushScene(loadingScene);
+
+  co_await FileLoader::LoadFiles(eastl::move(files));
 
   popScene();
   pushScene(postLoadScene);
+}
+
+psyqo::Coroutine<> MadnightEngine::SoftLoadingScreen(eastl::vector<LoadQueue>&& files) {
+  SoftLoadingScreen(eastl::move(files), &defaultLoadingScene);
+}
+
+psyqo::Coroutine<> MadnightEngine::SoftLoadingScreen(eastl::vector<LoadQueue>&& files, psyqo::Scene* loadingScene) {
+  pushScene(loadingScene);
+
+  co_await FileLoader::LoadFiles(eastl::move(files), false);
+  popScene();
 }

@@ -10,7 +10,7 @@ class HUDElement
 protected:
     bool m_isEnabled = false;
     eastl::fixed_string<char, GAMEPLAY_HUD_MAX_NAME_LEN> m_name;
-    psyqo::Rect m_rect = {0};
+    psyqo::Rect m_rect = {0, 0, 0,0};
 
 public:
     HUDElement(const char *name, psyqo::Rect rect)

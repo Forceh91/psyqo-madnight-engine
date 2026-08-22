@@ -108,11 +108,10 @@ void GameObject::GenerateOBB(void)
 
 void GameObject::UpdateOBB(void)
 {
-    // double check we're not being dumb
-    if (m_collisionType == CollisionType::SOLID && m_mesh == nullptr)
-        return;
-
-    psyqo::Vec3 rotatedCentre = {0, 0, 0}, localCentre = m_collisionType == CollisionType::SOLID ? (m_mesh->collisionBox.min + m_mesh->collisionBox.max) / 2 : psyqo::Vec3{0, 0, 0};
+    psyqo::Vec3 rotatedCentre = {0, 0, 0}, localCentre = {0, 0, 0};
+    if (m_collisionType == CollisionType::SOLID && m_mesh)
+        localCentre = m_mesh->collisionBox.min + m_mesh->collisionBox.max / 2;
+    
     psyqo::SoftMath::matrixVecMul3(m_rotationMatrix, localCentre, &rotatedCentre);
 
     // update the centre

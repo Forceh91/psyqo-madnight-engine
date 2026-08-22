@@ -1,12 +1,11 @@
-#ifndef _LOAD_QUEUE_H
-#define _LOAD_QUEUE_H
+#pragma once
 
-#include "EASTL/fixed_string.h"
 #include "archive.hh"
+#include <EASTL/fixed_string.h>
 
 enum LoadFileType { OBJECT, TEXTURE, MOD_FILE, ANIMATION, COLBIN, VAG, SCENE = 255 };
 
-typedef struct _LOAD_QUEUE {
+struct LoadQueue {
   eastl::fixed_string<char, MAX_ARCHIVE_FILE_NAME_LEN> name;
   LoadFileType type;
   // used for textures (type == TEXTURE)
@@ -15,6 +14,5 @@ typedef struct _LOAD_QUEUE {
       uint16_t x, y, clutX, clutY;
     };
   };
-} LoadQueue;
+};
 
-#endif

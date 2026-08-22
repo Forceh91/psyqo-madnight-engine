@@ -1,8 +1,5 @@
 #include "sprite_hud_element.hh"
-
-#include "text_hud_element.hh"
 #include "../../render/renderer.hh"
-#include "../../render/colour.hh"
 
 SpriteHUDElement::SpriteHUDElement(const char *name, psyqo::Rect rect, const char *texture, psyqo::PrimPieces::UVCoords uv) : HUDElement(name, rect)
 {

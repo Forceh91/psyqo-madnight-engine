@@ -1,16 +1,14 @@
-#ifndef _UI_SPRITE_HUD_ELEMENT_H
-#define _UI_SPRITE_HUD_ELEMENT_H
+#pragma once
 
 #include <EASTL/fixed_string.h>
 #include "hud_element.hh"
-#include "hud_defines.hh"
 #include "../../textures/texture_manager.hh"
 #include "psyqo/primitives/common.hh"
 
 class SpriteHUDElement final : public HUDElement
 {
-    TimFile *m_tim;
-    psyqo::PrimPieces::UVCoords m_spriteUV;
+    TimFile *m_tim = nullptr;
+    psyqo::PrimPieces::UVCoords m_spriteUV = {0, 0};
 
 public:
     SpriteHUDElement() : HUDElement("", {0, 0}) {};
@@ -22,4 +20,3 @@ public:
     void SetUV(const psyqo::PrimPieces::UVCoords uv) { m_spriteUV = uv; }
 };
 
-#endif

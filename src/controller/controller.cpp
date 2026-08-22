@@ -14,5 +14,5 @@ int ControllerHelper::GetNormalizedAnalogStickInput(psyqo::AdvancedPad::Pad pad,
 }
 
 bool ControllerHelper::IsPadAnalog(psyqo::AdvancedPad::Pad pad) {
-  return g_madnightEngine.m_input.getPadType(psyqo::AdvancedPad::Pad::Pad1a) == psyqo::AdvancedPad::PadType::AnalogPad;
+  return g_madnightEngine.m_input.getPadType(pad) == psyqo::AdvancedPad::PadType::AnalogPad;
 }

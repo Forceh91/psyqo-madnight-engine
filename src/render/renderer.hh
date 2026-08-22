@@ -85,14 +85,13 @@ public:
   uint32_t Process(void);
   void Render(void);
   void Render(uint32_t deltaTime);
-  void Clear(psyqo::Color clearColour = Lighting::instance().m_fogColour);
-  void RenderLoadingScreen(uint16_t loadPercentage);
+  void Clear(psyqo::Color clearColour = Lighting::instance().GetFogColour());
   void RenderSprite(const TimFile *tim, const psyqo::Rect rect, const psyqo::PrimPieces::UVCoords uv);
   void SetActiveCamera(Camera *camera);
   const Camera* ActiveCamera(void) const { return m_activeCamera; }
   
   void SetFogColour(const psyqo::Color &colour);
-  const bool& IsSimpleFogEnabled(void) const { return m_lighting->m_isSimpleFogEnabled; }
+  const bool& IsSimpleFogEnabled(void) const { return m_lighting->IsSimpleFogEnabled(); }
 
 
   static Renderer &Instance() { return *m_instance; }
