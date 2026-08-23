@@ -26,7 +26,7 @@ psyqo::GTE::Short DotProduct(const Quaternion &a, const Quaternion &b);
 Quaternion Slerp(const Quaternion &q1, const Quaternion &q2, psyqo::FixedPoint<> factor);
 
 /* Finds a rotation quaternion from v1 to v2 */
-Quaternion FindRotationQuat(const psyqo::Vec3 &v1, const psyqo::Vec3 &v2, psyqo::Trig<> &trig);
+// Quaternion FindRotationQuat(const psyqo::Vec3 &v1, const psyqo::Vec3 &v2, psyqo::Trig<> &trig);
 Quaternion FromEulerAngles(psyqo::Angle pitch, psyqo::Angle yaw, const psyqo::Trig<> &trig);
 
 #endif
