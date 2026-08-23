@@ -40,6 +40,7 @@ psyqo::Coroutine<> AnimationManager::LoadAnimation(const char *animationsFile) {
   __builtin_memcpy(&m_loadedAnimBin.numAnimations, ptr++, 1); // 1 byte
 
   // for the number of animations...
+  m_loadedAnimBin.numAnimations = eastl::min(m_loadedAnimBin.numAnimations, MAX_ANIMATIONS);
   for (int32_t i = 0; i < m_loadedAnimBin.numAnimations; i++) {
     auto *anim = &m_loadedAnimBin.animations[i];
     
@@ -64,6 +65,7 @@ psyqo::Coroutine<> AnimationManager::LoadAnimation(const char *animationsFile) {
     ptr += sizeof(uint16_t);
 
     // load the tracks (should be one per bone)
+    anim->numTracks = eastl::min<uint16_t>(anim->numTracks, MAX_TRACKS);
     for (int32_t j = 0; j < anim->numTracks; j++) {
       auto *track = &anim->tracks[j];
 
@@ -78,6 +80,7 @@ psyqo::Coroutine<> AnimationManager::LoadAnimation(const char *animationsFile) {
       ptr += sizeof(uint16_t);
 
       // for each frame (key)
+      track->numKeys = eastl::min<uint16_t>(track->numKeys, MAX_KEYS);
       for (int32_t k = 0; k < track->numKeys; k++) {
         auto *key = &track->keys[k];
 
@@ -118,6 +121,7 @@ psyqo::Coroutine<> AnimationManager::LoadAnimation(const char *animationsFile) {
 
     // if they have markers
     if (anim->numMarkers) {
+      anim->numMarkers = eastl::min<uint16_t>(anim->numMarkers, MAX_MARKERS);
       for (int32_t i = 0; i < anim->numMarkers; i++) {
         auto *marker = &anim->markers[i];
         // load the marker name
