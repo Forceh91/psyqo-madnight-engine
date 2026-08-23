@@ -237,7 +237,7 @@ psyqo::Coroutine<> MeshManager::LoadMesh(const char *meshName, MeshBin **meshOut
     for (int32_t i = 0; i < loaded_mesh.mesh.numBones; i++) {
       if (i >= MAX_BONES)
         break;
-            
+
       loaded_mesh.mesh.skeleton->bones[i].id = i;
 
       // parent bone
@@ -332,23 +332,39 @@ void MeshManager::UnloadMesh(const char *mesh_name) {
     // find the first loaded mesh that matches this mesh_name
     loaded_mesh = &mLoadedMeshes[i];
     if (loaded_mesh && eastl_mesh_name == FixedString(loaded_mesh->meshName)) {
-      if (loaded_mesh->mesh.hasSkeleton && loaded_mesh->mesh.skeleton) {
-        psyqo_free(loaded_mesh->mesh.skeleton);
-        psyqo_free(loaded_mesh->mesh.verticesOnBonePos);
-      }
-
-      __builtin_memset(loaded_mesh, 0, sizeof(LoadedMeshBin));
+      FreeLoadedMesh(loaded_mesh);
       break;
     }
   }
+}
+
+void MeshManager::FreeLoadedMesh(LoadedMeshBin* mesh) {
+  if (!mesh)
+    return;
+
+  if (mesh->mesh.hasSkeleton && mesh->mesh.skeleton) {
+    psyqo_free(mesh->mesh.skeleton);
+    psyqo_free(mesh->mesh.verticesOnBonePos);
+    psyqo_free(mesh->mesh.boneForVertex);
+  }
+
+  psyqo_free(mesh->mesh.vertices);
+  psyqo_free(mesh->mesh.vertexColours);
+  psyqo_free(mesh->mesh.vertexIndices);
+  psyqo_free(mesh->mesh.normals);
+  psyqo_free(mesh->mesh.normalIndices);
+  psyqo_free(mesh->mesh.uvs);
+  psyqo_free(mesh->mesh.uvIndices);
+
+  __builtin_memset(mesh, 0, sizeof(LoadedMeshBin));
 }
 
 void MeshManager::GetMeshFromName(const char *meshName, MeshBin **meshOut) { *meshOut = IsMeshLoaded(meshName); }
 
 void MeshManager::Dump(void) {
   // clear out every instance of loaded_mesh, putting it back to zero
-  for (uint8_t i = 0; i < MAX_LOADED_MESHES; i++) {
-    __builtin_memset(&mLoadedMeshes[i].mesh, 0, sizeof(MeshBin));
+  for (auto i = 0; i < MAX_LOADED_MESHES; i++) {
+    FreeLoadedMesh(&mLoadedMeshes[i]);
     mLoadedMeshes[i].meshName = "";
   }
 }

@@ -85,6 +85,7 @@ public:
   // this is used when switching to a loading screen for instance.
   // this is a dangerous function as it wont check if anything is used
   static void Dump(void);
+  static void FreeLoadedMesh(LoadedMeshBin* mesh);
 };
 
 #endif

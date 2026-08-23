@@ -132,6 +132,7 @@ psyqo::Coroutine<> TextureManager::LoadTIM(const char *textureName, uint16_t x, 
 
         // upload this to the vram
         Renderer::Instance().VRamUpload(clutData, timFile.clutX, timFile.clutY, timFile.clutWidth, timFile.clutHeight);
+        psyqo_free(clutData);
     }
 
     uint32_t imageLength = *(ptr++);
@@ -161,7 +162,7 @@ psyqo::Coroutine<> TextureManager::LoadTIM(const char *textureName, uint16_t x, 
     __builtin_memcpy(imageData, ptr, imageDataSize);
 
     // go to end.. do we really need to do this though
-    ptr += imageDataSize / sizeof(uint32_t);
+    ptr += (imageDataSize / sizeof(uint32_t));
 
     if (timFile.width == 0 || timFile.height == 0 || timFile.colourMode > psyqo::Prim::TPageAttr::ColorMode::Tex16Bits)
     {

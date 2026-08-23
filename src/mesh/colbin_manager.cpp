@@ -188,6 +188,12 @@ psyqo::Coroutine<> ColbinManager::LoadColbin(const eastl::fixed_string<char, MAX
 void ColbinManager::Dump(void) {
     psyqo_free(m_colbin.floors);
     psyqo_free(m_colbin.walls);
+
+    auto gridCellCount = m_colbin.gridHeader.gridWidth * m_colbin.gridHeader.gridHeight;
+    for (auto i = 0; i < gridCellCount; i++) {
+        psyqo_free(m_colbin.gridCells[i].indices);
+    }
+
     psyqo_free(m_colbin.gridCells);
     m_colbin = {{"", 0, 0, 0,}, 0, 0, 0, 0, 0, nullptr, nullptr, nullptr};
 }
