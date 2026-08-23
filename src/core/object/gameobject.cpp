@@ -1,5 +1,6 @@
 #include "gameobject.hh"
 
+#include "../../math/gte-math.hh"
 #include "psyqo/soft-math.hh"
 #include "psyqo/fixed-point.hh"
 #include "../../madnight.hh"
@@ -80,8 +81,8 @@ void GameObject::GenerateRotationMatrix(void)
 
     // create complete x/y/z rotation. this is done ROLL then YAW then PITCH
     psyqo::Matrix33 tempMatrix = {0};
-    psyqo::SoftMath::multiplyMatrix33(yaw, pitch, &tempMatrix);
-    psyqo::SoftMath::multiplyMatrix33(tempMatrix, roll, &m_rotationMatrix);
+    GTEMath::MultiplyMatrix33(yaw, pitch, &tempMatrix);
+    GTEMath::MultiplyMatrix33(tempMatrix, roll, &m_rotationMatrix);
 
     // update the OBB
     UpdateOBB();
