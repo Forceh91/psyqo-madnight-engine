@@ -73,6 +73,8 @@ psyqo::Coroutine<> MadnightGame::InitialLoad(void)
 int main() { return g_madnightEngine.run(); }
 ```
 
+`SwitchScene` returns a pointer to the scene it popped (or `nullptr` if `keepPrevious` was `true`) — useful if that scene was heap-allocated and you want to `delete` it once you're done with it, rather than leaking it.
+
 `GameplayScene` above is just the engine's built-in placeholder scene (`madnight_engine/src/scenes/gameplay.hh`) — swap it out for your own scene once you're ready to build real content. Add any new `.cpp` files under `src/` and the Makefile will pick them up automatically (it does a recursive find).
 
 Next: [build and run it](./building-and-running).

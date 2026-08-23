@@ -1,5 +1,8 @@
 # Madnight Engine Docs
 
+> [!NOTE]
+> AI usage in this repository has been limited to tooling and documentation generation. AI was not used to author any engine code, however existing logic in some areas may have been refactored with AI assistance.
+
 Docusaurus site for [psyqo-madnight-engine](https://github.com/Forceh91/psyqo-madnight-engine).
 
 ## Local development
@@ -34,3 +37,4 @@ If you'd rather deploy via GitHub Actions instead of the CLI, Docusaurus's own g
 - `docs/getting-started/` — ported from the engine's own `README.md` / `getting-started/README.md`
 - `docs/guides/` — ported from `tools/*.md` (MESHBIN/COLBIN/ANIMBIN/SCENEBIN format specs)
 - `docs/api/` — API reference written from the engine source headers (`src/`), organized by subsystem
+
