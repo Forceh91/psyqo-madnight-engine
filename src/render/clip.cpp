@@ -34,7 +34,7 @@
 #define CLIP_TOP 4
 #define CLIP_BOTTOM 8
 
-int test_clip(const psyqo::Rect *clip, uint16_t x, uint16_t y) {
+int test_clip(const psyqo::Rect *clip, int16_t x, int16_t y) {
 	int result = 0;
 
 	if (x < clip->pos.x) {
