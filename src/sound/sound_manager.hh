@@ -7,7 +7,6 @@
 #include "psyqo/spu.hh"
 #include <cstdint>
 
-static constexpr uint8_t VAG_FILE_NAME_LEN = 16;
 static constexpr uint8_t MAX_VAG_FILE_COUNT = 24; // same as the PS1's SPU channel count for now
 static constexpr int8_t INVALID_VAG_FILE_ID = -1;
 static constexpr uint32_t SPU_NOMINAL_PITCH = 4096;
