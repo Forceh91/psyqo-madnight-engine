@@ -235,10 +235,10 @@ psyqo::Coroutine<> MeshManager::LoadMesh(const char *meshName, MeshBin **meshOut
 
     // individual bone data
     for (int32_t i = 0; i < loaded_mesh.mesh.numBones; i++) {
-      loaded_mesh.mesh.skeleton->bones[i].id = i;
-
       if (i >= MAX_BONES)
         break;
+            
+      loaded_mesh.mesh.skeleton->bones[i].id = i;
 
       // parent bone
       __builtin_memcpy(&loaded_mesh.mesh.skeleton->bones[i].parent, ptr++, sizeof(int8_t)); // 1 byte
