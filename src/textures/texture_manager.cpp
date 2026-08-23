@@ -112,7 +112,7 @@ psyqo::Coroutine<> TextureManager::LoadTIM(const char *textureName, uint16_t x, 
         // clut x/y/w/h data
         uint16_t *rect = (uint16_t *)ptr;
         timFile.clutX = clutX > 0 ? clutX : rect[0];
-        timFile.clutY = clutY > 0 ? clutY : rect[1];
+        timFile.clutY = clutY >= 0 ? clutY : rect[1];
         timFile.clutWidth = rect[2];
         timFile.clutHeight = rect[3];
 
@@ -149,7 +149,7 @@ psyqo::Coroutine<> TextureManager::LoadTIM(const char *textureName, uint16_t x, 
     // dont forget to override x/y if provided
     uint16_t *rect = (uint16_t *)ptr;
     timFile.x = x > 0 ? x : rect[0];
-    timFile.y = y > 0 ? y : rect[1];
+    timFile.y = y >= 0 ? y : rect[1];
     timFile.width = rect[2];
     timFile.height = rect[3];
 

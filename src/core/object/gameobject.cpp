@@ -10,6 +10,7 @@ using namespace psyqo::fixed_point_literals;
 void GameObject::Destroy(void)
 {
     m_nameHash = 0;
+    m_name.clear();
     m_pos = {0, 0, 0};
     m_rotation = {0, 0, 0};
     m_tag = GameObjectTag::NONE;

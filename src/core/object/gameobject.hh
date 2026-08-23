@@ -12,6 +12,7 @@
 #include "gameobject_defs.hh"
 
 static constexpr uint8_t INVALID_GAMEOBJECT_ID = 255;
+static constexpr uint8_t MAX_GAMEOBJECT_NAME_LENGTH = 31;
 
 enum GameObjectQuadType {
   Quad,
@@ -28,6 +29,7 @@ enum RenderFlags { RF_NONE = 0, RF_DISTANCE_CHECK = 1 };
 
 class GameObject final {
   uint64_t m_nameHash = 0;
+  eastl::fixed_string<char, MAX_GAMEOBJECT_NAME_LENGTH> m_name;
   uint8_t m_id = INVALID_GAMEOBJECT_ID;
   GameObjectQuadType m_quadType = GameObjectQuadType::Quad;
   GameObjectTag m_tag = GameObjectTag::NONE;
@@ -49,6 +51,7 @@ public:
   GameObject() = default;
   GameObject(const char *name, psyqo::Vec3 pos, GameObjectRotation rotation, GameObjectTag tag, uint8_t id) {
     m_nameHash = HashName(name);
+    m_name = name;
     m_pos = pos;
     m_rotation = rotation;
     m_tag = tag;
@@ -59,6 +62,7 @@ public:
   void Destroy(void);
 
   uint64_t nameHash() const { return m_nameHash; }
+  const eastl::fixed_string<char, MAX_GAMEOBJECT_NAME_LENGTH> &name() const { return m_name; }
   const uint8_t &id() const { return m_id; };
   const psyqo::Vec3 &pos() const { return m_pos; }
 
