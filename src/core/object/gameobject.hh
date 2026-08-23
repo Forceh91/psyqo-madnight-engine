@@ -12,7 +12,7 @@
 #include "gameobject_defs.hh"
 
 static constexpr uint8_t INVALID_GAMEOBJECT_ID = 255;
-static constexpr uint8_t MAX_GAMEOBJECT_NAME_LENGTH = 31;
+static constexpr uint8_t MAX_GAMEOBJECT_NAME_LENGTH = 32;
 
 enum GameObjectQuadType {
   Quad,
