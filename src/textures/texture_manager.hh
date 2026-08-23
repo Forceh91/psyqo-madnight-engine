@@ -11,6 +11,9 @@ static constexpr uint16_t texturePageWidth = 64;
 static constexpr uint16_t texturePageHeight = 256;
 static constexpr uint8_t texturePageColumns = 16;
 static constexpr uint8_t MAX_TEXTURES = 32; // this will need tweaking later
+// 0 is a valid VRAM coordinate, so the 'use whatever the file says' sentinel has to be
+// a value VRAM can never hold. VRAM is 1024x512.
+static constexpr uint16_t TIM_POSITION_FROM_FILE = 0xFFFF;
 
 typedef struct _TIM_FILE
 {
