@@ -29,7 +29,7 @@ public:
         m_pos = pos;
         m_size = startSize;
         m_colour = m_startColour;
-        Billboard("", pos, startSize, 1);
+        SetQuadCorners();
     }
 
     void Process(const uint32_t &deltaTime);

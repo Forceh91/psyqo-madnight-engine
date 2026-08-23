@@ -30,6 +30,7 @@ public:
         m_particleLifeTime = particleLifeTimeSecs;
         m_maxParticles = m_particlesPerSecond * m_particleLifeTime;
         m_spawnRate = MICROSECONDS_IN_A_SECOND / m_particlesPerSecond;
+        m_spawnedParticles.reserve(m_maxParticles);
 
         GenerateRotationMatrix();
     };
