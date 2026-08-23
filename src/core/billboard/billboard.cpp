@@ -7,7 +7,7 @@
 using namespace psyqo::fixed_point_literals;
 
 void Billboard::Destroy(void) {
-    m_name.clear();
+    m_nameHash = 0;
     m_pos = {0,0,0};
     m_size = {0,0};
     m_texture = nullptr;

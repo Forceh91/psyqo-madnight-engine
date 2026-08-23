@@ -19,7 +19,7 @@ Billboard *BillboardManager::CreateBillboard(const eastl::fixed_string<char, MAX
 
 int16_t BillboardManager::GetFreeIndex(void) {
     for (auto i = 0; i < MAX_BILLBOARDS; i++) {
-        if (m_billboards.at(i).name().empty())
+        if (m_billboards.at(i).id() == INVALID_BILLBOARD_ID)
             return i;
     }
 
@@ -43,8 +43,12 @@ const eastl::fixed_vector<Billboard*, MAX_BILLBOARDS> &BillboardManager::GetActi
 }
 
 Billboard* BillboardManager::GetBillboardByName(const eastl::fixed_string<char, MAX_BILLBOARD_NAME_LENGTH> &name) {
+    return GetBillboardByName(HashName(name));
+}
+
+Billboard* BillboardManager::GetBillboardByName(uint64_t nameHash) {
     for (auto i = 0; i < MAX_BILLBOARDS; i++) {
-        if (m_billboards.at(i).name() == name)
+        if (m_billboards.at(i).id() != INVALID_BILLBOARD_ID && m_billboards.at(i).nameHash() == nameHash)
             return &m_billboards.at(i);
     }
 

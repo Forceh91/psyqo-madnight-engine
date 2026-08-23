@@ -22,7 +22,7 @@ public:
     ParticleEmitter() = default;
     ParticleEmitter(const eastl::fixed_string<char, MAX_PARTICLE_EMITTER_NAME_LENGTH> &name, const uint8_t &id, const psyqo::Vec3 &pos, const psyqo::FixedPoint<> radius, const uint8_t &particlesPerSecond, const uint8_t &particleLifeTimeSecs) {
         m_id = id;
-        m_name = name;
+        m_nameHash = HashName(name);
         m_pos = pos;
         m_rotatedPos = m_pos;
         m_radius = radius;
@@ -35,8 +35,8 @@ public:
         GenerateRotationMatrix();
     };
 
-    const eastl::fixed_string<char, MAX_PARTICLE_EMITTER_NAME_LENGTH> &name() const { return m_name; }
-    const uint8_t &id() const { return m_id; }    
+    uint64_t nameHash() const { return m_nameHash; }
+    const uint8_t &id() const { return m_id; }
 
     void Start(void);
     void Stop(void);
@@ -65,7 +65,7 @@ public:
     const bool &AreParticles2D() const { return m_particleIs2D; }
 private:
     bool m_isEnabled = false;
-    eastl::fixed_string<char, MAX_PARTICLE_EMITTER_NAME_LENGTH> m_name;
+    uint64_t m_nameHash = 0;
     uint8_t m_id = INVALID_PARTICLE_EMITTER_ID;
     psyqo::Vec3 m_pos = {0,0,0};
     psyqo::Vec3 m_rotatedPos = {0, 0, 0};
