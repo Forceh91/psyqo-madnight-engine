@@ -856,6 +856,10 @@ void Renderer::RenderSprite(const TimFile *texture, const psyqo::Rect rect, cons
   auto &tpages = m_tpages[frameBuffer];
   auto &sprites = m_sprites[frameBuffer];
 
+  // every caller shares one per-frame fragment budget
+  if (m_currentSpriteFragment >= MAX_SPRITE_FRAGMENTS)
+    return;
+
   // chain tpage info over
   auto tpageAttr = TextureManager::GetTPageAttr(texture);
   auto &tpage = tpages[m_currentSpriteFragment];
