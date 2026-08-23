@@ -208,5 +208,6 @@ void Camera::UpdateAngles(psyqo::Angle xAmount, psyqo::Angle yAmount, psyqo::Ang
 }
 
 psyqo::Matrix33 Camera::inverseRotationMatrix(void) {
-  return InverseMatrix33(m_rotationMatrix);
+  // always orthonormal, so the inverse is just the transpose
+  return TransposeMatrix33(m_rotationMatrix);
 }
