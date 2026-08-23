@@ -69,8 +69,8 @@ psyqo::Coroutine<> TextureManager::LoadTIM(const char *textureName, uint16_t x, 
         co_return;
     }
 
-    TimFile timFile = {"", 0};
-    timFile.name = textureName;
+    TimFile timFile = {};
+    timFile.nameHash = HashName(textureName);
     uint32_t *ptr = (uint32_t *)data;
 
     // check the header of the tim file
@@ -177,6 +177,9 @@ psyqo::Coroutine<> TextureManager::LoadTIM(const char *textureName, uint16_t x, 
     // now its uploaded to ram we can free the image data back up
     psyqo_free(imageData);
 
+    // mark texture as loaded
+    timFile.isLoaded = true;
+
     // store this into our pool
     m_textures[freeIx] = timFile;
 
@@ -223,7 +226,7 @@ int16_t TextureManager::GetFreeIndex(void)
 {
     for (auto i = 0; i < MAX_TEXTURES; i++)
     {
-        if (m_textures.at(i).name.empty())
+        if (!m_textures.at(i).isLoaded)
             return i;
     };
 
@@ -232,9 +235,14 @@ int16_t TextureManager::GetFreeIndex(void)
 
 TimFile *TextureManager::IsTextureLoaded(const char *name)
 {
+    return IsTextureLoaded(HashName(name));
+}
+
+TimFile *TextureManager::IsTextureLoaded(uint64_t nameHash)
+{
     for (auto i = 0; i < MAX_TEXTURES; i++)
     {
-        if (m_textures.at(i).name == name)
+        if (m_textures.at(i).isLoaded && m_textures.at(i).nameHash == nameHash)
             return &m_textures.at(i);
     };
 
@@ -251,6 +259,6 @@ void TextureManager::Dump(void)
     // clear out every instance of loaded_mesh, putting it back to zero
     for (int8_t i = 0; i < MAX_TEXTURES; i++)
     {
-        m_textures[i] = {"", 0};
+        m_textures[i] = {};
     }
 }

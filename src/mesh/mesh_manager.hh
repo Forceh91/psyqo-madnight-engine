@@ -65,7 +65,7 @@ struct MeshBin {
 };
 
 struct LoadedMeshBin {
-  eastl::fixed_string<char, MAX_ARCHIVE_FILE_NAME_LEN> meshName;
+  uint64_t meshNameHash;
   bool isLoaded;
   MeshBin mesh;
 };
@@ -74,6 +74,7 @@ class MeshManager {
   static LoadedMeshBin mLoadedMeshes[MAX_LOADED_MESHES];
 
   static MeshBin *IsMeshLoaded(const char *mesh_name);
+  static MeshBin *IsMeshLoaded(uint64_t meshNameHash);
   static int16_t FindSpaceForMesh(void);
 
 public:

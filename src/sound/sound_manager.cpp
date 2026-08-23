@@ -90,7 +90,7 @@ psyqo::Coroutine<> SoundManager::LoadVAGFile(const eastl::fixed_string<char, MAX
     ptr += sizeof(uint32_t);
 
     // store our name for it
-    vag.name.assign(fileName);
+    vag.nameHash = HashName(fileName);
 
     // skip past the rest of the header
     ptr += 28;
@@ -110,9 +110,12 @@ psyqo::Coroutine<> SoundManager::LoadVAGFile(const eastl::fixed_string<char, MAX
 }
 
 VagEntry* SoundManager::IsVAGLoaded(const eastl::fixed_string<char, MAX_ARCHIVE_FILE_NAME_LEN>& fileName) {
-    VagEntry* loadedVAG;
+    return IsVAGLoaded(HashName(fileName));
+}
+
+VagEntry* SoundManager::IsVAGLoaded(uint64_t nameHash) {
     for (auto& vag : m_vagFiles) {
-        if (vag.name == fileName)
+        if (vag.nameHash == nameHash)
             return &vag;
     }
 

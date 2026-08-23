@@ -37,8 +37,8 @@ psyqo::Coroutine<> MeshManager::LoadMesh(const char *meshName, MeshBin **meshOut
   }
 
   // basic struct setup and blanking out of the meshbin struct
-  LoadedMeshBin loaded_mesh = {"", 0};
-  loaded_mesh.meshName = meshName;
+  LoadedMeshBin loaded_mesh = {0, false};
+  loaded_mesh.meshNameHash = HashName(meshName);
   __builtin_memset(&loaded_mesh.mesh, 0, sizeof(MeshBin));
 
   // get ready with our buffer
@@ -302,14 +302,15 @@ psyqo::Coroutine<> MeshManager::LoadMesh(const char *meshName, MeshBin **meshOut
 }
 
 MeshBin *MeshManager::IsMeshLoaded(const char *meshName) {
-  using FixedString = eastl::fixed_string<char, MAX_ARCHIVE_FILE_NAME_LEN>;
-  FixedString eastl_mesh_name(meshName);
+  return IsMeshLoaded(HashName(meshName));
+}
 
+MeshBin *MeshManager::IsMeshLoaded(uint64_t meshNameHash) {
   LoadedMeshBin *loadedMesh = nullptr;
   for (int i = 0; i < MAX_LOADED_MESHES; i++) {
     // find the first loaded mesh that matches this mesh_name
     loadedMesh = &mLoadedMeshes[i];
-    if (loadedMesh && eastl_mesh_name == loadedMesh->meshName) {
+    if (loadedMesh && loadedMesh->isLoaded && loadedMesh->meshNameHash == meshNameHash) {
       return &loadedMesh->mesh;
     }
   }
@@ -330,14 +331,13 @@ int16_t MeshManager::FindSpaceForMesh(void) {
 }
 
 void MeshManager::UnloadMesh(const char *mesh_name) {
-  using FixedString = eastl::fixed_string<char, MAX_ARCHIVE_FILE_NAME_LEN>;
-  FixedString eastl_mesh_name(mesh_name);
+  uint64_t meshNameHash = HashName(mesh_name);
 
   LoadedMeshBin *loaded_mesh = nullptr;
   for (int i = 0; i < MAX_LOADED_MESHES; i++) {
     // find the first loaded mesh that matches this mesh_name
     loaded_mesh = &mLoadedMeshes[i];
-    if (loaded_mesh && eastl_mesh_name == loaded_mesh->meshName) {
+    if (loaded_mesh && loaded_mesh->isLoaded && meshNameHash == loaded_mesh->meshNameHash) {
       FreeLoadedMesh(loaded_mesh);
       break;
     }
@@ -371,6 +371,5 @@ void MeshManager::Dump(void) {
   // clear out every instance of loaded_mesh, putting it back to zero
   for (auto i = 0; i < MAX_LOADED_MESHES; i++) {
     FreeLoadedMesh(&mLoadedMeshes[i]);
-    mLoadedMeshes[i].meshName = "";
   }
 }
