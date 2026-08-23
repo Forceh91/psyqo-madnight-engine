@@ -309,7 +309,7 @@ MeshBin *MeshManager::IsMeshLoaded(const char *meshName) {
   for (int i = 0; i < MAX_LOADED_MESHES; i++) {
     // find the first loaded mesh that matches this mesh_name
     loadedMesh = &mLoadedMeshes[i];
-    if (loadedMesh && eastl_mesh_name == FixedString(loadedMesh->meshName)) {
+    if (loadedMesh && eastl_mesh_name == loadedMesh->meshName) {
       return &loadedMesh->mesh;
     }
   }
@@ -337,7 +337,7 @@ void MeshManager::UnloadMesh(const char *mesh_name) {
   for (int i = 0; i < MAX_LOADED_MESHES; i++) {
     // find the first loaded mesh that matches this mesh_name
     loaded_mesh = &mLoadedMeshes[i];
-    if (loaded_mesh && eastl_mesh_name == FixedString(loaded_mesh->meshName)) {
+    if (loaded_mesh && eastl_mesh_name == loaded_mesh->meshName) {
       FreeLoadedMesh(loaded_mesh);
       break;
     }
