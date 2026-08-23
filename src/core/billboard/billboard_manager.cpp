@@ -8,7 +8,7 @@
 eastl::array<Billboard, MAX_BILLBOARDS> BillboardManager::m_billboards;
 eastl::fixed_vector<Billboard*, MAX_BILLBOARDS> BillboardManager::m_activeBillboards;
 
-Billboard *BillboardManager::CreateBillboard(const eastl::fixed_string<char, MAX_BILLBOARD_NAME_LENGTH> name, psyqo::Vec3 pos, psyqo::Vec2 size) {
+Billboard *BillboardManager::CreateBillboard(const eastl::fixed_string<char, MAX_BILLBOARD_NAME_LENGTH> &name, psyqo::Vec3 pos, psyqo::Vec2 size) {
     auto ix = GetFreeIndex();
     if (ix == -1)
         return nullptr;
@@ -42,7 +42,7 @@ const eastl::fixed_vector<Billboard*, MAX_BILLBOARDS> &BillboardManager::GetActi
     return m_activeBillboards;
 }
 
-Billboard* BillboardManager::GetBillboardByName(const eastl::fixed_string<char, MAX_BILLBOARD_NAME_LENGTH> name) {
+Billboard* BillboardManager::GetBillboardByName(const eastl::fixed_string<char, MAX_BILLBOARD_NAME_LENGTH> &name) {
     for (auto i = 0; i < MAX_BILLBOARDS; i++) {
         if (m_billboards.at(i).name() == name)
             return &m_billboards.at(i);

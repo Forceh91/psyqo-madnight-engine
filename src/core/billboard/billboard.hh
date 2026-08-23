@@ -10,7 +10,7 @@
 class Billboard {
 public:
     Billboard() = default;
-    Billboard(eastl::fixed_string<char, MAX_BILLBOARD_NAME_LENGTH> name, psyqo::Vec3 pos, psyqo::Vec2 size, uint8_t id) {
+    Billboard(const eastl::fixed_string<char, MAX_BILLBOARD_NAME_LENGTH> &name, psyqo::Vec3 pos, psyqo::Vec2 size, uint8_t id) {
         m_name = name;
         m_pos = pos;
         m_size = size;

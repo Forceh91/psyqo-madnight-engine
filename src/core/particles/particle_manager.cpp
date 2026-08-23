@@ -47,7 +47,7 @@ const eastl::fixed_vector<ParticleEmitter*, MAX_PARTICLE_EMITTERS> &ParticleEmit
     return m_activeEmitters;
 }
 
-ParticleEmitter* ParticleEmitterManager::GetEmitterByName(const eastl::fixed_string<char, MAX_PARTICLE_EMITTER_NAME_LENGTH> name) {
+ParticleEmitter* ParticleEmitterManager::GetEmitterByName(const eastl::fixed_string<char, MAX_PARTICLE_EMITTER_NAME_LENGTH> &name) {
     for (auto i = 0; i < MAX_PARTICLE_EMITTERS; i++) {
         if (m_emitters.at(i).name() == name)
             return &m_emitters.at(i);
