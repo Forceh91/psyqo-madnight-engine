@@ -28,10 +28,10 @@ Then `fileCount` entries, each:
 | type | uint8_t | 1 | A `LoadFileType` value, see below. |
 | nameLen | uint8_t | 1 | Length of `name` in bytes. |
 | name | char[nameLen] | nameLen | Archive-relative path. **Not** null-terminated on the wire. |
-| vramX | uint16_t | 2 | TEXTURE entries only. |
-| vramY | uint16_t | 2 | TEXTURE entries only. |
-| clutX | uint16_t | 2 | TEXTURE entries only. |
-| clutY | uint16_t | 2 | TEXTURE entries only. |
+| vramX | uint16_t | 2 | TEXTURE entries only. `0xFFFF` means take it from the TIM. |
+| vramY | uint16_t | 2 | TEXTURE entries only. `0xFFFF` means take it from the TIM. |
+| clutX | uint16_t | 2 | TEXTURE entries only. `0xFFFF` means take it from the TIM. |
+| clutY | uint16_t | 2 | TEXTURE entries only. `0xFFFF` means take it from the TIM. |
 
 ### Texture placement
 
@@ -43,11 +43,10 @@ They are passed straight through to `TextureManager::LoadTIM`, which does no aut
 packing, so placement has to be planned per texture. Putting it in the manifest is what
 keeps a scene's VRAM layout in one place instead of scattered through game code.
 
-The X coordinates are the odd ones. `LoadTIM` treats a `vramX` or `clutX` of 0 as "use the
-position stored in the TIM file itself", so a manifest cannot currently place an image or a
-palette at VRAM X 0. `vramY` and `clutY` have no such sentinel and are always used as given,
-which is why the example below places a CLUT at Y 240 and a texture at Y 0 without either
-being reinterpreted. See the [textures page](../api/textures).
+All four are used exactly as given, and 0 is a real coordinate. Write `auto` in place of a
+number to mean "use the position stored in the TIM file itself" for that coordinate; the
+converter encodes it as `0xFFFF`, which VRAM can never hold. See the
+[textures page](../api/textures).
 
 ## Types
 
@@ -66,8 +65,8 @@ being reinterpreted. See the [textures page](../api/textures).
 ## Source manifest
 
 Plain text, one entry per line, whitespace separated. Blank lines are ignored and lines
-beginning with `#` are comments. Texture lines take four extra integers: `vramX vramY clutX
-clutY`.
+beginning with `#` are comments. Texture lines take four extra placements: `vramX vramY clutX
+clutY`. Each is an integer, or `auto` to take that coordinate from the TIM file.
 
 ```
 # scene manifest, SBSKT court scene

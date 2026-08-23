@@ -40,6 +40,11 @@ MAX_ARCHIVE_FILE_NAME_LEN = 255  # keep in sync with the C++ constant
 VRAM_WIDTH = 1024
 VRAM_HEIGHT = 512
 
+# keep in sync with TIM_POSITION_FROM_FILE in texture_manager.hh. 0 is a real
+# coordinate, so the sentinel has to be one VRAM can never hold.
+POSITION_FROM_FILE = 0xFFFF
+POSITION_FROM_FILE_KEYWORD = "auto"
+
 MAGIC = b"SCENEBIN"
 
 
@@ -92,11 +97,17 @@ def parse_source(path: Path):
                         f"line {lineno}: texture requires 4 fields "
                         f"(vramX vramY clutX clutY), got {len(extra_fields)}"
                     )
+                def placement(v):
+                    if v.lower() == POSITION_FROM_FILE_KEYWORD:
+                        return POSITION_FROM_FILE
+                    return int(v)
+
                 try:
-                    vram_x, vram_y, clut_x, clut_y = (int(v) for v in extra_fields)
+                    vram_x, vram_y, clut_x, clut_y = (placement(v) for v in extra_fields)
                 except ValueError:
                     raise SourceError(
-                        f"line {lineno}: texture coordinates must be integers"
+                        f"line {lineno}: texture coordinates must be integers "
+                        f"or '{POSITION_FROM_FILE_KEYWORD}'"
                     )
 
                 for label, val, limit in (
@@ -105,6 +116,8 @@ def parse_source(path: Path):
                     ("vramY", vram_y, VRAM_HEIGHT),
                     ("clutY", clut_y, VRAM_HEIGHT),
                 ):
+                    if val == POSITION_FROM_FILE:
+                        continue
                     if not (0 <= val < limit):
                         raise SourceError(
                             f"line {lineno}: {label}={val} out of range "
