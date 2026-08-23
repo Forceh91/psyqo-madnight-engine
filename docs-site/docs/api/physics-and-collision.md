@@ -26,8 +26,12 @@ public:
 };
 ```
 
-- **`IsAABBCollision`** is a cheap axis-aligned overlap test — used for broad-phase checks.
-- **`IsSATCollision`** runs the Separating Axis Theorem against two oriented boxes and, on overlap, fills `CollisionTest` with the minimum translation vector needed to push them apart — this is what backs push-out collision response against `.COLBIN` wall `OBB`s (see [COLBIN](../guides/colbin#types)).
+- **`IsAABBCollision`** is a cheap axis-aligned overlap test, provided for the game to call.
+- **`IsSATCollision`** runs the Separating Axis Theorem against two oriented boxes and, on overlap, fills `CollisionTest` with the minimum translation vector needed to push them apart. Provided for push-out collision response against `.COLBIN` wall `OBB`s (see [COLBIN](../guides/colbin#wall-obbs)).
+
+:::caution
+Neither function is currently used by the engine. `IsSATCollision`'s only reference outside its own definition is a commented-out line in `GameplayScene::frame`, and `IsAABBCollision` has no callers at all. Both are here for the game to call.
+:::
 
 `OBB` and `AABBCollision` themselves are defined in `src/core/collision_types.hh` — see [Core → Collision types](./core#collision-types).
 
@@ -74,6 +78,10 @@ public:
 
 `RaycastScene` only tests against game objects carrying the given `GameObjectTag` (see [Core → GameObjectTag](./core#gameobjecttag)) — pass a specific tag to avoid testing against everything in the world, e.g. `INTERACTABLE` for a "what am I looking at" prompt. Internally it tests the ray against each candidate object's AABB.
 
+:::caution
+`RaycastScene` is not currently used by the engine. Its only reference outside its own definition is a commented-out line in `GameplayScene::frame`, same as `IsSATCollision` above. It's here for the game to call.
+:::
+
 ### Usage
 
 ```cpp
@@ -92,7 +100,11 @@ if (Raycast::RaycastScene(ray, GameObjectTag::INTERACTABLE, &hit))
 
 `src/mesh/colbin_manager.hh`
 
-Loads a single `.COLBIN` collision mesh — floor triangles (for raycast-based ground detection) plus wall `OBB`s (for SAT-based push-out collision), pre-bucketed into a spatial grid for broad-phase culling. See the [COLBIN format spec](../guides/colbin) for the full binary layout and the runtime grid-lookup algorithm.
+Loads a single `.COLBIN` collision mesh (floor triangles, wall `OBB`s, and a spatial grid bucketing the walls) and makes it available via `Colbin()`/`walls()`. See the [COLBIN format spec](../guides/colbin) for the full binary layout.
+
+:::caution
+Loading is all `ColbinManager` does. `ColBin::floors` and the grid (`gridCells`) are parsed and stored but nothing in the engine reads them, and `walls()`/`Colbin()` have no callers either. Ground detection against floor triangles, SAT-based wall collision, and any grid-based broad-phase culling are the game's to write against this loaded data, not something the engine currently does for you.
+:::
 
 ```cpp
 struct FloorTri {
@@ -146,4 +158,4 @@ for (auto &wall : ColbinManager::walls()) {
 ### Internals
 
 - Loading a new `.COLBIN` fully overwrites `m_colbin` — there's no unload/reload-alongside step, so swap it out only when you're actually changing levels/rooms.
-- The spatial grid (`gridCells`) buckets wall indices per cell for broad-phase lookups; see the [COLBIN format spec](../guides/colbin) for exactly how a world position maps to a cell.
+- The spatial grid (`gridCells`) buckets wall indices per cell, but the engine has no grid lookup: nothing outside `ColbinManager` reads `gridCells`, `gridWidth`, `gridHeight`, `cellSize`, `originX`, or `originZ`. See the [COLBIN format spec](../guides/colbin) for the cell-index mapping the exporter uses, if you want to implement the lookup yourself.

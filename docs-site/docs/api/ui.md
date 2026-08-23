@@ -130,7 +130,7 @@ public:
 };
 ```
 
-Backed by fixed-capacity vectors (50 text elements, 40 sprite elements) — `Add*HUDElement` moves the element in and returns a stable pointer into that storage, which you hold onto to update or later remove it. [`PerfMonitor`](./core#perfmonitor) is built on top of this class.
+Backed by fixed-capacity vectors (50 text elements, 40 sprite elements), embedded in the class by value rather than allocated separately: a `GameplayHUD` instance is about 13.7 KB as a result. `Add*HUDElement` moves the element in and returns a stable pointer into that storage, which you hold onto to update or later remove it. Overflow is disabled on both vectors, so exceeding either capacity isn't a rejected call: `push_back` writes straight past the end of the fixed storage with no bounds check left in a release build, which is undefined behaviour rather than a dropped element. [`PerfMonitor`](./core#perfmonitor) is built on top of this class.
 
 ### Usage
 
@@ -188,7 +188,7 @@ public:
 };
 ```
 
-- Capacities: up to `MENU_MAX_TEXT_ELEMENTS` (20) text elements, `MENU_MAX_SPRITE_ELEMENTS` (50) sprite elements, `MENU_MAX_MENU_ITEMS` (10) [`MenuItem`](#menuitem)s.
+- Capacities: up to `MENU_MAX_TEXT_ELEMENTS` (20) text elements, `MENU_MAX_SPRITE_ELEMENTS` (50) sprite elements, `MENU_MAX_MENU_ITEMS` (10) [`MenuItem`](#menuitem)s. All three are fixed-capacity vectors with overflow disabled and embedded by value (a `Menu` instance is about 13.2 KB as a result); exceeding any of them is undefined behaviour rather than a dropped element or rejected call, same as [`GameplayHUD`](#gameplayhud).
 - `MoveSelectedMenuItemPrev`/`Next` are now `private` — navigation happens through the bound up/down buttons (or your own custom-bound buttons); they're no longer meant to be called directly from game code.
 - A disabled `MenuItem` is automatically skipped: if the currently-selected item is disabled when the menu renders, it advances to the next item that frame rather than rendering nothing as selected.
 
@@ -213,6 +213,7 @@ g_madnightEngine.m_input.setOnEvent([&](auto event) {
 
 - Backing out via the bound cancel button (`Triangle` by default) doesn't call `Deactivate()` immediately — it just sets a flag that's checked at the top of the *next* `frame()` call, so there's a one-frame delay. Calling `Deactivate()` yourself (e.g. from an `OnConfirm` callback, as above) pops the scene immediately.
 - `Deactivate()` just pops the scene, leaving the menu's elements/items intact for next time; `Destroy()` additionally frees all held text/sprite elements and menu items — use it for a menu you won't reopen (e.g. a one-shot results screen), not a pause menu you expect to reactivate.
+- `ProcessInputs` never checks `event.pad`: on a multitap, any connected pad drives the menu, not just the one you might expect. The pause-menu sample above binds without checking it either.
 
 Menus aren't limited to "list of items, navigate up/down" — a single `MenuItem` with `SetOnInputCallback` can act as a left/right selector over a completely different data set instead of a list of item states, using `SetCustomInputCallbackButtons` to opt those buttons in:
 
@@ -285,4 +286,5 @@ Defaults to [`COLOUR_WHITE`](./render#colour-constants) for unselected text and 
 
 ### Internals
 
-- `MenuItem::Render` has a `// TODO: handle is focused etc. etc.` marker in-source — selection currently only changes text colour, nothing else.
+- `Render` draws both the item's text and, if one has been set via `SetSpriteElement`, its sprite, both positioned relative to the parent `Menu`'s rect.
+- Selection changes the item's appearance, not just its text colour.

@@ -8,7 +8,7 @@ SCENEBIN format described in SCENEBIN.md.
 Source format (plain text, one entry per line):
 
     # comments and blank lines are ignored
-    sfx SFX/FCNTNA.VAG
+    vag SFX/FCNTNA.VAG
     texture TEXTURES/LOGO.TIM 320 0 0 240
     texture UI/CS_UI.TIM 320 129 0 241
     object MODELS/SBSKT.MB
@@ -23,8 +23,9 @@ import struct
 import sys
 from pathlib import Path
 
-# Must match LoadFileType in C++. SCENE (9999) is intentionally omitted --
-# the wire format's type field is a uint8_t and can't represent it yet.
+# Must match LoadFileType in C++. SCENE (255) is omitted because authoring nested
+# scenes is not implemented here yet; 255 fits the uint8_t type field fine, and both
+# SceneLoader::LoadScene and FileLoader::LoadFiles already handle SCENE entries.
 TYPE_MAP = {
     "object": 0,
     "texture": 1,
@@ -59,16 +60,16 @@ def parse_source(path: Path):
             fields = line.split()
             type_name = fields[0].lower()
 
+            if type_name == "scene":
+                raise SourceError(
+                    f"line {lineno}: authoring 'scene' entries is not implemented "
+                    f"in this converter yet (the engine loads them fine)"
+                )
+
             if type_name not in TYPE_MAP:
                 raise SourceError(
                     f"line {lineno}: unknown type '{fields[0]}' "
                     f"(expected one of: {', '.join(TYPE_MAP)})"
-                )
-
-            if type_name == "scene":
-                raise SourceError(
-                    f"line {lineno}: 'scene' entries are not supported yet "
-                    f"(SCENE doesn't fit the uint8_t type field)"
                 )
 
             if len(fields) < 2:

@@ -99,7 +99,7 @@ along with the matching `.elf` and `.map` files.
 
 ## 5. Run it
 
-Drop `build/madnight-engine-game.ps-exe` into your emulator of choice. If it worked, you'll see a grey scene with a debug HUD overlay showing FPS and heap usage — that's the engine's default gameplay scene confirming the whole chain (toolchain → engine → your code) is wired up correctly.
+Drop `build/madnight-engine-game.ps-exe` into your emulator of choice. If it worked, you'll see a black scene with a debug HUD overlay showing FPS and heap usage, which is the engine's default gameplay scene confirming the whole chain (toolchain -> engine -> your code) is wired up correctly.
 
 ## Loading assets
 

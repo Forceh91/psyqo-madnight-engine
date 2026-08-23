@@ -131,10 +131,9 @@ if (input.isButtonPressed(pad1, psyqo::AdvancedPad::R2)) rotationY = 128;
 if (ControllerHelper::IsPadAnalog(pad1)) {
     auto rx = ControllerHelper::GetNormalizedAnalogStickInput(pad1, ControllerHelper::RightStickX);
     auto ry = ControllerHelper::GetNormalizedAnalogStickInput(pad1, ControllerHelper::RightStickY);
-    // GetNormalizedAnalogStickInput applies no deadzone itself (see Controller) -- thresholded here
-    constexpr int deadzone = 16;
-    if (ry < -deadzone || ry > deadzone) rotationX = ry;
-    if (rx < -deadzone || rx > deadzone) rotationY = rx;
+    // GetNormalizedAnalogStickInput already applies the built-in deadzone (see Controller)
+    rotationX = ry;
+    rotationY = rx;
 }
 
 auto pos = m_character->posPtr();
@@ -190,14 +189,17 @@ Key constants (`src/render/renderer.hh`):
 | Constant | Value | Purpose |
 |---|---|---|
 | `ORDERING_TABLE_SIZE` | 10,000 | Depth buckets in each frame's ordering table |
-| `FULL_FOG_DISTANCE` | 3,500 | Screen-space Z past which fog is fully opaque |
-| `NEAR_FOG_DISTANCE` | 2,000 | Screen-space Z where fog starts blending in |
+| `FULL_FOG_DISTANCE` | 3,500 | Screen-space Z past which fog is fully opaque, 2D sprite particles only (see below) |
+| `NEAR_FOG_DISTANCE` | 2,000 | Screen-space Z where fog starts blending in, 2D sprite particles only (see below) |
 | `BUMP_ALLOCATOR_BYTES` | 125,000 | Per-frame draw-command arena (×2 for double buffering) |
-| `SUBDIVISION_DISTANCE` | 750 | View-space distance beyond which large textured quads/tris get subdivided to reduce perspective warping |
+| `SUBDIVISION_DISTANCE` | 750 | View-space distance closer than which large textured quads/tris get subdivided to reduce perspective warping (`renderer.cpp` subdivides when `zIndex <= SUBDIVISION_DISTANCE`) |
 
-**Typical per-frame flow:** call `Process()` to get `deltaTime`, `Clear()`/`StartScene()`, update and render your game objects/scene, then `Render(deltaTime)` to flush the ordering table to the GPU. `GameObjectManager`'s renderable-objects list (see [Core](./core#gameobjectmanager)) drives what `Renderer` actually draws each frame; visibility is culled per-object against the camera via `IsGameObjectVisible` internally, using each object's bounding sphere/AABB.
+**Typical per-frame flow:** call `Process()` to get `deltaTime`, `Clear()`/`StartScene()`, update and render your game objects/scene, then `Render(deltaTime)` to flush the ordering table to the GPU. `Renderer` draws whatever `GameObjectManager::GetActiveGameObjects` returns each frame (see [Core](./core#gameobjectmanager) on the renderable-objects subset, which currently isn't wired up to anything); visibility is culled per-object against the camera via `IsGameObjectVisible` internally, using each object's bounding volume.
 
-Fog is GTE-accelerated: `ApplyFogToColourGTE` uses the GTE's depth-cueing (`dpcs`) and perspective (`rtps`) registers rather than doing the lerp on the CPU per-vertex, and colour work is deferred until after visibility culling so only visible faces pay the cost.
+Fog comes in two unrelated forms. Don't tune one expecting it to affect the other:
+
+- **Meshes, billboards, and 3D particles** get GTE-accelerated fog: `ApplyFogToColourGTE` uses the GTE's depth-cueing (`dpcs`) and perspective (`rtps`) registers rather than doing the lerp on the CPU per-vertex, and colour work is deferred until after visibility culling so only visible faces pay the cost. The near/far distances it blends over are hardcoded in `SetFarColour` (`SetFogNearFar(0.5_fp, 1.55_fp)`), not the `FULL_FOG_DISTANCE`/`NEAR_FOG_DISTANCE` constants above.
+- **2D sprite particles** go through a separate CPU path (`GetFogFactor`, called only from that code path), which is what `FULL_FOG_DISTANCE`/`NEAR_FOG_DISTANCE` actually feed. It's also gated on `IsSimpleFogEnabled()`, which defaults to `false`.
 
 ### Usage
 
@@ -222,6 +224,11 @@ void GameplayScene::frame() {
 
 - `Process()` diffs `m_gpu.getFrameCount()` against the last call and returns 0 if nothing's changed yet — that's the "early return on 0" the header comment recommends, and it's how the engine avoids doing GTE/render work more than once per actual display refresh.
 - `Render()` walks game objects, then billboards, then particles, all against the *same* per-frame ordering table — draw order between those three categories is fixed, not something you control per-call.
+- `RenderSprite` draws a single 2D sprite, a region of a `TimFile` given by `uv` and placed at `rect`, straight to the screen, outside the ordering table. Up to 40 `RenderSprite` calls are supported per frame: `m_tpages`/`m_sprites` are fixed 40-entry arrays, indexed by `m_currentSpriteFragment`, which resets once per frame inside `Process()`.
+
+:::caution Bump allocator exhaustion is unguarded outside the subdivision path
+`OrderingTable::insert` clamps silently to a valid bucket in its default `Safe` mode. `BumpAllocator::allocateFragment`, used for the per-frame 125,000-byte arena, behaves the opposite way in its default `Safe` mode: it calls `Kernel::assert` and hard-crashes once the arena is exhausted. `SubdivideTexturedQuad`/`SubdivideTexturedTriangle` check `remaining()` first and fall back to inserting the polygon unsubdivided when there isn't room; the plain per-object, per-billboard, and per-particle fragment allocations elsewhere in `RenderGameObjects`/`RenderBillboards`/`RenderParticles` don't, so a scene that overflows the arena outside the subdivision path will assert.
+:::
 
 :::note Removed
 `RenderLoadingScreen` is gone — the built-in loading scene now just calls `Clear()` and prints its own percentage text via `SystemFont()->chainprintf(...)` directly, rather than the renderer owning a dedicated loading-screen draw call. See [Helpers → FileLoader](./helpers#fileloader) for the loading flow this feeds into.
@@ -231,7 +238,7 @@ void GameplayScene::frame() {
 
 `src/render/lighting.hh`
 
-Singleton holding the current scene's ambient colour and fog state. The renderer reads from it; you configure it through `Renderer::SetFogColour` rather than touching `Lighting` directly, so the renderer stays the single point of contact for render state.
+Singleton holding the current scene's ambient colour and fog state. The two are configured differently: fog colour goes through `Renderer::SetFogColour` (which also pushes the GTE far-colour registers), while ambient colour has no `Renderer` wrapper and is set directly on `Lighting::instance()`.
 
 ```cpp
 class Lighting {
@@ -274,7 +281,7 @@ Used as UI defaults (e.g. `TextHUDElement`'s default colour, `MenuItem`'s defaul
 
 `src/render/clip.hh`
 
-Free functions used internally by the renderer's subdivision logic to test screen-space primitives against the clip rectangle before they're pushed to the ordering table.
+Free functions used by `RenderGameObjects`/`RenderBillboards`/`RenderParticles` to trivially reject screen-space primitives against the clip rectangle before they're pushed to the ordering table.
 
 ```cpp
 // Returns non-zero if triangle (v0, v1, v2) is outside `clip`.
@@ -283,3 +290,5 @@ int tri_clip(const psyqo::Rect *clip, psyqo::Vertex *v0, psyqo::Vertex *v1, psyq
 // Returns non-zero if quad (v0, v1, v2, v3) is outside `clip`.
 int quad_clip(const psyqo::Rect *clip, psyqo::Vertex *v0, psyqo::Vertex *v1, psyqo::Vertex *v2, psyqo::Vertex *v3);
 ```
+
+There is no near-plane or frustum clipping anywhere in this section: these are a trivial reject only, run after GTE projection, checking whether the already-projected 2D vertices fall entirely outside the screen rectangle on one side, and correctly rejecting the primitive when they do. Nothing here clips a polygon that straddles the screen edge or the near plane: it's a whole-primitive accept/reject test.

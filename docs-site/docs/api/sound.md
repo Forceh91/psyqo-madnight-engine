@@ -76,14 +76,15 @@ SoundManager::SilenceChannels(1 << SPU_MAX_CHANNEL_ID); // bitmask, one bit per 
 
 ### Internals
 
-- SPU memory allocation is a simple bump pointer (`m_spuAllocPtr`) that only ever grows — `Dump()` resets the pointer and clears the loaded-file list, but doesn't erase the sample bytes already written to SPU RAM.
+- SPU memory allocation is a simple bump pointer (`m_spuAllocPtr`) that only ever grows. `Dump()` resets the pointer and clears the loaded-file list, but doesn't erase the sample bytes already written to SPU RAM. It also calls `psyqo::SPU::silenceChannels(0xffffffff)` first, stopping whatever is currently playing on every channel.
 - `channelId` is silently clamped to `SPU_MAX_CHANNEL_ID` (23), so passing an out-of-range channel doesn't crash, it just reuses the last channel.
+- `m_vagFiles` is `eastl::fixed_vector<VagEntry, MAX_VAG_FILE_COUNT>` with the overflow template argument omitted, which defaults to `true`. A 25th `LoadVAGFile` call silently heap-allocates past the documented 24-entry ceiling instead of failing there, unlike the UI's fixed vectors in [`GameplayHUD`](./ui#gameplayhud) and [`Menu`](./ui#menu), which explicitly disable overflow.
 
 ## ModSoundManager
 
 `src/sound/mod_sound_manager.hh`
 
-Plays `.MOD`-format tracker music. The underlying `modplayer` only holds **one** MOD file in the SPU at a time — loading a new one resets everything and replaces it.
+Plays `.MOD`-format tracker music. The underlying `modplayer` only holds **one** MOD file in the SPU at a time: loading a new one replaces it, but not literally everything. Music volume persists across the swap: `MOD_SetMusicVolume` is documented as surviving a subsequent `MOD_Load`, and `LoadMODSound` never touches `m_musicVolume`.
 
 ```cpp
 static constexpr uint16_t MAX_MUSIC_VOLUME = 65535;

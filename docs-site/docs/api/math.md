@@ -31,7 +31,7 @@ psyqo::Matrix33 TransposeMatrix33(const psyqo::Matrix33 &rotationMatrix);
 psyqo::Matrix33 InverseMatrix33(const psyqo::Matrix33 &rotationMatrix);
 ```
 
-For an orthonormal rotation matrix, the transpose *is* the inverse — `InverseMatrix33` exists as the semantically clearer name to reach for at call sites (e.g. `Camera::inverseRotationMatrix`). If the matrix is near-degenerate (determinant close to zero), it returns the input matrix unchanged rather than dividing by a tiny number.
+For an orthonormal rotation matrix, the transpose *is* the inverse, and it's the cheaper way to get there: `TransposeMatrix33` is exact and free, while `InverseMatrix33` pays for a determinant and a fixed-point division to land on the same result. `Camera::inverseRotationMatrix` calls `InverseMatrix33` on exactly such a matrix (built from three normalized, orthogonal basis vectors), and would be cheaper calling `TransposeMatrix33` instead, the way `SkeletonController::UpdateSkeletonBoneMatrices` already does for bind-pose inversion. Treat `InverseMatrix33` as the fallback for a genuinely non-orthonormal matrix, not the clearer-sounding default. If the matrix is near-degenerate (determinant close to zero), it returns the input matrix unchanged rather than dividing by a tiny number.
 
 ## Vector
 

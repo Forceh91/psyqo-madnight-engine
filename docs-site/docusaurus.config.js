@@ -17,8 +17,9 @@ const config = {
   organizationName: 'Forceh91',
   projectName: 'psyqo-madnight-engine',
 
-  onBrokenLinks: 'warn',
-  onBrokenMarkdownLinks: 'warn',
+  onBrokenLinks: 'throw',
+  onBrokenAnchors: 'throw',
+  onBrokenMarkdownLinks: 'throw',
 
   i18n: {
     defaultLocale: 'en',
