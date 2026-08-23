@@ -1,12 +1,12 @@
 #include "mesh_manager.hh"
 #include "../helpers/archive.hh"
-#include "psyqo/fixed-point.hh"
 #include "skeleton/skeleton.hh"
 
-#include "EASTL/string.h"
-#include "psyqo/alloc.h"
-#include "psyqo/soft-math.hh"
-#include "psyqo/xprintf.h"
+#include <EASTL/string.h>
+#include <psyqo/fixed-point.hh>
+#include <psyqo/alloc.h>
+#include <psyqo/soft-math.hh>
+#include <psyqo/xprintf.h>
 
 LoadedMeshBin MeshManager::mLoadedMeshes[MAX_LOADED_MESHES];
 
@@ -108,12 +108,6 @@ psyqo::Coroutine<> MeshManager::LoadMesh(const char *meshName, MeshBin **meshOut
 
     __builtin_memcpy(&loaded_mesh.mesh.vertices[i].z.value, ptr, sizeof(int32_t));
     ptr += sizeof(int32_t);
-  }
-
-  if (loaded_mesh.mesh.hasSkeleton) {
-    for (int32_t i = 0; i < loaded_mesh.mesh.vertexCount; i++) {
-      loaded_mesh.mesh.verticesOnBonePos[i] = loaded_mesh.mesh.vertices[i];
-    }
   }
 
   // read the vert colours data
@@ -228,6 +222,10 @@ psyqo::Coroutine<> MeshManager::LoadMesh(const char *meshName, MeshBin **meshOut
   if (version > 1 && loaded_mesh.mesh.hasSkeleton) {
     loaded_mesh.mesh.skeleton = (Skeleton *)psyqo_malloc(sizeof(Skeleton));
     loaded_mesh.mesh.verticesOnBonePos = (psyqo::Vec3 *)psyqo_malloc(sizeof(psyqo::Vec3) * loaded_mesh.mesh.vertexCount);
+
+    for (int32_t i = 0; i < loaded_mesh.mesh.vertexCount; i++) {
+      loaded_mesh.mesh.verticesOnBonePos[i] = loaded_mesh.mesh.vertices[i];
+    }    
 
     __builtin_memset(loaded_mesh.mesh.skeleton, 0, sizeof(Skeleton));
     __builtin_memset(&loaded_mesh.mesh.skeleton->bones, 0, sizeof(SkeletonBone) * MAX_BONES);
