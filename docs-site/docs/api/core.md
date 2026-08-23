@@ -48,12 +48,19 @@ public:
   void SetRenderFlag(const RenderFlags &rf);
   void ClearRenderFlag(const RenderFlags &rf);
   void ClearRenderFlags(void);
+
+  // generic, game-defined flags -- separate bitfield from RenderFlags, no engine meaning of its own
+  bool HasFlag(const uint32_t &flag);
+  void SetFlag(const uint32_t &flag);
+  void ClearFlag(const uint32_t &flag);
+  void ClearFlags(void);
 };
 ```
 
 - **`SetMesh`/`SetTexture`** look the asset up by name via `MeshManager`/`TextureManager` — the asset must already be loaded.
 - **`SetAsTrigger`** turns the object into a `CollisionType::TRIGGER` volume of the given size rather than a `SOLID` one, for overlap-only detection (e.g. interaction zones) instead of physical collision response.
 - **`RenderFlags::RF_DISTANCE_CHECK`** opts an object into distance-based culling in the renderer.
+- **`HasFlag`/`SetFlag`/`ClearFlag`** work on a separate, generic `uint32_t` bitfield with no engine-defined meaning — it's yours to use for game-specific per-object state (e.g. "already collected", "triggered this run") without needing a new field on every object.
 - The object's OBB (`obb()`) and rotation matrix are (re)computed internally when position/rotation change — you don't need to update them yourself.
 
 ### Usage
@@ -87,11 +94,13 @@ doorTrigger->SetAsTrigger(psyqo::Vec3{1.0_ws, 2.0_ws, 1.0_ws}); // no mesh neede
 
 - `SetPosition`/`SetRotation` both recompute the OBB on every call — no dirty-flag batching, so setting both in one frame means two recomputations.
 - A `SOLID` object's half-extents come from the mesh's baked collision box, set at asset-export time — not derived at runtime.
+- `UpdateOBB` no longer bails out for a `SOLID` object with no mesh yet — it now falls through with a `{0,0,0}` local centre in that case, same as a `TRIGGER`, rather than skipping the update entirely.
+- Worth double-checking if you rely on OBB centring: the current local-centre calculation for a solid mesh is `collisionBox.min + collisionBox.max / 2`, without parentheses around `min + max` — that's not the same value as the midpoint formula `(min + max) / 2` unless `min` is zero.
 
 ### GameObjectTag
 
 ```cpp
-enum GameObjectTag { NONE, ENVIRONMENT, INTERACTABLE };
+enum GameObjectTag { NONE, ENVIRONMENT, INTERACTABLE, PORTAL, PORTAL_ENTRANCE, PORTAL_EXIT };
 ```
 
 Used to filter/query objects (see `GameObjectManager::GetGameObjectsWithTag` and [`Raycast::RaycastScene`](./physics-and-collision#raycast), which raycasts only against objects with a specific tag).

@@ -171,8 +171,7 @@ public:
 
   void Render(void);
   void Render(uint32_t deltaTime);
-  void Clear(psyqo::Color clearColour = Lighting::instance().m_fogColour);
-  void RenderLoadingScreen(uint16_t loadPercentage);
+  void Clear(psyqo::Color clearColour = Lighting::instance().GetFogColour());
   void RenderSprite(const TimFile *tim, const psyqo::Rect rect, const psyqo::PrimPieces::UVCoords uv);
 
   void SetActiveCamera(Camera *camera);
@@ -224,6 +223,10 @@ void GameplayScene::frame() {
 - `Process()` diffs `m_gpu.getFrameCount()` against the last call and returns 0 if nothing's changed yet — that's the "early return on 0" the header comment recommends, and it's how the engine avoids doing GTE/render work more than once per actual display refresh.
 - `Render()` walks game objects, then billboards, then particles, all against the *same* per-frame ordering table — draw order between those three categories is fixed, not something you control per-call.
 
+:::note Removed
+`RenderLoadingScreen` is gone — the built-in loading scene now just calls `Clear()` and prints its own percentage text via `SystemFont()->chainprintf(...)` directly, rather than the renderer owning a dedicated loading-screen draw call. See [Helpers → FileLoader](./helpers#fileloader) for the loading flow this feeds into.
+:::
+
 ## Lighting
 
 `src/render/lighting.hh`
@@ -235,21 +238,26 @@ class Lighting {
 public:
   static Lighting &instance();
 
-  psyqo::Color m_ambient = {128, 128, 128};
-  psyqo::Color m_fogColour = DEFAULT_CLEAR_COLOR; // clear colour IS fog colour
-  bool m_isSimpleFogEnabled = false;
-
+  const bool &IsSimpleFogEnabled(void) const;
   void EnableSimpleFog(void);
   void DisableSimpleFog(void);
-  void SetAmbient(psyqo::Color colour);
+
+  const psyqo::Color &GetAmbientColour(void) const;
+  void SetAmbientColour(psyqo::Color colour);
+
+  const psyqo::Color &GetFogColour(void) const;
   void SetFogColour(psyqo::Color colour);
 };
 ```
 
 ```cpp
-Lighting::instance().SetAmbient({80, 80, 100});   // dim, slightly blue ambient
-Renderer::Instance().SetFogColour({20, 20, 30});  // also updates the GTE's far-colour registers
+Lighting::instance().SetAmbientColour({80, 80, 100}); // dim, slightly blue ambient
+Renderer::Instance().SetFogColour({20, 20, 30});       // also updates the GTE's far-colour registers
 ```
+
+:::note Renamed
+`SetAmbient` was renamed to `SetAmbientColour`, and `m_ambient`/`m_fogColour`/`m_isSimpleFogEnabled` are now private — use the getters above instead of reaching for the fields directly.
+:::
 
 ## Colour constants
 

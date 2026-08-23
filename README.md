@@ -1,3 +1,6 @@
+> [!NOTE]
+> AI usage in this repository has been limited to tooling and documentation generation. AI was not used to author any engine code, however existing logic in some areas may have been refactored with AI assistance.
+
 # Madnight Engine (psyqo)
 
 TLDR: Use the engine to make a game however you want, I don't care. It can be free or commerical, either is fine. All that you need to do is open source any changes that you make to the engine, as outlined in the [LICENSE](./LICENSE) in the file.

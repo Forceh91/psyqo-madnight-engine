@@ -6,6 +6,12 @@ sidebar_position: 1
 
 # Madnight Engine
 
+:::info[AI Disclaimer]
+
+AI usage in this repository has been limited to tooling and documentation generation. AI was not used to author any engine code, however existing logic in some areas may have been refactored with AI assistance.
+
+:::
+
 Madnight Engine is a reusable engine layer for PlayStation 1 homebrew, built on top of the [psyqo](https://github.com/grumpycoders/pcsx-redux/tree/main/src/mips/psyqo) / [nugget](https://github.com/pcsx-redux/nugget) framework. It's the engine behind Madnight Games' PS1 projects, open-sourced so anyone can build a game on top of it.
 
 :::caution Early days

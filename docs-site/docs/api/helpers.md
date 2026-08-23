@@ -5,7 +5,7 @@ sidebar_position: 11
 
 # Helpers
 
-`src/helpers/` — CD-ROM/archive file loading, the asset load queue used by `MadnightEngine::HardLoadingScreen`, and world-space unit literals.
+`src/helpers/` — CD-ROM/archive file loading, the asset load queue and loader that consumes it, and world-space unit literals.
 
 ## ArchiveHelper
 
@@ -50,7 +50,7 @@ public:
 
 `src/helpers/load_queue.hh`
 
-The runtime entry type produced by parsing a [SCENEBIN manifest](../guides/scenebin) — a list of these is what you hand to `MadnightEngine::HardLoadingScreen` to bulk-load everything a scene needs before switching to it.
+The runtime entry type produced by parsing a [SCENEBIN manifest](../guides/scenebin) — a list of these is what you hand to [`FileLoader::LoadFiles`](#fileloader) (directly, or via `MadnightEngine::HardLoadingScreen`/`SoftLoadingScreen`) to bulk-load everything a scene needs.
 
 ```cpp
 enum LoadFileType { OBJECT, TEXTURE, MOD_FILE, ANIMATION, COLBIN, VAG, SCENE = 255 };
@@ -66,16 +66,57 @@ struct LoadQueue {
 
 See [SCENEBIN → Types](../guides/scenebin#types) for the full type table and the on-disk manifest format this is parsed from.
 
+## FileLoader
+
+`src/file_loader.hh`
+
+Consumes a `LoadQueue` list and loads every entry through the matching manager (`MeshManager`, `TextureManager`, `ModSoundManager`, `AnimationManager`, `ColbinManager`, `SoundManager`) in order, one file at a time. This is the actual loading engine — `MadnightEngine::HardLoadingScreen`/`SoftLoadingScreen` (below) are the higher-level entry points most game code should call instead of using `FileLoader` directly, but it's useful to understand since it owns the queue, progress counters, and load order.
+
+```cpp
+enum LOAD_STATE : uint8_t { UNKNOWN, LOADING, COMPLETE };
+
+class FileLoader final {
+public:
+  // clearPools dumps all existing game objects, textures, meshes, colbins, and sfx first —
+  // it does not check whether anything is still in use before doing so.
+  static psyqo::Coroutine<> LoadFiles(eastl::vector<LoadQueue> &&files, bool clearPools = true);
+  static uint16_t TotalFiles(void);  // increases as SCENE entries are encountered
+  static uint16_t LoadedFiles(void);
+  static LOAD_STATE LoadState(void);
+};
+```
+
 ### Usage
+
+Most game code goes through `MadnightEngine` rather than calling `FileLoader` directly — it wraps `FileLoader::LoadFiles` with scene push/pop around the built-in (or your own) loading screen:
 
 ```cpp
 eastl::vector<LoadQueue> files;
 co_await SceneLoader::LoadScene("level01.scenebin", files); // parses the manifest into a queue
 
-// hands the queue to the engine's built-in loading scene, which loads everything
-// then switches to postLoadScene once done
+// pops the current scene, shows the loading screen, loads everything, then switches to postLoadScene
 co_await g_madnightEngine.HardLoadingScreen(eastl::move(files), &gameplayScene);
 ```
+
+Two lighter variants exist alongside `HardLoadingScreen`:
+
+```cpp
+// keeps the current scene on the stack instead of unloading it, and doesn't dump existing
+// pools -- useful for streaming in extra assets without a full scene transition
+co_await g_madnightEngine.SoftLoadingScreen(eastl::move(files));
+
+// either HardLoadingScreen or SoftLoadingScreen can take your own loading scene instead
+// of the engine's default one
+co_await g_madnightEngine.HardLoadingScreen(eastl::move(files), myLoadingScene, &gameplayScene);
+```
+
+Calling `FileLoader::LoadFiles` directly only makes sense if you're building your own loading-screen flow rather than using `MadnightEngine`'s.
+
+### Internals
+
+- `LoadFiles` empties and releases the queue's capacity (`m_queue.set_capacity(0)`) once loading finishes — it doesn't just sit there holding memory between loads.
+- A `SCENE`-type entry can append more entries onto the queue mid-load (via `SceneLoader::LoadScene`), which is why `TotalFiles()` can grow while loading is in progress — don't treat it as a fixed count up front.
+- `clearPools` (default `true`) dumps game objects, meshes, textures, colbins, and sound all at once before loading starts — pass `false` (as `SoftLoadingScreen` does) if you want to add to what's already loaded instead of replacing it.
 
 ## World-space literals
 

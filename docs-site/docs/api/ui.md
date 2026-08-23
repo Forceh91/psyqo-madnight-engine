@@ -116,6 +116,8 @@ public:
 
   void Enable();
   void Disable();
+  bool IsEnabled(void);
+  void Destroy(void); // disables and frees all held text/sprite elements
   void Render(void);
 
   // don't lose track of the returned pointer!
@@ -161,6 +163,7 @@ public:
   bool IsEnabled(void);
   void Activate(void);
   void Deactivate(void); // also triggered by the configured back/cancel button
+  void Destroy(void);    // deactivates, pops the scene, and frees all held elements/items
 
   void SetControllerBindings(const MenuControllerBinds &bindings); // uses defaults if not called
   // Override only the buttons that trigger menu item input callbacks, on top
@@ -170,6 +173,7 @@ public:
   void SetOnFrame(eastl::function<void(uint32_t)> callback);
   void SetOnActivate(eastl::function<void(void)> callback);
   void SetOnDeactivate(eastl::function<void(void)> callback);
+  void SetOnDestroy(eastl::function<void(void)> callback);
 
   TextHUDElement *AddTextHUDElement(TextHUDElement &&textElement);
   void RemoveTextHUDElement(TextHUDElement *element);
@@ -180,14 +184,13 @@ public:
   MenuItem *AddMenuItem(const char *name, const char *displayText, const psyqo::Rect posSize);
   void AddMenuItems(const eastl::span<MenuItem> &items);
   void SetDefaultFont(psyqo::Font<100> *font);
-
-  uint8_t MoveSelectedMenuItemPrev();
-  uint8_t MoveSelectedMenuItemNext();
+  void SetSelectedMenuItem(uint8_t ix); // clamped to a valid index
 };
 ```
 
 - Capacities: up to `MENU_MAX_TEXT_ELEMENTS` (20) text elements, `MENU_MAX_SPRITE_ELEMENTS` (50) sprite elements, `MENU_MAX_MENU_ITEMS` (10) [`MenuItem`](#menuitem)s.
-- `MoveSelectedMenuItemPrev`/`Next` wrap around the item list and update the internal selection index — call these from your controller-binds handling, or rely on the defaults below.
+- `MoveSelectedMenuItemPrev`/`Next` are now `private` — navigation happens through the bound up/down buttons (or your own custom-bound buttons); they're no longer meant to be called directly from game code.
+- A disabled `MenuItem` is automatically skipped: if the currently-selected item is disabled when the menu renders, it advances to the next item that frame rather than rendering nothing as selected.
 
 ### Usage
 
@@ -209,6 +212,7 @@ g_madnightEngine.m_input.setOnEvent([&](auto event) {
 ### Internals
 
 - Backing out via the bound cancel button (`Triangle` by default) doesn't call `Deactivate()` immediately — it just sets a flag that's checked at the top of the *next* `frame()` call, so there's a one-frame delay. Calling `Deactivate()` yourself (e.g. from an `OnConfirm` callback, as above) pops the scene immediately.
+- `Deactivate()` just pops the scene, leaving the menu's elements/items intact for next time; `Destroy()` additionally frees all held text/sprite elements and menu items — use it for a menu you won't reopen (e.g. a one-shot results screen), not a pause menu you expect to reactivate.
 
 Menus aren't limited to "list of items, navigate up/down" — a single `MenuItem` with `SetOnInputCallback` can act as a left/right selector over a completely different data set instead of a list of item states, using `SetCustomInputCallbackButtons` to opt those buttons in:
 
@@ -261,6 +265,7 @@ public:
 
   void Enable();
   void Disable();
+  bool IsEnabled() const;
   void Render(const psyqo::Rect parentRect, const bool isSelected, psyqo::Font<100> *fallbackFont);
 
   void SetSpriteElement(const SpriteHUDElement &sprite);
