@@ -60,6 +60,6 @@ VRAM placement is entirely manual, and getting `x`/`y`/`clutX`/`clutY` right req
 - Pages are `64×256` px each, so a texture must fit within 1, 2, or 4 *contiguous* pages depending on colour depth — 4-bit textures are squeezed to 1/4 width in VRAM, 8-bit to 1/2 width, 16-bit at full width.
 - You can't mix colour depths within one page.
 - CLUTs have known-safe rows at `y=240-255` and `y=496-511` (X must be a multiple of 16), which is why the usage example above places the CLUT at `y=240`.
-- Passing `0` for `x`/`y`/`clutX`/`clutY` means "use the position stored in the TIM" rather than an explicit placement at `0`.
+- `x` and `clutX` treat 0 as "use the position stored in the TIM" rather than as a placement at VRAM X 0, so an explicit X of 0 cannot be expressed. `y` and `clutY` have no such sentinel and are always used as given. The asymmetry is real: 0 is a valid coordinate on both axes, so the X behaviour needs a sentinel that cannot collide with one.
 
 Getting this wrong doesn't crash: textures can silently overlap or clip in VRAM. The [SCENEBIN format](../guides/scenebin#texture-placement) is the intended way to keep placement authoritative and consistent per-scene rather than hardcoding coordinates per texture.

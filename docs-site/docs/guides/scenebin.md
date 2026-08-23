@@ -43,9 +43,11 @@ They are passed straight through to `TextureManager::LoadTIM`, which does no aut
 packing, so placement has to be planned per texture. Putting it in the manifest is what
 keeps a scene's VRAM layout in one place instead of scattered through game code.
 
-Passing 0 for any of `vramX`/`vramY`/`clutX`/`clutY` means "use the position stored in the TIM
-file itself" for that coordinate. See the [textures page](../api/textures) for the full
-placement rules.
+The X coordinates are the odd ones. `LoadTIM` treats a `vramX` or `clutX` of 0 as "use the
+position stored in the TIM file itself", so a manifest cannot currently place an image or a
+palette at VRAM X 0. `vramY` and `clutY` have no such sentinel and are always used as given,
+which is why the example below places a CLUT at Y 240 and a texture at Y 0 without either
+being reinterpreted. See the [textures page](../api/textures).
 
 ## Types
 
