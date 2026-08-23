@@ -85,6 +85,15 @@ psyqo::Coroutine<> MeshManager::LoadMesh(const char *meshName, MeshBin **meshOut
   if (version > 1) {
     __builtin_memcpy(&loaded_mesh.mesh.hasSkeleton, ptr++, sizeof(uint8_t)); // 1 byte
     __builtin_memcpy(&loaded_mesh.mesh.numBones, ptr++, sizeof(uint8_t));    // 1 byte
+
+    // more bones than the skeleton can hold. loading a prefix would leave numBones
+    // describing bones that aren't there, and everything downstream loops on numBones
+    if (loaded_mesh.mesh.hasSkeleton && loaded_mesh.mesh.numBones > MAX_BONES) {
+      printf("MESH: Mesh has %d bones, max is %d, aborting load.\n", loaded_mesh.mesh.numBones, MAX_BONES);
+      __builtin_memset(&loaded_mesh, 0, sizeof(LoadedMeshBin));
+      buffer.clear();
+      co_return;
+    }
   }
 
   // do we have too many faces?
@@ -235,9 +244,6 @@ psyqo::Coroutine<> MeshManager::LoadMesh(const char *meshName, MeshBin **meshOut
 
     // individual bone data
     for (int32_t i = 0; i < loaded_mesh.mesh.numBones; i++) {
-      if (i >= MAX_BONES)
-        break;
-
       loaded_mesh.mesh.skeleton->bones[i].id = i;
 
       // parent bone
