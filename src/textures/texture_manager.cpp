@@ -53,7 +53,7 @@ psyqo::Coroutine<> TextureManager::LoadTIM(const char *textureName, uint16_t x, 
     }
 
     // no its not. find space for it
-    int8_t freeIx = GetFreeIndex();
+    auto freeIx = GetFreeIndex();
     if (freeIx == -1)
         co_return;
 
@@ -218,9 +218,9 @@ psyqo::Rect TextureManager::GetTPageUVForTim(const TimFile *tim)
     return rect;
 }
 
-int8_t TextureManager::GetFreeIndex(void)
+int16_t TextureManager::GetFreeIndex(void)
 {
-    for (uint8_t i = 0; i < MAX_TEXTURES; i++)
+    for (auto i = 0; i < MAX_TEXTURES; i++)
     {
         if (m_textures.at(i).name.empty())
             return i;
@@ -231,7 +231,7 @@ int8_t TextureManager::GetFreeIndex(void)
 
 TimFile *TextureManager::IsTextureLoaded(const char *name)
 {
-    for (uint8_t i = 0; i < MAX_TEXTURES; i++)
+    for (auto i = 0; i < MAX_TEXTURES; i++)
     {
         if (m_textures.at(i).name == name)
             return &m_textures.at(i);

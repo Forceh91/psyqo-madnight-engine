@@ -312,8 +312,8 @@ MeshBin *MeshManager::IsMeshLoaded(const char *meshName) {
   return nullptr;
 }
 
-int8_t MeshManager::FindSpaceForMesh(void) {
-  for (int8_t i = 0; i < MAX_LOADED_MESHES; i++) {
+int16_t MeshManager::FindSpaceForMesh(void) {
+  for (auto i = 0; i < MAX_LOADED_MESHES; i++) {
     // return the first mesh that isn't loaded
     if (mLoadedMeshes[i].isLoaded == false)
       return i;

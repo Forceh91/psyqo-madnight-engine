@@ -22,7 +22,7 @@ private:
     static eastl::array<Billboard, MAX_BILLBOARDS> m_billboards;
     static eastl::fixed_vector<Billboard*, MAX_BILLBOARDS> m_activeBillboards;
     
-    static int8_t GetFreeIndex(void);
+    static int16_t GetFreeIndex(void);
 };
 
 #endif

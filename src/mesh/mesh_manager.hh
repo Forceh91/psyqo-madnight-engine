@@ -74,7 +74,7 @@ class MeshManager {
   static LoadedMeshBin mLoadedMeshes[MAX_LOADED_MESHES];
 
   static MeshBin *IsMeshLoaded(const char *mesh_name);
-  static int8_t FindSpaceForMesh(void);
+  static int16_t FindSpaceForMesh(void);
 
 public:
   static psyqo::Coroutine<> LoadMesh(const char *meshName, MeshBin **meshOut);

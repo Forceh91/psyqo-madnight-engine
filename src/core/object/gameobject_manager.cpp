@@ -10,7 +10,7 @@ eastl::fixed_vector<GameObject *, MAX_GAME_OBJECTS> GameObjectManager::m_rendera
 GameObject *GameObjectManager::CreateGameObject(const char *name, psyqo::Vec3 pos, GameObjectRotation rotation, GameObjectTag tag)
 {
     // do we have space in the game objects for this?
-    int8_t freeIx = GetFreeIndex();
+    auto freeIx = GetFreeIndex();
     if (freeIx == -1)
         return nullptr;
 
@@ -19,7 +19,7 @@ GameObject *GameObjectManager::CreateGameObject(const char *name, psyqo::Vec3 po
     return &m_gameObjects[freeIx];
 }
 
-int8_t GameObjectManager::GetFreeIndex(void)
+int16_t GameObjectManager::GetFreeIndex(void)
 {
     for (uint8_t i = 0; i < MAX_GAME_OBJECTS; i++)
     {

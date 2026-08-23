@@ -29,7 +29,7 @@ class TextureManager final
     static psyqo::Vertex GetTPageIndex(uint16_t x, uint16_t y);
     static eastl::array<TimFile, MAX_TEXTURES> m_textures;
 
-    static int8_t GetFreeIndex(void);
+    static int16_t GetFreeIndex(void);
     static TimFile *IsTextureLoaded(const char *name);
 
 public:

@@ -22,7 +22,7 @@ ParticleEmitter *ParticleEmitterManager::CreateParticleEmitter(const eastl::fixe
     return &m_emitters[ix];
 }
 
-int8_t ParticleEmitterManager::GetFreeIndex(void) {
+int16_t ParticleEmitterManager::GetFreeIndex(void) {
     for (auto i = 0; i < MAX_PARTICLE_EMITTERS; i++) {
         if (m_emitters.at(i).name().empty())
             return i;

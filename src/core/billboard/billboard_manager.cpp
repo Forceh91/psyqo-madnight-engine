@@ -17,7 +17,7 @@ Billboard *BillboardManager::CreateBillboard(const eastl::fixed_string<char, MAX
     return &m_billboards[ix];
 }
 
-int8_t BillboardManager::GetFreeIndex(void) {
+int16_t BillboardManager::GetFreeIndex(void) {
     for (auto i = 0; i < MAX_BILLBOARDS; i++) {
         if (m_billboards.at(i).name().empty())
             return i;

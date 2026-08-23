@@ -23,7 +23,7 @@ private:
     static eastl::array<ParticleEmitter, MAX_PARTICLE_EMITTERS> m_emitters;
     static eastl::fixed_vector<ParticleEmitter*, MAX_PARTICLE_EMITTERS> m_activeEmitters;
     
-    static int8_t GetFreeIndex(void);
+    static int16_t GetFreeIndex(void);
 };
 
 #endif
