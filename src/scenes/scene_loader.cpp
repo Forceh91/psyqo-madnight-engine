@@ -30,6 +30,7 @@ psyqo::Coroutine<> SceneLoader::LoadScene(const eastl::fixed_string<char, MAX_AR
     // number of files
     uint8_t fileCount = 0;
     __builtin_memcpy(&fileCount, ptr, sizeof(uint8_t));
+    queue.reserve(queue.size() + fileCount);
     ptr += sizeof(uint8_t);
 
     for (int i = 0; i < fileCount; i++) {

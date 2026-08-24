@@ -23,9 +23,9 @@ void DebugMenu::Init()
         if (event.type != psyqo::AdvancedPad::Event::ButtonReleased) return;
 
         if (event.button == psyqo::AdvancedPad::Button::Up)
-            m_selectedDebugOption = (m_selectedDebugOption == 0) ? 1 : m_selectedDebugOption - 1;
+            m_selectedDebugOption = (m_selectedDebugOption + DEBUG_MENU_OPTION_COUNT - 1) % DEBUG_MENU_OPTION_COUNT;
         if (event.button == psyqo::AdvancedPad::Button::Down)
-            m_selectedDebugOption = (m_selectedDebugOption % 2) + 1;
+            m_selectedDebugOption = (m_selectedDebugOption + 1) % DEBUG_MENU_OPTION_COUNT;
 
         if (m_isEnabled) {
             switch (m_selectedDebugOption)

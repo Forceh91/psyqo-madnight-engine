@@ -4,6 +4,8 @@
 #include "../../madnight.hh"
 #include "../world_defs.hh"
 
+static constexpr uint8_t DEBUG_MENU_OPTION_COUNT = 2;
+
 class DebugMenu final
 {
     static bool m_isEnabled;

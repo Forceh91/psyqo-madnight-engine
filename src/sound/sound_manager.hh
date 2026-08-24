@@ -17,7 +17,7 @@ static constexpr uint8_t SPU_MAX_CHANNEL_ID = 23;
 
 typedef struct _VagEntry {
     int8_t id = INVALID_VAG_FILE_ID; // for quick reference
-    eastl::fixed_string<char, MAX_ARCHIVE_FILE_NAME_LEN> name; // the name we supplied for the cd rom, not the one from the header
+    uint64_t nameHash; // hash of the name we supplied for the cd rom, not the one from the header
     uint32_t spuAddr;                       // where it lives in SPU RAM
     uint32_t pitch;                         // precomputed from sample rate
     uint32_t size;                          // how much SPU RAM it occupies
@@ -32,6 +32,7 @@ public:
     static void Dump(void);
     static psyqo::Coroutine<> LoadVAGFile(const eastl::fixed_string<char, MAX_ARCHIVE_FILE_NAME_LEN>& fileName, VagEntry** out);
     static VagEntry* IsVAGLoaded(const eastl::fixed_string<char, MAX_ARCHIVE_FILE_NAME_LEN>& fileName);
+    static VagEntry* IsVAGLoaded(uint64_t nameHash);
     static VagEntry* IsVAGLoaded(const uint8_t& fileName);
     static void SilenceChannels(const uint32_t channels);
     static void PlayVAGFile(const VagEntry* vag, uint8_t channelId, const psyqo::SPU::ChannelPlaybackConfig &config, bool hardCut = false);

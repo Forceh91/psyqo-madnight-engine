@@ -14,7 +14,7 @@ struct SkeletonBoneMatrix {
 };
 
 struct SkeletonBone {
-  int8_t id;
+  int8_t id = -1;
   int8_t parent;                           // -1 = root
   psyqo::Vec3 localPos = {0, 0, 0};        // relative to parent
   Quaternion localRotation = {0, 0, 0, 0}; // relative to parent

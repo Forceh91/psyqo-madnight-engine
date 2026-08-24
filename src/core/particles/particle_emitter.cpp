@@ -19,7 +19,7 @@ void ParticleEmitter::Stop(void) {
 }
 
 void ParticleEmitter::Destroy(void) {
-    m_name.clear();
+    m_nameHash = 0;
     m_pos = {0,0,0};
     m_radius = 0;
     m_id = INVALID_PARTICLE_EMITTER_ID;

@@ -11,12 +11,13 @@
 
 class BillboardManager final {
 public:
-    static Billboard* CreateBillboard(const eastl::fixed_string<char, MAX_BILLBOARD_NAME_LENGTH> name, psyqo::Vec3 pos, psyqo::Vec2 size);
+    static Billboard* CreateBillboard(const eastl::fixed_string<char, MAX_BILLBOARD_NAME_LENGTH> &name, psyqo::Vec3 pos, psyqo::Vec2 size);
     static void DestroyBillboard(Billboard* billboard);
 
     static const eastl::fixed_vector<Billboard*, MAX_BILLBOARDS> &GetActiveBillboards(void);
     static const eastl::array<Billboard, MAX_BILLBOARDS> &GetBillboards(void) { return m_billboards; }
-    static Billboard* GetBillboardByName(const eastl::fixed_string<char, MAX_BILLBOARD_NAME_LENGTH> name);
+    static Billboard* GetBillboardByName(const eastl::fixed_string<char, MAX_BILLBOARD_NAME_LENGTH> &name);
+    static Billboard* GetBillboardByName(uint64_t nameHash);
 
 private:
     static eastl::array<Billboard, MAX_BILLBOARDS> m_billboards;

@@ -27,7 +27,8 @@ void GameplayScene::start(StartReason reason) {
   m_heapSizeText = m_debugHUD.AddTextHUDElement(TextHUDElement("HEAP", {.pos = {5, 0}, .size = {100, 100}}));
   m_fpsText = m_debugHUD.AddTextHUDElement(TextHUDElement("FPS", {.pos = {5, 15}, .size = {100, 100}}));
 
-  m_camera = new Camera();
+  if (m_camera == nullptr)
+    m_camera = new Camera();
 }
 
 void GameplayScene::teardown(TearDownReason reason) { g_madnightEngine.m_input.setOnEvent(nullptr); }
