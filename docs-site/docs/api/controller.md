@@ -43,5 +43,5 @@ if (ControllerHelper::IsPadAnalog(pad)) {
 ### Internals
 
 - `GetNormalizedAnalogStickInput` applies the `ANALOG_STICK_DEADZONE*` constants (16 on each axis) before returning, so stick drift near center already reads as zero.
-- `init()` puts the controller into analog mode.
+- `init()` is a stub. It is where forcing the pad into analog mode would go, and nothing calls it yet, so pads report whatever mode they power up in.
 - Unlike `ControllerHelper`'s explicit `Pad` parameter, the engine's `AdvancedPad::Event`-driven code (menu navigation, the debug menu, the pause-menu bind) never checks `event.pad`: on a multitap, any connected pad fires those handlers, not just the one you might expect.
