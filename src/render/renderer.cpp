@@ -868,7 +868,6 @@ void Renderer::RenderSprite(const TimFile *texture, const psyqo::Rect rect, cons
   tpage.primitive.attr = tpageAttr;
   m_gpu.chain(tpage);
 
-  // fix this so it actually renders more than one sprite
   auto &sprite = sprites[m_currentSpriteFragment++];
   sprite.primitive.position = rect.pos;
   sprite.primitive.size = rect.size;

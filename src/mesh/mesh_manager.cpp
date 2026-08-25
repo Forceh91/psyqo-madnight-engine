@@ -22,7 +22,7 @@ psyqo::Coroutine<> MeshManager::LoadMesh(const char *meshName, MeshBin **meshOut
   }
 
   // is there space for this mesh?
-  int8_t meshIx = FindSpaceForMesh();
+  auto meshIx = FindSpaceForMesh();
   if (meshIx == -1)
     co_return;
 
@@ -238,6 +238,8 @@ psyqo::Coroutine<> MeshManager::LoadMesh(const char *meshName, MeshBin **meshOut
 
     __builtin_memset(loaded_mesh.mesh.skeleton, 0, sizeof(Skeleton));
     __builtin_memset(&loaded_mesh.mesh.skeleton->bones, 0, sizeof(SkeletonBone) * MAX_BONES);
+    for (auto i = 0; i < MAX_BONES; i++)
+      loaded_mesh.mesh.skeleton->bones[i].id = -1;
 
     // number of bones
     loaded_mesh.mesh.skeleton->numBones = loaded_mesh.mesh.numBones;

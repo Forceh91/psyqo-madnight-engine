@@ -1,9 +1,5 @@
 #include "quaternion.hh"
-#include "psyqo/fixed-point.hh"
-#include "psyqo/gte-registers.hh"
-#include "psyqo/matrix.hh"
 #include "psyqo/soft-math.hh"
-#include "psyqo/trigonometry.hh"
 
 using namespace psyqo::trig_literals;
 
@@ -55,7 +51,7 @@ psyqo::Matrix33 Quaternion::ToRotationMatrix() const {
 }
 
 Quaternion FromEulerAngles(psyqo::Angle pitch, psyqo::Angle yaw, const psyqo::Trig<> &trig) {
-  psyqo::GTE::Short cr = 0;
+  psyqo::GTE::Short cr = 1;
   psyqo::GTE::Short sr = 0;
 
   auto cosPitch = psyqo::GTE::Short(trig.cos(pitch / 2));
@@ -72,6 +68,22 @@ Quaternion FromEulerAngles(psyqo::Angle pitch, psyqo::Angle yaw, const psyqo::Tr
 
   return q;
 };
+
+Quaternion FromEulerAngles(psyqo::Angle pitch, psyqo::Angle yaw, psyqo::Angle roll, const psyqo::Trig<> &trig) {
+    auto cr = psyqo::GTE::Short(trig.cos(roll / 2));
+    auto sr = psyqo::GTE::Short(trig.sin(roll / 2));
+    auto cp = psyqo::GTE::Short(trig.cos(pitch / 2));
+    auto sp = psyqo::GTE::Short(trig.sin(pitch / 2));
+    auto cy = psyqo::GTE::Short(trig.cos(yaw / 2));
+    auto sy = psyqo::GTE::Short(trig.sin(yaw / 2));
+
+    Quaternion q;
+    q.w = cr*cp*cy + sr*sp*sy;
+    q.x = sr*cp*cy - cr*sp*sy;
+    q.y = cr*sp*cy + sr*cp*sy;
+    q.z = cr*cp*sy - sr*sp*cy;
+    return q;
+}
 
 Quaternion Slerp(const Quaternion &q1, const Quaternion &q2, psyqo::FixedPoint<> factor) {
   // find the dot product
@@ -95,6 +107,7 @@ Quaternion Slerp(const Quaternion &q1, const Quaternion &q2, psyqo::FixedPoint<>
   return slerpedQ;
 }
 
+// TODO: fill this out with actual math
 Quaternion FindRotationQuat(const psyqo::Vec3 &v1, const psyqo::Vec3 &v2, psyqo::Trig<> &trig) { return {0,0,0,0}; }
 
 Quaternion operator*(const Quaternion &q1, const Quaternion &q2) {

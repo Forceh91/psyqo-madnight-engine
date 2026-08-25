@@ -1,10 +1,9 @@
-#ifndef _QUATERNION_H
-#define _QUATERNION_H
+#pragma once
 
-#include "psyqo/fixed-point.hh"
-#include "psyqo/gte-registers.hh"
-#include "psyqo/matrix.hh"
-#include "psyqo/trigonometry.hh"
+#include <psyqo/fixed-point.hh>
+#include <psyqo/gte-registers.hh>
+#include <psyqo/matrix.hh>
+#include <psyqo/trigonometry.hh>
 
 using namespace psyqo::fixed_point_literals;
 
@@ -28,5 +27,4 @@ Quaternion Slerp(const Quaternion &q1, const Quaternion &q2, psyqo::FixedPoint<>
 /* Finds a rotation quaternion from v1 to v2 */
 // Quaternion FindRotationQuat(const psyqo::Vec3 &v1, const psyqo::Vec3 &v2, psyqo::Trig<> &trig);
 Quaternion FromEulerAngles(psyqo::Angle pitch, psyqo::Angle yaw, const psyqo::Trig<> &trig);
-
-#endif
+Quaternion FromEulerAngles(psyqo::Angle pitch, psyqo::Angle yaw, psyqo::Angle roll, const psyqo::Trig<> &trig);
