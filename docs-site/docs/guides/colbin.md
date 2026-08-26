@@ -3,149 +3,100 @@ title: COLBIN Format
 sidebar_position: 3
 ---
 
-# COLBIN File Format Specification
+# COLBIN
 
-## Changelog
+Collision geometry: floor triangles, wall boxes, and a uniform grid over the walls. Produced
+by `tools/blender_colbin.py` from a `COL` collection, consumed by
+`ColbinManager::LoadColbin`.
 
-### Version 2
-- Added spatial grid for broad phase collision culling
-- Grid header added after main counts
-- Grid data written before floor tris and wall OBBs
+Every multi-byte field is little-endian.
 
-### Version 1
-- Initial collision format
-- Floor triangles for raycast-based floor detection
-- Wall OBBs for SAT-based collision response
+## Fixed-point conventions
 
----
+Two conventions, and which one applies depends on the field, not on the struct it lives in.
+
+| Data | Convention |
+|---|---|
+| Positions: grid origin, cell size, floor vertices, OBB centre, OBB half extents | x128 integer (128 units per engine metre) |
+| Directions: floor normals, OBB axes | FP12 (x4096) |
+
+Both end up in fields whose C++ type is nominally 12-bit fixed point, so the type does not
+tell you which convention a field uses. The table below does.
 
 ## Header
 
-| Offset | Size    | Field          | Type                       | Description                        |
-|--------|---------|----------------|----------------------------|------------------------------------|
-| 0x00   | 6 bytes | magic          | `fixed_string<char, 6>`    | Must be `"COLBIN"`                 |
-| 0x06   | 1 byte  | version        | uint8_t                    | File version (currently 2)         |
-| 0x07   | 4 bytes | floorTriCount  | uint32_t                   | Number of floor triangles          |
-| 0x0B   | 4 bytes | wallOBBCount   | uint32_t                   | Number of wall OBBs                |
+| Field | Type | Bytes | Notes |
+|---|---|---|---|
+| magic | char[6] | 6 | `COLBIN`, no terminator. Mismatch aborts the load. |
+| version | uint8_t | 1 | Currently 2. |
+| floorTriCount | uint32_t | 4 | |
+| wallOBBCount | uint32_t | 4 | |
 
----
+## Grid header
 
-## Grid Header
+| Field | Type | Bytes | Convention |
+|---|---|---|---|
+| originX | int32_t | 4 | x128 |
+| originZ | int32_t | 4 | x128 |
+| cellSize | uint32_t | 4 | x128. Default is 256, i.e. two Blender units. |
+| gridWidth | uint16_t | 2 | cell count along X |
+| gridHeight | uint16_t | 2 | cell count along Z |
 
-Immediately follows the main header.
+## Grid cells
 
-| Offset | Size    | Field        | Type     | Description                                      |
-|--------|---------|--------------|----------|--------------------------------------------------|
-| +0x00  | 4 bytes | originX      | int32_t  | Grid origin X — scaled by 128                   |
-| +0x04  | 4 bytes | originZ      | int32_t  | Grid origin Z — scaled by 128                   |
-| +0x08  | 4 bytes | cellSize     | uint32_t | Cell size in engine units — scaled by 128        |
-| +0x0C  | 2 bytes | gridWidth    | uint16_t | Number of cells in X                             |
-| +0x0E  | 2 bytes | gridHeight   | uint16_t | Number of cells in Z                             |
+`gridWidth * gridHeight` cells follow, in **X-major** order: X is the outer loop and Z the
+inner, so the cell at `(gx, gz)` is at linear index `gx * gridHeight + gz`.
 
----
+| Field | Type | Bytes |
+|---|---|---|
+| count | uint16_t | 2 |
+| indices | uint16_t x count | 2 x count |
 
-## Variable-Length Data Sections
+Each index refers to an entry in the wall OBB array. An empty cell is a `count` of zero
+followed by no index bytes at all.
 
-Written in this order after the grid header:
+## Floor triangles
 
-| Section       | Type           | Description                                          |
-|---------------|----------------|------------------------------------------------------|
-| gridCells     | `GridCell[][]` | gridWidth × gridHeight cells, X-major order          |
-| floorTris     | `FloorTri[]`   | floorTriCount floor triangles for raycast            |
-| wallOBBs      | `OBB[]`        | wallOBBCount OBBs for SAT collision                  |
+`floorTriCount` records, 44 bytes each.
 
----
+| Field | Type | Bytes | Convention |
+|---|---|---|---|
+| v0 | int32_t x3 | 12 | x128 |
+| v1 | int32_t x3 | 12 | x128 |
+| v2 | int32_t x3 | 12 | x128 |
+| normal | int16_t x3 | 6 | FP12 |
+| padding | 2 zero bytes | 2 | written by the exporter, skipped by the reader |
 
-## Types
+## Wall OBBs
 
-### GridCell
+`wallOBBCount` records, 64 bytes each.
 
-Variable length. Each cell contains a count followed by wall OBB indices.
+| Field | Type | Bytes | Convention |
+|---|---|---|---|
+| center | int32_t x3 | 12 | x128 |
+| axes[0] | int32_t x3 | 12 | FP12 |
+| axes[1] | int32_t x3 | 12 | FP12 |
+| axes[2] | int32_t x3 | 12 | FP12 |
+| halfExtents | int32_t x3 | 12 | x128 |
+| flags | uint32_t | 4 | reserved, always 0 |
 
-```cpp
-struct GridCell {
-    uint16_t count;           // number of wall indices in this cell
-    uint16_t indices[count];  // indices into wallOBBs array
-};
-```
+`axes` are the source object's local X, Y and Z in world space, **in that order**. The
+exporter does not sort them. Whichever half extent is numerically smallest is clamped to a
+minimum thickness of 32 units so that a flat wall still has volume, but that can be index 0,
+1 or 2 depending on how the source mesh is oriented. Do not assume the thin axis is
+`axes[2]`.
 
-A wall OBB may appear in multiple cells if its AABB spans multiple cells.
+## Caveats
 
-### FloorTri
+- **The engine has no grid lookup.** `gridWidth`, `gridHeight`, `cellSize`, `originX`,
+  `originZ` and `gridCells` appear nowhere outside `ColbinManager` itself. The grid is
+  parsed and stored and nothing queries it yet. Earlier revisions of this page carried a
+  world-position-to-cell code sample; it described intended behaviour, not shipped
+  behaviour, and has been removed. The mapping the exporter uses when it populates cells is
+  `floor((x - originX) / cellSize)`, clamped to the grid bounds, if you want to implement
+  the lookup against it.
 
-Flat or sloped surfaces the player walks on. Used for downward raycast floor detection.
-Face normals always point upward (Y component is always positive).
+## Changelog
 
-```cpp
-struct FloorTri {
-    psyqo::Vec3 v0;   // vertex 0 (x, y, z) — scaled by 128
-    psyqo::Vec3 v1;   // vertex 1 (x, y, z) — scaled by 128
-    psyqo::Vec3 v2;   // vertex 2 (x, y, z) — scaled by 128
-    int16_t n[3];     // face normal (x, y, z) — FP12 (scaled by 4096)
-                      // no explicit padding — psyqo::Vec3 is 3x int32_t = 12 bytes each
-};
-```
-
-### OBB
-
-Vertical or near-vertical surfaces used for SAT-based push-out collision.
-Stored as an Oriented Bounding Box with precomputed axes.
-
-```cpp
-struct OBB {
-    psyqo::Vec3 center;      // OBB center (x, y, z) — scaled by 128
-    psyqo::Vec3 axes[3];     // 3 orthogonal axes — FP12 (scaled by 4096), int32 each
-                             //   axes[0] = along width
-                             //   axes[1] = along height
-                             //   axes[2] = face normal (thinnest axis)
-    psyqo::Vec3 halfExtents; // half-size along each axis — scaled by 128
-                             // minimum thickness of 32 units on face normal axis
-    uint32_t flags = 0;      // reserved (0)
-};
-```
-
-### ColBin (runtime)
-
-```cpp
-struct ColBin {
-    struct Header {
-        eastl::fixed_string<char, 6> magic; // "COLBIN"
-        uint8_t version;                    // 2
-        uint32_t floorTriCount;
-        uint32_t wallOBBCount;
-    };
-
-    Header header;
-    FloorTri *floors;
-    OBB *walls;
-};
-```
-
----
-
-## Runtime Grid Lookup
-
-To get candidate wall OBBs for a given player position:
-
-```c
-int cell_x = (player_x - grid.originX) / grid.cellSize;
-int cell_z = (player_z - grid.originZ) / grid.cellSize;
-cell_x = clamp(cell_x, 0, grid.gridWidth  - 1);
-cell_z = clamp(cell_z, 0, grid.gridHeight - 1);
-GridCell *cell = &grid.cells[cell_x][cell_z];
-// test only cell->indices[0..count-1] against player OBB
-```
-
----
-
-## Notes
-
-1. **Coordinate system:** Y-up, right-handed. Forward is -Z.
-2. **Scale:** All positions are multiplied by 128 (1 Blender unit = 128 engine units).
-3. **Fixed point:** Normals and OBB axes use FP12 (int32, scaled by 4096). Positions use int32 scaled by 128.
-4. **Floor vs wall classification:** Determined at export time by face normal Y component. `abs(normal.y) >= 0.7` → floor, otherwise wall.
-5. **Floor normals:** Always stored pointing upward regardless of face winding.
-6. **OBB face normal axis:** Always the thinnest axis, guaranteed to be `axes[2]` / `halfExtents[2]`. Minimum thickness of 32 units.
-7. **Grid cell size:** Tunable at export time. Default 256 engine units (~2 Blender units). Smaller = more cells, fewer walls per cell. Should be larger than maximum per-substep player movement to ensure no wall is skipped.
-8. **No padding between sections:** Data is written sequentially with only per-struct padding for alignment.
-9. **Player collision:** Player is treated as an AABB. Wall collision uses AABB vs OBB SAT. Floor height uses downward raycast against FloorTris.
+- **Version 2**: added the uniform grid over wall OBBs.
+- **Version 1**: floor triangles and wall OBBs only.

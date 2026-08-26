@@ -28,12 +28,13 @@ public:
 ### Internals
 
 - `init()` is asynchronous (callback-based, sets up the archive's decompressor and initializes against the CD-ROM device) — calling `LoadFile` before that callback has fired just logs a warning and returns an empty buffer, it doesn't queue or wait.
+- `LoadFile` loads a file from the archive by name.
 
 ## CDRomHelper
 
 `src/helpers/cdrom.hh`
 
-An alternative, lower-level loader that reads directly off an ISO9660 filesystem instead of a packed archive — used when `PCDRV` isn't defined (i.e. not running under a host-connected debug build).
+A lower-level loader that reads directly off an ISO9660 filesystem instead of a packed archive.
 
 ```cpp
 class CDRomHelper {
@@ -45,6 +46,8 @@ public:
 #endif
 };
 ```
+
+`CDRomHelper::LoadFile` has no callers; `ArchiveHelper::LoadFile` runs all asset loads instead, in both `PCDRV` and non-`PCDRV` builds, borrowing `CDRomHelper::CDRomDevice()` as its underlying device in the latter case.
 
 ## LoadQueue
 
@@ -102,13 +105,16 @@ Two lighter variants exist alongside `HardLoadingScreen`:
 
 ```cpp
 // keeps the current scene on the stack instead of unloading it, and doesn't dump existing
-// pools -- useful for streaming in extra assets without a full scene transition
+// pools -- useful for streaming in extra assets without a full scene transition. Uses the
+// engine's own built-in loading scene.
 co_await g_madnightEngine.SoftLoadingScreen(eastl::move(files));
 
 // either HardLoadingScreen or SoftLoadingScreen can take your own loading scene instead
 // of the engine's default one
 co_await g_madnightEngine.HardLoadingScreen(eastl::move(files), myLoadingScene, &gameplayScene);
 ```
+
+The one-argument `SoftLoadingScreen(files)` forwards to the two-argument overload with the engine's built-in default loading scene; pass your own `psyqo::Scene` as a second argument if you want a custom one instead.
 
 Calling `FileLoader::LoadFiles` directly only makes sense if you're building your own loading-screen flow rather than using `MadnightEngine`'s.
 

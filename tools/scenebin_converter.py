@@ -8,7 +8,7 @@ SCENEBIN format described in SCENEBIN.md.
 Source format (plain text, one entry per line):
 
     # comments and blank lines are ignored
-    sfx SFX/FCNTNA.VAG
+    vag SFX/FCNTNA.VAG
     texture TEXTURES/LOGO.TIM 320 0 0 240
     texture UI/CS_UI.TIM 320 129 0 241
     object MODELS/SBSKT.MB
@@ -23,8 +23,9 @@ import struct
 import sys
 from pathlib import Path
 
-# Must match LoadFileType in C++. SCENE (9999) is intentionally omitted --
-# the wire format's type field is a uint8_t and can't represent it yet.
+# Must match LoadFileType in C++. SCENE (255) is omitted because authoring nested
+# scenes is not implemented here yet; 255 fits the uint8_t type field fine, and both
+# SceneLoader::LoadScene and FileLoader::LoadFiles already handle SCENE entries.
 TYPE_MAP = {
     "object": 0,
     "texture": 1,
@@ -38,6 +39,11 @@ MAX_ARCHIVE_FILE_NAME_LEN = 255  # keep in sync with the C++ constant
 
 VRAM_WIDTH = 1024
 VRAM_HEIGHT = 512
+
+# keep in sync with TIM_POSITION_FROM_FILE in texture_manager.hh. 0 is a real
+# coordinate, so the sentinel has to be one VRAM can never hold.
+POSITION_FROM_FILE = 0xFFFF
+POSITION_FROM_FILE_KEYWORD = "auto"
 
 MAGIC = b"SCENEBIN"
 
@@ -59,16 +65,16 @@ def parse_source(path: Path):
             fields = line.split()
             type_name = fields[0].lower()
 
+            if type_name == "scene":
+                raise SourceError(
+                    f"line {lineno}: authoring 'scene' entries is not implemented "
+                    f"in this converter yet (the engine loads them fine)"
+                )
+
             if type_name not in TYPE_MAP:
                 raise SourceError(
                     f"line {lineno}: unknown type '{fields[0]}' "
                     f"(expected one of: {', '.join(TYPE_MAP)})"
-                )
-
-            if type_name == "scene":
-                raise SourceError(
-                    f"line {lineno}: 'scene' entries are not supported yet "
-                    f"(SCENE doesn't fit the uint8_t type field)"
                 )
 
             if len(fields) < 2:
@@ -91,11 +97,17 @@ def parse_source(path: Path):
                         f"line {lineno}: texture requires 4 fields "
                         f"(vramX vramY clutX clutY), got {len(extra_fields)}"
                     )
+                def placement(v):
+                    if v.lower() == POSITION_FROM_FILE_KEYWORD:
+                        return POSITION_FROM_FILE
+                    return int(v)
+
                 try:
-                    vram_x, vram_y, clut_x, clut_y = (int(v) for v in extra_fields)
+                    vram_x, vram_y, clut_x, clut_y = (placement(v) for v in extra_fields)
                 except ValueError:
                     raise SourceError(
-                        f"line {lineno}: texture coordinates must be integers"
+                        f"line {lineno}: texture coordinates must be integers "
+                        f"or '{POSITION_FROM_FILE_KEYWORD}'"
                     )
 
                 for label, val, limit in (
@@ -104,6 +116,8 @@ def parse_source(path: Path):
                     ("vramY", vram_y, VRAM_HEIGHT),
                     ("clutY", clut_y, VRAM_HEIGHT),
                 ):
+                    if val == POSITION_FROM_FILE:
+                        continue
                     if not (0 <= val < limit):
                         raise SourceError(
                             f"line {lineno}: {label}={val} out of range "

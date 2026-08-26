@@ -58,8 +58,8 @@ public:
 ```
 
 - **`SetMesh`/`SetTexture`** look the asset up by name via `MeshManager`/`TextureManager` — the asset must already be loaded.
-- **`SetAsTrigger`** turns the object into a `CollisionType::TRIGGER` volume of the given size rather than a `SOLID` one, for overlap-only detection (e.g. interaction zones) instead of physical collision response.
-- **`RenderFlags::RF_DISTANCE_CHECK`** opts an object into distance-based culling in the renderer.
+- **`SetAsTrigger`** sets the object's `CollisionType` to `TRIGGER` and its half-extents to the given size, and that's all it does today. `Collision::IsAABBCollision`/`IsSATCollision` take raw OBB/AABB data and never branch on collision type, so there's no built-in overlap-only response distinguishing a trigger from a `SOLID` object. The only reader of `m_collisionType` is `GameObject::UpdateOBB`, which decides whether to derive the OBB centre from the mesh's collision box. Any actual trigger behaviour (skip physical response, fire an event on overlap) is on the game to implement.
+- **`RenderFlags::RF_DISTANCE_CHECK`** is currently unused. `HasRenderFlag`/`SetRenderFlag`/`ClearRenderFlag` don't appear anywhere outside `gameobject.hh`, and `Renderer::RenderGameObjects` never consults them: it gates visibility solely on `IsGameObjectVisible`.
 - **`HasFlag`/`SetFlag`/`ClearFlag`** work on a separate, generic `uint32_t` bitfield with no engine-defined meaning — it's yours to use for game-specific per-object state (e.g. "already collected", "triggered this run") without needing a new field on every object.
 - The object's OBB (`obb()`) and rotation matrix are (re)computed internally when position/rotation change — you don't need to update them yourself.
 
@@ -82,7 +82,7 @@ crate->SetTexture("crate");   // must already be loaded via TextureManager::Load
 GameObjectManager::DestroyGameObject(crate);
 ```
 
-To turn the same object into an interaction trigger instead of solid geometry:
+To mark the same object as a trigger instead of solid geometry (see above: it only changes what `UpdateOBB` derives the centre from; overlap handling is on you):
 
 ```cpp
 GameObject *doorTrigger = GameObjectManager::CreateGameObject(
@@ -126,7 +126,7 @@ public:
 };
 ```
 
-- **Active vs. renderable:** "active" objects are all objects currently alive in the world; "renderable" is a separate, explicitly-set subset (`SetRenderableGameObjects`) that the [`Renderer`](./render#renderer) actually draws each frame — useful for e.g. only rendering objects in the current room/cell.
+- **Active vs. renderable:** "active" objects are all objects currently alive in the world; "renderable" is meant to be a separate, explicitly-set subset (`SetRenderableGameObjects`), useful for e.g. only rendering objects in the current room/cell. The mechanism exists but nothing in the engine calls `SetRenderableGameObjects` today, so `GetActiveGameObjects` always falls through to a full scan of all 250 slots every frame.
 - **`Dump`** frees every game object at once — intended for scene teardown (see `MadnightEngine::HardLoadingScreen`), not for per-object cleanup.
 
 ### Usage
@@ -149,7 +149,7 @@ GameObjectManager::ClearRenderableGameObjects(); // falls back to all active obj
 
 ### Internals
 
-- Finding a free slot is a linear scan over all 250 — fine normally, but worth knowing if you're creating/destroying many objects in one frame.
+- Finding a free slot is a linear scan over all 250, which is fine normally but worth knowing if you're creating/destroying many objects in one frame. If the pool is full, `CreateGameObject` returns `null`.
 - `GetActiveGameObjects()` silently returns the renderable list instead if one's been set via `SetRenderableGameObjects` — call `ClearRenderableGameObjects()` to go back to "all active objects".
 - `GetGameObjectsWithTag` and `GetActiveGameObjects` share the same internal scratch buffer — don't hold a reference from one across a call to the other.
 
@@ -236,7 +236,7 @@ public:
 };
 ```
 
-`lifetime` is in whole seconds; `Process` advances the particle's age and interpolates its visual/velocity state accordingly.
+`lifetime` is in whole seconds; `Process` advances the particle's age and interpolates its visual/velocity state accordingly. `deltaTime`, here and everywhere else it shows up in the engine, is the GPU vsync frame count elapsed since the last call (whatever `Renderer::Process` returned), not milliseconds or microseconds.
 
 ### Internals
 
@@ -297,6 +297,7 @@ sparks->Process(deltaTime);
 
 ### Internals
 
+- `Process` advances elapsed time using the `deltaTime` you pass in: spawn timing and particle ageing both track whatever value you feed it each frame.
 - Even while stopped (`Stop()`), `Process` still advances and prunes existing particles — only *new* spawns are gated on `Start()`/`Stop()`.
 - Spawn points land on the circumference of a ring around the emitter, not scattered through a sphere's volume — despite the "spherical volume" framing in the header.
 
@@ -353,6 +354,28 @@ void GameplayScene::frame() {
 
 - No `Init()` call needed — it lazily sets itself up the first time `Render` runs.
 - The FPS shown is a 30-frame rolling average, not an instantaneous per-frame value, so it updates a couple of times a second rather than every frame.
+
+## DebugMenu
+
+`src/core/debug/debug_menu.hh`
+
+An in-engine debug overlay. It's toggled by holding L1 + L2 + R1 + R2 together (all four within a 30-frame window); Triangle closes it while it's open. Exposes a raycast-distance setting used by the gameplay scene, and a toggle for whether `PerfMonitor` renders.
+
+```cpp
+class DebugMenu final {
+public:
+  static void Init(void);
+  static void Process(void);
+  static void Draw(psyqo::GPU &gpu);
+  static bool IsEnabled();
+  static uint8_t RaycastDistance();
+  static bool DisplayDebugHUD();
+};
+```
+
+`DisplayDebugHUD()` gates whether [`PerfMonitor`](#perfmonitor) renders at all: `src/scenes/gameplay.cpp` only calls `PerfMonitor::Render` when it's true.
+
+Both Up and Down cycle through the menu's options, wrapping at each end.
 
 ## Collision types
 

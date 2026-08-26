@@ -134,6 +134,7 @@ SkeletonController::MarkBonesClean(mesh->skeleton); // once you're done reading 
 - `SetAnimation` just overwrites the current animation and resets to frame 0 — there's no blending between the old and new animation.
 - Only `ROTATION` keys are actually applied — `TRANSLATION` tracks are read but not yet wired up (marked `TODO` in-source).
 - Dirty state propagates down the hierarchy: a bone is recomputed if it changed *or* its parent did, so posing the hips also quietly re-dirties everything below it.
+- `PlayAnimation`'s `deltaTime` is GPU vsync ticks, not a fixed rate or milliseconds, with no refresh-rate normalization: the same clip plays about 20% faster on NTSC than on PAL. See the [ANIMBIN format spec](../guides/animbin#time-base) for the full breakdown.
 
 ## AnimationManager
 
@@ -222,5 +223,7 @@ Quaternion FromEulerAngles(psyqo::Angle pitch, psyqo::Angle yaw, const psyqo::Tr
 ```
 
 :::caution
-`Slerp` is explicitly documented in-source as only accurate for small rotations — it's built for interpolating between adjacent animation keyframes, not for arbitrary large-angle rotation blending.
+`Slerp` isn't slerp. The implementation is a component-wise linear blend of the two quaternions followed by a normalize, with no `acos`/`sin` anywhere in it: it's nlerp. The in-source comment calling it "small rotations only" is describing the accuracy limits of that nlerp approximation, not a spherical interpolation with a reduced range. It's fine for interpolating between adjacent animation keyframes and not fine for arbitrary large-angle rotation blending.
 :::
+
+`FindRotationQuat` returns the rotation quaternion that takes `v1` to `v2`. `FromEulerAngles` builds a quaternion from the given pitch and yaw angles.

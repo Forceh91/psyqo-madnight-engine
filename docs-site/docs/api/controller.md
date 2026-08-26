@@ -27,19 +27,21 @@ public:
 
 ### Usage
 
-The deadzone thresholding shipped games actually do, since the engine doesn't apply one for you:
+Reading the right stick for camera control, once you've confirmed the pad is analog:
 
 ```cpp
-if (ControllerHelper::IsPadAnalog(psyqo::AdvancedPad::Pad::Pad1a)) {
+constexpr auto pad = psyqo::AdvancedPad::Pad::Pad1a;
+if (ControllerHelper::IsPadAnalog(pad)) {
     int rx = ControllerHelper::GetNormalizedAnalogStickInput(pad, ControllerHelper::RightStickX);
     int ry = ControllerHelper::GetNormalizedAnalogStickInput(pad, ControllerHelper::RightStickY);
 
-    constexpr int deadzone = 16;
-    if (ry < -deadzone || ry > deadzone) camera.UpdateOrbitAngles(ry * ORBIT_SPEED, 0, deltaTime);
-    if (rx < -deadzone || rx > deadzone) camera.UpdateOrbitAngles(0, rx * ORBIT_SPEED, deltaTime);
+    if (ry != 0) camera.UpdateOrbitAngles(ry * ORBIT_SPEED, 0, deltaTime);
+    if (rx != 0) camera.UpdateOrbitAngles(0, rx * ORBIT_SPEED, deltaTime);
 }
 ```
 
 ### Internals
 
-- No deadzone is actually applied by `GetNormalizedAnalogStickInput` despite the `ANALOG_STICK_DEADZONE*` constants existing in the header — apply your own thresholding on the returned value if stick drift near center is an issue.
+- `GetNormalizedAnalogStickInput` applies the `ANALOG_STICK_DEADZONE*` constants (16 on each axis) before returning, so stick drift near center already reads as zero.
+- `init()` is a stub. It is where forcing the pad into analog mode would go, and nothing calls it yet, so pads report whatever mode they power up in.
+- Unlike `ControllerHelper`'s explicit `Pad` parameter, the engine's `AdvancedPad::Event`-driven code (menu navigation, the debug menu, the pause-menu bind) never checks `event.pad`: on a multitap, any connected pad fires those handlers, not just the one you might expect.
