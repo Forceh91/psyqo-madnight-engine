@@ -53,7 +53,7 @@ psyqo::Coroutine<> TextureManager::LoadTIM(const char *textureName, uint16_t x, 
     }
 
     // no its not. find space for it
-    int8_t freeIx = GetFreeIndex();
+    auto freeIx = GetFreeIndex();
     if (freeIx == -1)
         co_return;
 
@@ -69,8 +69,8 @@ psyqo::Coroutine<> TextureManager::LoadTIM(const char *textureName, uint16_t x, 
         co_return;
     }
 
-    TimFile timFile = {"", 0};
-    timFile.name = textureName;
+    TimFile timFile = {};
+    timFile.nameHash = HashName(textureName);
     uint32_t *ptr = (uint32_t *)data;
 
     // check the header of the tim file
@@ -111,8 +111,8 @@ psyqo::Coroutine<> TextureManager::LoadTIM(const char *textureName, uint16_t x, 
 
         // clut x/y/w/h data
         uint16_t *rect = (uint16_t *)ptr;
-        timFile.clutX = clutX > 0 ? clutX : rect[0];
-        timFile.clutY = clutY >= 0 ? clutY : rect[1];
+        timFile.clutX = clutX == TIM_POSITION_FROM_FILE ? rect[0] : clutX;
+        timFile.clutY = clutY == TIM_POSITION_FROM_FILE ? rect[1] : clutY;
         timFile.clutWidth = rect[2];
         timFile.clutHeight = rect[3];
 
@@ -132,6 +132,7 @@ psyqo::Coroutine<> TextureManager::LoadTIM(const char *textureName, uint16_t x, 
 
         // upload this to the vram
         Renderer::Instance().VRamUpload(clutData, timFile.clutX, timFile.clutY, timFile.clutWidth, timFile.clutHeight);
+        psyqo_free(clutData);
     }
 
     uint32_t imageLength = *(ptr++);
@@ -147,8 +148,8 @@ psyqo::Coroutine<> TextureManager::LoadTIM(const char *textureName, uint16_t x, 
     // first up is the rect (x, y, width, height)
     // dont forget to override x/y if provided
     uint16_t *rect = (uint16_t *)ptr;
-    timFile.x = x > 0 ? x : rect[0];
-    timFile.y = y >= 0 ? y : rect[1];
+    timFile.x = x == TIM_POSITION_FROM_FILE ? rect[0] : x;
+    timFile.y = y == TIM_POSITION_FROM_FILE ? rect[1] : y;
     timFile.width = rect[2];
     timFile.height = rect[3];
 
@@ -161,7 +162,7 @@ psyqo::Coroutine<> TextureManager::LoadTIM(const char *textureName, uint16_t x, 
     __builtin_memcpy(imageData, ptr, imageDataSize);
 
     // go to end.. do we really need to do this though
-    ptr += imageDataSize / sizeof(uint32_t);
+    ptr += (imageDataSize / sizeof(uint32_t));
 
     if (timFile.width == 0 || timFile.height == 0 || timFile.colourMode > psyqo::Prim::TPageAttr::ColorMode::Tex16Bits)
     {
@@ -175,6 +176,9 @@ psyqo::Coroutine<> TextureManager::LoadTIM(const char *textureName, uint16_t x, 
 
     // now its uploaded to ram we can free the image data back up
     psyqo_free(imageData);
+
+    // mark texture as loaded
+    timFile.isLoaded = true;
 
     // store this into our pool
     m_textures[freeIx] = timFile;
@@ -218,11 +222,11 @@ psyqo::Rect TextureManager::GetTPageUVForTim(const TimFile *tim)
     return rect;
 }
 
-int8_t TextureManager::GetFreeIndex(void)
+int16_t TextureManager::GetFreeIndex(void)
 {
-    for (uint8_t i = 0; i < MAX_TEXTURES; i++)
+    for (auto i = 0; i < MAX_TEXTURES; i++)
     {
-        if (m_textures.at(i).name.empty())
+        if (!m_textures.at(i).isLoaded)
             return i;
     };
 
@@ -231,9 +235,14 @@ int8_t TextureManager::GetFreeIndex(void)
 
 TimFile *TextureManager::IsTextureLoaded(const char *name)
 {
-    for (uint8_t i = 0; i < MAX_TEXTURES; i++)
+    return IsTextureLoaded(HashName(name));
+}
+
+TimFile *TextureManager::IsTextureLoaded(uint64_t nameHash)
+{
+    for (auto i = 0; i < MAX_TEXTURES; i++)
     {
-        if (m_textures.at(i).name == name)
+        if (m_textures.at(i).isLoaded && m_textures.at(i).nameHash == nameHash)
             return &m_textures.at(i);
     };
 
@@ -250,6 +259,6 @@ void TextureManager::Dump(void)
     // clear out every instance of loaded_mesh, putting it back to zero
     for (int8_t i = 0; i < MAX_TEXTURES; i++)
     {
-        m_textures[i] = {"", 0};
+        m_textures[i] = {};
     }
 }

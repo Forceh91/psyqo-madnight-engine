@@ -19,6 +19,7 @@ static constexpr uint16_t FULL_FOG_DISTANCE = 3'500; // screen z
 static constexpr uint16_t NEAR_FOG_DISTANCE = 2'000; // screen z
 static constexpr uint32_t BUMP_ALLOCATOR_BYTES = 125'000; // this is for each frame, so double what this number is is used up in RAM
 static constexpr uint16_t SUBDIVISION_DISTANCE = 750; // after view space transformation
+static constexpr uint8_t MAX_SPRITE_FRAGMENTS = 40;   // per frame, shared by every RenderSprite caller
 static constexpr psyqo::Color c_loadingBackgroundColour = {.r = 0, .g = 0, .b = 0};
 
 class Renderer final {
@@ -41,8 +42,8 @@ class Renderer final {
 
   // texture page + sprite info
   // TODO: move to bump allocator?
-  eastl::array<psyqo::Fragments::SimpleFragment<psyqo::Prim::TPage>, 40> m_tpages[2];
-  eastl::array<psyqo::Fragments::SimpleFragment<psyqo::Prim::Sprite>, 40> m_sprites[2];
+  eastl::array<psyqo::Fragments::SimpleFragment<psyqo::Prim::TPage>, MAX_SPRITE_FRAGMENTS> m_tpages[2];
+  eastl::array<psyqo::Fragments::SimpleFragment<psyqo::Prim::Sprite>, MAX_SPRITE_FRAGMENTS> m_sprites[2];
   uint8_t m_currentSpriteFragment = 0;
 
   // lighting, cached at start of scene

@@ -65,7 +65,7 @@ struct MeshBin {
 };
 
 struct LoadedMeshBin {
-  eastl::fixed_string<char, MAX_ARCHIVE_FILE_NAME_LEN> meshName;
+  uint64_t meshNameHash;
   bool isLoaded;
   MeshBin mesh;
 };
@@ -74,7 +74,8 @@ class MeshManager {
   static LoadedMeshBin mLoadedMeshes[MAX_LOADED_MESHES];
 
   static MeshBin *IsMeshLoaded(const char *mesh_name);
-  static int8_t FindSpaceForMesh(void);
+  static MeshBin *IsMeshLoaded(uint64_t meshNameHash);
+  static int16_t FindSpaceForMesh(void);
 
 public:
   static psyqo::Coroutine<> LoadMesh(const char *meshName, MeshBin **meshOut);
@@ -85,6 +86,7 @@ public:
   // this is used when switching to a loading screen for instance.
   // this is a dangerous function as it wont check if anything is used
   static void Dump(void);
+  static void FreeLoadedMesh(LoadedMeshBin* mesh);
 };
 
 #endif

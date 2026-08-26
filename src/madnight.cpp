@@ -82,7 +82,7 @@ psyqo::Coroutine<> MadnightEngine::HardLoadingScreen(eastl::vector<LoadQueue>&& 
 }
 
 psyqo::Coroutine<> MadnightEngine::SoftLoadingScreen(eastl::vector<LoadQueue>&& files) {
-  SoftLoadingScreen(eastl::move(files), &defaultLoadingScene);
+  co_await SoftLoadingScreen(eastl::move(files), &defaultLoadingScene);
 }
 
 psyqo::Coroutine<> MadnightEngine::SoftLoadingScreen(eastl::vector<LoadQueue>&& files, psyqo::Scene* loadingScene) {

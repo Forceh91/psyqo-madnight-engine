@@ -534,7 +534,8 @@ void Renderer::RenderBillboards(uint32_t deltaTime, const psyqo::Matrix33 &camer
 
   // billboards just use the inverse of the camera rotation matrix as rotation
   psyqo::Matrix33 finalCameraMatrix = {0};
-  GTEMath::MultiplyMatrix33(cameraRotationMatrix, m_activeCamera->inverseRotationMatrix(), &finalCameraMatrix);
+  // billboards do not inherit camera rotation, so this is the identity by construction
+  finalCameraMatrix = identityMatrix;
 
   for (auto const &billboard : billboards) {
     TransformObjectToViewSpace(billboard->pos(), cameraRotationMatrix, finalCameraMatrix);
@@ -650,7 +651,8 @@ void Renderer::RenderParticles(uint32_t deltaTime, const psyqo::Matrix33 &camera
 
   // particles just use the inverse of the camera rotation matrix as rotation (when in 3d mode)
   psyqo::Matrix33 finalCameraMatrix = {0};
-  GTEMath::MultiplyMatrix33(cameraRotationMatrix, m_activeCamera->inverseRotationMatrix(), &finalCameraMatrix);
+  // billboards do not inherit camera rotation, so this is the identity by construction
+  finalCameraMatrix = identityMatrix;
 
   for (auto const &emitter : emitters) {
     auto const particles = emitter->particles();
@@ -856,13 +858,16 @@ void Renderer::RenderSprite(const TimFile *texture, const psyqo::Rect rect, cons
   auto &tpages = m_tpages[frameBuffer];
   auto &sprites = m_sprites[frameBuffer];
 
+  // every caller shares one per-frame fragment budget
+  if (m_currentSpriteFragment >= MAX_SPRITE_FRAGMENTS)
+    return;
+
   // chain tpage info over
   auto tpageAttr = TextureManager::GetTPageAttr(texture);
   auto &tpage = tpages[m_currentSpriteFragment];
   tpage.primitive.attr = tpageAttr;
   m_gpu.chain(tpage);
 
-  // fix this so it actually renders more than one sprite
   auto &sprite = sprites[m_currentSpriteFragment++];
   sprite.primitive.position = rect.pos;
   sprite.primitive.size = rect.size;

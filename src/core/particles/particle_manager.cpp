@@ -22,9 +22,9 @@ ParticleEmitter *ParticleEmitterManager::CreateParticleEmitter(const eastl::fixe
     return &m_emitters[ix];
 }
 
-int8_t ParticleEmitterManager::GetFreeIndex(void) {
+int16_t ParticleEmitterManager::GetFreeIndex(void) {
     for (auto i = 0; i < MAX_PARTICLE_EMITTERS; i++) {
-        if (m_emitters.at(i).name().empty())
+        if (m_emitters.at(i).id() == INVALID_PARTICLE_EMITTER_ID)
             return i;
     }
 
@@ -47,9 +47,13 @@ const eastl::fixed_vector<ParticleEmitter*, MAX_PARTICLE_EMITTERS> &ParticleEmit
     return m_activeEmitters;
 }
 
-ParticleEmitter* ParticleEmitterManager::GetEmitterByName(const eastl::fixed_string<char, MAX_PARTICLE_EMITTER_NAME_LENGTH> name) {
+ParticleEmitter* ParticleEmitterManager::GetEmitterByName(const eastl::fixed_string<char, MAX_PARTICLE_EMITTER_NAME_LENGTH> &name) {
+    return GetEmitterByName(HashName(name));
+}
+
+ParticleEmitter* ParticleEmitterManager::GetEmitterByName(uint64_t nameHash) {
     for (auto i = 0; i < MAX_PARTICLE_EMITTERS; i++) {
-        if (m_emitters.at(i).name() == name)
+        if (m_emitters.at(i).id() != INVALID_PARTICLE_EMITTER_ID && m_emitters.at(i).nameHash() == nameHash)
             return &m_emitters.at(i);
     }
 

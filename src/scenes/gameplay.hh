@@ -25,7 +25,7 @@ class GameplayScene final : public psyqo::Scene {
   TextHUDElement *m_fpsText = nullptr;
 
   Menu m_menu;
-  Camera *m_camera;
+  Camera *m_camera = nullptr;
 
 public:
 };

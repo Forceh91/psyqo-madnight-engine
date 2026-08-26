@@ -40,6 +40,13 @@ psyqo::Coroutine<> AnimationManager::LoadAnimation(const char *animationsFile) {
   __builtin_memcpy(&m_loadedAnimBin.numAnimations, ptr++, 1); // 1 byte
 
   // for the number of animations...
+  if (m_loadedAnimBin.numAnimations > MAX_ANIMATIONS) {
+    printf("ANIMATIONS: File declares %d animations, max is %d, aborting load.\n", m_loadedAnimBin.numAnimations, MAX_ANIMATIONS);
+    __builtin_memset(&m_loadedAnimBin, 0, sizeof(AnimationBin));
+    buffer.clear();
+    co_return;
+  }
+
   for (int32_t i = 0; i < m_loadedAnimBin.numAnimations; i++) {
     auto *anim = &m_loadedAnimBin.animations[i];
     
@@ -64,6 +71,13 @@ psyqo::Coroutine<> AnimationManager::LoadAnimation(const char *animationsFile) {
     ptr += sizeof(uint16_t);
 
     // load the tracks (should be one per bone)
+    if (anim->numTracks > MAX_TRACKS) {
+      printf("ANIMATIONS: Animation declares %d tracks, max is %d, aborting load.\n", anim->numTracks, MAX_TRACKS);
+      __builtin_memset(&m_loadedAnimBin, 0, sizeof(AnimationBin));
+      buffer.clear();
+      co_return;
+    }
+
     for (int32_t j = 0; j < anim->numTracks; j++) {
       auto *track = &anim->tracks[j];
 
@@ -78,6 +92,13 @@ psyqo::Coroutine<> AnimationManager::LoadAnimation(const char *animationsFile) {
       ptr += sizeof(uint16_t);
 
       // for each frame (key)
+      if (track->numKeys > MAX_KEYS) {
+        printf("ANIMATIONS: Track declares %d keys, max is %d, aborting load.\n", track->numKeys, MAX_KEYS);
+        __builtin_memset(&m_loadedAnimBin, 0, sizeof(AnimationBin));
+        buffer.clear();
+        co_return;
+      }
+
       for (int32_t k = 0; k < track->numKeys; k++) {
         auto *key = &track->keys[k];
 
@@ -118,6 +139,13 @@ psyqo::Coroutine<> AnimationManager::LoadAnimation(const char *animationsFile) {
 
     // if they have markers
     if (anim->numMarkers) {
+      if (anim->numMarkers > MAX_MARKERS) {
+        printf("ANIMATIONS: Animation declares %d markers, max is %d, aborting load.\n", anim->numMarkers, MAX_MARKERS);
+        __builtin_memset(&m_loadedAnimBin, 0, sizeof(AnimationBin));
+        buffer.clear();
+        co_return;
+      }
+
       for (int32_t i = 0; i < anim->numMarkers; i++) {
         auto *marker = &anim->markers[i];
         // load the marker name

@@ -1,5 +1,6 @@
 #include "gameobject.hh"
 
+#include "../../math/gte-math.hh"
 #include "psyqo/soft-math.hh"
 #include "psyqo/fixed-point.hh"
 #include "../../madnight.hh"
@@ -8,6 +9,7 @@ using namespace psyqo::fixed_point_literals;
 
 void GameObject::Destroy(void)
 {
+    m_nameHash = 0;
     m_name.clear();
     m_pos = {0, 0, 0};
     m_rotation = {0, 0, 0};
@@ -80,8 +82,8 @@ void GameObject::GenerateRotationMatrix(void)
 
     // create complete x/y/z rotation. this is done ROLL then YAW then PITCH
     psyqo::Matrix33 tempMatrix = {0};
-    psyqo::SoftMath::multiplyMatrix33(yaw, pitch, &tempMatrix);
-    psyqo::SoftMath::multiplyMatrix33(tempMatrix, roll, &m_rotationMatrix);
+    GTEMath::MultiplyMatrix33(yaw, pitch, &tempMatrix);
+    GTEMath::MultiplyMatrix33(tempMatrix, roll, &m_rotationMatrix);
 
     // update the OBB
     UpdateOBB();
@@ -110,7 +112,7 @@ void GameObject::UpdateOBB(void)
 {
     psyqo::Vec3 rotatedCentre = {0, 0, 0}, localCentre = {0, 0, 0};
     if (m_collisionType == CollisionType::SOLID && m_mesh)
-        localCentre = m_mesh->collisionBox.min + m_mesh->collisionBox.max / 2;
+        localCentre = (m_mesh->collisionBox.min + m_mesh->collisionBox.max) / 2;
     
     psyqo::SoftMath::matrixVecMul3(m_rotationMatrix, localCentre, &rotatedCentre);
 

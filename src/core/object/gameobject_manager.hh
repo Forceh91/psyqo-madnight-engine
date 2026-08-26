@@ -17,7 +17,7 @@ class GameObjectManager final
     static eastl::fixed_vector<GameObject *, MAX_GAME_OBJECTS> m_activeGameObjects;
     static eastl::fixed_vector<GameObject *, MAX_GAME_OBJECTS> m_renderableGameObjects;
 
-    static int8_t GetFreeIndex(void);
+    static int16_t GetFreeIndex(void);
 
 public:
     static GameObject *CreateGameObject(const char *name, psyqo::Vec3 pos, GameObjectRotation rotation, GameObjectTag tag = GameObjectTag::NONE);
@@ -28,6 +28,7 @@ public:
     static const eastl::fixed_vector<GameObject *, MAX_GAME_OBJECTS> &GetGameObjectsWithTag(GameObjectTag tag);
     static const eastl::array<GameObject, MAX_GAME_OBJECTS> &GetGameObjects(void) { return m_gameObjects; }
     static GameObject *GetGameObjectByName(const char *name);
+    static GameObject *GetGameObjectByName(uint64_t nameHash);
     static void Dump(void);
 };
 

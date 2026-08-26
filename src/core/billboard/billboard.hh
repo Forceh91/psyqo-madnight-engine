@@ -10,8 +10,8 @@
 class Billboard {
 public:
     Billboard() = default;
-    Billboard(eastl::fixed_string<char, MAX_BILLBOARD_NAME_LENGTH> name, psyqo::Vec3 pos, psyqo::Vec2 size, uint8_t id) {
-        m_name = name;
+    Billboard(const eastl::fixed_string<char, MAX_BILLBOARD_NAME_LENGTH> &name, psyqo::Vec3 pos, psyqo::Vec2 size, uint8_t id) {
+        m_nameHash = HashName(name);
         m_pos = pos;
         m_size = size;
         m_id = id;
@@ -21,7 +21,7 @@ public:
 
     void Destroy(void);
 
-    const eastl::fixed_string<char, MAX_BILLBOARD_NAME_LENGTH> &name() const { return m_name; }
+    uint64_t nameHash() const { return m_nameHash; }
     const uint8_t &id() const { return m_id; }
     
     const psyqo::Vec3 &pos() const { return m_pos; }
@@ -45,7 +45,7 @@ public:
     const eastl::array<psyqo::PrimPieces::UVCoords, 4> &uv() const { return m_uvCoords; }
     void SetUVCoords(const eastl::array<psyqo::PrimPieces::UVCoords, 4> &uv);
 protected:
-    eastl::fixed_string<char, MAX_BILLBOARD_NAME_LENGTH> m_name = "";
+    uint64_t m_nameHash = 0;
     uint8_t m_id = INVALID_BILLBOARD_ID;
     psyqo::Vec3 m_pos = {0,0,0};
     psyqo::Vec2 m_size = {0,0};

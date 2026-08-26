@@ -17,13 +17,14 @@ public:
 
     static const eastl::fixed_vector<ParticleEmitter*, MAX_PARTICLE_EMITTERS> &GetActiveEmitters(void);
     static const eastl::array<ParticleEmitter, MAX_PARTICLE_EMITTERS> &GetEmitters(void) { return m_emitters; }
-    static ParticleEmitter* GetEmitterByName(const eastl::fixed_string<char, MAX_PARTICLE_EMITTER_NAME_LENGTH> name);
+    static ParticleEmitter* GetEmitterByName(const eastl::fixed_string<char, MAX_PARTICLE_EMITTER_NAME_LENGTH> &name);
+    static ParticleEmitter* GetEmitterByName(uint64_t nameHash);
 
 private:
     static eastl::array<ParticleEmitter, MAX_PARTICLE_EMITTERS> m_emitters;
     static eastl::fixed_vector<ParticleEmitter*, MAX_PARTICLE_EMITTERS> m_activeEmitters;
     
-    static int8_t GetFreeIndex(void);
+    static int16_t GetFreeIndex(void);
 };
 
 #endif
