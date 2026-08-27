@@ -56,6 +56,8 @@ public:
         m_nextFreeIx = 0;
     }
 
+    const int16_t count(void) const { return size; }
+
 private:
     int16_t m_freeIxs[size];
     int16_t m_nextFreeIx = 0;
