@@ -63,7 +63,7 @@ struct MeshBin {
 };
 
 struct LoadedMeshBin {
-  int16_t id = -1;
+  int16_t id = INVALID_POOL_ID;
   uint64_t meshNameHash;
   bool isLoaded;
   MeshBin mesh;

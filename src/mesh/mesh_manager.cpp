@@ -364,6 +364,7 @@ void MeshManager::FreeLoadedMesh(LoadedMeshBin* mesh) {
   psyqo_free(mesh->mesh.uvIndices);
 
   __builtin_memset(mesh, 0, sizeof(LoadedMeshBin));
+  mesh->id = INVALID_POOL_ID;
 }
 
 void MeshManager::GetMeshFromName(const char *meshName, MeshBin **meshOut) { *meshOut = IsMeshLoaded(meshName); }
@@ -373,4 +374,6 @@ void MeshManager::Dump(void) {
   for (auto i = 0; i < MAX_LOADED_MESHES; i++) {
     FreeLoadedMesh(m_pool.Get(i));
   }
+
+  m_pool.Dump();
 }

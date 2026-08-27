@@ -44,7 +44,9 @@ public:
         return &m_entries[ix];
     }
 
-private:
+    // marks all indexes as free and sets the next free index to 0
+    // this does not clear out anything within the internal entries pool
+    // thats up to the manager to do
     void Dump(void) {
         auto safeSize = size < 0 ? 1 : size;
         for (int16_t i = 0; i < safeSize; i++)
@@ -54,6 +56,7 @@ private:
         m_nextFreeIx = 0;
     }
 
+private:
     int16_t m_freeIxs[size];
     int16_t m_nextFreeIx = 0;
     T m_entries[size];

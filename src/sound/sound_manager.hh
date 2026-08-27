@@ -1,27 +1,28 @@
 #pragma once
 
-#include "EASTL/fixed_string.h"
 #include "../helpers/archive.hh"
-#include "EASTL/fixed_vector.h"
-#include "psyqo/coroutine.hh"
-#include "psyqo/spu.hh"
-#include <cstdint>
+#include "../pool/pool.hh"
+
+#include <psyqo/coroutine.hh>
+#include <psyqo/spu.hh>
+
+#include <EASTL/fixed_vector.h>
+#include <EASTL/fixed_string.h>
 
 static constexpr uint8_t MAX_VAG_FILE_COUNT = 24; // same as the PS1's SPU channel count for now
-static constexpr int8_t INVALID_VAG_FILE_ID = -1;
 static constexpr uint32_t SPU_NOMINAL_PITCH = 4096;
 static constexpr uint32_t SPU_MEMORY_SIZE = 0x80000;
 
 static constexpr uint32_t SPU_ADR_INSTANT_ATTACK_NO_DECAY = 0x80000000;
 static constexpr uint8_t SPU_MAX_CHANNEL_ID = 23;
 
-typedef struct _VagEntry {
-    int8_t id = INVALID_VAG_FILE_ID; // for quick reference
+struct VagEntry {
+    int8_t id = INVALID_POOL_ID; // for quick reference
     uint64_t nameHash; // hash of the name we supplied for the cd rom, not the one from the header
     uint32_t spuAddr;                       // where it lives in SPU RAM
     uint32_t pitch;                         // precomputed from sample rate
     uint32_t size;                          // how much SPU RAM it occupies
-} VagEntry;
+};
 
 class SoundManager final {
 public:
@@ -42,7 +43,7 @@ public:
     static psyqo::SPU::ChannelPlaybackConfig CreatePlaybackConfig(const VagEntry* vag, uint16_t volumeL, uint16_t volumeR, uint32_t adsr = SPU_ADR_INSTANT_ATTACK_NO_DECAY);
 
 private:
-    static eastl::fixed_vector<VagEntry, MAX_VAG_FILE_COUNT> m_vagFiles;
+    static Pool<VagEntry, MAX_VAG_FILE_COUNT> m_pool;
     static bool m_isInitialized;
     static uint32_t m_spuAllocPtr;
 };
