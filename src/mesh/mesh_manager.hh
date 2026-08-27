@@ -1,16 +1,14 @@
-#ifndef _MESH_H
-#define _MESH_H
+#pragma once
 
-#include <EASTL/fixed_string.h>
-#include <stdint.h>
-
-#include "psyqo/coroutine.hh"
-#include "psyqo/primitives/common.hh"
-#include "psyqo/vector.hh"
 
 #include "../core/collision_types.hh"
-#include "../helpers/archive.hh"
 #include "skeleton/skeleton.hh"
+#include "../pool/pool.hh"
+
+#include <EASTL/fixed_string.h>
+#include <psyqo/coroutine.hh>
+#include <psyqo/primitives/common.hh>
+#include <psyqo/vector.hh>
 
 static constexpr uint8_t MAX_LOADED_MESHES = 250;
 static constexpr uint16_t MAX_FACES_PER_MESH = 1000;
@@ -65,13 +63,14 @@ struct MeshBin {
 };
 
 struct LoadedMeshBin {
+  int16_t id = -1;
   uint64_t meshNameHash;
   bool isLoaded;
   MeshBin mesh;
 };
 
-class MeshManager {
-  static LoadedMeshBin mLoadedMeshes[MAX_LOADED_MESHES];
+class MeshManager final {
+  static Pool<LoadedMeshBin, MAX_LOADED_MESHES> m_pool;
 
   static MeshBin *IsMeshLoaded(const char *mesh_name);
   static MeshBin *IsMeshLoaded(uint64_t meshNameHash);
@@ -88,5 +87,3 @@ public:
   static void Dump(void);
   static void FreeLoadedMesh(LoadedMeshBin* mesh);
 };
-
-#endif
