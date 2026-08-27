@@ -1,11 +1,9 @@
-#ifndef _TEXTURE_MANAGER_H
-#define _TEXTURE_MANAGER_H
+#pragma once
+#include "../pool/pool.hh"
 
-#include <stdint.h>
 #include <EASTL/functional.h>
-#include "psyqo/coroutine.hh"
-#include "psyqo/primitives.hh"
-#include "../helpers/archive.hh"
+#include <psyqo/coroutine.hh>
+#include <psyqo/primitives.hh>
 
 static constexpr uint16_t texturePageWidth = 64;
 static constexpr uint16_t texturePageHeight = 256;
@@ -15,9 +13,10 @@ static constexpr uint8_t MAX_TEXTURES = 32; // this will need tweaking later
 // a value VRAM can never hold. VRAM is 1024x512.
 static constexpr uint16_t TIM_POSITION_FROM_FILE = 0xFFFF;
 
-typedef struct _TIM_FILE
+struct TimFile
 {
     uint64_t nameHash;
+    int16_t id = INVALID_POOL_ID;
     bool isLoaded;                                // is this slot actually holding a texture?
     uint16_t x, y, width, height;                 // pos in vram + width/height
     psyqo::Prim::TPageAttr::ColorMode colourMode; // bits per pixel (4, 8, 16)
@@ -25,14 +24,13 @@ typedef struct _TIM_FILE
     bool hasClut;                   // does it need/have a clut?
     uint16_t clutX, clutY;          // clut pos in vram
     uint16_t clutWidth, clutHeight; // clut width and height (always 1)
-} TimFile;
+};
 
 class TextureManager final
 {
+    static Pool<TimFile, MAX_TEXTURES> m_pool;
     static psyqo::Vertex GetTPageIndex(uint16_t x, uint16_t y);
-    static eastl::array<TimFile, MAX_TEXTURES> m_textures;
 
-    static int16_t GetFreeIndex(void);
     static TimFile *IsTextureLoaded(const char *name);
     static TimFile *IsTextureLoaded(uint64_t nameHash);
 
@@ -52,4 +50,3 @@ public:
     static void Dump(void);
 };
 
-#endif

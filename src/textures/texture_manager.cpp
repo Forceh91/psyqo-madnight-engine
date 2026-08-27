@@ -1,8 +1,9 @@
 #include "texture_manager.hh"
-#include "psyqo/alloc.h"
-#include "psyqo/xprintf.h"
 #include "../helpers/archive.hh"
 #include "../render/renderer.hh"
+
+#include <psyqo/alloc.h>
+#include <psyqo/xprintf.h>
 
 /*
  * ok so this is confusing as hell and we have to manage VRAM ourself which is wild.
@@ -38,7 +39,7 @@
  * these are just obviously known safe areas where we're never gonna get a texture or anything in there anyway
  */
 
-eastl::array<TimFile, MAX_TEXTURES> TextureManager::m_textures;
+Pool<TimFile, MAX_TEXTURES> TextureManager::m_pool;
 
 psyqo::Coroutine<> TextureManager::LoadTIM(const char *textureName, uint16_t x, uint16_t y, uint16_t clutX, uint16_t clutY, TimFile **timOut)
 {
@@ -53,8 +54,8 @@ psyqo::Coroutine<> TextureManager::LoadTIM(const char *textureName, uint16_t x, 
     }
 
     // no its not. find space for it
-    auto freeIx = GetFreeIndex();
-    if (freeIx == -1)
+    auto textureID = m_pool.Acquire();
+    if (textureID == INVALID_POOL_ID)
         co_return;
 
     auto buffer = co_await ArchiveHelper::LoadFile(textureName);
@@ -69,8 +70,11 @@ psyqo::Coroutine<> TextureManager::LoadTIM(const char *textureName, uint16_t x, 
         co_return;
     }
 
-    TimFile timFile = {};
-    timFile.nameHash = HashName(textureName);
+    auto* timFile = m_pool.Get(textureID);
+    __builtin_memset(timFile, 0, sizeof(TimFile));
+    timFile->id = textureID;
+    timFile->nameHash = HashName(textureName);
+
     uint32_t *ptr = (uint32_t *)data;
 
     // check the header of the tim file
@@ -89,13 +93,13 @@ psyqo::Coroutine<> TextureManager::LoadTIM(const char *textureName, uint16_t x, 
     {
     default:
     case 0:
-        timFile.colourMode = psyqo::Prim::TPageAttr::ColorMode::Tex4Bits;
+        timFile->colourMode = psyqo::Prim::TPageAttr::ColorMode::Tex4Bits;
         break;
     case 1:
-        timFile.colourMode = psyqo::Prim::TPageAttr::ColorMode::Tex8Bits;
+        timFile->colourMode = psyqo::Prim::TPageAttr::ColorMode::Tex8Bits;
         break;
     case 2:
-        timFile.colourMode = psyqo::Prim::TPageAttr::ColorMode::Tex16Bits;
+        timFile->colourMode = psyqo::Prim::TPageAttr::ColorMode::Tex16Bits;
         break;
     }
 
@@ -103,7 +107,7 @@ psyqo::Coroutine<> TextureManager::LoadTIM(const char *textureName, uint16_t x, 
     if (flags & 0x8)
     {
         // mark it as having a clut
-        timFile.hasClut = true;
+        timFile->hasClut = true;
 
         // read the clut data
         uint32_t *clut_end = ptr;
@@ -111,16 +115,16 @@ psyqo::Coroutine<> TextureManager::LoadTIM(const char *textureName, uint16_t x, 
 
         // clut x/y/w/h data
         uint16_t *rect = (uint16_t *)ptr;
-        timFile.clutX = clutX == TIM_POSITION_FROM_FILE ? rect[0] : clutX;
-        timFile.clutY = clutY == TIM_POSITION_FROM_FILE ? rect[1] : clutY;
-        timFile.clutWidth = rect[2];
-        timFile.clutHeight = rect[3];
+        timFile->clutX = clutX == TIM_POSITION_FROM_FILE ? rect[0] : clutX;
+        timFile->clutY = clutY == TIM_POSITION_FROM_FILE ? rect[1] : clutY;
+        timFile->clutWidth = rect[2];
+        timFile->clutHeight = rect[3];
 
         // past the rect we go (2 lots of uint32_t)
         ptr += 2;
 
         // data of the clut. number of colours (width * height entries, which are 2 bytes each)
-        uint16_t numColours = timFile.clutWidth * timFile.clutHeight;
+        uint16_t numColours = timFile->clutWidth * timFile->clutHeight;
         uint16_t clutDataSize = numColours * sizeof(uint16_t);
 
         // assign the clut data from the ptr
@@ -131,7 +135,7 @@ psyqo::Coroutine<> TextureManager::LoadTIM(const char *textureName, uint16_t x, 
         ptr = clut_end;
 
         // upload this to the vram
-        Renderer::Instance().VRamUpload(clutData, timFile.clutX, timFile.clutY, timFile.clutWidth, timFile.clutHeight);
+        Renderer::Instance().VRamUpload(clutData, timFile->clutX, timFile->clutY, timFile->clutWidth, timFile->clutHeight);
         psyqo_free(clutData);
     }
 
@@ -148,43 +152,40 @@ psyqo::Coroutine<> TextureManager::LoadTIM(const char *textureName, uint16_t x, 
     // first up is the rect (x, y, width, height)
     // dont forget to override x/y if provided
     uint16_t *rect = (uint16_t *)ptr;
-    timFile.x = x == TIM_POSITION_FROM_FILE ? rect[0] : x;
-    timFile.y = y == TIM_POSITION_FROM_FILE ? rect[1] : y;
-    timFile.width = rect[2];
-    timFile.height = rect[3];
+    timFile->x = x == TIM_POSITION_FROM_FILE ? rect[0] : x;
+    timFile->y = y == TIM_POSITION_FROM_FILE ? rect[1] : y;
+    timFile->width = rect[2];
+    timFile->height = rect[3];
 
     // move past the rect (2 lots of uint32_t)
     ptr += 2;
 
     // get the image size (width * height pixels, each pixel is 2 bytes)
-    uint32_t imageDataSize = timFile.width * timFile.height * sizeof(uint16_t);
+    uint32_t imageDataSize = timFile->width * timFile->height * sizeof(uint16_t);
     uint16_t *imageData = (uint16_t *)psyqo_malloc(imageDataSize);
     __builtin_memcpy(imageData, ptr, imageDataSize);
 
     // go to end.. do we really need to do this though
     ptr += (imageDataSize / sizeof(uint32_t));
 
-    if (timFile.width == 0 || timFile.height == 0 || timFile.colourMode > psyqo::Prim::TPageAttr::ColorMode::Tex16Bits)
+    if (timFile->width == 0 || timFile->height == 0 || timFile->colourMode > psyqo::Prim::TPageAttr::ColorMode::Tex16Bits)
     {
-        printf("TEXTURE: Texture has no width (%d)/height (%d)/bpp (%d), aborting.\n", timFile.width, timFile.height, timFile.colourMode);
+        printf("TEXTURE: Texture has no width (%d)/height (%d)/bpp (%d), aborting.\n", timFile->width, timFile->height, timFile->colourMode);
         buffer.clear();
         co_return;
     }
 
     // upload it to the vram
-    Renderer::Instance().VRamUpload(imageData, timFile.x, timFile.y, timFile.width, timFile.height);
+    Renderer::Instance().VRamUpload(imageData, timFile->x, timFile->y, timFile->width, timFile->height);
 
     // now its uploaded to ram we can free the image data back up
     psyqo_free(imageData);
 
     // mark texture as loaded
-    timFile.isLoaded = true;
-
-    // store this into our pool
-    m_textures[freeIx] = timFile;
+    timFile->isLoaded = true;
 
     // give the ptr out correct data
-    *timOut = &m_textures[freeIx];
+    *timOut = timFile;
 
     // free data now we dont need it
     buffer.clear();
@@ -222,16 +223,6 @@ psyqo::Rect TextureManager::GetTPageUVForTim(const TimFile *tim)
     return rect;
 }
 
-int16_t TextureManager::GetFreeIndex(void)
-{
-    for (auto i = 0; i < MAX_TEXTURES; i++)
-    {
-        if (!m_textures.at(i).isLoaded)
-            return i;
-    };
-
-    return -1;
-}
 
 TimFile *TextureManager::IsTextureLoaded(const char *name)
 {
@@ -240,10 +231,12 @@ TimFile *TextureManager::IsTextureLoaded(const char *name)
 
 TimFile *TextureManager::IsTextureLoaded(uint64_t nameHash)
 {
-    for (auto i = 0; i < MAX_TEXTURES; i++)
+    auto count = m_pool.count();
+    for (auto i = 0; i < count; i++)
     {
-        if (m_textures.at(i).isLoaded && m_textures.at(i).nameHash == nameHash)
-            return &m_textures.at(i);
+        auto* texture = m_pool.Get(i);
+        if (texture->isLoaded && texture->nameHash == nameHash)
+            return texture;
     };
 
     return nullptr;
@@ -256,9 +249,16 @@ void TextureManager::GetTextureFromName(const char *textureName, TimFile **timFi
 
 void TextureManager::Dump(void)
 {
-    // clear out every instance of loaded_mesh, putting it back to zero
-    for (int8_t i = 0; i < MAX_TEXTURES; i++)
+    auto count = m_pool.count();
+    for (auto i = 0; i < count; i++)
     {
-        m_textures[i] = {};
-    }
+        auto* texture = m_pool.Get(i);
+        if (!texture)
+            continue;
+
+        __builtin_memset(texture, 0, sizeof(TimFile));
+        texture->id = INVALID_POOL_ID;
+    };
+    
+    m_pool.Dump();
 }
