@@ -1,3 +1,5 @@
+![Tests](https://github.com/Forceh91/psyqo-madnight-engine/actions/workflows/tests.yml/badge.svg)
+
 > [!NOTE]
 > AI usage in this repository has been limited to tooling and documentation generation. AI was not used to author any engine code, however existing logic in some areas may have been refactored with AI assistance.
 
