@@ -1,14 +1,13 @@
-#ifndef _PARTICLE_EMITTER_H
-#define _PARTICLE_EMITTER_H
+#pragma once
 
-#include "EASTL/vector.h"
 #include "defs.hh"
 #include "particle.hh"
-#include "psyqo/fixed-point.hh"
-#include "psyqo/matrix.hh"
-#include "psyqo/trigonometry.hh"
-#include "psyqo/primitives/common.hh"
-#include "psyqo/vector.hh"
+#include <EASTL/vector.h>
+#include <psyqo/fixed-point.hh>
+#include <psyqo/matrix.hh>
+#include <psyqo/trigonometry.hh>
+#include <psyqo/primitives/common.hh>
+#include <psyqo/vector.hh>
 
 using namespace psyqo::fixed_point_literals;
 using namespace psyqo::trig_literals;
@@ -20,7 +19,7 @@ typedef struct _EmitterRotation {
 class ParticleEmitter final {
 public:
     ParticleEmitter() = default;
-    ParticleEmitter(const eastl::fixed_string<char, MAX_PARTICLE_EMITTER_NAME_LENGTH> &name, const uint8_t &id, const psyqo::Vec3 &pos, const psyqo::FixedPoint<> radius, const uint8_t &particlesPerSecond, const uint8_t &particleLifeTimeSecs) {
+    void Init(const eastl::fixed_string<char, MAX_PARTICLE_EMITTER_NAME_LENGTH> &name, const uint8_t &id, const psyqo::Vec3 &pos, const psyqo::FixedPoint<> radius, const uint8_t &particlesPerSecond, const uint8_t &particleLifeTimeSecs) {
         m_id = id;
         m_nameHash = HashName(name);
         m_pos = pos;
@@ -36,7 +35,7 @@ public:
     };
 
     uint64_t nameHash() const { return m_nameHash; }
-    const uint8_t &id() const { return m_id; }
+    const int16_t &id() const { return m_id; }
 
     void Start(void);
     void Stop(void);
@@ -66,7 +65,7 @@ public:
 private:
     bool m_isEnabled = false;
     uint64_t m_nameHash = 0;
-    uint8_t m_id = INVALID_PARTICLE_EMITTER_ID;
+    int16_t m_id = INVALID_POOL_ID;
     psyqo::Vec3 m_pos = {0,0,0};
     psyqo::Vec3 m_rotatedPos = {0, 0, 0};
     EmitterRotation m_rotation = {0, 0, 0};
@@ -97,4 +96,3 @@ private:
     void GenerateRotatedVelocity(void);
 };
 
-#endif
