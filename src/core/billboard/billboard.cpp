@@ -11,7 +11,7 @@ void Billboard::Destroy(void) {
     m_pos = {0,0,0};
     m_size = {0,0};
     m_texture = nullptr;
-    m_id = INVALID_BILLBOARD_ID;
+    m_id = INVALID_POOL_ID;
 }
 
 void Billboard::SetTexture(const eastl::fixed_string<char, MAX_BILLBOARD_NAME_LENGTH> &textureName, const eastl::array<psyqo::PrimPieces::UVCoords, 4> &uv) {

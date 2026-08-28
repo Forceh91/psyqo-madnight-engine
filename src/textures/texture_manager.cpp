@@ -235,7 +235,7 @@ TimFile *TextureManager::IsTextureLoaded(const char *name)
 
 TimFile *TextureManager::IsTextureLoaded(uint64_t nameHash)
 {
-    auto count = m_pool.count();
+    auto count = m_pool.size();
     for (auto i = 0; i < count; i++)
     {
         auto* texture = m_pool.Get(i);
@@ -253,7 +253,7 @@ void TextureManager::GetTextureFromName(const char *textureName, TimFile **timFi
 
 void TextureManager::Dump(void)
 {
-    auto count = m_pool.count();
+    auto count = m_pool.size();
     for (auto i = 0; i < count; i++)
     {
         auto* texture = m_pool.Get(i);
