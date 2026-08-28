@@ -21,8 +21,11 @@ GameObject *GameObjectManager::CreateGameObject(const char* name, const psyqo::V
 
 void GameObjectManager::DestroyGameObject(GameObject* object)
 {
-    if (object != nullptr)
-        object->Destroy();
+    if (!object)
+        return;
+    
+    m_pool.Free(object->id());
+    object->Destroy();
 }
 
 const eastl::fixed_vector<GameObject*, MAX_GAME_OBJECTS>& GameObjectManager::GetActiveGameObjects(void)
@@ -84,7 +87,7 @@ GameObject* GameObjectManager::GetGameObjectByName(uint64_t nameHash)
     for (int i = 0; i < size; i++) {
         auto* gameObject = m_pool.Get(i);
         if (gameObject && gameObject->id() != INVALID_POOL_ID && gameObject->nameHash() == nameHash)
-            m_activeGameObjects.push_back(gameObject);
+            return gameObject;
     }
     return nullptr;
 }
@@ -96,5 +99,8 @@ void GameObjectManager::Dump(void) {
         if (gameObject && gameObject->id() != INVALID_POOL_ID)
             gameObject->Destroy();
     }
+
+    m_activeGameObjects.clear();
+    m_renderableGameObjects.clear();
     m_pool.Dump();
 }
