@@ -1,0 +1,18 @@
+name: Tests
+
+on:
+  push:
+    branches: [main, refactor/better-pool-management]
+  pull_request:
+    branches: [main, refactor/better-pool-management]
+
+jobs:
+  pool-tests:
+    runs-on: ubuntu-latest
+
+    steps:
+      - name: Checkout
+        uses: actions/checkout@v4
+
+      - name: Run tests
+        run: make -C tests test
