@@ -2,9 +2,9 @@ name: Tests
 
 on:
   push:
-    branches: [main, refactor/better-pool-management]
+    branches: [main]
   pull_request:
-    branches: [main, refactor/better-pool-management]
+    branches: [main]
 
 concurrency:
   group: ${{ github.workflow }}-${{ github.ref }}
