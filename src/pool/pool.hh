@@ -64,7 +64,7 @@ public:
         m_nextFreeIx = 0;
     }
 
-    const int16_t size(void) const { return N; }
+    int16_t size(void) const { return N; }
 
 private:
     int16_t m_freeIxs[N];
