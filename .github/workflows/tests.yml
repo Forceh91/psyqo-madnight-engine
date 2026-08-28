@@ -2,9 +2,9 @@ name: Tests
 
 on:
   push:
-    branches: [main]
+    branches: [main, refactor/better-pool-management]
   pull_request:
-    branches: [main]
+    branches: [main, refactor/better-pool-management]
 
 concurrency:
   group: ${{ github.workflow }}-${{ github.ref }}
@@ -16,7 +16,7 @@ jobs:
 
     steps:
       - name: Checkout
-        uses: actions/checkout@v4
+        uses: actions/checkout@v7
 
       - name: Run tests
         run: make -C tests test
