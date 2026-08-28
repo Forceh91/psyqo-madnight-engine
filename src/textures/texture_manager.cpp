@@ -67,6 +67,7 @@ psyqo::Coroutine<> TextureManager::LoadTIM(const char *textureName, uint16_t x, 
     {
         printf("TEXTURE: Failed to load texture or it has no file size.\n");
         buffer.clear();
+        m_pool.Free(textureID);
         co_return;
     }
 
@@ -82,6 +83,7 @@ psyqo::Coroutine<> TextureManager::LoadTIM(const char *textureName, uint16_t x, 
     {
         printf("TEXTURE: Invalid TIM file, aborting.\n");
         buffer.clear();
+        m_pool.Free(textureID);
         co_return;
     }
 
@@ -146,6 +148,7 @@ psyqo::Coroutine<> TextureManager::LoadTIM(const char *textureName, uint16_t x, 
     {
         printf("TEXTURE: Image data seems to be missing from TIM, aborting.\n");
         buffer.clear();
+        m_pool.Free(textureID);
         co_return;
     }
 
@@ -172,6 +175,7 @@ psyqo::Coroutine<> TextureManager::LoadTIM(const char *textureName, uint16_t x, 
     {
         printf("TEXTURE: Texture has no width (%d)/height (%d)/bpp (%d), aborting.\n", timFile->width, timFile->height, timFile->colourMode);
         buffer.clear();
+        m_pool.Free(textureID);
         co_return;
     }
 

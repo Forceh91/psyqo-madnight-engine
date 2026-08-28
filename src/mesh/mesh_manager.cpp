@@ -32,6 +32,7 @@ psyqo::Coroutine<> MeshManager::LoadMesh(const char *meshName, MeshBin **meshOut
   size_t size = buffer.size();
   if (data == nullptr || size == 0) {
     buffer.clear();
+    m_pool.Free(meshIx);
     printf("MESH: Failed to load mesh or it has no file size.\n");
     co_return;
   }
@@ -53,6 +54,7 @@ psyqo::Coroutine<> MeshManager::LoadMesh(const char *meshName, MeshBin **meshOut
   if (magic.compare("MESHBIN")) {
     printf("MESH: Header is invalid. aborting (%s).\n", magic.c_str());
     buffer.clear();
+    m_pool.Free(meshIx);
     co_return;
   }
   ptr += 7;
@@ -92,8 +94,9 @@ psyqo::Coroutine<> MeshManager::LoadMesh(const char *meshName, MeshBin **meshOut
     // describing bones that aren't there, and everything downstream loops on numBones
     if (loadedMesh->mesh.hasSkeleton && loadedMesh->mesh.numBones > MAX_BONES) {
       printf("MESH: Mesh has %d bones, max is %d, aborting load.\n", loadedMesh->mesh.numBones, MAX_BONES);
-      __builtin_memset(&loadedMesh, 0, sizeof(LoadedMeshBin));
+      __builtin_memset(loadedMesh, 0, sizeof(LoadedMeshBin));
       buffer.clear();
+      m_pool.Free(meshIx);
       co_return;
     }
   }
@@ -101,8 +104,9 @@ psyqo::Coroutine<> MeshManager::LoadMesh(const char *meshName, MeshBin **meshOut
   // do we have too many faces?
   if (loadedMesh->mesh.facesCount >= MAX_FACES_PER_MESH) {
     printf("MESH: Mesh has too many faces, aborting load.\n");
-    __builtin_memset(&loadedMesh, 0, sizeof(LoadedMeshBin));
+    __builtin_memset(loadedMesh, 0, sizeof(LoadedMeshBin));
     buffer.clear();
+    m_pool.Free(meshIx);
     co_return;
   }
 
