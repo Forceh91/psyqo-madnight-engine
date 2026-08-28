@@ -13,6 +13,8 @@ public:
     };
 
     // gives you the INDEX of the next free slot and immediately marks it as used
+    // this index can then be used in `Free` and `Get`
+    // returns `INVALID_POOL_ID` if no free slots exist
     int16_t Acquire(void) {
         if (m_nextFreeIx == INVALID_POOL_ID)
             return INVALID_POOL_ID;

@@ -1,9 +1,4 @@
-#ifndef _GAMEOBJECT_H
-#define _GAMEOBJECT_H
-
-#include "psyqo/fixed-point.hh"
-#include "psyqo/trigonometry.hh"
-#include "psyqo/vector.hh"
+#pragma once
 
 #include "../../helpers/archive.hh"
 #include "../../mesh/mesh_manager.hh"
@@ -11,7 +6,10 @@
 #include "../collision_types.hh"
 #include "gameobject_defs.hh"
 
-static constexpr uint8_t INVALID_GAMEOBJECT_ID = 255;
+#include <psyqo/fixed-point.hh>
+#include <psyqo/trigonometry.hh>
+#include <psyqo/vector.hh>
+
 static constexpr uint8_t MAX_GAMEOBJECT_NAME_LENGTH = 32;
 
 enum GameObjectQuadType {
@@ -30,14 +28,14 @@ enum RenderFlags { RF_NONE = 0, RF_DISTANCE_CHECK = 1 };
 class GameObject final {
   uint64_t m_nameHash = 0;
   eastl::fixed_string<char, MAX_GAMEOBJECT_NAME_LENGTH> m_name;
-  uint8_t m_id = INVALID_GAMEOBJECT_ID;
+  int16_t m_id = INVALID_POOL_ID;
   GameObjectQuadType m_quadType = GameObjectQuadType::Quad;
   GameObjectTag m_tag = GameObjectTag::NONE;
   psyqo::Vec3 m_pos = {0, 0, 0};
   GameObjectRotation m_rotation = {0, 0, 0};
   psyqo::Matrix33 m_rotationMatrix = {0};
-  MeshBin *m_mesh = nullptr;
-  TimFile *m_texture = nullptr;
+  MeshBin* m_mesh = nullptr;
+  TimFile* m_texture = nullptr;
   OBB m_obb = {0};
   CollisionType m_collisionType = CollisionType::SOLID;
   uint16_t m_renderFlags = 0;
@@ -49,7 +47,7 @@ class GameObject final {
 
 public:
   GameObject() = default;
-  GameObject(const char *name, psyqo::Vec3 pos, GameObjectRotation rotation, GameObjectTag tag, uint8_t id) {
+  void Init(const char* name, psyqo::Vec3 pos, GameObjectRotation rotation, GameObjectTag tag, int16_t id) {
     m_nameHash = HashName(name);
     m_name = name;
     m_pos = pos;
@@ -63,7 +61,7 @@ public:
 
   uint64_t nameHash() const { return m_nameHash; }
   const eastl::fixed_string<char, MAX_GAMEOBJECT_NAME_LENGTH> &name() const { return m_name; }
-  const uint8_t &id() const { return m_id; };
+  const int16_t &id() const { return m_id; };
   const psyqo::Vec3 &pos() const { return m_pos; }
 
   const psyqo::Vec3 *posPtr() const { return &m_pos; }
@@ -98,5 +96,3 @@ public:
   void ClearFlag(const uint32_t &rf) { m_flags &= ~(1 << rf); }
   void ClearFlags(void) { m_flags = 0; }
 };
-
-#endif
