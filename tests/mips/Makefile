@@ -3,7 +3,9 @@ TYPE = ps-exe
 
 SRCS = \
 	entry.cpp \
-	test_gameobject.cpp \
+
+rwildcard=$(wildcard $1$2) $(foreach d,$(wildcard $1*),$(call rwildcard,$d/,$2))
+SRCS += $(call rwildcard,./,test_*.cpp)
 
 CXXFLAGS = -std=c++20
 
