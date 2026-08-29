@@ -1,7 +1,7 @@
-#include "snitch_all.hpp"
-
 #include "core/object/gameobject_manager.hh"
 #include "core/object/gameobject.hh"
+
+#include "snitch_all.hpp"
 #include <EASTL/span.h>
 
 // NOTE: every test calls GameObjectManager::Dump() (and, where the
@@ -215,4 +215,29 @@ TEST_CASE("Dump resets the pool so ids are handed out from scratch") {
     auto* c = GameObjectManager::CreateGameObject("c", ZeroPos(), ZeroRotation(), GameObjectTag::NONE);
     REQUIRE(c != nullptr);
     REQUIRE(c->id() == 0);
+}
+
+TEST_CASE("Dump clears a previously-set renderable list, not just the pool") {
+    GameObjectManager::Dump();
+    GameObjectManager::ClearRenderableGameObjects();
+
+    auto* a = GameObjectManager::CreateGameObject("a", ZeroPos(), ZeroRotation(), GameObjectTag::NONE);
+    REQUIRE(a != nullptr);
+
+    GameObject* renderList[] = {a};
+    GameObjectManager::SetRenderableGameObjects(eastl::span<GameObject*>(renderList, 1));
+
+    // sanity check: renderable list is actually in effect before Dump
+    REQUIRE(GameObjectManager::GetActiveGameObjects().size() == 1);
+
+    GameObjectManager::Dump();
+
+    auto* b = GameObjectManager::CreateGameObject("b", ZeroPos(), ZeroRotation(), GameObjectTag::NONE);
+    REQUIRE(b != nullptr);
+
+    // must reflect the fresh post-Dump state (just `b`), not the stale
+    // renderable list pointing at a since-recycled slot
+    const auto& active = GameObjectManager::GetActiveGameObjects();
+    REQUIRE(active.size() == 1);
+    REQUIRE(active[0] == b);
 }
