@@ -1,4 +1,8 @@
+#ifdef PCDRV
 #include "archive.hh"
+#else
+#include "cdrom.hh"
+#endif
 #include "../madnight.hh"
 
 #include <psyqo/xprintf.h>
