@@ -69,6 +69,10 @@ MadnightGame g_myGame;
 MadnightEngineGame &g_madnightEngineGame = g_myGame;
 static GameplayScene gameplayScene;
 
+// required if you build with -pcdrv (mounts an ISO from your host filesystem
+// instead of real CD-ROM hardware for faster iteration) — see "Loading assets"
+const char* g_gameIsoName = "mygame.iso";
+
 psyqo::Coroutine<> MadnightGame::InitialLoad(void)
 {
     printf("welcome to your game code!\n");
