@@ -6,6 +6,7 @@
 
 TestHarness g_testHarness;
 MadnightEngineGame &g_madnightEngineGame = g_testHarness;
+const char* g_gameIsoName = "test.iso";
 
 static void psyqo_console_print(std::string_view message) noexcept {
     for (char c : message) {
@@ -17,7 +18,7 @@ int main() {
     snitch::cli::console_print = &psyqo_console_print;
     snitch::tests.print_callback = &psyqo_console_print;
 
-    bool success = snitch::tests.run_tests("psyqo");
+    bool success = snitch::tests.run_tests("Madnight Engine");
 
     if (success) {
         ramsyscall_printf("All tests passed!\n");
@@ -27,5 +28,7 @@ int main() {
 
     // Signal to the emulator via exit code.
     pcsx_exit(success ? 0 : 1);
+    exitBreak(success ? 0 : 1);
+
     return success ? 0 : 1;
 }
