@@ -129,7 +129,7 @@ VagEntry* SoundManager::IsVAGLoaded(uint64_t nameHash) {
     return nullptr;
 }
 
-VagEntry* SoundManager::IsVAGLoaded(const uint8_t& id) {
+VagEntry* SoundManager::IsVAGLoaded(const int16_t& id) {
     for (auto i = 0; i < MAX_VAG_FILE_COUNT; i++) {
         auto* vag = m_pool.Get(i);
         if (vag->id == id)
@@ -149,7 +149,7 @@ void SoundManager::PlayVAGFile(const eastl::fixed_string<char, MAX_ARCHIVE_FILE_
     if (vag) PlayVAGFile(vag, channelId, config, hardCut);
 }
 
-void SoundManager::PlayVAGFile(const uint8_t& vagID, uint8_t channelId, const psyqo::SPU::ChannelPlaybackConfig &config, bool hardCut) {
+void SoundManager::PlayVAGFile(const int16_t& vagID, uint8_t channelId, const psyqo::SPU::ChannelPlaybackConfig &config, bool hardCut) {
     auto vag = IsVAGLoaded(vagID);
     if (vag) PlayVAGFile(vag, channelId, config, hardCut);
 }
