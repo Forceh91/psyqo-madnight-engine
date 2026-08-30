@@ -1,11 +1,11 @@
 #include "archive.hh"
-#include "cdrom.hh"
-#include "psyqo-paths/archive-manager.hh"
-#include "psyqo/xprintf.h"
-#include "../render/renderer.hh"
+#include "../madnight.hh"
+
+#include <psyqo/xprintf.h>
+#include <psyqo-paths/archive-manager.hh>
 
 #ifdef PCDRV
-psyqo::CDRomPCDrv ArchiveHelper::m_cdrom("ssweep.iso");
+psyqo::CDRomPCDrv ArchiveHelper::m_cdrom(g_gameIsoName);
 #endif
 psyqo::paths::ArchiveManager ArchiveHelper::m_archiveManager;
 bool ArchiveHelper::m_archiveManagerInit = false;

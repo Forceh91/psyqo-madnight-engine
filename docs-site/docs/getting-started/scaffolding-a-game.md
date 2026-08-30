@@ -63,6 +63,10 @@ MadnightGame g_myGame;
 MadnightEngineGame &g_madnightEngineGame = g_myGame;
 static GameplayScene gameplayScene;
 
+// required if you build with -pcdrv (mounts an ISO from your host filesystem
+// instead of real CD-ROM hardware for faster iteration) — see "Loading assets"
+const char* g_gameIsoName = "mygame.iso";
+
 psyqo::Coroutine<> MadnightGame::InitialLoad(void)
 {
     printf("welcome to your game code!\n");
@@ -72,6 +76,12 @@ psyqo::Coroutine<> MadnightGame::InitialLoad(void)
 
 int main() { return g_madnightEngine.run(); }
 ```
+
+:::caution[Required for -pcdrv builds]
+
+If you skip this, the engine still compiles — but linking will fail with an undefined reference to g_gameIsoName the moment you build a -pcdrv target, since the engine deliberately doesn't supply a default
+
+:::
 
 `SwitchScene` returns a pointer to the scene it popped (or `nullptr` if `keepPrevious` was `true`) — useful if that scene was heap-allocated and you want to `delete` it once you're done with it, rather than leaking it.
 

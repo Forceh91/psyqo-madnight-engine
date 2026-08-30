@@ -65,3 +65,8 @@ static inline void exitBreak(int code) {
 
 extern MadnightEngine g_madnightEngine;
 
+// PCDRV debug builds (-pcdrv) mount an ISO from your host filesystem instead
+// of real CD-ROM hardware. Each game must define this exactly once,
+// somewhere in its own source (not the engine's) — e.g.:
+//     const char* g_gameIsoName = "ssweep.iso";
+extern const char* g_gameIsoName;
