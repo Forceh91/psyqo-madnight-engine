@@ -96,7 +96,7 @@ psyqo::Coroutine<> SoundManager::LoadVAGFile(const eastl::fixed_string<char, MAX
     ptr += 28;
 
     // upload data to spu ram and update where in ram we are
-    psyqo::SPU::dmaWrite(m_spuAllocPtr, ptr, vag.size, 16);
+    psyqo::SPU::dmaWrite(m_spuAllocPtr, ptr, vag.size);
     vag.spuAddr = m_spuAllocPtr;
     m_spuAllocPtr += vag.size;
 
