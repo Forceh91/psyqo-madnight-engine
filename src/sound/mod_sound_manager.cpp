@@ -22,7 +22,7 @@ psyqo::Coroutine<> ModSoundManager::LoadMODSound(const eastl::string_view& modSo
 		co_return;
 	}
 
-	ModSoundFile soundFile = {{modSoundFileName.data(), modSoundFileName.size()}, 0, false};
+	ModSoundFile soundFile = {{modSoundFileName.data(), modSoundFileName.length()}, 0, false};
 
 	// load the data into the SPU
 	soundFile.size = MOD_Load((MODFileFormat*)data);

@@ -33,7 +33,7 @@ class GameplayHUD final {
 		m_rect = {0};
 	}
 
-	GameplayHUD(const eastl::string_view& name, psyqo::Rect rect) : m_name(name.data(), name.size()) {
+	GameplayHUD(const eastl::string_view& name, psyqo::Rect rect) : m_name(name.data(), name.length()) {
 		m_rect = rect;
 		m_isEnabled = true;
 	}
