@@ -1,23 +1,25 @@
 #include "sprite_hud_element.hh"
 #include "../../render/renderer.hh"
 
-SpriteHUDElement::SpriteHUDElement(const char *name, psyqo::Rect rect, const char *texture, psyqo::PrimPieces::UVCoords uv) : HUDElement(name, rect)
-{
-    // store the uv coords
-    m_spriteUV = uv;
+SpriteHUDElement::SpriteHUDElement(const eastl::string_view& name, psyqo::Rect rect, const eastl::string_view& texture,
+								   psyqo::PrimPieces::UVCoords uv)
+	: HUDElement(name, rect) {
+	// store the uv coords
+	m_spriteUV = uv;
 
-    // fetch the texture and store the tim
-    TextureManager::GetTextureFromName(texture, &m_tim);
+	// fetch the texture and store the tim
+	TextureManager::GetTextureFromName(texture, &m_tim);
 }
 
-void SpriteHUDElement::Render(const psyqo::Rect &parentRect)
-{
-    if (!m_isEnabled)
-        return;
+void SpriteHUDElement::Render(const psyqo::Rect& parentRect) {
+	if (!m_isEnabled)
+		return;
 
-    if (!m_tim)
-        return;
+	if (!m_tim)
+		return;
 
-    psyqo::Rect rect = {.pos = {static_cast<int16_t>(parentRect.pos.x + m_rect.pos.x), static_cast<int16_t>(parentRect.pos.y + m_rect.pos.y)}, .size = m_rect.size};
-    Renderer::Instance().RenderSprite(m_tim, rect, m_spriteUV);
+	psyqo::Rect rect = {.pos = {static_cast<int16_t>(parentRect.pos.x + m_rect.pos.x),
+								static_cast<int16_t>(parentRect.pos.y + m_rect.pos.y)},
+						.size = m_rect.size};
+	Renderer::Instance().RenderSprite(m_tim, rect, m_spriteUV);
 }
