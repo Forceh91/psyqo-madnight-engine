@@ -23,7 +23,7 @@ void ArchiveHelper::init(eastl::function<void()> cb) {
 #else
 	auto& cdrom = m_cdrom;
 #endif
-	
+
     m_archiveManager.initialize(23, cdrom, [cb](bool success) {
 		m_archiveManagerInit = success;
 		printf("ARCHIVE: Initialize result=%d\n", m_archiveManagerInit);
@@ -31,7 +31,7 @@ void ArchiveHelper::init(eastl::function<void()> cb) {
 	});
 }
 
-psyqo::Coroutine<psyqo::Buffer<uint8_t>> ArchiveHelper::LoadFile(const char *fileName) {
+psyqo::Coroutine<psyqo::Buffer<uint8_t>> ArchiveHelper::LoadFile(const eastl::string_view& fileName) {
 	if (m_archiveManagerInit) {
 		printf("ARCHIVE: Attempting to read %s...\n", fileName);
 
@@ -39,7 +39,7 @@ psyqo::Coroutine<psyqo::Buffer<uint8_t>> ArchiveHelper::LoadFile(const char *fil
 	auto& cdrom = CDRomHelper::CDRomDevice();
 #else
 	auto& cdrom = m_cdrom;
-#endif		
+#endif
 
 #ifdef PCDRV
 		auto buffer = co_await m_archiveManager.readFile(fileName, cdrom);
@@ -50,7 +50,7 @@ psyqo::Coroutine<psyqo::Buffer<uint8_t>> ArchiveHelper::LoadFile(const char *fil
 			printf("ARCHIVE: File %s not found or empty\n", fileName);
 		else
 			printf("ARCHIVE: Read %d bytes\n", buffer.size());
-		
+
 		co_return eastl::move(buffer);
 	} else {
 		printf("ARCHIVE: Manager not initialized.\n");

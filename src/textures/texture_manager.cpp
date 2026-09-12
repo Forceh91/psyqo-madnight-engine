@@ -40,7 +40,7 @@
 
 eastl::array<TimFile, MAX_TEXTURES> TextureManager::m_textures;
 
-psyqo::Coroutine<> TextureManager::LoadTIM(const char *textureName, uint16_t x, uint16_t y, uint16_t clutX, uint16_t clutY, TimFile **timOut)
+psyqo::Coroutine<> TextureManager::LoadTIM(const eastl::string_view& textureName, uint16_t x, uint16_t y, uint16_t clutX, uint16_t clutY, TimFile **timOut)
 {
     *timOut = nullptr;
 
@@ -233,7 +233,7 @@ int16_t TextureManager::GetFreeIndex(void)
     return -1;
 }
 
-TimFile *TextureManager::IsTextureLoaded(const char *name)
+TimFile *TextureManager::IsTextureLoaded(const eastl::string_view& name)
 {
     return IsTextureLoaded(HashName(name));
 }
@@ -249,7 +249,7 @@ TimFile *TextureManager::IsTextureLoaded(uint64_t nameHash)
     return nullptr;
 }
 
-void TextureManager::GetTextureFromName(const char *textureName, TimFile **timFileOut)
+void TextureManager::GetTextureFromName(const eastl::string_view& textureName, TimFile **timFileOut)
 {
     *timFileOut = IsTextureLoaded(textureName);
 }

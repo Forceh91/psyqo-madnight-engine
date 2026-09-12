@@ -2,6 +2,7 @@
 
 #include "gameobject.hh"
 #include "gameobject_defs.hh"
+#include "../../helpers/archive.hh"
 
 #include <EASTL/span.h>
 #include <EASTL/array.h>

@@ -10,7 +10,7 @@
 
 LoadedMeshBin MeshManager::mLoadedMeshes[MAX_LOADED_MESHES];
 
-psyqo::Coroutine<> MeshManager::LoadMesh(const char *meshName, MeshBin **meshOut) {
+psyqo::Coroutine<> MeshManager::LoadMesh(const eastl::string_view& meshName, MeshBin **meshOut) {
   // make sure we get a valid response at least
   *meshOut = nullptr;
 
@@ -57,11 +57,11 @@ psyqo::Coroutine<> MeshManager::LoadMesh(const char *meshName, MeshBin **meshOut
 
   // version + type
   uint8_t version;
-  __builtin_memcpy(&version, ptr, sizeof(uint8_t));    
+  __builtin_memcpy(&version, ptr, sizeof(uint8_t));
   ptr += sizeof(uint8_t);
 
   uint8_t type;
-  __builtin_memcpy(&type, ptr, sizeof(uint8_t));    
+  __builtin_memcpy(&type, ptr, sizeof(uint8_t));
   ptr += sizeof(uint8_t);
 
   // subheader (counts basically)
@@ -210,7 +210,7 @@ psyqo::Coroutine<> MeshManager::LoadMesh(const char *meshName, MeshBin **meshOut
     __builtin_memcpy(&tempVal, ptr, sizeof(int16_t));
     ptr += sizeof(int16_t);
     loaded_mesh.mesh.bsphere.centre.z.value = static_cast<int32_t>(tempVal);
-    
+
     __builtin_memcpy(&loaded_mesh.mesh.bsphere.radius, ptr, sizeof(int32_t));
     loaded_mesh.mesh.bsphere.radius += 6 * 128; // add a bit of leeway to the sphere
   }
@@ -218,15 +218,15 @@ psyqo::Coroutine<> MeshManager::LoadMesh(const char *meshName, MeshBin **meshOut
   // if we didn't get bounding radius from the MB file, figure a rough one out
   if (loaded_mesh.mesh.bsphere.radius == 0) {
     loaded_mesh.mesh.bsphere.centre = (loaded_mesh.mesh.collisionBox.min + loaded_mesh.mesh.collisionBox.max) / 2;
-    
+
     // figure out a sphere bounding box radius
     auto d = loaded_mesh.mesh.collisionBox.max - loaded_mesh.mesh.collisionBox.min;
     int32_t sum = d.x.integer() * d.x.integer() + d.y.integer() * d.y.integer() + d.z.integer() * d.z.integer();
-    
+
     // radius = half diagonal, >> 1 is divide by 2 in fp12
     loaded_mesh.mesh.bsphere.radius = (psyqo::SoftMath::squareRoot(1.0_fp * sum) >> 1).integer();
   }
-  
+
   // load skeleton bones
   if (version > 1 && loaded_mesh.mesh.hasSkeleton) {
     loaded_mesh.mesh.skeleton = (Skeleton *)psyqo_malloc(sizeof(Skeleton));
@@ -234,7 +234,7 @@ psyqo::Coroutine<> MeshManager::LoadMesh(const char *meshName, MeshBin **meshOut
 
     for (int32_t i = 0; i < loaded_mesh.mesh.vertexCount; i++) {
       loaded_mesh.mesh.verticesOnBonePos[i] = loaded_mesh.mesh.vertices[i];
-    }    
+    }
 
     __builtin_memset(loaded_mesh.mesh.skeleton, 0, sizeof(Skeleton));
     __builtin_memset(&loaded_mesh.mesh.skeleton->bones, 0, sizeof(SkeletonBone) * MAX_BONES);
@@ -282,7 +282,7 @@ psyqo::Coroutine<> MeshManager::LoadMesh(const char *meshName, MeshBin **meshOut
     size_t boneForVertexSize = sizeof(uint8_t) * loaded_mesh.mesh.vertexCount;
     loaded_mesh.mesh.boneForVertex = (uint8_t *)psyqo_malloc(boneForVertexSize);
     __builtin_memcpy(loaded_mesh.mesh.boneForVertex, ptr, boneForVertexSize);
-    ptr += boneForVertexSize;  
+    ptr += boneForVertexSize;
   }
 
   // mark mesh as loaded
@@ -303,7 +303,7 @@ psyqo::Coroutine<> MeshManager::LoadMesh(const char *meshName, MeshBin **meshOut
   printf("MESH: Successfully loaded mesh of %d bytes into memory.\n", size);
 }
 
-MeshBin *MeshManager::IsMeshLoaded(const char *meshName) {
+MeshBin *MeshManager::IsMeshLoaded(const eastl::string_view& meshName) {
   return IsMeshLoaded(HashName(meshName));
 }
 
@@ -332,7 +332,7 @@ int16_t MeshManager::FindSpaceForMesh(void) {
   return -1;
 }
 
-void MeshManager::UnloadMesh(const char *mesh_name) {
+void MeshManager::UnloadMesh(const eastl::string_view& mesh_name) {
   uint64_t meshNameHash = HashName(mesh_name);
 
   LoadedMeshBin *loaded_mesh = nullptr;
@@ -367,7 +367,7 @@ void MeshManager::FreeLoadedMesh(LoadedMeshBin* mesh) {
   __builtin_memset(mesh, 0, sizeof(LoadedMeshBin));
 }
 
-void MeshManager::GetMeshFromName(const char *meshName, MeshBin **meshOut) { *meshOut = IsMeshLoaded(meshName); }
+void MeshManager::GetMeshFromName(const eastl::string_view& meshName, MeshBin **meshOut) { *meshOut = IsMeshLoaded(meshName); }
 
 void MeshManager::Dump(void) {
   // clear out every instance of loaded_mesh, putting it back to zero

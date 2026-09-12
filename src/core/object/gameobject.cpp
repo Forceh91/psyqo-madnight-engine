@@ -21,12 +21,14 @@ void GameObject::Destroy(void) {
 	m_id = INVALID_GAMEOBJECT_ID;
 }
 
-void GameObject::SetMesh(const char *meshName) {
+void GameObject::SetMesh(const eastl::string_view& meshName) {
 	MeshManager::GetMeshFromName(meshName, &m_mesh);
 	GenerateOBB();
 }
 
-void GameObject::SetTexture(const char *textureName) { TextureManager::GetTextureFromName(textureName, &m_texture); }
+void GameObject::SetTexture(const eastl::string_view& textureName) {
+    TextureManager::GetTextureFromName(textureName, &m_texture);
+}
 
 void GameObject::SetPosition(const psyqo::Vec3& pos) {
 	m_pos = pos;

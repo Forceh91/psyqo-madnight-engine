@@ -85,8 +85,8 @@ class GameObject final {
 	void SetPosition(psyqo::FixedPoint<12> x, psyqo::FixedPoint<12> y, psyqo::FixedPoint<12> z);
 	void SetRotation(const GameObjectRotation& rotation);
 	void SetRotation(psyqo::Angle x, psyqo::Angle y, psyqo::Angle z);
-	void SetMesh(const char *meshName);
-	void SetTexture(const char *textureName);
+	void SetMesh(const eastl::string_view& meshName);
+	void SetTexture(const eastl::string_view& textureName);
 	// note: doesn't actually do anything yet. need to figure it out later when its important
 	void SetQuadType(const GameObjectQuadType quadType) { m_quadType = quadType; }
 	void SetAsTrigger(const psyqo::Vec3& size);

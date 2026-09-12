@@ -27,7 +27,7 @@ static inline constexpr uint64_t HashName(const char (&name)[S]) {
 class ArchiveHelper final {
 public:
     static void init(eastl::function<void()> cb);
-    static psyqo::Coroutine<psyqo::Buffer<uint8_t>> LoadFile(const char* fileName);
+    static psyqo::Coroutine<psyqo::Buffer<uint8_t>> LoadFile(const eastl::string_view& fileName);
 private:
 #ifdef PCDRV
     static psyqo::CDRomPCDrv m_cdrom;

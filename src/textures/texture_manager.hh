@@ -2,6 +2,7 @@
 
 #include <stdint.h>
 #include <EASTL/functional.h>
+#include <EASTL/string_view.h>
 #include "psyqo/coroutine.hh"
 #include "psyqo/primitives.hh"
 
@@ -31,17 +32,17 @@ class TextureManager final
     static eastl::array<TimFile, MAX_TEXTURES> m_textures;
 
     static int16_t GetFreeIndex(void);
-    static TimFile *IsTextureLoaded(const char *name);
+    static TimFile *IsTextureLoaded(const eastl::string_view& name);
     static TimFile *IsTextureLoaded(uint64_t nameHash);
 
 public:
-    static psyqo::Coroutine<> LoadTIM(const char *textureName, uint16_t x, uint16_t y, uint16_t clutX, uint16_t clutY, TimFile **timOut);
+    static psyqo::Coroutine<> LoadTIM(const eastl::string_view& textureName, uint16_t x, uint16_t y, uint16_t clutX, uint16_t clutY, TimFile **timOut);
     static psyqo::PrimPieces::TPageAttr GetTPageAttr(const TimFile *tim);
     static psyqo::PrimPieces::TPageAttr GetTPageAttr(const TimFile &tim);
     static psyqo::Rect GetTPageUVForTim(const TimFile &tim);
     static psyqo::Rect GetTPageUVForTim(const TimFile *tim);
 
-    static void GetTextureFromName(const char *textureName, TimFile **timOut);
+    static void GetTextureFromName(const eastl::string_view& textureName, TimFile **timOut);
 
     // dump all textures in memory and start fresh
     // this is used when switching to a loading screen for instance.
