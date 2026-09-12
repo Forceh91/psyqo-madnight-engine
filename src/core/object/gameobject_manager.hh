@@ -29,7 +29,7 @@ public:
     static void SetRenderableGameObjects(const eastl::span<GameObject*> renderList);
     static const eastl::fixed_vector<GameObject*, MAX_GAME_OBJECTS>& GetGameObjectsWithTag(GameObjectTag tag);
     static const eastl::array<GameObject, MAX_GAME_OBJECTS>& GetGameObjects(void) { return m_gameObjects; }
-    static GameObject* GetGameObjectByName(const char* name);
+    static GameObject* GetGameObjectByName(const eastl::string_view& name);
     static GameObject* GetGameObjectByName(uint64_t nameHash);
     static void Dump(void);
 };

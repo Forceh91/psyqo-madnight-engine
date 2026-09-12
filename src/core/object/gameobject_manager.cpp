@@ -4,7 +4,7 @@ eastl::array<GameObject, MAX_GAME_OBJECTS> GameObjectManager::m_gameObjects;
 eastl::fixed_vector<GameObject *, MAX_GAME_OBJECTS> GameObjectManager::m_activeGameObjects;
 eastl::fixed_vector<GameObject *, MAX_GAME_OBJECTS> GameObjectManager::m_renderableGameObjects;
 
-GameObject *GameObjectManager::CreateGameObject(const eastl::string_view& name, const uint64_t& nameHash, const psyqo::Vec3& pos, const GameObjectRotation& rotation, const GameObjectTag& tag) {
+GameObject* GameObjectManager::CreateGameObject(const eastl::string_view& name, const uint64_t& nameHash, const psyqo::Vec3& pos, const GameObjectRotation& rotation, const GameObjectTag& tag) {
     // do we have space in the game objects for this?
     auto freeIx = GetFreeIndex();
     if (freeIx == -1)
@@ -32,7 +32,7 @@ void GameObjectManager::DestroyGameObject(GameObject *object)
         object->Destroy();
 }
 
-const eastl::fixed_vector<GameObject *, MAX_GAME_OBJECTS> &GameObjectManager::GetActiveGameObjects(void)
+const eastl::fixed_vector<GameObject*, MAX_GAME_OBJECTS>& GameObjectManager::GetActiveGameObjects(void)
 {
     // take renderable game objects first if we have them
     if (m_renderableGameObjects.size() > 0)
@@ -63,7 +63,7 @@ void GameObjectManager::SetRenderableGameObjects(const eastl::span<GameObject*> 
     }
 }
 
-const eastl::fixed_vector<GameObject *, MAX_GAME_OBJECTS> &GameObjectManager::GetGameObjectsWithTag(GameObjectTag tag)
+const eastl::fixed_vector<GameObject*, MAX_GAME_OBJECTS>& GameObjectManager::GetGameObjectsWithTag(GameObjectTag tag)
 {
     m_activeGameObjects.clear();
 
@@ -77,12 +77,12 @@ const eastl::fixed_vector<GameObject *, MAX_GAME_OBJECTS> &GameObjectManager::Ge
     return m_activeGameObjects;
 }
 
-GameObject *GameObjectManager::GetGameObjectByName(const char *name)
+GameObject* GameObjectManager::GetGameObjectByName(const eastl::string_view& name)
 {
     return GetGameObjectByName(HashName(name));
 }
 
-GameObject *GameObjectManager::GetGameObjectByName(uint64_t nameHash)
+GameObject* GameObjectManager::GetGameObjectByName(uint64_t nameHash)
 {
     // find the first game object that matches this name
     for (uint8_t i = 0; i < MAX_GAME_OBJECTS; i++)
