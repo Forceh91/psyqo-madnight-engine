@@ -1,8 +1,8 @@
 #include "gameobject.hh"
 
 #include "../../madnight.hh"
-#include "../../math/gte-math.hh"
 #include <psyqo/fixed-point.hh>
+#include <psyqo/gte-math.hh>
 #include <psyqo/soft-math.hh>
 
 using namespace psyqo::fixed_point_literals;
@@ -27,7 +27,7 @@ void GameObject::SetMesh(const eastl::string_view& meshName) {
 }
 
 void GameObject::SetTexture(const eastl::string_view& textureName) {
-    TextureManager::GetTextureFromName(textureName, &m_texture);
+	TextureManager::GetTextureFromName(textureName, &m_texture);
 }
 
 void GameObject::SetPosition(const psyqo::Vec3& pos) {
@@ -78,8 +78,8 @@ void GameObject::GenerateRotationMatrix(void) {
 
 	// create complete x/y/z rotation. this is done ROLL then YAW then PITCH
 	psyqo::Matrix33 tempMatrix = {0};
-	GTEMath::MultiplyMatrix33(yaw, pitch, &tempMatrix);
-	GTEMath::MultiplyMatrix33(tempMatrix, roll, &m_rotationMatrix);
+	psyqo::GteMath::multiplyMatrix33(yaw, pitch, &tempMatrix);
+	psyqo::GteMath::multiplyMatrix33(tempMatrix, roll, &m_rotationMatrix);
 
 	// update the OBB
 	UpdateOBB();
@@ -92,7 +92,7 @@ void GameObject::GenerateOBB(void) {
 	}
 
 	psyqo::Vec3 rotatedCentre = {0}, localCentre = (m_mesh->collisionBox.min + m_mesh->collisionBox.max) / 2;
-	psyqo::SoftMath::matrixVecMul3(m_rotationMatrix, localCentre, &rotatedCentre);
+	psyqo::GteMath::matrixVecMul3(m_rotationMatrix, localCentre, &rotatedCentre);
 
 	m_obb.center = m_pos + rotatedCentre;
 	m_obb.halfExtents = (m_mesh->collisionBox.max - m_mesh->collisionBox.min) / 2;
@@ -107,7 +107,7 @@ void GameObject::UpdateOBB(void) {
 	if (m_collisionType == CollisionType::SOLID && m_mesh)
 		localCentre = (m_mesh->collisionBox.min + m_mesh->collisionBox.max) / 2;
 
-	psyqo::SoftMath::matrixVecMul3(m_rotationMatrix, localCentre, &rotatedCentre);
+	psyqo::GteMath::matrixVecMul3(m_rotationMatrix, localCentre, &rotatedCentre);
 
 	// update the centre
 	m_obb.center = m_pos + rotatedCentre;
