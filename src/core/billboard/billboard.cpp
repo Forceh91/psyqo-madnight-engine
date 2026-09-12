@@ -1,8 +1,10 @@
 #include "billboard.hh"
-#include "EASTL/array.h"
-#include "EASTL/fixed_string.h"
 #include "defs.hh"
-#include "psyqo/primitives/common.hh"
+
+#include <EASTL/array.h>
+#include <EASTL/fixed_string.h>
+#include <EASTL/string_view.h>
+#include <psyqo/primitives/common.hh>
 
 using namespace psyqo::fixed_point_literals;
 
@@ -14,7 +16,7 @@ void Billboard::Destroy(void) {
 	m_id = INVALID_BILLBOARD_ID;
 }
 
-void Billboard::SetTexture(const eastl::fixed_string<char, MAX_BILLBOARD_NAME_LENGTH>& textureName,
+void Billboard::SetTexture(const eastl::string_view& textureName,
 						   const eastl::array<psyqo::PrimPieces::UVCoords, 4>& uv) {
 	TextureManager::GetTextureFromName(textureName, &m_texture);
 	m_uvCoords = uv;
