@@ -13,75 +13,75 @@ static constexpr uint8_t MAX_LOADED_MESHES = 250;
 static constexpr uint16_t MAX_FACES_PER_MESH = 1000;
 
 struct MeshBinVertexColours {
-  uint8_t r, g, b; // -1 if not present. otherwise 0-255
+	uint8_t r, g, b; // -1 if not present. otherwise 0-255
 };
 
 struct MeshBinIndex {
-  int16_t i1, i2, i3, i4;
+	int16_t i1, i2, i3, i4;
 };
 
 struct BoundingSphere {
-  psyqo::Vec3 centre;
-  int32_t radius;
+	psyqo::Vec3 centre;
+	int32_t radius;
 };
 
 struct MeshBin {
-  uint8_t type;                       // 1 = quads, 2 = tris (unused)
+	uint8_t type; // 1 = quads, 2 = tris (unused)
 
-  // sub header
-  uint32_t vertexCount;
-  uint32_t indicesCount;
-  uint32_t facesCount;
-  uint32_t normalsCount;
-  uint32_t uvCount;
-  uint8_t hasSkeleton;
-  uint8_t numBones;
+	// sub header
+	uint32_t vertexCount;
+	uint32_t indicesCount;
+	uint32_t facesCount;
+	uint32_t normalsCount;
+	uint32_t uvCount;
+	uint8_t hasSkeleton;
+	uint8_t numBones;
 
-  // variable-length data
-  // verts
-  psyqo::Vec3 *vertices;
-  MeshBinVertexColours *vertexColours;
-  MeshBinIndex *vertexIndices;
+	// variable-length data
+	// verts
+	psyqo::Vec3* vertices;
+	MeshBinVertexColours* vertexColours;
+	MeshBinIndex* vertexIndices;
 
-  // noramls
-  psyqo::Vec3 *normals;
-  MeshBinIndex *normalIndices;
+	// noramls
+	psyqo::Vec3* normals;
+	MeshBinIndex* normalIndices;
 
-  // UVs
-  psyqo::PrimPieces::UVCoords *uvs;
-  MeshBinIndex *uvIndices;
+	// UVs
+	psyqo::PrimPieces::UVCoords* uvs;
+	MeshBinIndex* uvIndices;
 
-  // skeleton info
-  Skeleton* skeleton;
-  uint8_t *boneForVertex; // vertex index -> bone index
-  psyqo::Vec3* verticesOnBonePos;
+	// skeleton info
+	Skeleton* skeleton;
+	uint8_t* boneForVertex; // vertex index -> bone index
+	psyqo::Vec3* verticesOnBonePos;
 
-  // basic min/max collision box
-  AABBCollision collisionBox;
-  BoundingSphere bsphere;
+	// basic min/max collision box
+	AABBCollision collisionBox;
+	BoundingSphere bsphere;
 };
 
 struct LoadedMeshBin {
-  uint64_t meshNameHash;
-  bool isLoaded;
-  MeshBin mesh;
+	uint64_t meshNameHash;
+	bool isLoaded;
+	MeshBin mesh;
 };
 
 class MeshManager {
-  static LoadedMeshBin mLoadedMeshes[MAX_LOADED_MESHES];
+	static LoadedMeshBin mLoadedMeshes[MAX_LOADED_MESHES];
 
-  static MeshBin *IsMeshLoaded(const eastl::string_view& mesh_name);
-  static MeshBin *IsMeshLoaded(uint64_t meshNameHash);
-  static int16_t FindSpaceForMesh(void);
+	static MeshBin* IsMeshLoaded(const eastl::string_view& mesh_name);
+	static MeshBin* IsMeshLoaded(uint64_t meshNameHash);
+	static int16_t FindSpaceForMesh(void);
 
-public:
-  static psyqo::Coroutine<> LoadMesh(const eastl::string_view& meshName, MeshBin **meshOut);
-  static void GetMeshFromName(const eastl::string_view& meshName, MeshBin **meshOut);
-  static void UnloadMesh(const eastl::string_view& mesh_name);
+  public:
+	static psyqo::Coroutine<> LoadMesh(const eastl::string_view& meshName, MeshBin** meshOut);
+	static void GetMeshFromName(const eastl::string_view& meshName, MeshBin** meshOut);
+	static void UnloadMesh(const eastl::string_view& mesh_name);
 
-  // dump all meshes in memory and start fresh
-  // this is used when switching to a loading screen for instance.
-  // this is a dangerous function as it wont check if anything is used
-  static void Dump(void);
-  static void FreeLoadedMesh(LoadedMeshBin* mesh);
+	// dump all meshes in memory and start fresh
+	// this is used when switching to a loading screen for instance.
+	// this is a dangerous function as it wont check if anything is used
+	static void Dump(void);
+	static void FreeLoadedMesh(LoadedMeshBin* mesh);
 };
