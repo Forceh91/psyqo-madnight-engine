@@ -1,11 +1,12 @@
 #pragma once
-#include "../helpers/archive.hh"
 #include "../helpers/load_queue.hh"
-#include "psyqo/coroutine.hh"
-#include "EASTL/vector.h"
+#include <EASTL/string_view.h>
+#include <EASTL/vector.h>
+#include <psyqo/coroutine.hh>
 
 class SceneLoader final {
-public:
-    static psyqo::Coroutine<> LoadScene(const eastl::fixed_string<char, MAX_ARCHIVE_FILE_NAME_LEN>& sceneFile, eastl::vector<LoadQueue> &queue);
-private:
+  public:
+	static psyqo::Coroutine<> LoadScene(const eastl::string_view& sceneFile, eastl::vector<LoadQueue>& queue);
+
+  private:
 };

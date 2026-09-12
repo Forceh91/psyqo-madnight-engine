@@ -1,10 +1,10 @@
 #include "scene_loader.hh"
-#include "EASTL/fixed_string.h"
-#include "psyqo/xprintf.h"
-#include <cstdint>
 
-psyqo::Coroutine<> SceneLoader::LoadScene(const eastl::fixed_string<char, MAX_ARCHIVE_FILE_NAME_LEN>& sceneFile,
-										  eastl::vector<LoadQueue>& queue) {
+#include <EASTL/fixed_string.h>
+#include <EASTL/string_view.h>
+#include <psyqo/xprintf.h>
+
+psyqo::Coroutine<> SceneLoader::LoadScene(const eastl::string_view& sceneFile, eastl::vector<LoadQueue>& queue) {
 	// load the file from the archive
 	auto buffer = co_await ArchiveHelper::LoadFile(sceneFile);
 	uint8_t* data = buffer.data();
@@ -73,9 +73,9 @@ psyqo::Coroutine<> SceneLoader::LoadScene(const eastl::fixed_string<char, MAX_AR
 			ptr += sizeof(uint16_t);
 
 			// add this to the out queue
-			queue.push_back({fileName.c_str(), type, vramX, vramY, clutX, clutY});
+			queue.push_back({{fileName.data(), fileName.length()}, type, vramX, vramY, clutX, clutY});
 		} else // add this to the out queue
-			queue.push_back({fileName.c_str(), type});
+			queue.push_back({{fileName.data(), fileName.length()}, type});
 	}
 
 	buffer.clear();
