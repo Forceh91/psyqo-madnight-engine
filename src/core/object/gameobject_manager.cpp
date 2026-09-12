@@ -1,21 +1,17 @@
 #include "gameobject_manager.hh"
 
-#include "EASTL/fixed_string.h"
-#include "EASTL/span.h"
-
 eastl::array<GameObject, MAX_GAME_OBJECTS> GameObjectManager::m_gameObjects;
 eastl::fixed_vector<GameObject *, MAX_GAME_OBJECTS> GameObjectManager::m_activeGameObjects;
 eastl::fixed_vector<GameObject *, MAX_GAME_OBJECTS> GameObjectManager::m_renderableGameObjects;
 
-GameObject *GameObjectManager::CreateGameObject(const char *name, psyqo::Vec3 pos, GameObjectRotation rotation, GameObjectTag tag)
-{
+GameObject *GameObjectManager::CreateGameObject(const eastl::string_view& name, const uint64_t& nameHash, const psyqo::Vec3& pos, const GameObjectRotation& rotation, const GameObjectTag& tag) {
     // do we have space in the game objects for this?
     auto freeIx = GetFreeIndex();
     if (freeIx == -1)
         return nullptr;
 
     // we do, lets create a new instance and add it
-    m_gameObjects[freeIx] = GameObject(name, pos, rotation, tag, freeIx);
+    m_gameObjects[freeIx] = GameObject(name, HashName(name), pos, rotation, tag, freeIx);
     return &m_gameObjects[freeIx];
 }
 

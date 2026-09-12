@@ -1,4 +1,5 @@
 #pragma once
+#include "EASTL/string_view.h"
 #include "psyqo/fixed-point.hh"
 #include "psyqo/trigonometry.hh"
 #include "psyqo/vector.hh"
@@ -26,6 +27,8 @@ typedef struct _GAMEOBJECT_ROTATION {
 enum RenderFlags { RF_NONE = 0, RF_DISTANCE_CHECK = 1 };
 
 class GameObject final {
+  friend class GameObjectManager;
+
   uint64_t m_nameHash = 0;
   eastl::fixed_string<char, MAX_GAMEOBJECT_NAME_LENGTH> m_name;
   uint8_t m_id = INVALID_GAMEOBJECT_ID;
@@ -45,11 +48,8 @@ class GameObject final {
   void GenerateOBB(void);
   void UpdateOBB(void);
 
-public:
-  GameObject() = default;
-  GameObject(const char *name, psyqo::Vec3 pos, GameObjectRotation rotation, GameObjectTag tag, uint8_t id) {
-    m_nameHash = HashName(name);
-    m_name = name;
+  GameObject(const eastl::string_view& name, const uint64_t& nameHash, const psyqo::Vec3& pos, const GameObjectRotation& rotation, const GameObjectTag& tag, const uint8_t& id) : m_name(name.data(), name.length()) {
+    m_nameHash = nameHash;
     m_pos = pos;
     m_rotation = rotation;
     m_tag = tag;
@@ -58,6 +58,9 @@ public:
     GenerateRotationMatrix();
   };
   void Destroy(void);
+
+  public:
+  GameObject() = default;
 
   uint64_t nameHash() const { return m_nameHash; }
   const eastl::fixed_string<char, MAX_GAMEOBJECT_NAME_LENGTH> &name() const { return m_name; }
