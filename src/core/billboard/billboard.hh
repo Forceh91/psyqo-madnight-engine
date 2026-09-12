@@ -36,7 +36,7 @@ class Billboard {
 	const eastl::array<psyqo::PrimPieces::UVCoords, 4>& uv() const { return m_uvCoords; }
 	void SetUVCoords(const eastl::array<psyqo::PrimPieces::UVCoords, 4>& uv);
 
-  private:
+  protected:
 	friend class BillboardManager;
 
 	Billboard(uint64_t nameHash, psyqo::Vec3 pos, psyqo::Vec2 size, uint8_t id) {
