@@ -133,13 +133,13 @@ void ParticleEmitter::GenerateRotationMatrix(void) {
 	// do both of these now so we dont have to do it every frame
 	// generate the rotated pos
 	psyqo::Vec3 rotatedPos = {0, 0, 0};
-	GTEMath::MultiplyMatrixVec3(m_rotationMatrix, m_pos, &m_rotatedPos);
+	psyqo::GteMath::matrixVecMul3(m_rotationMatrix, m_pos, &m_rotatedPos);
 
 	// and generate the rotated velocity
 	GenerateRotatedVelocity();
 }
 
 void ParticleEmitter::GenerateRotatedVelocity(void) {
-	GTEMath::MultiplyMatrixVec3(m_rotationMatrix, m_particleStartVelocity, &m_particleRotatedStartVelocity);
-	GTEMath::MultiplyMatrixVec3(m_rotationMatrix, m_particleEndVelocity, &m_particleRotatedEndVelocity);
+	psyqo::GteMath::matrixVecMul3(m_rotationMatrix, m_particleStartVelocity, &m_particleRotatedStartVelocity);
+	psyqo::GteMath::matrixVecMul3(m_rotationMatrix, m_particleEndVelocity, &m_particleRotatedEndVelocity);
 }
