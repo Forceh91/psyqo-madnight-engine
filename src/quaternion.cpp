@@ -102,7 +102,7 @@ Quaternion Slerp(const Quaternion& q1, const Quaternion& q2, psyqo::FixedPoint<>
 	Quaternion slerpedQ = {q1Factor * q1.w + q2.w * q2Factor, q1Factor * q1.x + q2.x * q2Factor,
 						   q1Factor * q1.y + q2.y * q2Factor, q1Factor * q1.z + q2.z * q2Factor};
 
-	// give back a normiized lerp
+	// give back a normalized lerp
 	slerpedQ.Normalize();
 	return slerpedQ;
 }
