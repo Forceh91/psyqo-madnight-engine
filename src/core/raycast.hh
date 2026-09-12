@@ -1,5 +1,4 @@
-#ifndef _RAYCAST_H
-#define _RAYCAST_H
+#pragma once
 
 #include "object/gameobject.hh"
 #include "world_defs.hh"
@@ -31,4 +30,3 @@ public:
     static bool RaycastScene(const Ray &ray, GameObjectTag targetTag, RayHit *hitOut);
 };
 
-#endif

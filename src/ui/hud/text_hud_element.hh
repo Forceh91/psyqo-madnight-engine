@@ -1,5 +1,4 @@
-#ifndef _UI_TEXT_HUD_ELEMENT_H
-#define _UI_TEXT_HUD_ELEMENT_H
+#pragma once
 
 #include <EASTL/fixed_string.h>
 #include "psyqo/font.hh"
@@ -24,5 +23,3 @@ public:
     void Render(const psyqo::Rect &parentRect);
     void Render(const psyqo::Rect &parentRect, psyqo::Font<100> *defaultFont);
 };
-
-#endif

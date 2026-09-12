@@ -1,5 +1,4 @@
-#ifndef _PERF_MONITOR_H
-#define _PERF_MONITOR_H
+#pragma once
 
 #include "../../ui/hud/gameplay_hud.hh"
 
@@ -22,5 +21,3 @@ private:
   static uint8_t m_renderedGameObjects;
   static uint8_t m_totalGameObjects;
 };
-
-#endif

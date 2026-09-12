@@ -1,7 +1,5 @@
-#ifndef _GAMEPLAY_SCENE_H
-#define _GAMEPLAY_SCENE_H
+#pragma once
 
-#include "psyqo/coroutine.hh"
 #include "psyqo/scene.hh"
 
 #include "../render/camera.hh"
@@ -26,8 +24,4 @@ class GameplayScene final : public psyqo::Scene {
 
   Menu m_menu;
   Camera *m_camera = nullptr;
-
-public:
 };
-
-#endif

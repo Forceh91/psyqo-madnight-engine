@@ -1,5 +1,4 @@
-#ifndef _PARTICLE_EMITTER_H
-#define _PARTICLE_EMITTER_H
+#pragma once
 
 #include "EASTL/vector.h"
 #include "defs.hh"
@@ -50,7 +49,7 @@ public:
     void SetParticles2D(const bool &is2D);
 
     void SetParticleVelocity(const psyqo::Vec3 &particleVelocity);
-    void SetParticleVelocity(const psyqo::Vec3 &particleVelocity, const psyqo::Vec3 &particleEndVelocity);    
+    void SetParticleVelocity(const psyqo::Vec3 &particleVelocity, const psyqo::Vec3 &particleEndVelocity);
 
     void SetParticleSize(const psyqo::Vec2 &particleSize);
     void SetParticleSize(const psyqo::Vec2 &particleSize, const psyqo::Vec2 &particleEndSize);
@@ -96,5 +95,3 @@ private:
     void GenerateRotationMatrix(void);
     void GenerateRotatedVelocity(void);
 };
-
-#endif

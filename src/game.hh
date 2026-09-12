@@ -1,6 +1,4 @@
-#ifndef _GAME_HH
-#define _GAME_HH
-
+#pragma once
 #include "psyqo/coroutine.hh"
 
 class MadnightEngineGame
@@ -10,5 +8,3 @@ public:
 };
 
 extern MadnightEngineGame &g_madnightEngineGame;
-
-#endif

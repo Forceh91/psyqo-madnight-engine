@@ -1,5 +1,4 @@
-#ifndef _ANIMATION_MANAGER_H
-#define _ANIMATION_MANAGER_H
+#pragma once
 
 #include "EASTL/fixed_string.h"
 #include "animation.hh"
@@ -13,4 +12,3 @@ public:
   static Animation *GetAnimationFromName(const eastl::fixed_string<char, MAX_ANIMATION_NAME_LENGTH> &animationName);
 };
 
-#endif

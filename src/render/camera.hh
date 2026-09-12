@@ -1,5 +1,4 @@
-#ifndef _CAMERA_H
-#define _CAMERA_H
+#pragma once
 
 #include "psyqo/fixed-point.hh"
 #include "psyqo/matrix.hh"
@@ -145,5 +144,3 @@ private:
   void SetRotationMatrix(void);
   psyqo::Vec3 CalculateOrbitPosition(void);
 };
-
-#endif

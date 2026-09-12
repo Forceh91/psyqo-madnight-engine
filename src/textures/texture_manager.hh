@@ -1,11 +1,9 @@
-#ifndef _TEXTURE_MANAGER_H
-#define _TEXTURE_MANAGER_H
+#pragma once
 
 #include <stdint.h>
 #include <EASTL/functional.h>
 #include "psyqo/coroutine.hh"
 #include "psyqo/primitives.hh"
-#include "../helpers/archive.hh"
 
 static constexpr uint16_t texturePageWidth = 64;
 static constexpr uint16_t texturePageHeight = 256;
@@ -51,5 +49,3 @@ public:
     // this wont remove anything from vram
     static void Dump(void);
 };
-
-#endif

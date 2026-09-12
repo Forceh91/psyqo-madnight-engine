@@ -1,5 +1,4 @@
-#ifndef _GAMEOBJECT_MANAGER_H
-#define _GAMEOBJECT_MANAGER_H
+#pragma once
 
 #include "EASTL/span.h"
 #include "gameobject.hh"
@@ -31,5 +30,3 @@ public:
     static GameObject *GetGameObjectByName(uint64_t nameHash);
     static void Dump(void);
 };
-
-#endif

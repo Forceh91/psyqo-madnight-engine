@@ -1,6 +1,4 @@
-#ifndef _MENU_CONTROLLER_BINDS_H
-#define _MENU_CONTROLLER_BINDS_H
-
+#pragma once
 #include <EASTL/array.h>
 #include "psyqo/advancedpad.hh"
 
@@ -13,5 +11,3 @@ struct MenuControllerBinds
     psyqo::AdvancedPad::Button menuItemBackCancel;
     eastl::array<psyqo::AdvancedPad::Button, 16> menuItemCustom;
 };
-
-#endif

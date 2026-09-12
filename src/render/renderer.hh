@@ -1,6 +1,4 @@
-#ifndef _RENDERER_H
-#define _RENDERER_H
-
+#pragma once
 #include "../textures/texture_manager.hh"
 #include "../core/collision_types.hh"
 #include "lighting.hh"
@@ -61,7 +59,7 @@ class Renderer final {
 
   void RenderBillboards(uint32_t deltaTime, const psyqo::Matrix33 &cameraRotationMatrix);
   void RenderParticles(uint32_t deltaTime, const psyqo::Matrix33 &cameraRotationMatrix);
-  
+
   bool IsGameObjectVisible(const psyqo::Vec3& objectPos, const AABBCollision& collisionBox, const int32_t& boundingSphereRadius);
 
   psyqo::FixedPoint<> GetFogFactor(uint32_t z);
@@ -71,7 +69,7 @@ class Renderer final {
   void ApplyAmbientToColours(psyqo::Color* colA, psyqo::Color* colB, psyqo::Color* colC, psyqo::Color* colD);
   void ApplyFogToColour(psyqo::Color* col, psyqo::FixedPoint<> fogFactor);
   psyqo::Color ApplyFogToColourGTE(psyqo::Color input, uint32_t p = 0);
-  
+
   void SetFarColour(void);
   void SetFogNearFar(psyqo::FixedPoint<> near, psyqo::FixedPoint<> far);
 public:
@@ -90,7 +88,7 @@ public:
   void RenderSprite(const TimFile *tim, const psyqo::Rect rect, const psyqo::PrimPieces::UVCoords uv);
   void SetActiveCamera(Camera *camera);
   const Camera* ActiveCamera(void) const { return m_activeCamera; }
-  
+
   void SetFogColour(const psyqo::Color &colour);
   const bool& IsSimpleFogEnabled(void) const { return m_lighting->IsSimpleFogEnabled(); }
 
@@ -100,4 +98,3 @@ public:
   psyqo::Font<100> *SystemFont() { return &m_systemFont; }
 };
 
-#endif

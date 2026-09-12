@@ -1,5 +1,4 @@
-#ifndef _SOUND_MANAGER_H
-#define _SOUND_MANAGER_H
+#pragma once
 
 #include <EASTL/array.h>
 #include "mod_sound.hh"
@@ -43,4 +42,3 @@ public:
     static void SetMusicVolume(uint16_t volume);
 };
 
-#endif

@@ -1,6 +1,4 @@
-#ifndef _COLBIN_MANAGER_HH
-#define _COLBIN_MANAGER_HH
-
+#pragma once
 #include "../helpers/archive.hh"
 #include "../core/collision_types.hh"
 #include "EASTL/fixed_string.h"
@@ -35,7 +33,7 @@ struct FloorTri {
     int16_t n[3];     // face normal (x, y, z) — FP12 (scaled by 4096)
 };
 
-struct ColBin {   
+struct ColBin {
     Header header;
     GridHeader gridHeader;
     GridCell* gridCells;
@@ -53,6 +51,4 @@ public:
 private:
     static ColBin m_colbin;
 };
-
-#endif
 

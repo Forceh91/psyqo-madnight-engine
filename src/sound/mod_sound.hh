@@ -1,5 +1,4 @@
-#ifndef _SOUND_H
-#define _SOUND_H
+#pragma once
 
 #include <EASTL/fixed_string.h>
 #include "../helpers/archive.hh"
@@ -15,5 +14,3 @@ struct ModSoundFile
     uint32_t size;
     bool isLoaded;
 };
-
-#endif

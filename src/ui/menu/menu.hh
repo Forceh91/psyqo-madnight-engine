@@ -1,6 +1,4 @@
-#ifndef _UI_MENU_BASE_H
-#define _UI_MENU_BASE_H
-
+#pragma once
 #include <EASTL/array.h>
 #include <EASTL/fixed_string.h>
 #include <EASTL/fixed_vector.h>
@@ -74,7 +72,7 @@ class Menu : public psyqo::Scene
     {
         if (m_onDestroy)
             m_onDestroy();
-    }    
+    }
 
     uint8_t MoveSelectedMenuItemPrev()
     {
@@ -92,7 +90,7 @@ class Menu : public psyqo::Scene
 
         m_currentSelectedMenuItem = (m_currentSelectedMenuItem + 1) % m_menuItems.size();
         return m_currentSelectedMenuItem;
-    }    
+    }
 
 public:
     Menu() = default;
@@ -173,5 +171,3 @@ public:
         m_currentSelectedMenuItem = ix;
     }
 };
-
-#endif

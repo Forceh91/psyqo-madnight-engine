@@ -1,5 +1,4 @@
-#ifndef _SKELETON_H
-#define _SKELETON_H
+#pragma once
 
 #include "../../animation/animation.hh"
 #include "../../quaternion.hh"
@@ -43,5 +42,3 @@ public:
   static void SetAnimation(Skeleton *skeleton, Animation *animation);
   static void PlayAnimation(Skeleton *skeleton, uint32_t deltaTime);
 };
-
-#endif

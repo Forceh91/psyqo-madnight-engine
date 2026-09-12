@@ -1,6 +1,4 @@
-#ifndef _PARTICLE_HH
-#define _PARTICLE_HH
-
+#pragma once
 #include "../billboard/billboard.hh"
 #include "defs.hh"
 #include "psyqo/primitives/common.hh"
@@ -48,4 +46,3 @@ private:
     uint32_t m_lastUpdate;
 };
 
-#endif

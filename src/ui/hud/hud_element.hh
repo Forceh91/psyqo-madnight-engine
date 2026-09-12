@@ -1,8 +1,7 @@
-#ifndef _UI_HUD_ELEMENT_H
-#define _UI_HUD_ELEMENT_H
+#pragma once
 
 #include <EASTL/fixed_string.h>
-#include "psyqo/vector.hh"
+#include <psyqo/vector.hh>
 #include "hud_defines.hh"
 
 class HUDElement
@@ -26,5 +25,3 @@ public:
     void Disable() { m_isEnabled = false; }
     eastl::fixed_string<char, GAMEPLAY_HUD_MAX_NAME_LEN> &name() { return m_name; }
 };
-
-#endif

@@ -1,6 +1,4 @@
-#ifndef _WORLD_SPACE_H
-#define _WORLD_SPACE_H
-
+#pragma once
 #include "psyqo/fixed-point.hh"
 
 using namespace psyqo::fixed_point_literals;
@@ -21,4 +19,3 @@ consteval psyqo::FixedPoint<10> operator""_ws10(long double blenderUnits) {
     return output;
 }
 
-#endif

@@ -1,6 +1,4 @@
-#ifndef _PARTICLE_MANAGER_H
-#define _PARTICLE_MANAGER_H
-
+#pragma once
 #include "defs.hh"
 #include "particle_emitter.hh"
 
@@ -23,8 +21,6 @@ public:
 private:
     static eastl::array<ParticleEmitter, MAX_PARTICLE_EMITTERS> m_emitters;
     static eastl::fixed_vector<ParticleEmitter*, MAX_PARTICLE_EMITTERS> m_activeEmitters;
-    
+
     static int16_t GetFreeIndex(void);
 };
-
-#endif

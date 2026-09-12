@@ -1,5 +1,4 @@
-#ifndef _BILLBOARD_MANAGER_H
-#define _BILLBOARD_MANAGER_H
+#pragma once
 
 #include "defs.hh"
 #include "billboard.hh"
@@ -22,8 +21,6 @@ public:
 private:
     static eastl::array<Billboard, MAX_BILLBOARDS> m_billboards;
     static eastl::fixed_vector<Billboard*, MAX_BILLBOARDS> m_activeBillboards;
-    
+
     static int16_t GetFreeIndex(void);
 };
-
-#endif

@@ -1,6 +1,4 @@
-#ifndef _MESH_H
-#define _MESH_H
-
+#pragma once
 #include <EASTL/fixed_string.h>
 #include <stdint.h>
 
@@ -9,7 +7,6 @@
 #include "psyqo/vector.hh"
 
 #include "../core/collision_types.hh"
-#include "../helpers/archive.hh"
 #include "skeleton/skeleton.hh"
 
 static constexpr uint8_t MAX_LOADED_MESHES = 250;
@@ -88,5 +85,3 @@ public:
   static void Dump(void);
   static void FreeLoadedMesh(LoadedMeshBin* mesh);
 };
-
-#endif

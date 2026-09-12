@@ -1,5 +1,4 @@
-#ifndef _ANIMATION_HH
-#define _ANIMATION_HH
+#pragma once
 
 #include "../quaternion.hh"
 #include "EASTL/fixed_string.h"
@@ -55,5 +54,3 @@ struct AnimationBin {
   uint8_t numAnimations;
   Animation animations[MAX_ANIMATIONS];
 };
-
-#endif

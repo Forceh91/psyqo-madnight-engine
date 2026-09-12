@@ -1,6 +1,4 @@
-#ifndef _CONTROLLER_H
-#define _CONTROLLER_H
-
+#pragma once
 #include "psyqo/advancedpad.hh"
 
 static constexpr uint8_t ANALOG_STICK_DEADZONE = 16;
@@ -17,5 +15,3 @@ public:
   static int GetNormalizedAnalogStickInput(psyqo::AdvancedPad::Pad pad, uint8_t index);
   static bool IsPadAnalog(psyqo::AdvancedPad::Pad pad);
 };
-
-#endif

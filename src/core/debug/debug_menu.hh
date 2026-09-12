@@ -1,8 +1,6 @@
-#ifndef _DEBUG_MENU_H
-#define _DEBUG_MENU_H
+#pragma once
 
 #include "../../madnight.hh"
-#include "../world_defs.hh"
 
 static constexpr uint8_t DEBUG_MENU_OPTION_COUNT = 2;
 
@@ -26,5 +24,3 @@ public:
     static uint8_t RaycastDistance() { return m_raycastDistance; }
     static bool DisplayDebugHUD() { return m_displayDebugHUD; }
 };
-
-#endif

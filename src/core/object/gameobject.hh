@@ -1,6 +1,4 @@
-#ifndef _GAMEOBJECT_H
-#define _GAMEOBJECT_H
-
+#pragma once
 #include "psyqo/fixed-point.hh"
 #include "psyqo/trigonometry.hh"
 #include "psyqo/vector.hh"
@@ -99,4 +97,3 @@ public:
   void ClearFlags(void) { m_flags = 0; }
 };
 
-#endif

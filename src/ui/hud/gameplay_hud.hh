@@ -1,11 +1,10 @@
-#ifndef _UI_HUD_GAMEPLAY_H
-#define _UI_HUD_GAMEPLAY_H
+#pragma once
 
 #include <EASTL/fixed_string.h>
 #include <EASTL/vector.h>
 #include <EASTL/fixed_vector.h>
-#include "psyqo/vector.hh"
-#include "psyqo/xprintf.h"
+#include <psyqo/vector.hh>
+#include <psyqo/xprintf.h>
 
 #include "hud_defines.hh"
 #include "text_hud_element.hh"
@@ -82,5 +81,3 @@ public:
             m_spriteHUDElements.erase(it);
     }
 };
-
-#endif

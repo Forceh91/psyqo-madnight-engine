@@ -1,5 +1,4 @@
-#ifndef _COLLISION_TYPES_H
-#define _COLLISION_TYPES_H
+#pragma once
 
 #include "psyqo/vector.hh"
 
@@ -22,5 +21,3 @@ struct AABBCollision
     psyqo::Vec3 min;
     psyqo::Vec3 max;
 };
-
-#endif

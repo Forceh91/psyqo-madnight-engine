@@ -1,6 +1,4 @@
-#ifndef _BILLBOARD_HH
-#define _BILLBOARD_HH
-
+#pragma once
 #include "EASTL/array.h"
 #include "defs.hh"
 #include "EASTL/fixed_string.h"
@@ -23,11 +21,11 @@ public:
 
     uint64_t nameHash() const { return m_nameHash; }
     const uint8_t &id() const { return m_id; }
-    
+
     const psyqo::Vec3 &pos() const { return m_pos; }
     const psyqo::Vec3 *pPos() const { return &m_pos; }
     void SetPosition(const psyqo::Vec3 pos);
-    
+
     const psyqo::Vec2 &size() const { return m_size; }
     const psyqo::Vec2 *pSize() const { return &m_size; }
     void setSize(const psyqo::Vec2 size);
@@ -56,5 +54,3 @@ protected:
 
     void SetQuadCorners(void);
 };
-
-#endif

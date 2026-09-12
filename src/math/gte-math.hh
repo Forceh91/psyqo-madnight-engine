@@ -1,6 +1,4 @@
-#ifndef _GTE_MATH_H
-#define _GTE_MATH_H
-
+#pragma once
 #include "psyqo/matrix.hh"
 #include "psyqo/vector.hh"
 
@@ -11,5 +9,3 @@ public:
                                psyqo::Matrix33 *out);
   static void MultiplyMatrixVec3(const psyqo::Matrix33 &rotationMatrix, const psyqo::Vec3 posVector, psyqo::Vec3 *out);
 };
-
-#endif
