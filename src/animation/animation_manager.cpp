@@ -6,173 +6,177 @@
 
 AnimationBin AnimationManager::m_loadedAnimBin = {0, {}};
 
-psyqo::Coroutine<> AnimationManager::LoadAnimation(const char *animationsFile) {
-  auto buffer = co_await ArchiveHelper::LoadFile(animationsFile);
+psyqo::Coroutine<> AnimationManager::LoadAnimation(const eastl::string_view& animationsFile) {
+	auto buffer = co_await ArchiveHelper::LoadFile(animationsFile);
 
-  void *data = buffer.data();
-  size_t size = buffer.size();
-  if (data == nullptr || size == 0) {
-    buffer.clear();
-    printf("ANIMATIONS: Failed to load animations file or it has no file size.\n");
-    co_return;
-  }
+	void* data = buffer.data();
+	size_t size = buffer.size();
+	if (data == nullptr || size == 0) {
+		buffer.clear();
+		printf("ANIMATIONS: Failed to load animations file or it has no file size.\n");
+		co_return;
+	}
 
-  // basic struct setup
-  __builtin_memset(&m_loadedAnimBin, 0, sizeof(AnimationBin));
+	// basic struct setup
+	__builtin_memset(&m_loadedAnimBin, 0, sizeof(AnimationBin));
 
-  // pointer math type
-  uint8_t *ptr = (uint8_t *)data;
+	// pointer math type
+	uint8_t* ptr = (uint8_t*)data;
 
-  // animbin header
-  eastl::fixed_string<char, 7> magic(reinterpret_cast<char *>(ptr), 7);
-  ptr += 7;
+	// animbin header
+	eastl::fixed_string<char, 7> magic(reinterpret_cast<char*>(ptr), 7);
+	ptr += 7;
 
-  // verify the magic value
-  if (magic.compare("ANIMBIN") != 0) {
-    printf("ANIMATIONS: Header is invalid. aborting.\n");
-    buffer.clear();
-    co_return;
-  }
+	// verify the magic value
+	if (magic.compare("ANIMBIN") != 0) {
+		printf("ANIMATIONS: Header is invalid. aborting.\n");
+		buffer.clear();
+		co_return;
+	}
 
-  // version + anim count
-  uint8_t version = 0;
-  __builtin_memcpy(&version, ptr++, 1);                       // 1 byte
-  __builtin_memcpy(&m_loadedAnimBin.numAnimations, ptr++, 1); // 1 byte
+	// version + anim count
+	uint8_t version = 0;
+	__builtin_memcpy(&version, ptr++, 1);						// 1 byte
+	__builtin_memcpy(&m_loadedAnimBin.numAnimations, ptr++, 1); // 1 byte
 
-  // for the number of animations...
-  if (m_loadedAnimBin.numAnimations > MAX_ANIMATIONS) {
-    printf("ANIMATIONS: File declares %d animations, max is %d, aborting load.\n", m_loadedAnimBin.numAnimations, MAX_ANIMATIONS);
-    __builtin_memset(&m_loadedAnimBin, 0, sizeof(AnimationBin));
-    buffer.clear();
-    co_return;
-  }
+	// for the number of animations...
+	if (m_loadedAnimBin.numAnimations > MAX_ANIMATIONS) {
+		printf("ANIMATIONS: File declares %d animations, max is %d, aborting load.\n", m_loadedAnimBin.numAnimations,
+			   MAX_ANIMATIONS);
+		__builtin_memset(&m_loadedAnimBin, 0, sizeof(AnimationBin));
+		buffer.clear();
+		co_return;
+	}
 
-  for (int32_t i = 0; i < m_loadedAnimBin.numAnimations; i++) {
-    auto *anim = &m_loadedAnimBin.animations[i];
-    
-    // load the name
-    anim->name.assign(reinterpret_cast<char *>(ptr));
-    ptr += MAX_ANIMATION_NAME_LENGTH;
+	for (int32_t i = 0; i < m_loadedAnimBin.numAnimations; i++) {
+		auto* anim = &m_loadedAnimBin.animations[i];
 
-    // load any flags it has
-    __builtin_memcpy(&anim->flags, ptr, sizeof(uint32_t));
-    ptr += sizeof(uint32_t);
+		// load the name
+		anim->name.assign(reinterpret_cast<char*>(ptr));
+		ptr += MAX_ANIMATION_NAME_LENGTH;
 
-    // length of animation
-    __builtin_memcpy(&anim->length, ptr, sizeof(uint16_t));
-    ptr += sizeof(uint16_t);
+		// load any flags it has
+		__builtin_memcpy(&anim->flags, ptr, sizeof(uint32_t));
+		ptr += sizeof(uint32_t);
 
-    // number of tracks
-    __builtin_memcpy(&anim->numTracks, ptr, sizeof(uint16_t));
-    ptr += sizeof(uint16_t);
+		// length of animation
+		__builtin_memcpy(&anim->length, ptr, sizeof(uint16_t));
+		ptr += sizeof(uint16_t);
 
-    // numer of frame markers
-    __builtin_memcpy(&anim->numMarkers, ptr, sizeof(uint16_t));
-    ptr += sizeof(uint16_t);
+		// number of tracks
+		__builtin_memcpy(&anim->numTracks, ptr, sizeof(uint16_t));
+		ptr += sizeof(uint16_t);
 
-    // load the tracks (should be one per bone)
-    if (anim->numTracks > MAX_TRACKS) {
-      printf("ANIMATIONS: Animation declares %d tracks, max is %d, aborting load.\n", anim->numTracks, MAX_TRACKS);
-      __builtin_memset(&m_loadedAnimBin, 0, sizeof(AnimationBin));
-      buffer.clear();
-      co_return;
-    }
+		// numer of frame markers
+		__builtin_memcpy(&anim->numMarkers, ptr, sizeof(uint16_t));
+		ptr += sizeof(uint16_t);
 
-    for (int32_t j = 0; j < anim->numTracks; j++) {
-      auto *track = &anim->tracks[j];
+		// load the tracks (should be one per bone)
+		if (anim->numTracks > MAX_TRACKS) {
+			printf("ANIMATIONS: Animation declares %d tracks, max is %d, aborting load.\n", anim->numTracks,
+				   MAX_TRACKS);
+			__builtin_memset(&m_loadedAnimBin, 0, sizeof(AnimationBin));
+			buffer.clear();
+			co_return;
+		}
 
-      // track type (rotation or translation)
-      __builtin_memcpy(&track->type, ptr++, sizeof(uint8_t));
+		for (int32_t j = 0; j < anim->numTracks; j++) {
+			auto* track = &anim->tracks[j];
 
-      // which bone
-      __builtin_memcpy(&track->jointId, ptr++, sizeof(uint8_t));
+			// track type (rotation or translation)
+			__builtin_memcpy(&track->type, ptr++, sizeof(uint8_t));
 
-      // keyframes
-      __builtin_memcpy(&track->numKeys, ptr, sizeof(uint16_t));
-      ptr += sizeof(uint16_t);
+			// which bone
+			__builtin_memcpy(&track->jointId, ptr++, sizeof(uint8_t));
 
-      // for each frame (key)
-      if (track->numKeys > MAX_KEYS) {
-        printf("ANIMATIONS: Track declares %d keys, max is %d, aborting load.\n", track->numKeys, MAX_KEYS);
-        __builtin_memset(&m_loadedAnimBin, 0, sizeof(AnimationBin));
-        buffer.clear();
-        co_return;
-      }
+			// keyframes
+			__builtin_memcpy(&track->numKeys, ptr, sizeof(uint16_t));
+			ptr += sizeof(uint16_t);
 
-      for (int32_t k = 0; k < track->numKeys; k++) {
-        auto *key = &track->keys[k];
+			// for each frame (key)
+			if (track->numKeys > MAX_KEYS) {
+				printf("ANIMATIONS: Track declares %d keys, max is %d, aborting load.\n", track->numKeys, MAX_KEYS);
+				__builtin_memset(&m_loadedAnimBin, 0, sizeof(AnimationBin));
+				buffer.clear();
+				co_return;
+			}
 
-        // frame number
-        __builtin_memcpy(&key->frame, ptr, sizeof(uint16_t));
-        ptr += sizeof(uint16_t);
+			for (int32_t k = 0; k < track->numKeys; k++) {
+				auto* key = &track->keys[k];
 
-        // key type
-        __builtin_memcpy(&key->keyType, ptr++, sizeof(uint8_t));
+				// frame number
+				__builtin_memcpy(&key->frame, ptr, sizeof(uint16_t));
+				ptr += sizeof(uint16_t);
 
-        // keytype data
-        if (key->keyType == KeyType::ROTATION) {
-          // rotation data
-          __builtin_memcpy(&key->rotation.w.value, ptr, sizeof(int16_t)); // 2 bytes
-          ptr += sizeof(int16_t);
+				// key type
+				__builtin_memcpy(&key->keyType, ptr++, sizeof(uint8_t));
 
-          __builtin_memcpy(&key->rotation.x.value, ptr, sizeof(int16_t)); // 2 bytes
-          ptr += sizeof(int16_t);
+				// keytype data
+				if (key->keyType == KeyType::ROTATION) {
+					// rotation data
+					__builtin_memcpy(&key->rotation.w.value, ptr, sizeof(int16_t)); // 2 bytes
+					ptr += sizeof(int16_t);
 
-          __builtin_memcpy(&key->rotation.y.value, ptr, sizeof(int16_t)); // 2 bytes
-          ptr += sizeof(int16_t);
+					__builtin_memcpy(&key->rotation.x.value, ptr, sizeof(int16_t)); // 2 bytes
+					ptr += sizeof(int16_t);
 
-          __builtin_memcpy(&key->rotation.z.value, ptr, sizeof(int16_t)); // 2 bytes
-          ptr += sizeof(int16_t);
-        } else if (key->keyType == KeyType::TRANSLATION) {
-          // translation data
-          __builtin_memcpy(&key->translation.x.value, ptr, sizeof(int32_t)); // 4 bytes
-          ptr += sizeof(int32_t);
+					__builtin_memcpy(&key->rotation.y.value, ptr, sizeof(int16_t)); // 2 bytes
+					ptr += sizeof(int16_t);
 
-          __builtin_memcpy(&key->translation.y.value, ptr, sizeof(int32_t)); // 4 bytes
-          ptr += sizeof(int32_t);
+					__builtin_memcpy(&key->rotation.z.value, ptr, sizeof(int16_t)); // 2 bytes
+					ptr += sizeof(int16_t);
+				} else if (key->keyType == KeyType::TRANSLATION) {
+					// translation data
+					__builtin_memcpy(&key->translation.x.value, ptr, sizeof(int32_t)); // 4 bytes
+					ptr += sizeof(int32_t);
 
-          __builtin_memcpy(&key->translation.z.value, ptr, sizeof(int32_t)); // 4 bytes
-          ptr += sizeof(int32_t);
-        }
-      }
-    }
+					__builtin_memcpy(&key->translation.y.value, ptr, sizeof(int32_t)); // 4 bytes
+					ptr += sizeof(int32_t);
 
-    // if they have markers
-    if (anim->numMarkers) {
-      if (anim->numMarkers > MAX_MARKERS) {
-        printf("ANIMATIONS: Animation declares %d markers, max is %d, aborting load.\n", anim->numMarkers, MAX_MARKERS);
-        __builtin_memset(&m_loadedAnimBin, 0, sizeof(AnimationBin));
-        buffer.clear();
-        co_return;
-      }
+					__builtin_memcpy(&key->translation.z.value, ptr, sizeof(int32_t)); // 4 bytes
+					ptr += sizeof(int32_t);
+				}
+			}
+		}
 
-      for (int32_t i = 0; i < anim->numMarkers; i++) {
-        auto *marker = &anim->markers[i];
-        // load the marker name
-        marker->name.assign(reinterpret_cast<char *>(ptr), MAX_ANIMATION_NAME_LENGTH);
-        ptr += MAX_ANIMATION_NAME_LENGTH;
+		// if they have markers
+		if (anim->numMarkers) {
+			if (anim->numMarkers > MAX_MARKERS) {
+				printf("ANIMATIONS: Animation declares %d markers, max is %d, aborting load.\n", anim->numMarkers,
+					   MAX_MARKERS);
+				__builtin_memset(&m_loadedAnimBin, 0, sizeof(AnimationBin));
+				buffer.clear();
+				co_return;
+			}
 
-        // load the frame
-        __builtin_memcpy(&marker->frame, ptr, sizeof(uint16_t));
-        ptr += sizeof(uint16_t);
-      }
-    }
-  }
+			for (int32_t i = 0; i < anim->numMarkers; i++) {
+				auto* marker = &anim->markers[i];
+				// load the marker name
+				marker->name.assign(reinterpret_cast<char*>(ptr), MAX_ANIMATION_NAME_LENGTH);
+				ptr += MAX_ANIMATION_NAME_LENGTH;
 
-  // free the buffer
-  buffer.clear();
-  printf("ANIMATIONS: Successfully loaded animations file of %d bytes into memory.\n", size);
+				// load the frame
+				__builtin_memcpy(&marker->frame, ptr, sizeof(uint16_t));
+				ptr += sizeof(uint16_t);
+			}
+		}
+	}
+
+	// free the buffer
+	buffer.clear();
+	printf("ANIMATIONS: Successfully loaded animations file of %d bytes into memory.\n", size);
 }
 
-Animation * AnimationManager::GetAnimationFromName(const eastl::fixed_string<char, MAX_ANIMATION_NAME_LENGTH> &animationName) {
-  for (int32_t i = 0; i < m_loadedAnimBin.numAnimations; i++) {
-    auto *anim = &m_loadedAnimBin.animations[i];
-    if (anim == nullptr)
-      continue;
+Animation*
+AnimationManager::GetAnimationFromName(const eastl::fixed_string<char, MAX_ANIMATION_NAME_LENGTH>& animationName) {
+	for (int32_t i = 0; i < m_loadedAnimBin.numAnimations; i++) {
+		auto* anim = &m_loadedAnimBin.animations[i];
+		if (anim == nullptr)
+			continue;
 
-    if (anim->name == animationName)
-      return anim;
-  }
+		if (anim->name == animationName)
+			return anim;
+	}
 
-  return nullptr;
+	return nullptr;
 }
