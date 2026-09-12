@@ -5,6 +5,7 @@
 #include "defs.hh"
 #include "particle.hh"
 
+#include <psyqo/gte-math.hh>
 #include <psyqo/soft-math.hh>
 
 using namespace psyqo::fixed_point_literals;
@@ -126,8 +127,8 @@ void ParticleEmitter::GenerateRotationMatrix(void) {
 
 	// create complete x/y/z rotation. this is done ROLL then YAW then PITCH
 	psyqo::Matrix33 tempMatrix = {0};
-	psyqo::SoftMath::multiplyMatrix33(yaw, pitch, &tempMatrix);
-	psyqo::SoftMath::multiplyMatrix33(tempMatrix, roll, &m_rotationMatrix);
+	psyqo::GteMath::multiplyMatrix33(yaw, pitch, &tempMatrix);
+	psyqo::GteMath::multiplyMatrix33(tempMatrix, roll, &m_rotationMatrix);
 
 	// do both of these now so we dont have to do it every frame
 	// generate the rotated pos
