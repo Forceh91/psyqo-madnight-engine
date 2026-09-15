@@ -1,3 +1,9 @@
+/*
+ * Copyright (C) 2024-2026 Matt Hadden / Madnight Games
+ *
+ * SPDX-License-Identifier: LGPL-2.1-or-later
+ */
+
 #include "file_loader.hh"
 
 #include "core/debug/debug_menu.hh"
