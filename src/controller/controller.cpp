@@ -7,7 +7,7 @@ void ControllerHelper::init(void) {
 }
 
 int ControllerHelper::GetNormalizedAnalogStickInput(psyqo::AdvancedPad::Pad pad, uint8_t analog_index) {
-	if (!g_madnightEngine.m_input.hasAnalog(pad)) {
+	if (!g_madnightEngine.m_input.isPadConnected(pad) || !g_madnightEngine.m_input.hasAnalog(pad)) {
 		return 0;
 	}
 
