@@ -55,8 +55,9 @@ class GameplayHUD final {
 	void RemoveTextHUDElement(TextHUDElement* element) {
 		auto it = eastl::find_if(m_textHUDElements.begin(), m_textHUDElements.end(),
 								 [element](TextHUDElement& el) { return &el == element; });
-		if (it != m_textHUDElements.end())
+		if (it != m_textHUDElements.end()) {
 			m_textHUDElements.erase(it);
+		}
 	}
 
 	// dont lose track of the hud element!
@@ -69,7 +70,8 @@ class GameplayHUD final {
 	void RemoveSpriteHUDElement(SpriteHUDElement* element) {
 		auto it = eastl::find_if(m_spriteHUDElements.begin(), m_spriteHUDElements.end(),
 								 [element](SpriteHUDElement& el) { return &el == element; });
-		if (it != m_spriteHUDElements.end())
+		if (it != m_spriteHUDElements.end()) {
 			m_spriteHUDElements.erase(it);
+		}
 	}
 };

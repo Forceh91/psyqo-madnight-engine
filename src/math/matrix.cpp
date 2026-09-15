@@ -18,8 +18,9 @@ psyqo::Matrix33 InverseMatrix33(const psyqo::Matrix33& rotationMatrix) {
 	auto abs = [](int32_t x) { return x < 0 ? -x : x; };
 
 	auto det = psyqo::SoftMath::matrixDeterminant3(rotationMatrix);
-	if (abs(det.value) < 50)
+	if (abs(det.value) < 50) {
 		return rotationMatrix;
+	}
 
 	auto invDet = 1 / det;
 	return {{

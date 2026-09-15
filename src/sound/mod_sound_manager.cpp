@@ -26,8 +26,9 @@ psyqo::Coroutine<> ModSoundManager::LoadMODSound(const eastl::string_view& modSo
 
 	// load the data into the SPU
 	soundFile.size = MOD_Load((MODFileFormat*)data);
-	if (soundFile.size == 0)
+	if (soundFile.size == 0) {
 		co_return;
+	}
 
 	// loaded
 	soundFile.isLoaded = true;
@@ -43,28 +44,32 @@ psyqo::Coroutine<> ModSoundManager::LoadMODSound(const eastl::string_view& modSo
 }
 
 void ModSoundManager::PlaySoundEffect(uint32_t channel, uint32_t sampleID, int32_t pitch, uint32_t volume) {
-	if (!m_currentSoundFile.isLoaded)
+	if (!m_currentSoundFile.isLoaded) {
 		return;
+	}
 	MOD_PlaySoundEffect(channel, sampleID, pitch, volume);
 }
 
 void ModSoundManager::PlayNote(uint32_t voiceID, uint32_t sampleID, uint32_t note, int16_t volume) {
-	if (!m_currentSoundFile.isLoaded)
+	if (!m_currentSoundFile.isLoaded) {
 		return;
+	}
 
 	MOD_PlayNote(voiceID, sampleID, note, volume);
 }
 
 void ModSoundManager::PlayMusic(void) {
-	if (!m_currentSoundFile.isLoaded)
+	if (!m_currentSoundFile.isLoaded) {
 		return;
+	}
 
 	PlayMusic(m_musicVolume);
 }
 
 void ModSoundManager::PlayMusic(uint16_t volume) {
-	if (!m_currentSoundFile.isLoaded)
+	if (!m_currentSoundFile.isLoaded) {
 		return;
+	}
 
 	SetMusicVolume(volume);
 
@@ -80,8 +85,9 @@ void ModSoundManager::PlayMusic(uint16_t volume) {
 }
 
 void ModSoundManager::PauseMusic(void) {
-	if (!m_currentSoundFile.isLoaded)
+	if (!m_currentSoundFile.isLoaded) {
 		return;
+	}
 
 	auto& gpu = Renderer::Instance().GPU();
 	gpu.cancelTimer(m_musicTimer);
@@ -89,8 +95,9 @@ void ModSoundManager::PauseMusic(void) {
 }
 
 void ModSoundManager::StopMusic(void) {
-	if (!m_currentSoundFile.isLoaded)
+	if (!m_currentSoundFile.isLoaded) {
 		return;
+	}
 
 	auto& gpu = Renderer::Instance().GPU();
 	gpu.cancelTimer(m_musicTimer);
@@ -98,8 +105,9 @@ void ModSoundManager::StopMusic(void) {
 }
 
 void ModSoundManager::SetMusicVolume(uint16_t volume) {
-	if (!m_currentSoundFile.isLoaded)
+	if (!m_currentSoundFile.isLoaded) {
 		return;
+	}
 
 	m_musicVolume = volume;
 	MOD_SetMusicVolume(m_musicVolume);

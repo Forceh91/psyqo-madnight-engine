@@ -19,18 +19,21 @@ void SoundManager::Init(void) {
 
 psyqo::Coroutine<> SoundManager::LoadVAGFile(const eastl::fixed_string<char, MAX_ARCHIVE_FILE_NAME_LEN>& fileName,
 											 VagEntry** out) {
-	if (!m_isInitialized)
+	if (!m_isInitialized) {
 		Init();
+	}
 
 	// fallback response to nothing
-	if (out)
+	if (out) {
 		*out = nullptr;
+	}
 
 	// did we already load this?
 	auto existingVag = IsVAGLoaded(fileName);
 	if (existingVag) {
-		if (out)
+		if (out) {
 			*out = existingVag;
+		}
 		co_return;
 	}
 
@@ -104,8 +107,9 @@ psyqo::Coroutine<> SoundManager::LoadVAGFile(const eastl::fixed_string<char, MAX
 
 	// all done?
 	m_vagFiles.push_back(vag);
-	if (out)
+	if (out) {
 		*out = &m_vagFiles.back();
+	}
 
 	// dump it from memory
 	buffer.clear();
@@ -118,8 +122,9 @@ VagEntry* SoundManager::IsVAGLoaded(const eastl::fixed_string<char, MAX_ARCHIVE_
 
 VagEntry* SoundManager::IsVAGLoaded(uint64_t nameHash) {
 	for (auto& vag : m_vagFiles) {
-		if (vag.nameHash == nameHash)
+		if (vag.nameHash == nameHash) {
 			return &vag;
+		}
 	}
 
 	// not loaded yet
@@ -129,8 +134,9 @@ VagEntry* SoundManager::IsVAGLoaded(uint64_t nameHash) {
 VagEntry* SoundManager::IsVAGLoaded(const uint8_t& id) {
 	VagEntry* loadedVAG;
 	for (auto& vag : m_vagFiles) {
-		if (vag.id == id)
+		if (vag.id == id) {
 			return &vag;
+		}
 	}
 
 	// not loaded yet
@@ -142,21 +148,24 @@ void SoundManager::SilenceChannels(const uint32_t channelMask) { psyqo::SPU::sil
 void SoundManager::PlayVAGFile(const eastl::fixed_string<char, MAX_ARCHIVE_FILE_NAME_LEN>& fileName, uint8_t channelId,
 							   const psyqo::SPU::ChannelPlaybackConfig& config, bool hardCut) {
 	auto vag = IsVAGLoaded(fileName);
-	if (vag)
+	if (vag) {
 		PlayVAGFile(vag, channelId, config, hardCut);
+	}
 }
 
 void SoundManager::PlayVAGFile(const uint8_t& vagID, uint8_t channelId, const psyqo::SPU::ChannelPlaybackConfig& config,
 							   bool hardCut) {
 	auto vag = IsVAGLoaded(vagID);
-	if (vag)
+	if (vag) {
 		PlayVAGFile(vag, channelId, config, hardCut);
+	}
 }
 
 void SoundManager::PlayVAGFile(const VagEntry* vag, uint8_t channelId, const psyqo::SPU::ChannelPlaybackConfig& config,
 							   bool hardCut) {
-	if (!vag || !vag->size || vag->spuAddr < psyqo::SPU::BASE_ALLOC_ADDR)
+	if (!vag || !vag->size || vag->spuAddr < psyqo::SPU::BASE_ALLOC_ADDR) {
 		return;
+	}
 
 	channelId = eastl::min(channelId, SPU_MAX_CHANNEL_ID);
 	psyqo::SPU::playADPCM(channelId, vag->spuAddr, config, hardCut);
@@ -169,8 +178,9 @@ psyqo::SPU::ChannelPlaybackConfig SoundManager::CreatePlaybackConfig(const VagEn
 
 psyqo::SPU::ChannelPlaybackConfig SoundManager::CreatePlaybackConfig(const VagEntry* vag, uint16_t volumeL,
 																	 uint16_t volumeR, uint32_t adsr) {
-	if (!vag)
+	if (!vag) {
 		return {0, 0, 0, 0};
+	}
 
 	psyqo::FixedPoint<12, uint16_t> pitch;
 	pitch.value = vag->pitch;

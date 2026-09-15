@@ -74,8 +74,9 @@ psyqo::Coroutine<> SceneLoader::LoadScene(const eastl::string_view& sceneFile, e
 
 			// add this to the out queue
 			queue.push_back({{fileName.data(), fileName.length()}, type, vramX, vramY, clutX, clutY});
-		} else // add this to the out queue
+		} else { // add this to the out queue
 			queue.push_back({{fileName.data(), fileName.length()}, type});
+		}
 	}
 
 	buffer.clear();

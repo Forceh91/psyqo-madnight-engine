@@ -62,12 +62,14 @@ class MenuItem {
 		m_onInput = eastl::move(callback);
 	}
 	void Confirm(void) {
-		if (m_onConfirm)
+		if (m_onConfirm) {
 			m_onConfirm();
+		}
 	}
 	void InputCallback(const psyqo::AdvancedPad::Button button) {
-		if (m_onInput)
+		if (m_onInput) {
 			m_onInput(button);
+		}
 	};
 };
 

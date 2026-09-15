@@ -8,8 +8,9 @@ bool Raycast::RaycastScene(const Ray& ray, GameObjectTag targetTag, RayHit* hitO
 	hitOut->hit = false;
 
 	// make sure its not too short/long
-	if (ray.maxDistance <= 0 || ray.maxDistance > maxRayDistance)
+	if (ray.maxDistance <= 0 || ray.maxDistance > maxRayDistance) {
 		return false;
+	}
 
 	// find all objects of type, if none then presume no hit
 	auto objects = GameObjectManager::GetGameObjectsWithTag(targetTag);
@@ -32,15 +33,17 @@ bool Raycast::RaycastScene(const Ray& ray, GameObjectTag targetTag, RayHit* hitO
 // TODO: implement an OBB/SAT versin of this
 bool Raycast::DoesRaycastInterceptAABB(const Ray& ray, const GameObject* object, psyqo::FixedPoint<>* outDistance) {
 	// make sure the mesh is valid
-	if (object == nullptr)
+	if (object == nullptr) {
 		return false;
+	}
 
 	// get AABB box for the mesh
 	AABBCollision aabbBox;
 	if (object->mesh() != nullptr) {
 		aabbBox = object->mesh()->collisionBox;
-		if (aabbBox.min.x == UINT16_MAX)
+		if (aabbBox.min.x == UINT16_MAX) {
 			return false;
+		}
 	} else {
 		// mesh-less object (e.g. a trigger) - derive an AABB from its OBB
 		OBB obb = object->obb();
@@ -57,8 +60,9 @@ bool Raycast::DoesRaycastInterceptAABB(const Ray& ray, const GameObject* object,
 		// we won't move into AABB along axis
 		if (normalizedRayDirection[axis] == 0) {
 			// but are we already inside it?
-			if (origin[axis] < aabbBox.min[axis] || origin[axis] > aabbBox.max[axis])
+			if (origin[axis] < aabbBox.min[axis] || origin[axis] > aabbBox.max[axis]) {
 				return false; // no we're not
+			}
 
 			continue; // yes we are
 		}
@@ -69,26 +73,32 @@ bool Raycast::DoesRaycastInterceptAABB(const Ray& ray, const GameObject* object,
 		psyqo::FixedPoint<> t2 = (aabbBox.max[axis] - origin[axis]) * invDir;
 
 		// if entry > exit, swap them round
-		if (t1 > t2)
+		if (t1 > t2) {
 			eastl::swap(t1, t2);
+		}
 
-		if (t1 > tMin)
+		if (t1 > tMin) {
 			tMin = t1;
+		}
 
-		if (t2 < tMax)
+		if (t2 < tMax) {
 			tMax = t2;
+		}
 
-		if (tMin > tMax)
+		if (tMin > tMax) {
 			return false; // missed the box
+		}
 	}
 
 	// is the box behind or too far?
-	if (tMin < 0 || tMin > ray.maxDistance)
+	if (tMin < 0 || tMin > ray.maxDistance) {
 		return false;
+	}
 
 	// how far away was it
-	if (outDistance != nullptr)
+	if (outDistance != nullptr) {
 		*outDistance = tMin;
+	}
 
 	return true;
 }

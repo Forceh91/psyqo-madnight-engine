@@ -1,104 +1,102 @@
 #include "gameobject_manager.hh"
 
 eastl::array<GameObject, MAX_GAME_OBJECTS> GameObjectManager::m_gameObjects;
-eastl::fixed_vector<GameObject *, MAX_GAME_OBJECTS> GameObjectManager::m_activeGameObjects;
-eastl::fixed_vector<GameObject *, MAX_GAME_OBJECTS> GameObjectManager::m_renderableGameObjects;
+eastl::fixed_vector<GameObject*, MAX_GAME_OBJECTS> GameObjectManager::m_activeGameObjects;
+eastl::fixed_vector<GameObject*, MAX_GAME_OBJECTS> GameObjectManager::m_renderableGameObjects;
 
-GameObject* GameObjectManager::CreateGameObject(const eastl::string_view& name, const uint64_t& nameHash, const psyqo::Vec3& pos, const GameObjectRotation& rotation, const GameObjectTag& tag) {
-    // do we have space in the game objects for this?
-    auto freeIx = GetFreeIndex();
-    if (freeIx == -1)
-        return nullptr;
+GameObject* GameObjectManager::CreateGameObject(const eastl::string_view& name, const uint64_t& nameHash,
+												const psyqo::Vec3& pos, const GameObjectRotation& rotation,
+												const GameObjectTag& tag) {
+	// do we have space in the game objects for this?
+	auto freeIx = GetFreeIndex();
+	if (freeIx == -1) {
+		return nullptr;
+	}
 
-    // we do, lets create a new instance and add it
-    m_gameObjects[freeIx] = GameObject(name, HashName(name), pos, rotation, tag, freeIx);
-    return &m_gameObjects[freeIx];
+	// we do, lets create a new instance and add it
+	m_gameObjects[freeIx] = GameObject(name, HashName(name), pos, rotation, tag, freeIx);
+	return &m_gameObjects[freeIx];
 }
 
-int16_t GameObjectManager::GetFreeIndex(void)
-{
-    for (uint8_t i = 0; i < MAX_GAME_OBJECTS; i++)
-    {
-        if (m_gameObjects.at(i).id() == INVALID_GAMEOBJECT_ID)
-            return i;
-    };
+int16_t GameObjectManager::GetFreeIndex(void) {
+	for (uint8_t i = 0; i < MAX_GAME_OBJECTS; i++) {
+		if (m_gameObjects.at(i).id() == INVALID_GAMEOBJECT_ID) {
+			return i;
+		}
+	};
 
-    return -1;
+	return -1;
 }
 
-void GameObjectManager::DestroyGameObject(GameObject *object)
-{
-    if (object != nullptr)
-        object->Destroy();
+void GameObjectManager::DestroyGameObject(GameObject* object) {
+	if (object != nullptr) {
+		object->Destroy();
+	}
 }
 
-const eastl::fixed_vector<GameObject*, MAX_GAME_OBJECTS>& GameObjectManager::GetActiveGameObjects(void)
-{
-    // take renderable game objects first if we have them
-    if (m_renderableGameObjects.size() > 0)
-        return m_renderableGameObjects;
+const eastl::fixed_vector<GameObject*, MAX_GAME_OBJECTS>& GameObjectManager::GetActiveGameObjects(void) {
+	// take renderable game objects first if we have them
+	if (m_renderableGameObjects.size() > 0) {
+		return m_renderableGameObjects;
+	}
 
-    m_activeGameObjects.clear();
+	m_activeGameObjects.clear();
 
-    // get all game objects that are actually initialized
-    for (auto &gameObject : m_gameObjects)
-    {
-        if (gameObject.id() != INVALID_GAMEOBJECT_ID)
-            m_activeGameObjects.push_back(&gameObject);
-    }
+	// get all game objects that are actually initialized
+	for (auto& gameObject : m_gameObjects) {
+		if (gameObject.id() != INVALID_GAMEOBJECT_ID) {
+			m_activeGameObjects.push_back(&gameObject);
+		}
+	}
 
-    return m_activeGameObjects;
+	return m_activeGameObjects;
 }
 
-void GameObjectManager::ClearRenderableGameObjects(void) {
-    m_renderableGameObjects.clear();
-}
+void GameObjectManager::ClearRenderableGameObjects(void) { m_renderableGameObjects.clear(); }
 
 void GameObjectManager::SetRenderableGameObjects(const eastl::span<GameObject*> renderList) {
-    m_renderableGameObjects.clear();
+	m_renderableGameObjects.clear();
 
-    for (const auto &object : renderList) {
-        if (object->id() != INVALID_GAMEOBJECT_ID)
-            m_renderableGameObjects.push_back(object);
-    }
+	for (const auto& object : renderList) {
+		if (object->id() != INVALID_GAMEOBJECT_ID) {
+			m_renderableGameObjects.push_back(object);
+		}
+	}
 }
 
-const eastl::fixed_vector<GameObject*, MAX_GAME_OBJECTS>& GameObjectManager::GetGameObjectsWithTag(GameObjectTag tag)
-{
-    m_activeGameObjects.clear();
+const eastl::fixed_vector<GameObject*, MAX_GAME_OBJECTS>& GameObjectManager::GetGameObjectsWithTag(GameObjectTag tag) {
+	m_activeGameObjects.clear();
 
-    // get all game objects that are actually initialized
-    for (auto &gameObject : m_gameObjects)
-    {
-        if (gameObject.id() != INVALID_GAMEOBJECT_ID && gameObject.tag() == tag)
-            m_activeGameObjects.push_back(&gameObject);
-    }
+	// get all game objects that are actually initialized
+	for (auto& gameObject : m_gameObjects) {
+		if (gameObject.id() != INVALID_GAMEOBJECT_ID && gameObject.tag() == tag) {
+			m_activeGameObjects.push_back(&gameObject);
+		}
+	}
 
-    return m_activeGameObjects;
+	return m_activeGameObjects;
 }
 
-GameObject* GameObjectManager::GetGameObjectByName(const eastl::string_view& name)
-{
-    return GetGameObjectByName(HashName(name));
+GameObject* GameObjectManager::GetGameObjectByName(const eastl::string_view& name) {
+	return GetGameObjectByName(HashName(name));
 }
 
-GameObject* GameObjectManager::GetGameObjectByName(uint64_t nameHash)
-{
-    // find the first game object that matches this name
-    for (uint8_t i = 0; i < MAX_GAME_OBJECTS; i++)
-    {
-        if (m_gameObjects.at(i).id() != INVALID_GAMEOBJECT_ID && m_gameObjects.at(i).nameHash() == nameHash)
-            return &m_gameObjects.at(i);
-    };
+GameObject* GameObjectManager::GetGameObjectByName(uint64_t nameHash) {
+	// find the first game object that matches this name
+	for (uint8_t i = 0; i < MAX_GAME_OBJECTS; i++) {
+		if (m_gameObjects.at(i).id() != INVALID_GAMEOBJECT_ID && m_gameObjects.at(i).nameHash() == nameHash) {
+			return &m_gameObjects.at(i);
+		}
+	};
 
-    return nullptr;
+	return nullptr;
 }
 
 void GameObjectManager::Dump(void) {
-    // get all game objects that are actually initialized
-    for (auto &gameObject : m_gameObjects)
-    {
-        if (gameObject.id() != INVALID_GAMEOBJECT_ID)
-            gameObject.Destroy();
-    }
+	// get all game objects that are actually initialized
+	for (auto& gameObject : m_gameObjects) {
+		if (gameObject.id() != INVALID_GAMEOBJECT_ID) {
+			gameObject.Destroy();
+		}
+	}
 }

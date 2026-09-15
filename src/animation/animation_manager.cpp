@@ -171,11 +171,13 @@ Animation*
 AnimationManager::GetAnimationFromName(const eastl::fixed_string<char, MAX_ANIMATION_NAME_LENGTH>& animationName) {
 	for (int32_t i = 0; i < m_loadedAnimBin.numAnimations; i++) {
 		auto* anim = &m_loadedAnimBin.animations[i];
-		if (anim == nullptr)
+		if (anim == nullptr) {
 			continue;
+		}
 
-		if (anim->name == animationName)
+		if (anim->name == animationName) {
 			return anim;
+		}
 	}
 
 	return nullptr;

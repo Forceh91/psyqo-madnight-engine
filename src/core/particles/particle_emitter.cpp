@@ -39,25 +39,29 @@ void ParticleEmitter::Process(const uint32_t& deltaTime) {
 
 	// process active particles
 	for (auto& particle : m_spawnedParticles) {
-		if (!particle.IsDead())
+		if (!particle.IsDead()) {
 			particle.Process(delta);
+		}
 	}
 
 	// clear out dead ones
 	for (int i = m_spawnedParticles.size() - 1; i >= 0; i--) {
 		auto const& particle = m_spawnedParticles.at(i);
-		if (particle.IsDead())
+		if (particle.IsDead()) {
 			m_spawnedParticles.erase(m_spawnedParticles.begin() + i);
+		}
 	}
 
 	// make sure we're enabled
-	if (!m_isEnabled)
+	if (!m_isEnabled) {
 		return;
+	}
 
 	// make sure its been a second and we dont have too many spawned
 	m_timeOfLastProcess = now;
-	if (m_timeSinceLastParticleSpawn < m_spawnRate || m_spawnedParticles.size() >= m_maxParticles)
+	if (m_timeSinceLastParticleSpawn < m_spawnRate || m_spawnedParticles.size() >= m_maxParticles) {
 		return;
+	}
 
 	// generate a particle at a random point on the circumfrence
 	auto pos = GenerateRandomPointOnCircumfrence();
@@ -66,8 +70,9 @@ void ParticleEmitter::Process(const uint32_t& deltaTime) {
 		Particle(spawnPos, m_particleStartSize, m_particleEndSize, m_particleStartColour, m_particleEndColour,
 				 m_particleRotatedStartVelocity, m_particleRotatedEndVelocity, m_particleLifeTime);
 
-	if (m_particleTexture)
+	if (m_particleTexture) {
 		particle.SetUVCoords(m_particleUVCoords);
+	}
 
 	m_spawnedParticles.push_back(particle);
 	m_timeSinceLastParticleSpawn = 0;

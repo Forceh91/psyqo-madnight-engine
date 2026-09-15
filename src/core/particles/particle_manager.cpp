@@ -17,8 +17,9 @@ ParticleEmitter* ParticleEmitterManager::CreateParticleEmitter(const eastl::stri
 															   const uint8_t& particlesPerSecond,
 															   const uint8_t& particleLifeTimeSecs) {
 	auto ix = GetFreeIndex();
-	if (ix == -1)
+	if (ix == -1) {
 		return nullptr;
+	}
 
 	m_emitters[ix] = ParticleEmitter(HashName(name), ix, pos, radius, particlesPerSecond, particleLifeTimeSecs);
 	return &m_emitters[ix];
@@ -26,24 +27,27 @@ ParticleEmitter* ParticleEmitterManager::CreateParticleEmitter(const eastl::stri
 
 int16_t ParticleEmitterManager::GetFreeIndex(void) {
 	for (auto i = 0; i < MAX_PARTICLE_EMITTERS; i++) {
-		if (m_emitters.at(i).id() == INVALID_PARTICLE_EMITTER_ID)
+		if (m_emitters.at(i).id() == INVALID_PARTICLE_EMITTER_ID) {
 			return i;
+		}
 	}
 
 	return -1;
 }
 
 void ParticleEmitterManager::DestroyParticleEmitter(ParticleEmitter* emitter) {
-	if (emitter)
+	if (emitter) {
 		emitter->Destroy();
+	}
 }
 
 const eastl::fixed_vector<ParticleEmitter*, MAX_PARTICLE_EMITTERS>& ParticleEmitterManager::GetActiveEmitters(void) {
 	m_activeEmitters.clear();
 
 	for (auto& emitter : m_emitters) {
-		if (emitter.id() != INVALID_PARTICLE_EMITTER_ID)
+		if (emitter.id() != INVALID_PARTICLE_EMITTER_ID) {
 			m_activeEmitters.push_back(&emitter);
+		}
 	}
 
 	return m_activeEmitters;
@@ -55,8 +59,9 @@ ParticleEmitter* ParticleEmitterManager::GetEmitterByName(const eastl::string_vi
 
 ParticleEmitter* ParticleEmitterManager::GetEmitterByName(uint64_t nameHash) {
 	for (auto i = 0; i < MAX_PARTICLE_EMITTERS; i++) {
-		if (m_emitters.at(i).id() != INVALID_PARTICLE_EMITTER_ID && m_emitters.at(i).nameHash() == nameHash)
+		if (m_emitters.at(i).id() != INVALID_PARTICLE_EMITTER_ID && m_emitters.at(i).nameHash() == nameHash) {
 			return &m_emitters.at(i);
+		}
 	}
 
 	return nullptr;

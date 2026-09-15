@@ -35,10 +35,11 @@ psyqo::Coroutine<psyqo::Buffer<uint8_t>> CDRomHelper::LoadFile(const eastl::stri
 	printf("CDRom: Attempting to read %s...\n", m_loadingFileName);
 
 	auto buffer = co_await m_cdromLoader.readFile(m_loadingFileName, m_isoParser);
-	if (buffer.empty())
+	if (buffer.empty()) {
 		printf("CDRom: File %s not found or empty\n", m_loadingFileName);
-	else
+	} else {
 		printf("CDRom: Read %d bytes\n", buffer.size());
+	}
 
 	co_return eastl::move(buffer);
 #else

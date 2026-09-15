@@ -104,8 +104,9 @@ void GameObject::GenerateOBB(void) {
 
 void GameObject::UpdateOBB(void) {
 	psyqo::Vec3 rotatedCentre = {0, 0, 0}, localCentre = {0, 0, 0};
-	if (m_collisionType == CollisionType::SOLID && m_mesh)
+	if (m_collisionType == CollisionType::SOLID && m_mesh) {
 		localCentre = (m_mesh->collisionBox.min + m_mesh->collisionBox.max) / 2;
+	}
 
 	psyqo::GteMath::matrixVecMul3(m_rotationMatrix, localCentre, &rotatedCentre);
 

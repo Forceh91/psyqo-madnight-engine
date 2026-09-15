@@ -23,8 +23,9 @@ psyqo::Coroutine<> MeshManager::LoadMesh(const eastl::string_view& meshName, Mes
 
 	// is there space for this mesh?
 	auto meshIx = FindSpaceForMesh();
-	if (meshIx == -1)
+	if (meshIx == -1) {
 		co_return;
+	}
 
 	auto buffer = co_await ArchiveHelper::LoadFile(meshName);
 
@@ -237,8 +238,9 @@ psyqo::Coroutine<> MeshManager::LoadMesh(const eastl::string_view& meshName, Mes
 		}
 
 		loaded_mesh.mesh.skeleton = {};
-		for (auto i = 0; i < MAX_BONES; i++)
+		for (auto i = 0; i < MAX_BONES; i++) {
 			loaded_mesh.mesh.skeleton->bones[i].id = -1;
+		}
 
 		// number of bones
 		loaded_mesh.mesh.skeleton->numBones = loaded_mesh.mesh.numBones;
@@ -295,8 +297,9 @@ psyqo::Coroutine<> MeshManager::LoadMesh(const eastl::string_view& meshName, Mes
 	mLoadedMeshes[meshIx] = loaded_mesh;
 
 	// now generate the skeleton bones matrix's + bindpose etc.
-	if (loaded_mesh.mesh.hasSkeleton)
+	if (loaded_mesh.mesh.hasSkeleton) {
 		SkeletonController::UpdateSkeletonBoneMatrices(mLoadedMeshes[meshIx].mesh.skeleton);
+	}
 
 	// free the data
 	buffer.clear();
@@ -326,8 +329,9 @@ MeshBin* MeshManager::IsMeshLoaded(uint64_t meshNameHash) {
 int16_t MeshManager::FindSpaceForMesh(void) {
 	for (auto i = 0; i < MAX_LOADED_MESHES; i++) {
 		// return the first mesh that isn't loaded
-		if (mLoadedMeshes[i].isLoaded == false)
+		if (mLoadedMeshes[i].isLoaded == false) {
 			return i;
+		}
 	}
 
 	// no space in the mesh manager for it
@@ -349,8 +353,9 @@ void MeshManager::UnloadMesh(const eastl::string_view& mesh_name) {
 }
 
 void MeshManager::FreeLoadedMesh(LoadedMeshBin* mesh) {
-	if (!mesh)
+	if (!mesh) {
 		return;
+	}
 
 	if (mesh->mesh.hasSkeleton && mesh->mesh.skeleton) {
 		psyqo_free(mesh->mesh.skeleton);

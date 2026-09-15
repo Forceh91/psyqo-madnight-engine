@@ -14,11 +14,11 @@ static constexpr uint16_t MAX_FACES_PER_MESH = 1000;
 
 struct MeshBinVertexColours {
 	uint8_t r = -1, g = -1, b = -1; // -1 if not present. otherwise 0-255
-} alignas(4);
+};
 
 struct MeshBinIndex {
 	int16_t i1 = 0, i2 = 0, i3 = 0, i4 = 0;
-} alignas(4);
+};
 
 struct BoundingSphere {
 	psyqo::Vec3 centre = {0, 0, 0};

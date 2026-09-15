@@ -23,8 +23,9 @@ psyqo::Coroutine<> FileLoader::LoadFiles(eastl::vector<LoadQueue>&& files, bool 
 		SoundManager::Dump();
 	}
 
-	if (!files.size())
+	if (!files.size()) {
 		co_return;
+	}
 
 	// copy the queue over to the class and begin FIFO work
 	m_queue = eastl::move(files);

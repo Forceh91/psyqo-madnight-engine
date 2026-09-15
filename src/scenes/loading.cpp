@@ -1,15 +1,17 @@
 #include "loading.hh"
+#include "../core/debug/perf_monitor.hh"
 #include "../file_loader.hh"
 #include "../render/renderer.hh"
-#include "../core/debug/perf_monitor.hh"
+
 
 void LoadingScene::start(StartReason reason) { Renderer::Instance().StartScene(); }
 
 void LoadingScene::frame() {
 	auto& instance = Renderer::Instance();
 	uint32_t deltaTime = instance.Process();
-	if (deltaTime == 0)
+	if (deltaTime == 0) {
 		return;
+	}
 
 	auto loaded = psyqo::FixedPoint<>(int32_t(FileLoader::LoadedFiles()), int32_t(0));
 	auto total = psyqo::FixedPoint<>(int32_t(FileLoader::TotalFiles()), int32_t(0));

@@ -13,25 +13,30 @@ void Menu::teardown(TearDownReason teardownReason) {
 
 void Menu::frame(void) {
 	uint32_t deltaTime = Renderer::Instance().Process();
-	if (deltaTime == 0)
+	if (deltaTime == 0) {
 		return;
+	}
 
-	if (!m_isEnabled)
+	if (!m_isEnabled) {
 		return;
+	}
 
 	if (m_shouldDeactivate) {
 		Deactivate();
 		return;
 	}
 
-	if (m_onFrame)
+	if (m_onFrame) {
 		m_onFrame(deltaTime);
+	}
 
-	for (auto& text : m_textElements)
+	for (auto& text : m_textElements) {
 		text.Render(m_rect, m_defaultFont);
+	}
 
-	for (auto& sprite : m_spriteElements)
+	for (auto& sprite : m_spriteElements) {
 		sprite.Render(m_rect);
+	}
 
 	uint32_t i = 0;
 	for (auto& menuItem : m_menuItems) {
@@ -76,23 +81,29 @@ void Menu::SetCustomInputCallbackButtons(const eastl::array<psyqo::AdvancedPad::
 }
 
 void Menu::ProcessInputs(const psyqo::AdvancedPad::Event& event) {
-	if (event.type != m_keyBindings.onEventType.type || !m_isEnabled || !m_menuItems.size())
+	if (event.type != m_keyBindings.onEventType.type || !m_isEnabled || !m_menuItems.size()) {
 		return;
+	}
 
-	if (event.button == m_keyBindings.menuItemNext)
+	if (event.button == m_keyBindings.menuItemNext) {
 		MoveSelectedMenuItemNext();
-	if (event.button == m_keyBindings.menuItemPrev)
+	}
+	if (event.button == m_keyBindings.menuItemPrev) {
 		MoveSelectedMenuItemPrev();
+	}
 
-	if (event.button == m_keyBindings.menuItemConfirm)
+	if (event.button == m_keyBindings.menuItemConfirm) {
 		m_menuItems[m_currentSelectedMenuItem].Confirm();
+	}
 
 	if (eastl::find(m_keyBindings.menuItemCustom.begin(), m_keyBindings.menuItemCustom.end(), event.button) !=
-		m_keyBindings.menuItemCustom.end())
+		m_keyBindings.menuItemCustom.end()) {
 		m_menuItems[m_currentSelectedMenuItem].InputCallback(event.button);
+	}
 
-	if (event.button == m_keyBindings.menuItemBackCancel)
+	if (event.button == m_keyBindings.menuItemBackCancel) {
 		m_shouldDeactivate = true;
+	}
 }
 
 MenuItem* Menu::AddMenuItem(const eastl::string_view& name, const eastl::string_view& displayText,
@@ -107,6 +118,7 @@ MenuItem* Menu::AddMenuItem(const MenuItem& item) {
 };
 
 void Menu::AddMenuItems(const eastl::span<MenuItem>& items) {
-	for (const auto& item : items)
+	for (const auto& item : items) {
 		m_menuItems.push_back(item);
+	}
 }

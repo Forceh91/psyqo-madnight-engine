@@ -13,8 +13,9 @@ void Collision::GenerateAABBForMesh(const GameObject* object, AABBCollision* col
 	const MeshBin* mesh = object->mesh();
 
 	// make sure it has faces
-	if (mesh->facesCount == 0)
+	if (mesh->facesCount == 0) {
 		return;
+	}
 
 	// vec for min/max points
 	collisionBoxOut->min.x = UINT16_MAX;
@@ -33,40 +34,49 @@ void Collision::GenerateAABBForMesh(const GameObject* object, AABBCollision* col
 		auto vertPos = mesh->vertices[vert];
 
 		// mins
-		if (vertPos.x < collisionBoxOut->min.x)
+		if (vertPos.x < collisionBoxOut->min.x) {
 			collisionBoxOut->min.x = vertPos.x;
+		}
 
-		if (vertPos.y < collisionBoxOut->min.y)
+		if (vertPos.y < collisionBoxOut->min.y) {
 			collisionBoxOut->min.y = vertPos.y;
+		}
 
-		if (vertPos.z < collisionBoxOut->min.z)
+		if (vertPos.z < collisionBoxOut->min.z) {
 			collisionBoxOut->min.z = vertPos.z;
+		}
 
 		// maxes
-		if (vertPos.x > collisionBoxOut->max.x)
+		if (vertPos.x > collisionBoxOut->max.x) {
 			collisionBoxOut->max.x = vertPos.x;
+		}
 
-		if (vertPos.y > collisionBoxOut->max.y)
+		if (vertPos.y > collisionBoxOut->max.y) {
 			collisionBoxOut->max.y = vertPos.y;
+		}
 
-		if (vertPos.z > collisionBoxOut->max.z)
+		if (vertPos.z > collisionBoxOut->max.z) {
 			collisionBoxOut->max.z = vertPos.z;
+		}
 	}
 }
 
 // this is super simple and doesn't care about rotations
 bool Collision::IsAABBCollision(const AABBCollision& collisionA, const AABBCollision& collisionB) {
 	// AABB box: check the min/max X
-	if (collisionA.max.x < collisionB.min.x || collisionA.min.x > collisionB.max.x)
+	if (collisionA.max.x < collisionB.min.x || collisionA.min.x > collisionB.max.x) {
 		return false;
+	}
 
 	// AABB box: check the min/max Y
-	if (collisionA.max.y < collisionB.min.y || collisionA.min.y > collisionB.max.y)
+	if (collisionA.max.y < collisionB.min.y || collisionA.min.y > collisionB.max.y) {
 		return false;
+	}
 
 	// AABB box: check the min/max Z
-	if (collisionA.max.z < collisionB.min.z || collisionA.min.z > collisionB.max.z)
+	if (collisionA.max.z < collisionB.min.z || collisionA.min.z > collisionB.max.z) {
 		return false;
+	}
 
 	// ok so we know we're colliding
 	return true;
@@ -104,8 +114,9 @@ bool Collision::IsSATCollision(const OBB& collisionA, const OBB& collisionB, Col
 	for (auto& axis : axesToCheck) {
 		i++;
 		// skip this one if its zero
-		if (axis.x == 0 && axis.y == 0 && axis.z == 0)
+		if (axis.x == 0 && axis.y == 0 && axis.z == 0) {
 			continue;
+		}
 
 		// normalize it
 		auto normalizedAxis = axis;
@@ -135,20 +146,23 @@ bool Collision::IsSATCollision(const OBB& collisionA, const OBB& collisionB, Col
 		auto penetration = overlap - distance;
 
 		// no overlap if distance is greater than radius
-		if (distance > overlap)
+		if (distance > overlap) {
 			return false;
+		}
 
 		// skip axis on negative penetration
-		if (penetration <= 0)
+		if (penetration <= 0) {
 			continue;
+		}
 
 		// keep track of what the min penetration and axes we're pushed on is
 		if (penetration < resultOut->penetration) {
 			resultOut->penetration = penetration;
 
 			resultOut->normal = normalizedAxis;
-			if (aCentre < bCentre)
+			if (aCentre < bCentre) {
 				resultOut->normal = -resultOut->normal;
+			}
 
 			resultOut->mtv = resultOut->normal * resultOut->penetration;
 		}

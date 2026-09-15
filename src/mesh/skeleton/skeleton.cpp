@@ -8,23 +8,27 @@
 #include <psyqo/vector.hh>
 
 void SkeletonController::UpdateSkeletonBoneMatrices(Skeleton* skeleton) {
-	if (!skeleton)
+	if (!skeleton) {
 		return;
+	}
 
 	for (int32_t i = 0; i < skeleton->numBones; i++) {
 		// for each bone in the skeleton, we need to do a recursive world matrix update
 		// but we need to know its local matrix first
 		auto* bone = &skeleton->bones[i];
-		if (!bone)
+		if (!bone) {
 			continue;
+		}
 
 		// not got a parent and its not dirty, continue
-		if (bone->parent == -1 && !bone->isDirty)
+		if (bone->parent == -1 && !bone->isDirty) {
 			continue;
+		}
 
 		// parent isnt dirty, and this bone isn't dirty, continue
-		if (bone->parent != -1 && !skeleton->bones[bone->parent].isDirty && !bone->isDirty)
+		if (bone->parent != -1 && !skeleton->bones[bone->parent].isDirty && !bone->isDirty) {
 			continue;
+		}
 
 		// normalize quat rotation
 		auto localRot = bone->localRotation;
@@ -39,19 +43,22 @@ void SkeletonController::UpdateSkeletonBoneMatrices(Skeleton* skeleton) {
 
 		// next we need to compute its world matrix.
 		// if we have no parent then just use the local matrix for this
-		if (bone->parent == -1)
+		if (bone->parent == -1) {
 			bone->worldMatrix = bone->localMatrix;
-		else {
+		} else {
 			auto* parent = &skeleton->bones[bone->parent];
-			if (!parent)
+			if (!parent) {
 				continue;
+			}
 
 			// if the parent is dirty, then this one is
-			if (parent->isDirty)
+			if (parent->isDirty) {
 				bone->isDirty = true;
+			}
 
-			if (!bone->isDirty)
+			if (!bone->isDirty) {
 				continue;
+			}
 
 			// rotation
 			psyqo::Matrix33 worldRot;
@@ -121,8 +128,9 @@ void SkeletonController::MarkBonesClean(Skeleton* skeleton) {
 
 // right now this will just overwrite the animation. no blending
 void SkeletonController::SetAnimation(Skeleton* skeleton, Animation* animation) {
-	if (skeleton == nullptr || animation == nullptr)
+	if (skeleton == nullptr || animation == nullptr) {
 		return;
+	}
 
 	// set the animation and reset its frame
 	skeleton->animation = animation;
@@ -130,20 +138,23 @@ void SkeletonController::SetAnimation(Skeleton* skeleton, Animation* animation) 
 }
 
 void SkeletonController::PlayAnimation(Skeleton* skeleton, uint32_t deltaTime) {
-	if (skeleton == nullptr)
+	if (skeleton == nullptr) {
 		return;
+	}
 
 	// if theres no animation then stop
-	if (skeleton->animation == nullptr)
+	if (skeleton->animation == nullptr) {
 		return;
+	}
 
 	const auto& animation = skeleton->animation;
 	if (skeleton->animationCurrentFrame >= animation->length) {
 		// restart if looping, otherwise set to the last frame
-		if (animation->flags & 1)
+		if (animation->flags & 1) {
 			skeleton->animationCurrentFrame = 0;
-		else
+		} else {
 			skeleton->animationCurrentFrame = animation->length - 1;
+		}
 	}
 
 	// for each track

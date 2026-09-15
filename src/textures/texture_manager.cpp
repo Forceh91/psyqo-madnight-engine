@@ -53,8 +53,9 @@ psyqo::Coroutine<> TextureManager::LoadTIM(const eastl::string_view& textureName
 
 	// no its not. find space for it
 	auto freeIx = GetFreeIndex();
-	if (freeIx == -1)
+	if (freeIx == -1) {
 		co_return;
+	}
 
 	auto buffer = co_await ArchiveHelper::LoadFile(textureName);
 
@@ -225,8 +226,9 @@ psyqo::Rect TextureManager::GetTPageUVForTim(const TimFile* tim) {
 
 int16_t TextureManager::GetFreeIndex(void) {
 	for (auto i = 0; i < MAX_TEXTURES; i++) {
-		if (!m_textures.at(i).isLoaded)
+		if (!m_textures.at(i).isLoaded) {
 			return i;
+		}
 	};
 
 	return -1;
@@ -236,8 +238,9 @@ TimFile* TextureManager::IsTextureLoaded(const eastl::string_view& name) { retur
 
 TimFile* TextureManager::IsTextureLoaded(uint64_t nameHash) {
 	for (auto i = 0; i < MAX_TEXTURES; i++) {
-		if (m_textures.at(i).isLoaded && m_textures.at(i).nameHash == nameHash)
+		if (m_textures.at(i).isLoaded && m_textures.at(i).nameHash == nameHash) {
 			return &m_textures.at(i);
+		}
 	};
 
 	return nullptr;

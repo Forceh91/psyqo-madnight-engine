@@ -88,8 +88,9 @@ static constexpr psyqo::Color boneColours[MAX_BONES] = {
 #endif
 
 void Renderer::Init(psyqo::GPU& gpuInstance) {
-	if (m_instance != nullptr)
+	if (m_instance != nullptr) {
 		return;
+	}
 
 	m_instance = new Renderer(gpuInstance);
 	m_systemFont.uploadSystemFont(m_instance->GPU(), {960, 256});
@@ -138,8 +139,9 @@ void Renderer::SetFarColour(void) {
 }
 
 void Renderer::SetFogNearFar(psyqo::FixedPoint<> near, psyqo::FixedPoint<> far) {
-	if (near == 0.0_fp || far == 0.0_fp)
+	if (near == 0.0_fp || far == 0.0_fp) {
 		return;
+	}
 
 	const auto a = near.value;
 	const auto b = far.value;
@@ -160,8 +162,9 @@ uint32_t Renderer::Process(void) {
 
 	// figure out delta time (last frame count minus current frame count)
 	uint32_t deltaTime = currentFrameCount - m_lastFrameCounter;
-	if (deltaTime == 0)
+	if (deltaTime == 0) {
 		return 0;
+	}
 
 	// update last frame count
 	m_lastFrameCounter = currentFrameCount;
@@ -266,16 +269,18 @@ void Renderer::RenderGameObjects(uint32_t deltaTime, const psyqo::Matrix33& came
 
 	// get game objects. if there's nothing to render then just early return
 	const auto& gameObjects = GameObjectManager::GetActiveGameObjects();
-	if (gameObjects.empty())
+	if (gameObjects.empty()) {
 		return;
+	}
 
 	// now for each object...
 	int renderedObjects = 0;
 	for (const auto& gameObject : gameObjects) {
 		// we dont need to get mesh data for every single vert since it wont change, so lets only do that once
 		const auto mesh = gameObject->mesh();
-		if (!mesh)
+		if (!mesh) {
 			continue;
+		}
 
 		// get the rotation matrix for the game object and then combine with the camera rotations
 		psyqo::GteMath::multiplyMatrix33(cameraRotationMatrix, gameObject->rotationMatrix(), &finalCameraMatrix);
@@ -283,8 +288,9 @@ void Renderer::RenderGameObjects(uint32_t deltaTime, const psyqo::Matrix33& came
 		// see if the entire game object will be visible based off its aabb centre
 		psyqo::Vec3 centre = gameObject->mesh()->bsphere.centre + gameObject->pos();
 		auto deltaCentre = TransformObjectToViewSpace(centre, cameraRotationMatrix, finalCameraMatrix);
-		if (!IsGameObjectVisible(deltaCentre, gameObject->mesh()->collisionBox, gameObject->mesh()->bsphere.radius))
+		if (!IsGameObjectVisible(deltaCentre, gameObject->mesh()->collisionBox, gameObject->mesh()->bsphere.radius)) {
 			continue;
+		}
 
 		// transform the game object into view space
 		renderedObjects++;
@@ -300,8 +306,9 @@ void Renderer::RenderGameObjects(uint32_t deltaTime, const psyqo::Matrix33& came
 			// adjust pos of verts that are attached to bones
 			for (int32_t i = 0; i < mesh->vertexCount; i++) {
 				auto& bone = mesh->skeleton->bones[mesh->boneForVertex[i]];
-				if (!bone.isDirty)
+				if (!bone.isDirty) {
 					continue;
+				}
 
 				psyqo::Matrix33 rotationOffset;
 				psyqo::GteMath::multiplyMatrix33(bone.worldMatrix.rotationMatrix, bone.bindPoseInverse.rotationMatrix,
@@ -367,8 +374,9 @@ void Renderer::RenderGameObjects(uint32_t deltaTime, const psyqo::Matrix33& came
 			psyqo::GTE::Kernels::nclip();
 
 			// read the result of this and skip rendering if its backfaced
-			if (psyqo::GTE::readRaw<psyqo::GTE::Register::MAC0>() == 0)
+			if (psyqo::GTE::readRaw<psyqo::GTE::Register::MAC0>() == 0) {
 				continue;
+			}
 
 			// read projected verts from SXY0/1/2
 			psyqo::GTE::read<psyqo::GTE::Register::SXY0>(&projected[0].packed);
@@ -391,13 +399,15 @@ void Renderer::RenderGameObjects(uint32_t deltaTime, const psyqo::Matrix33& came
 
 			// make sure we dont go out of bounds
 			zIndex = psyqo::GTE::readRaw<psyqo::GTE::Register::OTZ>();
-			if (zIndex == 0 || zIndex >= ORDERING_TABLE_SIZE)
+			if (zIndex == 0 || zIndex >= ORDERING_TABLE_SIZE) {
 				continue;
+			}
 
 			// if its out of the screen space we can clip too
 			if ((isQuad && quad_clip(&SCREEN_SPACE, &projected[0], &projected[1], &projected[2], &projected[3])) ||
-				(!isQuad && tri_clip(&SCREEN_SPACE, &projected[0], &projected[1], &projected[2])))
+				(!isQuad && tri_clip(&SCREEN_SPACE, &projected[0], &projected[1], &projected[2]))) {
 				continue;
+			}
 
 			// now apply colours using stored IR0 values
 			psyqo::Color colA = {mesh->vertexColours[mesh->vertexIndices[i].i1].r,
@@ -455,8 +465,9 @@ void Renderer::RenderGameObjects(uint32_t deltaTime, const psyqo::Matrix33& came
 					quad.primitive.tpage = tpage;
 
 					// set its clut if it has one
-					if (texture->hasClut)
+					if (texture->hasClut) {
 						quad.primitive.clutIndex = {texture->clutX, texture->clutY};
+					}
 
 					// set its uv coords
 					applyUV(quad.primitive.uvA, mesh->uvIndices[i].i1);
@@ -466,10 +477,11 @@ void Renderer::RenderGameObjects(uint32_t deltaTime, const psyqo::Matrix33& came
 				}
 
 				// finally we can insert the quad fragment into the ordering table at the calculated z-index
-				if (zIndex <= SUBDIVISION_DISTANCE)
+				if (zIndex <= SUBDIVISION_DISTANCE) {
 					SubdivideTexturedQuad(&quad, zIndex, &ot, 2);
-				else
+				} else {
 					ot.insert(quad, zIndex);
+				}
 			} else {
 				// now take a tri fragment from our array and:
 				// set its vertices
@@ -490,8 +502,9 @@ void Renderer::RenderGameObjects(uint32_t deltaTime, const psyqo::Matrix33& came
 					tri.primitive.tpage = tpage;
 
 					// set its clut if it has one
-					if (texture->hasClut)
+					if (texture->hasClut) {
 						tri.primitive.clutIndex = {texture->clutX, texture->clutY};
+					}
 
 					// set its uv coords
 					applyUV(tri.primitive.uvA, mesh->uvIndices[i].i3);
@@ -500,10 +513,11 @@ void Renderer::RenderGameObjects(uint32_t deltaTime, const psyqo::Matrix33& came
 				}
 
 				// finally we can insert the tri fragment into the ordering table at the calculated z-index
-				if (zIndex <= SUBDIVISION_DISTANCE)
+				if (zIndex <= SUBDIVISION_DISTANCE) {
 					SubdivideTexturedTri(&tri, zIndex, &ot, 2);
-				else
+				} else {
 					ot.insert(tri, zIndex);
+				}
 			}
 		}
 
@@ -546,8 +560,9 @@ void Renderer::RenderBillboards(uint32_t deltaTime, const psyqo::Matrix33& camer
 	auto& ot = m_orderingTables[frameBuffer];
 
 	auto const& billboards = BillboardManager::GetActiveBillboards();
-	if (billboards.empty())
+	if (billboards.empty()) {
 		return;
+	}
 
 	// billboards just use the inverse of the camera rotation matrix as rotation
 	psyqo::Matrix33 finalCameraMatrix = {0};
@@ -571,8 +586,9 @@ void Renderer::RenderBillboards(uint32_t deltaTime, const psyqo::Matrix33& camer
 		psyqo::GTE::Kernels::rtpt();
 		psyqo::GTE::Kernels::nclip();
 
-		if (!psyqo::GTE::readRaw<psyqo::GTE::Register::MAC0>())
+		if (!psyqo::GTE::readRaw<psyqo::GTE::Register::MAC0>()) {
 			continue;
+		}
 
 		// store the first vert so we can read the last one in
 		psyqo::GTE::read<psyqo::GTE::Register::SXY0>(&projected[0].packed);
@@ -583,16 +599,18 @@ void Renderer::RenderBillboards(uint32_t deltaTime, const psyqo::Matrix33& camer
 
 		psyqo::GTE::Kernels::avsz4();
 		zIndex = psyqo::GTE::readRaw<psyqo::GTE::Register::OTZ>();
-		if (zIndex == 0 || zIndex >= ORDERING_TABLE_SIZE)
+		if (zIndex == 0 || zIndex >= ORDERING_TABLE_SIZE) {
 			continue;
+		}
 
 		// read the last three verts from GTE
 		psyqo::GTE::read<psyqo::GTE::Register::SXY0>(&projected[1].packed);
 		psyqo::GTE::read<psyqo::GTE::Register::SXY1>(&projected[2].packed);
 		psyqo::GTE::read<psyqo::GTE::Register::SXY2>(&projected[3].packed);
 
-		if (quad_clip(&SCREEN_SPACE, &projected[0], &projected[1], &projected[2], &projected[3]))
+		if (quad_clip(&SCREEN_SPACE, &projected[0], &projected[1], &projected[2], &projected[3])) {
 			continue;
+		}
 
 		// handle colour + fog — all verts share same colour on a billboard
 		auto colour = billboard->colour();
@@ -627,8 +645,9 @@ void Renderer::RenderBillboards(uint32_t deltaTime, const psyqo::Matrix33& camer
 			quad.primitive.setOpaque();
 
 			quad.primitive.tpage = tpage;
-			if (texture->hasClut)
+			if (texture->hasClut) {
 				quad.primitive.clutIndex = {texture->clutX, texture->clutY};
+			}
 
 			auto uvA = billboard->uv()[0];
 			quad.primitive.uvA.u = offset.pos.x + uvA.u;
@@ -663,8 +682,9 @@ void Renderer::RenderParticles(uint32_t deltaTime, const psyqo::Matrix33& camera
 	auto& ot = m_orderingTables[frameBuffer];
 
 	auto const& emitters = ParticleEmitterManager::GetActiveEmitters();
-	if (emitters.empty())
+	if (emitters.empty()) {
 		return;
+	}
 
 	// particles just use the inverse of the camera rotation matrix as rotation (when in 3d mode)
 	psyqo::Matrix33 finalCameraMatrix = {0};
@@ -687,8 +707,9 @@ void Renderer::RenderParticles(uint32_t deltaTime, const psyqo::Matrix33& camera
 			auto finalParticlePos = TransformObjectToViewSpace(particle.pos(), cameraRotationMatrix, finalCameraMatrix);
 
 			if (emitter->AreParticles2D()) {
-				if (finalParticlePos.z <= 0)
+				if (finalParticlePos.z <= 0) {
 					continue;
+				}
 
 				// write the object position and camera rotation matrix
 				psyqo::GTE::writeSafe<psyqo::GTE::PseudoRegister::Rotation>(identityMatrix);
@@ -702,8 +723,9 @@ void Renderer::RenderParticles(uint32_t deltaTime, const psyqo::Matrix33& camera
 
 				// keep it within the OT
 				zIndex = psyqo::GTE::readRaw<psyqo::GTE::Register::OTZ>();
-				if (zIndex >= ORDERING_TABLE_SIZE)
+				if (zIndex >= ORDERING_TABLE_SIZE) {
 					continue;
+				}
 
 				// read in sxy2
 				psyqo::Vertex vertex;
@@ -719,8 +741,9 @@ void Renderer::RenderParticles(uint32_t deltaTime, const psyqo::Matrix33& camera
 				// make sure pos is sane
 				auto pos = psyqo::Vertex{static_cast<int16_t>(vertex.x - scaledSize.x / 2),
 										 static_cast<int16_t>(vertex.y - scaledSize.y / 2)};
-				if (pos.x < 0 || pos.x >= SCREEN_SPACE.size.x || pos.y < 0 || pos.y >= SCREEN_SPACE.size.y)
+				if (pos.x < 0 || pos.x >= SCREEN_SPACE.size.x || pos.y < 0 || pos.y >= SCREEN_SPACE.size.y) {
 					continue;
+				}
 
 				auto& sprite = allocator.allocateFragment<psyqo::Prim::Sprite>();
 				if (texture) {
@@ -761,8 +784,9 @@ void Renderer::RenderParticles(uint32_t deltaTime, const psyqo::Matrix33& camera
 				psyqo::GTE::writeSafe<psyqo::GTE::PseudoRegister::V2>(particle.corners()[2]);
 				psyqo::GTE::Kernels::rtpt();
 				psyqo::GTE::Kernels::nclip();
-				if (!psyqo::GTE::readRaw<psyqo::GTE::Register::MAC0>())
+				if (!psyqo::GTE::readRaw<psyqo::GTE::Register::MAC0>()) {
 					continue;
+				}
 
 				// store the first vert so we can read the last one in
 				psyqo::GTE::read<psyqo::GTE::Register::SXY0>(&projected[0].packed);
@@ -772,8 +796,9 @@ void Renderer::RenderParticles(uint32_t deltaTime, const psyqo::Matrix33& camera
 
 				psyqo::GTE::Kernels::avsz4();
 				zIndex = psyqo::GTE::readRaw<psyqo::GTE::Register::OTZ>();
-				if (zIndex == 0 || zIndex >= ORDERING_TABLE_SIZE)
+				if (zIndex == 0 || zIndex >= ORDERING_TABLE_SIZE) {
 					continue;
+				}
 
 				// read the last three verts from GTE
 				psyqo::GTE::read<psyqo::GTE::Register::SXY0>(&projected[1].packed);
@@ -781,8 +806,9 @@ void Renderer::RenderParticles(uint32_t deltaTime, const psyqo::Matrix33& camera
 				psyqo::GTE::read<psyqo::GTE::Register::SXY2>(&projected[3].packed);
 
 				// out of screen space, it can be clipped
-				if (quad_clip(&SCREEN_SPACE, &projected[0], &projected[1], &projected[2], &projected[3]))
+				if (quad_clip(&SCREEN_SPACE, &projected[0], &projected[1], &projected[2], &projected[3])) {
 					continue;
+				}
 
 				// handle colour + fog — particles use same colour for all verts so one rtps for IR0 is enough
 				// re-transform corner 0 to get a representative IR0 for fog
@@ -832,8 +858,9 @@ void Renderer::RenderParticles(uint32_t deltaTime, const psyqo::Matrix33& camera
 					quad.primitive.tpage = tpage;
 
 					// set its clut if it has one
-					if (texture->hasClut)
+					if (texture->hasClut) {
 						quad.primitive.clutIndex = {texture->clutX, texture->clutY};
+					}
 
 					// set its uv coords
 					auto uvA = particle.uv()[0];
@@ -879,8 +906,9 @@ void Renderer::RenderSprite(const TimFile* texture, const psyqo::Rect rect, cons
 	auto& sprites = m_sprites[frameBuffer];
 
 	// every caller shares one per-frame fragment budget
-	if (m_currentSpriteFragment >= MAX_SPRITE_FRAGMENTS)
+	if (m_currentSpriteFragment >= MAX_SPRITE_FRAGMENTS) {
 		return;
+	}
 
 	// chain tpage info over
 	auto tpageAttr = TextureManager::GetTPageAttr(texture);
@@ -893,8 +921,9 @@ void Renderer::RenderSprite(const TimFile* texture, const psyqo::Rect rect, cons
 	sprite.primitive.size = rect.size;
 
 	// set its clut if it has one
-	if (texture->hasClut)
+	if (texture->hasClut) {
 		sprite.primitive.texInfo.clut = psyqo::PrimPieces::ClutIndex(texture->clutX, texture->clutY);
+	}
 
 	// set the uv data
 	psyqo::Rect uvOffset = TextureManager::GetTPageUVForTim(texture);
@@ -914,12 +943,14 @@ bool Renderer::IsGameObjectVisible(const psyqo::Vec3& cameraPos, const AABBColli
 	int32_t r = boundingSphereRadius;
 
 	// reject if sphere is entirely behind near plane
-	if (cz + r <= 0)
+	if (cz + r <= 0) {
 		return false;
+	}
 
 	// clamp to near plane to avoid divide by zero
-	if (cz < 1)
+	if (cz < 1) {
 		cz = 1;
+	}
 
 	// project centre onto screen
 	int32_t sx = (cx * PROJECTION_DISTANCE) / cz + SCREEN_SPACE.size.x / 2;
@@ -929,11 +960,13 @@ bool Renderer::IsGameObjectVisible(const psyqo::Vec3& cameraPos, const AABBColli
 	int32_t sr = (r * PROJECTION_DISTANCE) / cz;
 
 	// reject if sphere projection does not overlap viewport
-	if (sx + sr < 0 || sx - sr > SCREEN_SPACE.size.x)
+	if (sx + sr < 0 || sx - sr > SCREEN_SPACE.size.x) {
 		return false;
+	}
 
-	if (sy + sr < 0 || sy - sr > SCREEN_SPACE.size.y)
+	if (sy + sr < 0 || sy - sr > SCREEN_SPACE.size.y) {
 		return false;
+	}
 
 	return true;
 }
@@ -1251,10 +1284,12 @@ void Renderer::SubdivideTexturedTri(psyqo::Fragments::SimpleFragment<psyqo::Prim
 }
 
 psyqo::FixedPoint<> Renderer::GetFogFactor(uint32_t z) {
-	if (z <= NEAR_FOG_DISTANCE)
+	if (z <= NEAR_FOG_DISTANCE) {
 		return 0.0_fp;
-	if (z >= FULL_FOG_DISTANCE)
+	}
+	if (z >= FULL_FOG_DISTANCE) {
 		return 1.0_fp;
+	}
 
 	return ((z - NEAR_FOG_DISTANCE) * 1.0_fp) / (FULL_FOG_DISTANCE - NEAR_FOG_DISTANCE);
 }
@@ -1296,8 +1331,9 @@ void Renderer::ApplyAmbientToColours(psyqo::Color* colA, psyqo::Color* colB, psy
 }
 
 void Renderer::ApplyFogToColour(psyqo::Color* col, psyqo::FixedPoint<> fogFactor) {
-	if (!m_lighting->IsSimpleFogEnabled())
+	if (!m_lighting->IsSimpleFogEnabled()) {
 		return;
+	}
 
 	auto inv = 1.0_fp - fogFactor;
 	auto& fog = m_lighting->GetFogColour();
@@ -1308,8 +1344,9 @@ void Renderer::ApplyFogToColour(psyqo::Color* col, psyqo::FixedPoint<> fogFactor
 
 // Interpolate from input to FC
 psyqo::Color Renderer::ApplyFogToColourGTE(psyqo::Color input, uint32_t p) {
-	if (!m_lighting->IsSimpleFogEnabled())
+	if (!m_lighting->IsSimpleFogEnabled()) {
 		return input;
+	}
 
 	psyqo::GTE::write<psyqo::GTE::Register::IR0, psyqo::GTE::Unsafe>(p);
 	psyqo::GTE::write<psyqo::GTE::Register::RGB, psyqo::GTE::Safe>(input.packed);

@@ -12,11 +12,13 @@ SpriteHUDElement::SpriteHUDElement(const eastl::string_view& name, psyqo::Rect r
 }
 
 void SpriteHUDElement::Render(const psyqo::Rect& parentRect) {
-	if (!m_isEnabled)
+	if (!m_isEnabled) {
 		return;
+	}
 
-	if (!m_tim)
+	if (!m_tim) {
 		return;
+	}
 
 	psyqo::Rect rect = {.pos = {static_cast<int16_t>(parentRect.pos.x + m_rect.pos.x),
 								static_cast<int16_t>(parentRect.pos.y + m_rect.pos.y)},

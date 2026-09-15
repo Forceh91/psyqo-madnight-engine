@@ -55,23 +55,27 @@ class Menu : public psyqo::Scene {
 	// these are called when activate/deactivate functions are called
 	// deactivate is additionally called when the backcancel button is pressed
 	void OnActivate(void) {
-		if (m_onActivate)
+		if (m_onActivate) {
 			m_onActivate();
+		}
 	}
 
 	void OnDeactivate(void) {
-		if (m_onDeactivate)
+		if (m_onDeactivate) {
 			m_onDeactivate();
+		}
 	}
 
 	void OnDestroy(void) {
-		if (m_onDestroy)
+		if (m_onDestroy) {
 			m_onDestroy();
+		}
 	}
 
 	uint8_t MoveSelectedMenuItemPrev() {
-		if (!m_isEnabled || !m_menuItems.size())
+		if (!m_isEnabled || !m_menuItems.size()) {
 			return m_currentSelectedMenuItem;
+		}
 
 		m_currentSelectedMenuItem =
 			(m_currentSelectedMenuItem == 0) ? m_menuItems.size() - 1 : m_currentSelectedMenuItem - 1;
@@ -79,8 +83,9 @@ class Menu : public psyqo::Scene {
 	}
 
 	uint8_t MoveSelectedMenuItemNext() {
-		if (!m_isEnabled || !m_menuItems.size())
+		if (!m_isEnabled || !m_menuItems.size()) {
 			return m_currentSelectedMenuItem;
+		}
 
 		m_currentSelectedMenuItem = (m_currentSelectedMenuItem + 1) % m_menuItems.size();
 		return m_currentSelectedMenuItem;
@@ -133,8 +138,9 @@ class Menu : public psyqo::Scene {
 	void RemoveTextHUDElement(TextHUDElement* element) {
 		auto it = eastl::find_if(m_textElements.begin(), m_textElements.end(),
 								 [element](TextHUDElement& el) { return &el == element; });
-		if (it != m_textElements.end())
+		if (it != m_textElements.end()) {
 			m_textElements.erase(it);
+		}
 	}
 
 	// dont lose track of the hud element!
@@ -146,8 +152,9 @@ class Menu : public psyqo::Scene {
 	void RemoveSpriteHUDElement(SpriteHUDElement* element) {
 		auto it = eastl::find_if(m_spriteElements.begin(), m_spriteElements.end(),
 								 [element](SpriteHUDElement& el) { return &el == element; });
-		if (it != m_spriteElements.end())
+		if (it != m_spriteElements.end()) {
 			m_spriteElements.erase(it);
+		}
 	}
 
 	MenuItem* AddMenuItem(const MenuItem& item);

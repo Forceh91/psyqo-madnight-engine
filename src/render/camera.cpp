@@ -111,16 +111,18 @@ psyqo::Vec3 Camera::CalculateOrbitPosition(void) {
 
 	psyqo::Vec3 forward = {trig.cos(m_orbitAngle.x) * trig.sin(m_orbitAngle.y), trig.sin(m_orbitAngle.x),
 						   trig.cos(m_orbitAngle.x) * trig.cos(m_orbitAngle.y)};
-	if (IsVector3Zero(forward))
+	if (IsVector3Zero(forward)) {
 		return currentPos;
+	}
 
 	psyqo::GteMath::normalizeVec3(&forward);
 
 	auto worldUp = psyqo::Vec3::UP();
 	psyqo::Vec3 forwardUpCross = {0};
 	psyqo::GteMath::crossProductVec3(forward, worldUp, &forwardUpCross);
-	if (IsVector3Zero(forwardUpCross))
+	if (IsVector3Zero(forwardUpCross)) {
 		return currentPos;
+	}
 
 	auto right = forwardUpCross;
 	psyqo::GteMath::normalizeVec3(&right);
@@ -128,8 +130,9 @@ psyqo::Vec3 Camera::CalculateOrbitPosition(void) {
 	psyqo::Vec3 rightForwardCross = {0};
 	psyqo::GteMath::crossProductVec3(right, forward, &rightForwardCross);
 	auto up = rightForwardCross;
-	if (IsVector3Zero(up))
+	if (IsVector3Zero(up)) {
 		return currentPos;
+	}
 
 	psyqo::GteMath::normalizeVec3(&up);
 
@@ -150,8 +153,9 @@ void Camera::LookAt(const psyqo::Vec3* target) {
 	// calculate forward axis direction
 	auto forwardVector = *target - m_pos;
 	auto forwardVectorNormal = forwardVector;
-	if (IsVector3Zero(forwardVector))
+	if (IsVector3Zero(forwardVector)) {
 		return;
+	}
 
 	psyqo::GteMath::normalizeVec3(&forwardVectorNormal);
 
@@ -159,12 +163,14 @@ void Camera::LookAt(const psyqo::Vec3* target) {
 	auto up = psyqo::Vec3::UP();
 	psyqo::Vec3 crossProduct = {0};
 	psyqo::GteMath::crossProductVec3(forwardVectorNormal, up, &crossProduct);
-	if (IsVector3Zero(crossProduct))
+	if (IsVector3Zero(crossProduct)) {
 		return;
+	}
 
 	auto rightVectorNormal = crossProduct;
-	if (IsVector3Zero(rightVectorNormal))
+	if (IsVector3Zero(rightVectorNormal)) {
 		return;
+	}
 
 	psyqo::GteMath::normalizeVec3(&rightVectorNormal);
 
@@ -172,12 +178,14 @@ void Camera::LookAt(const psyqo::Vec3* target) {
 	psyqo::Vec3 rightForwardCrossProduct = {0};
 	psyqo::GteMath::crossProductVec3(rightVectorNormal, forwardVectorNormal, &rightForwardCrossProduct);
 
-	if (IsVector3Zero(rightForwardCrossProduct))
+	if (IsVector3Zero(rightForwardCrossProduct)) {
 		return;
+	}
 
 	auto upVectorNormal = rightForwardCrossProduct;
-	if (IsVector3Zero(upVectorNormal))
+	if (IsVector3Zero(upVectorNormal)) {
 		return;
+	}
 
 	psyqo::GteMath::normalizeVec3(&upVectorNormal);
 
@@ -191,15 +199,17 @@ void Camera::UpdateOrbitAngles(psyqo::Angle xDeltaAmount, psyqo::Angle yDeltaAmo
 }
 
 void Camera::UpdateOrbitAngles(psyqo::Angle xAmount, psyqo::Angle yAmount, uint32_t deltaTime) {
-	if (m_cameraMode != CameraMode::FOLLOW)
+	if (m_cameraMode != CameraMode::FOLLOW) {
 		return;
+	}
 
 	m_orbitAngle.x = eastl::clamp(m_orbitAngle.x - xAmount * deltaTime, -0.21_pi, 0.21_pi);
 	m_orbitAngle.y = eastl::clamp(m_orbitAngle.y + yAmount * deltaTime, -1.0_pi, 1.0_pi);
 
 	// allow a full 360 view when going left->right or vice versa
-	if (m_orbitAngle.y == 1.0_pi || m_orbitAngle.y == -1.0_pi)
+	if (m_orbitAngle.y == 1.0_pi || m_orbitAngle.y == -1.0_pi) {
 		m_orbitAngle.y = -m_orbitAngle.y;
+	}
 }
 
 void Camera::UpdateAngles(psyqo::Angle xDeltaAmount, psyqo::Angle yDeltaAmount, psyqo::Angle zDeltaAmount) {

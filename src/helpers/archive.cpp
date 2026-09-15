@@ -5,8 +5,8 @@
 #endif
 #include "../madnight.hh"
 
-#include <psyqo/xprintf.h>
 #include <psyqo-paths/archive-manager.hh>
+#include <psyqo/xprintf.h>
 
 #ifdef PCDRV
 psyqo::CDRomPCDrv ArchiveHelper::m_cdrom(g_gameIsoName);
@@ -24,7 +24,7 @@ void ArchiveHelper::init(eastl::function<void()> cb) {
 	auto& cdrom = m_cdrom;
 #endif
 
-    m_archiveManager.initialize(23, cdrom, [cb](bool success) {
+	m_archiveManager.initialize(23, cdrom, [cb](bool success) {
 		m_archiveManagerInit = success;
 		printf("ARCHIVE: Initialize result=%d\n", m_archiveManagerInit);
 		cb();
@@ -36,9 +36,9 @@ psyqo::Coroutine<psyqo::Buffer<uint8_t>> ArchiveHelper::LoadFile(const eastl::st
 		printf("ARCHIVE: Attempting to read %s...\n", fileName);
 
 #ifndef PCDRV
-	auto& cdrom = CDRomHelper::CDRomDevice();
+		auto& cdrom = CDRomHelper::CDRomDevice();
 #else
-	auto& cdrom = m_cdrom;
+		auto& cdrom = m_cdrom;
 #endif
 
 #ifdef PCDRV
@@ -46,10 +46,11 @@ psyqo::Coroutine<psyqo::Buffer<uint8_t>> ArchiveHelper::LoadFile(const eastl::st
 #else
 		auto buffer = co_await m_archiveManager.readFile(fileName, cdrom);
 #endif
-		if (buffer.empty())
+		if (buffer.empty()) {
 			printf("ARCHIVE: File %s not found or empty\n", fileName);
-		else
+		} else {
 			printf("ARCHIVE: Read %d bytes\n", buffer.size());
+		}
 
 		co_return eastl::move(buffer);
 	} else {
