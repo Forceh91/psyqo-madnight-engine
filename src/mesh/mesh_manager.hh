@@ -13,58 +13,58 @@ static constexpr uint8_t MAX_LOADED_MESHES = 250;
 static constexpr uint16_t MAX_FACES_PER_MESH = 1000;
 
 struct MeshBinVertexColours {
-	uint8_t r, g, b; // -1 if not present. otherwise 0-255
+	uint8_t r = -1, g = -1, b = -1; // -1 if not present. otherwise 0-255
 };
 
 struct MeshBinIndex {
-	int16_t i1, i2, i3, i4;
+	int16_t i1 = 0, i2 = 0, i3 = 0, i4 = 0;
 };
 
 struct BoundingSphere {
-	psyqo::Vec3 centre;
-	int32_t radius;
+	psyqo::Vec3 centre = {0, 0, 0};
+	int32_t radius = 0;
 };
 
 struct MeshBin {
-	uint8_t type; // 1 = quads, 2 = tris (unused)
+	uint8_t type = 0; // 1 = quads, 2 = tris (unused)
 
 	// sub header
-	uint32_t vertexCount;
-	uint32_t indicesCount;
-	uint32_t facesCount;
-	uint32_t normalsCount;
-	uint32_t uvCount;
-	uint8_t hasSkeleton;
-	uint8_t numBones;
+	uint32_t vertexCount = 0;
+	uint32_t indicesCount = 0;
+	uint32_t facesCount = 0;
+	uint32_t normalsCount = 0;
+	uint32_t uvCount = 0;
+	uint8_t hasSkeleton = 0;
+	uint8_t numBones = 0;
 
 	// variable-length data
 	// verts
-	psyqo::Vec3* vertices;
-	MeshBinVertexColours* vertexColours;
-	MeshBinIndex* vertexIndices;
+	psyqo::Vec3* vertices = nullptr;
+	MeshBinVertexColours* vertexColours = nullptr;
+	MeshBinIndex* vertexIndices = nullptr;
 
 	// noramls
-	psyqo::Vec3* normals;
-	MeshBinIndex* normalIndices;
+	psyqo::Vec3* normals = nullptr;
+	MeshBinIndex* normalIndices = nullptr;
 
 	// UVs
-	psyqo::PrimPieces::UVCoords* uvs;
-	MeshBinIndex* uvIndices;
+	psyqo::PrimPieces::UVCoords* uvs = nullptr;
+	MeshBinIndex* uvIndices = nullptr;
 
 	// skeleton info
-	Skeleton* skeleton;
-	uint8_t* boneForVertex; // vertex index -> bone index
-	psyqo::Vec3* verticesOnBonePos;
+	Skeleton* skeleton = nullptr;
+	uint8_t* boneForVertex = nullptr; // vertex index -> bone index
+	psyqo::Vec3* verticesOnBonePos = nullptr;
 
 	// basic min/max collision box
-	AABBCollision collisionBox;
-	BoundingSphere bsphere;
+	AABBCollision collisionBox = {};
+	BoundingSphere bsphere = {};
 };
 
 struct LoadedMeshBin {
-	uint64_t meshNameHash;
-	bool isLoaded;
-	MeshBin mesh;
+	uint64_t meshNameHash = 0;
+	bool isLoaded = false;
+	MeshBin mesh = {};
 };
 
 class MeshManager {

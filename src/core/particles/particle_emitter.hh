@@ -15,7 +15,7 @@ using namespace psyqo::fixed_point_literals;
 using namespace psyqo::trig_literals;
 
 typedef struct _EmitterRotation {
-	psyqo::Angle x, y, z;
+	psyqo::Angle x = 0, y = 0, z = 0;
 } EmitterRotation;
 
 class ParticleEmitter final {

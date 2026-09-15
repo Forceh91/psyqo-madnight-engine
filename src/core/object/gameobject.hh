@@ -20,7 +20,7 @@ enum GameObjectQuadType {
 };
 
 typedef struct _GAMEOBJECT_ROTATION {
-	psyqo::Angle x, y, z;
+	psyqo::Angle x = 0, y = 0, z = 0;
 } GameObjectRotation;
 
 enum RenderFlags { RF_NONE = 0, RF_DISTANCE_CHECK = 1 };
@@ -36,8 +36,8 @@ class GameObject final {
 	psyqo::Vec3 m_pos = {0, 0, 0};
 	GameObjectRotation m_rotation = {0, 0, 0};
 	psyqo::Matrix33 m_rotationMatrix = {0};
-	MeshBin *m_mesh = nullptr;
-	TimFile *m_texture = nullptr;
+	MeshBin* m_mesh = nullptr;
+	TimFile* m_texture = nullptr;
 	OBB m_obb = {0};
 	CollisionType m_collisionType = CollisionType::SOLID;
 	uint16_t m_renderFlags = 0;
@@ -47,8 +47,8 @@ class GameObject final {
 	void GenerateOBB(void);
 	void UpdateOBB(void);
 
-	GameObject(const eastl::string_view &name, const uint64_t &nameHash, const psyqo::Vec3 &pos,
-			   const GameObjectRotation &rotation, const GameObjectTag &tag, const uint8_t &id)
+	GameObject(const eastl::string_view& name, const uint64_t& nameHash, const psyqo::Vec3& pos,
+			   const GameObjectRotation& rotation, const GameObjectTag& tag, const uint8_t& id)
 		: m_name(name.data(), name.length()) {
 		m_nameHash = nameHash;
 		m_pos = pos;

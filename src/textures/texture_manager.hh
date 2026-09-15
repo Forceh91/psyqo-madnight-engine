@@ -2,6 +2,7 @@
 
 #include "psyqo/coroutine.hh"
 #include "psyqo/primitives.hh"
+#include "psyqo/primitives/common.hh"
 #include <EASTL/functional.h>
 #include <EASTL/string_view.h>
 #include <stdint.h>
@@ -15,14 +16,15 @@ static constexpr uint8_t MAX_TEXTURES = 32; // this will need tweaking later
 static constexpr uint16_t TIM_POSITION_FROM_FILE = 0xFFFF;
 
 typedef struct _TIM_FILE {
-	uint64_t nameHash;
-	bool isLoaded;								  // is this slot actually holding a texture?
-	uint16_t x, y, width, height;				  // pos in vram + width/height
-	psyqo::Prim::TPageAttr::ColorMode colourMode; // bits per pixel (4, 8, 16)
+	uint64_t nameHash = 0;
+	bool isLoaded = false;						  // is this slot actually holding a texture?
+	uint16_t x = 0, y = 0, width = 0, height = 0; // pos in vram + width/height
+	psyqo::Prim::TPageAttr::ColorMode colourMode =
+		psyqo::Prim::TPageAttr::ColorMode::Tex4Bits; // bits per pixel (4, 8, 16)
 
-	bool hasClut;					// does it need/have a clut?
-	uint16_t clutX, clutY;			// clut pos in vram
-	uint16_t clutWidth, clutHeight; // clut width and height (always 1)
+	bool hasClut = false;					// does it need/have a clut?
+	uint16_t clutX = 0, clutY = 0;			// clut pos in vram
+	uint16_t clutWidth = 0, clutHeight = 0; // clut width and height (always 1)
 } TimFile;
 
 class TextureManager final {

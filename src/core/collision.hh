@@ -5,9 +5,9 @@
 #include <psyqo/fixed-point.hh>
 
 struct CollisionTest {
-	psyqo::Vec3 mtv;
-	psyqo::Vec3 normal;
-	psyqo::FixedPoint<> penetration;
+	psyqo::Vec3 mtv = {0, 0, 0};
+	psyqo::Vec3 normal = {0, 0, 0};
+	psyqo::FixedPoint<> penetration = 0;
 };
 
 class Collision {
