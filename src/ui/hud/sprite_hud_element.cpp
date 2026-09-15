@@ -1,4 +1,5 @@
 #include "sprite_hud_element.hh"
+#include "../../madnight.hh"
 #include "../../render/renderer.hh"
 
 SpriteHUDElement::SpriteHUDElement(const eastl::string_view& name, psyqo::Rect rect, const eastl::string_view& texture,
@@ -8,7 +9,7 @@ SpriteHUDElement::SpriteHUDElement(const eastl::string_view& name, psyqo::Rect r
 	m_spriteUV = uv;
 
 	// fetch the texture and store the tim
-	TextureManager::GetTextureFromName(texture, &m_tim);
+	g_madnightEngine.m_textureManager.GetTextureFromName(texture, &m_tim);
 }
 
 void SpriteHUDElement::Render(const psyqo::Rect& parentRect) {

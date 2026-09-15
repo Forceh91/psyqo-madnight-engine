@@ -1,4 +1,5 @@
 #include "billboard.hh"
+#include "../../madnight.hh"
 #include "defs.hh"
 
 #include <EASTL/array.h>
@@ -18,7 +19,7 @@ void Billboard::Destroy(void) {
 
 void Billboard::SetTexture(const eastl::string_view& textureName,
 						   const eastl::array<psyqo::PrimPieces::UVCoords, 4>& uv) {
-	TextureManager::GetTextureFromName(textureName, &m_texture);
+	g_madnightEngine.m_textureManager.GetTextureFromName(textureName, &m_texture);
 	m_uvCoords = uv;
 }
 

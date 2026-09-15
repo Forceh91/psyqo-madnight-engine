@@ -336,8 +336,8 @@ void Renderer::RenderGameObjects(uint32_t deltaTime, const psyqo::Matrix33& came
 		const auto texture = gameObject->texture();
 		if (texture) {
 			// get the tpage and uv offset info
-			tpage = TextureManager::GetTPageAttr(texture);
-			offset = TextureManager::GetTPageUVForTim(texture);
+			tpage = g_madnightEngine.m_textureManager.GetTPageAttr(texture);
+			offset = g_madnightEngine.m_textureManager.GetTPageUVForTim(texture);
 			offset.pos.y += (texture->height - 1);
 		}
 
@@ -574,8 +574,8 @@ void Renderer::RenderBillboards(uint32_t deltaTime, const psyqo::Matrix33& camer
 
 		const auto texture = billboard->pTexture();
 		if (texture) {
-			tpage = TextureManager::GetTPageAttr(texture);
-			offset = TextureManager::GetTPageUVForTim(texture);
+			tpage = g_madnightEngine.m_textureManager.GetTPageAttr(texture);
+			offset = g_madnightEngine.m_textureManager.GetTPageUVForTim(texture);
 			offset.pos.y += (texture->height - 1);
 		}
 
@@ -697,7 +697,7 @@ void Renderer::RenderParticles(uint32_t deltaTime, const psyqo::Matrix33& camera
 		// send tpage info to gpu
 		auto texture = emitter->pParticleTexture();
 		if (texture) {
-			auto tpageAttr = TextureManager::GetTPageAttr(texture);
+			auto tpageAttr = g_madnightEngine.m_textureManager.GetTPageAttr(texture);
 			auto& tpage = allocator.allocateFragment<psyqo::Prim::TPage>();
 			tpage.primitive.attr = tpageAttr;
 			m_gpu.chain(tpage);
@@ -773,8 +773,8 @@ void Renderer::RenderParticles(uint32_t deltaTime, const psyqo::Matrix33& camera
 				ot.insert(sprite, zIndex);
 			} else {
 				if (texture) {
-					tpage = TextureManager::GetTPageAttr(texture);
-					offset = TextureManager::GetTPageUVForTim(texture);
+					tpage = g_madnightEngine.m_textureManager.GetTPageAttr(texture);
+					offset = g_madnightEngine.m_textureManager.GetTPageUVForTim(texture);
 					offset.pos.y += (texture->height - 1);
 				}
 
@@ -911,7 +911,7 @@ void Renderer::RenderSprite(const TimFile* texture, const psyqo::Rect rect, cons
 	}
 
 	// chain tpage info over
-	auto tpageAttr = TextureManager::GetTPageAttr(texture);
+	auto tpageAttr = g_madnightEngine.m_textureManager.GetTPageAttr(texture);
 	auto& tpage = tpages[m_currentSpriteFragment];
 	tpage.primitive.attr = tpageAttr;
 	m_gpu.chain(tpage);
@@ -926,7 +926,7 @@ void Renderer::RenderSprite(const TimFile* texture, const psyqo::Rect rect, cons
 	}
 
 	// set the uv data
-	psyqo::Rect uvOffset = TextureManager::GetTPageUVForTim(texture);
+	psyqo::Rect uvOffset = g_madnightEngine.m_textureManager.GetTPageUVForTim(texture);
 	sprite.primitive.texInfo.u = uv.u; // uvOffset.pos.x + uv.u;
 	sprite.primitive.texInfo.v = uv.v; // uvOffset.pos.y + (rect.size.y - 1 - uv.v);
 

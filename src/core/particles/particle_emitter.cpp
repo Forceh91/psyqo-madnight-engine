@@ -107,7 +107,7 @@ void ParticleEmitter::SetParticleColour(const psyqo::Color& particleColour, cons
 
 void ParticleEmitter::SetParticleTexture(const eastl::string_view& textureName,
 										 const eastl::array<psyqo::PrimPieces::UVCoords, 4>& uv) {
-	TextureManager::GetTextureFromName(textureName, &m_particleTexture);
+	g_madnightEngine.m_textureManager.GetTextureFromName(textureName, &m_particleTexture);
 	m_particleUVCoords = uv;
 }
 

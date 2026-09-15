@@ -28,26 +28,26 @@ typedef struct _TIM_FILE {
 } TimFile;
 
 class TextureManager final {
-	static psyqo::Vertex GetTPageIndex(uint16_t x, uint16_t y);
-	static eastl::array<TimFile, MAX_TEXTURES> m_textures;
+	psyqo::Vertex GetTPageIndex(uint16_t x, uint16_t y);
+	eastl::array<TimFile, MAX_TEXTURES> m_textures;
 
-	static int16_t GetFreeIndex(void);
-	static TimFile* IsTextureLoaded(const eastl::string_view& name);
-	static TimFile* IsTextureLoaded(uint64_t nameHash);
+	int16_t GetFreeIndex(void);
+	TimFile* IsTextureLoaded(const eastl::string_view& name);
+	TimFile* IsTextureLoaded(uint64_t nameHash);
 
   public:
-	static psyqo::Coroutine<> LoadTIM(const eastl::string_view& textureName, uint16_t x, uint16_t y, uint16_t clutX,
-									  uint16_t clutY, TimFile** timOut);
-	static psyqo::PrimPieces::TPageAttr GetTPageAttr(const TimFile* tim);
-	static psyqo::PrimPieces::TPageAttr GetTPageAttr(const TimFile& tim);
-	static psyqo::Rect GetTPageUVForTim(const TimFile& tim);
-	static psyqo::Rect GetTPageUVForTim(const TimFile* tim);
+	psyqo::Coroutine<> LoadTIM(const eastl::string_view& textureName, uint16_t x, uint16_t y, uint16_t clutX,
+							   uint16_t clutY, TimFile** timOut);
+	psyqo::PrimPieces::TPageAttr GetTPageAttr(const TimFile* tim);
+	psyqo::PrimPieces::TPageAttr GetTPageAttr(const TimFile& tim);
+	psyqo::Rect GetTPageUVForTim(const TimFile& tim);
+	psyqo::Rect GetTPageUVForTim(const TimFile* tim);
 
-	static void GetTextureFromName(const eastl::string_view& textureName, TimFile** timOut);
+	void GetTextureFromName(const eastl::string_view& textureName, TimFile** timOut);
 
 	// dump all textures in memory and start fresh
 	// this is used when switching to a loading screen for instance.
 	// this is a dangerous function as it wont check if anything is used
 	// this wont remove anything from vram
-	static void Dump(void);
+	void Dump(void);
 };

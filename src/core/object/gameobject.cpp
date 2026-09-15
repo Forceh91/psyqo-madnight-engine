@@ -27,7 +27,7 @@ void GameObject::SetMesh(const eastl::string_view& meshName) {
 }
 
 void GameObject::SetTexture(const eastl::string_view& textureName) {
-	TextureManager::GetTextureFromName(textureName, &m_texture);
+	g_madnightEngine.m_textureManager.GetTextureFromName(textureName, &m_texture);
 }
 
 void GameObject::SetPosition(const psyqo::Vec3& pos) {

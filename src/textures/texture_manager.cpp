@@ -38,8 +38,6 @@
  * these are just obviously known safe areas where we're never gonna get a texture or anything in there anyway
  */
 
-eastl::array<TimFile, MAX_TEXTURES> TextureManager::m_textures;
-
 psyqo::Coroutine<> TextureManager::LoadTIM(const eastl::string_view& textureName, uint16_t x, uint16_t y,
 										   uint16_t clutX, uint16_t clutY, TimFile** timOut) {
 	*timOut = nullptr;

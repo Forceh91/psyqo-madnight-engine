@@ -1,6 +1,7 @@
 #include "file_loader.hh"
 #include "animation/animation_manager.hh"
 #include "core/object/gameobject_manager.hh"
+#include "madnight.hh"
 #include "mesh/colbin_manager.hh"
 #include "mesh/mesh_manager.hh"
 #include "scenes/scene_loader.hh"
@@ -18,7 +19,7 @@ psyqo::Coroutine<> FileLoader::LoadFiles(eastl::vector<LoadQueue>&& files, bool 
 	if (clearPools) {
 		GameObjectManager::Dump();
 		MeshManager::Dump();
-		TextureManager::Dump();
+		g_madnightEngine.m_textureManager.Dump();
 		ColbinManager::Dump();
 		SoundManager::Dump();
 	}
@@ -50,7 +51,7 @@ psyqo::Coroutine<> FileLoader::LoadFiles(eastl::vector<LoadQueue>&& files, bool 
 
 		case TEXTURE: {
 			TimFile* out = nullptr;
-			co_await TextureManager::LoadTIM(file.name, file.x, file.y, file.clutX, file.clutY, &out);
+			co_await g_madnightEngine.m_textureManager.LoadTIM(file.name, file.x, file.y, file.clutX, file.clutY, &out);
 			break;
 		}
 
