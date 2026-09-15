@@ -4,7 +4,7 @@
 #include "animation.hh"
 #include "psyqo/xprintf.h"
 
-AnimationBin AnimationManager::m_loadedAnimBin = {0, {}};
+AnimationBin AnimationManager::m_loadedAnimBin = {};
 
 psyqo::Coroutine<> AnimationManager::LoadAnimation(const eastl::string_view& animationsFile) {
 	auto buffer = co_await ArchiveHelper::LoadFile(animationsFile);
@@ -18,7 +18,7 @@ psyqo::Coroutine<> AnimationManager::LoadAnimation(const eastl::string_view& ani
 	}
 
 	// basic struct setup
-	__builtin_memset(&m_loadedAnimBin, 0, sizeof(AnimationBin));
+	m_loadedAnimBin = AnimationBin{};
 
 	// pointer math type
 	uint8_t* ptr = (uint8_t*)data;
@@ -43,7 +43,7 @@ psyqo::Coroutine<> AnimationManager::LoadAnimation(const eastl::string_view& ani
 	if (m_loadedAnimBin.numAnimations > MAX_ANIMATIONS) {
 		printf("ANIMATIONS: File declares %d animations, max is %d, aborting load.\n", m_loadedAnimBin.numAnimations,
 			   MAX_ANIMATIONS);
-		__builtin_memset(&m_loadedAnimBin, 0, sizeof(AnimationBin));
+		m_loadedAnimBin = AnimationBin{};
 		buffer.clear();
 		co_return;
 	}
@@ -75,7 +75,7 @@ psyqo::Coroutine<> AnimationManager::LoadAnimation(const eastl::string_view& ani
 		if (anim->numTracks > MAX_TRACKS) {
 			printf("ANIMATIONS: Animation declares %d tracks, max is %d, aborting load.\n", anim->numTracks,
 				   MAX_TRACKS);
-			__builtin_memset(&m_loadedAnimBin, 0, sizeof(AnimationBin));
+			m_loadedAnimBin = AnimationBin{};
 			buffer.clear();
 			co_return;
 		}
@@ -96,7 +96,7 @@ psyqo::Coroutine<> AnimationManager::LoadAnimation(const eastl::string_view& ani
 			// for each frame (key)
 			if (track->numKeys > MAX_KEYS) {
 				printf("ANIMATIONS: Track declares %d keys, max is %d, aborting load.\n", track->numKeys, MAX_KEYS);
-				__builtin_memset(&m_loadedAnimBin, 0, sizeof(AnimationBin));
+				m_loadedAnimBin = AnimationBin{};
 				buffer.clear();
 				co_return;
 			}
@@ -144,7 +144,7 @@ psyqo::Coroutine<> AnimationManager::LoadAnimation(const eastl::string_view& ani
 			if (anim->numMarkers > MAX_MARKERS) {
 				printf("ANIMATIONS: Animation declares %d markers, max is %d, aborting load.\n", anim->numMarkers,
 					   MAX_MARKERS);
-				__builtin_memset(&m_loadedAnimBin, 0, sizeof(AnimationBin));
+				m_loadedAnimBin = AnimationBin{};
 				buffer.clear();
 				co_return;
 			}

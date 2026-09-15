@@ -46,8 +46,7 @@ psyqo::Coroutine<> SoundManager::LoadVAGFile(const eastl::fixed_string<char, MAX
 	}
 
 	// begin loading data
-	VagEntry vag;
-	__builtin_memset(&vag, 0, sizeof(VagEntry));
+	VagEntry vag = {};
 
 	uint8_t* ptr = (uint8_t*)data;
 

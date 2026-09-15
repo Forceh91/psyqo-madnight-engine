@@ -4,20 +4,7 @@
 #include "psyqo/xprintf.h"
 #include <cstdint>
 
-ColBin ColbinManager::m_colbin = {{
-									  "",
-									  0,
-									  0,
-									  0,
-								  },
-								  0,
-								  0,
-								  0,
-								  0,
-								  0,
-								  nullptr,
-								  nullptr,
-								  nullptr};
+ColBin ColbinManager::m_colbin = {};
 
 psyqo::Coroutine<> ColbinManager::LoadColbin(const eastl::fixed_string<char, MAX_ARCHIVE_FILE_NAME_LEN>& name,
 											 ColBin** colbinOut) {
@@ -35,7 +22,7 @@ psyqo::Coroutine<> ColbinManager::LoadColbin(const eastl::fixed_string<char, MAX
 	}
 
 	// prepare the struct
-	__builtin_memset(&m_colbin, 0, sizeof(ColBin));
+	m_colbin = {};
 
 	// grab the ptr and start using it
 	uint8_t* ptr = (uint8_t*)data;

@@ -14,15 +14,16 @@ struct SkeletonBoneMatrix {
 
 struct SkeletonBone {
 	int8_t id = -1;
-	int8_t parent;							 // -1 = root
+	int8_t parent = -1;						 // -1 = root
 	psyqo::Vec3 localPos = {0, 0, 0};		 // relative to parent
 	Quaternion localRotation = {0, 0, 0, 0}; // relative to parent
 	Quaternion initialLocalRotation = {0, 0, 0, 0};
-	SkeletonBoneMatrix localMatrix; // computed itself. to generate this see `GameObject::GenerateRotationMatrix`
-	SkeletonBoneMatrix worldMatrix; // computed from parent. to generate this see `GameObject::GenerateRotationMatrix`
-	SkeletonBoneMatrix bindPose;	// initial pose when the skeleton is loaded in
-	SkeletonBoneMatrix bindPoseInverse; // inverse bind pose matrix
-	bool isDirty = true;				// set by the animation to determine if we need to regenrate the above
+	SkeletonBoneMatrix localMatrix = {{}}; // computed itself. to generate this see `GameObject::GenerateRotationMatrix`
+	SkeletonBoneMatrix worldMatrix = {
+		{}}; // computed from parent. to generate this see `GameObject::GenerateRotationMatrix`
+	SkeletonBoneMatrix bindPose = {{}};		   // initial pose when the skeleton is loaded in
+	SkeletonBoneMatrix bindPoseInverse = {{}}; // inverse bind pose matrix
+	bool isDirty = true;					   // set by the animation to determine if we need to regenrate the above
 	bool hasDoneBindPose = false;
 	psyqo::Vec3 startPos = {0, 0, 0};
 	psyqo::Vec3 endPos = {0, 0, 0};

@@ -37,9 +37,8 @@ psyqo::Coroutine<> MeshManager::LoadMesh(const eastl::string_view& meshName, Mes
 	}
 
 	// basic struct setup and blanking out of the meshbin struct
-	LoadedMeshBin loaded_mesh = {0, false};
+	LoadedMeshBin loaded_mesh = {};
 	loaded_mesh.meshNameHash = HashName(meshName);
-	__builtin_memset(&loaded_mesh.mesh, 0, sizeof(MeshBin));
 
 	// get ready with our buffer
 	unsigned char* ptr = (unsigned char*)data;
@@ -90,7 +89,7 @@ psyqo::Coroutine<> MeshManager::LoadMesh(const eastl::string_view& meshName, Mes
 		// describing bones that aren't there, and everything downstream loops on numBones
 		if (loaded_mesh.mesh.hasSkeleton && loaded_mesh.mesh.numBones > MAX_BONES) {
 			printf("MESH: Mesh has %d bones, max is %d, aborting load.\n", loaded_mesh.mesh.numBones, MAX_BONES);
-			__builtin_memset(&loaded_mesh, 0, sizeof(LoadedMeshBin));
+			loaded_mesh = {};
 			buffer.clear();
 			co_return;
 		}
@@ -99,7 +98,7 @@ psyqo::Coroutine<> MeshManager::LoadMesh(const eastl::string_view& meshName, Mes
 	// do we have too many faces?
 	if (loaded_mesh.mesh.facesCount >= MAX_FACES_PER_MESH) {
 		printf("MESH: Mesh has too many faces, aborting load.\n");
-		__builtin_memset(&loaded_mesh, 0, sizeof(LoadedMeshBin));
+		loaded_mesh = {};
 		buffer.clear();
 		co_return;
 	}
@@ -237,8 +236,7 @@ psyqo::Coroutine<> MeshManager::LoadMesh(const eastl::string_view& meshName, Mes
 			loaded_mesh.mesh.verticesOnBonePos[i] = loaded_mesh.mesh.vertices[i];
 		}
 
-		__builtin_memset(loaded_mesh.mesh.skeleton, 0, sizeof(Skeleton));
-		__builtin_memset(&loaded_mesh.mesh.skeleton->bones, 0, sizeof(SkeletonBone) * MAX_BONES);
+		loaded_mesh.mesh.skeleton = {};
 		for (auto i = 0; i < MAX_BONES; i++)
 			loaded_mesh.mesh.skeleton->bones[i].id = -1;
 
