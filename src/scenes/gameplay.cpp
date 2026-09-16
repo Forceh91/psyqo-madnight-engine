@@ -4,6 +4,7 @@
 #include "../core/debug/debug_menu.hh"
 #include "../core/object/gameobject_manager.hh"
 #include "../core/raycast.hh"
+#include "../madnight.hh"
 #include "../render/colour.hh"
 #include "../render/renderer.hh"
 #include "../sound/sound_manager.hh"
@@ -49,10 +50,10 @@ void GameplayScene::frame() {
 	m_camera->Process(deltaTime);
 
 	// process debug menu
-	DebugMenu::Process();
+	g_madnightEngine.m_debugMenu.Process();
 
 	// raycast
-	const auto& raycastDistance = DebugMenu::RaycastDistance();
+	const auto& raycastDistance = g_madnightEngine.m_debugMenu.RaycastDistance();
 	Ray ray = {
 		.origin = m_camera->pos(), .direction = m_camera->forwardVector(), .maxDistance = raycastDistance * ONE_METRE};
 	RayHit hit = {0};
@@ -68,11 +69,11 @@ void GameplayScene::frame() {
 	// the central point for rendering gameobjects etc
 	renderInstance.Render();
 
-	if (DebugMenu::IsEnabled()) {
+	if (g_madnightEngine.m_debugMenu.IsEnabled()) {
 		return;
 	}
 
-	if (DebugMenu::DisplayDebugHUD()) {
+	if (g_madnightEngine.m_debugMenu.DisplayDebugHUD()) {
 		PerfMonitor::Render(deltaTime);
 	}
 }

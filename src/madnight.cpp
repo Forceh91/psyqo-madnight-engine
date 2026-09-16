@@ -54,7 +54,7 @@ void MadnightEngine::prepare() {
 		m_input.initialize(psyqo::AdvancedPad::PollingMode::Fast);
 
 		// our application inits
-		DebugMenu::Init();
+		m_debugMenu.Init();
 
 		// hook into the game code
 		m_initialLoadRoutine = InitialLoad();

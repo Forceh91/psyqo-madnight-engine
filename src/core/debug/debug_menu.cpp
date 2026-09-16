@@ -1,17 +1,11 @@
 #include "debug_menu.hh"
+#include "../../madnight.hh"
 #include "../../render/camera.hh"
 #include "../../render/colour.hh"
 #include "../../render/renderer.hh"
 
 #include "psyqo/advancedpad.hh"
 #include "psyqo/font.hh"
-
-bool DebugMenu::m_isEnabled = false;
-uint8_t DebugMenu::m_raycastDistance = 3;
-uint8_t DebugMenu::m_selectedDebugOption = 0;
-uint32_t DebugMenu::m_startDebugMenuOpenCapture = 0;
-uint8_t DebugMenu::m_debugMenuOpenCapturedInputs = 0;
-bool DebugMenu::m_displayDebugHUD = true;
 
 static constexpr uint8_t debugInputMask = (1 << 0) | (1 << 1) | (1 << 2) | (1 << 3);
 

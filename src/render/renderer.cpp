@@ -9,6 +9,8 @@
 #include "../core/object/gameobject_manager.hh"
 #include "../core/particles/particle_manager.hh"
 #include "../defs.hh"
+#include "../madnight.hh"
+
 
 #include <psyqo/fixed-point.hh>
 #include <psyqo/fragments.hh>
@@ -252,7 +254,7 @@ void Renderer::Render(uint32_t deltaTime) {
 	m_gpu.chain(m_orderingTables[frameBuffer]);
 
 	// do this last incase it gets more complex and needs to go on top
-	DebugMenu::Draw(m_gpu);
+	g_madnightEngine.m_debugMenu.Draw(m_gpu);
 }
 
 void Renderer::RenderGameObjects(uint32_t deltaTime, const psyqo::Matrix33& cameraRotationMatrix) {

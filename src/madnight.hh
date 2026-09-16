@@ -3,6 +3,7 @@
 #include "controller/controller.hh"
 #include "core/billboard/billboard_manager.hh"
 #include "core/collision.hh"
+#include "core/debug/debug_menu.hh"
 #include "core/object/gameobject_manager.hh"
 #include "core/particles/particle_manager.hh"
 #include "core/raycast.hh"
@@ -15,13 +16,13 @@
 #include "sound/sound_manager.hh"
 #include "textures/texture_manager.hh"
 
+
 #include <EASTL/vector.h>
 #include <psyqo/advancedpad.hh>
 #include <psyqo/application.hh>
 #include <psyqo/coroutine.hh>
 #include <psyqo/scene.hh>
 #include <psyqo/trigonometry.hh>
-
 
 class MadnightEngine final : public psyqo::Application {
 	void prepare() override;
@@ -48,6 +49,8 @@ class MadnightEngine final : public psyqo::Application {
 	ControllerHelper m_controllerHelper;
 	Collision m_collisionHelper;
 	Raycast m_raycast;
+
+	DebugMenu m_debugMenu;
 
 	// make sure you seed this with a nice number when starting your first scene
 	// using `g_madnightEngine.gpu().now()` for example.
