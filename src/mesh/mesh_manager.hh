@@ -68,20 +68,20 @@ struct LoadedMeshBin {
 };
 
 class MeshManager {
-	static LoadedMeshBin mLoadedMeshes[MAX_LOADED_MESHES];
+	LoadedMeshBin mLoadedMeshes[MAX_LOADED_MESHES];
 
-	static MeshBin* IsMeshLoaded(const eastl::string_view& mesh_name);
-	static MeshBin* IsMeshLoaded(uint64_t meshNameHash);
-	static int16_t FindSpaceForMesh(void);
+	MeshBin* IsMeshLoaded(const eastl::string_view& mesh_name);
+	MeshBin* IsMeshLoaded(uint64_t meshNameHash);
+	int16_t FindSpaceForMesh(void);
 
   public:
-	static psyqo::Coroutine<> LoadMesh(const eastl::string_view& meshName, MeshBin** meshOut);
-	static void GetMeshFromName(const eastl::string_view& meshName, MeshBin** meshOut);
-	static void UnloadMesh(const eastl::string_view& mesh_name);
+	psyqo::Coroutine<> LoadMesh(const eastl::string_view& meshName, MeshBin** meshOut);
+	void GetMeshFromName(const eastl::string_view& meshName, MeshBin** meshOut);
+	void UnloadMesh(const eastl::string_view& mesh_name);
 
 	// dump all meshes in memory and start fresh
 	// this is used when switching to a loading screen for instance.
 	// this is a dangerous function as it wont check if anything is used
-	static void Dump(void);
-	static void FreeLoadedMesh(LoadedMeshBin* mesh);
+	void Dump(void);
+	void FreeLoadedMesh(LoadedMeshBin* mesh);
 };

@@ -8,8 +8,6 @@
 #include <psyqo/soft-math.hh>
 #include <psyqo/xprintf.h>
 
-LoadedMeshBin MeshManager::mLoadedMeshes[MAX_LOADED_MESHES];
-
 psyqo::Coroutine<> MeshManager::LoadMesh(const eastl::string_view& meshName, MeshBin** meshOut) {
 	// make sure we get a valid response at least
 	*meshOut = nullptr;

@@ -22,7 +22,7 @@ void GameObject::Destroy(void) {
 }
 
 void GameObject::SetMesh(const eastl::string_view& meshName) {
-	MeshManager::GetMeshFromName(meshName, &m_mesh);
+	g_madnightEngine.m_meshManager.GetMeshFromName(meshName, &m_mesh);
 	GenerateOBB();
 }
 
