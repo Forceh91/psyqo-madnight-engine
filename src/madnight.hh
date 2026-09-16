@@ -4,22 +4,24 @@
 #include "core/billboard/billboard_manager.hh"
 #include "core/collision.hh"
 #include "core/object/gameobject_manager.hh"
+#include "core/particles/particle_manager.hh"
 #include "core/raycast.hh"
 #include "file_loader.hh"
 #include "helpers/load_queue.hh"
 #include "mesh/colbin_manager.hh"
 #include "mesh/mesh_manager.hh"
-#include "psyqo/scene.hh"
 #include "rand.hh"
-
-#include "EASTL/vector.h"
-#include "psyqo/advancedpad.hh"
-#include "psyqo/application.hh"
-#include "psyqo/coroutine.hh"
-#include "psyqo/trigonometry.hh"
 #include "sound/mod_sound_manager.hh"
 #include "sound/sound_manager.hh"
 #include "textures/texture_manager.hh"
+
+#include <EASTL/vector.h>
+#include <psyqo/advancedpad.hh>
+#include <psyqo/application.hh>
+#include <psyqo/coroutine.hh>
+#include <psyqo/scene.hh>
+#include <psyqo/trigonometry.hh>
+
 
 class MadnightEngine final : public psyqo::Application {
 	void prepare() override;
@@ -39,6 +41,7 @@ class MadnightEngine final : public psyqo::Application {
 	ModSoundManager m_modSoundManager; // this is for the MOD player
 	AnimationManager m_animationManager;
 	BillboardManager m_billboardManager;
+	ParticleEmitterManager m_particleEmitterManager;
 	FileLoader m_fileLoader;
 
 	// helpers for various things like controller, collisions, etc.

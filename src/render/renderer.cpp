@@ -681,7 +681,7 @@ void Renderer::RenderParticles(uint32_t deltaTime, const psyqo::Matrix33& camera
 	auto& allocator = m_allocators[frameBuffer];
 	auto& ot = m_orderingTables[frameBuffer];
 
-	auto const& emitters = ParticleEmitterManager::GetActiveEmitters();
+	auto const& emitters = g_madnightEngine.m_particleEmitterManager.GetActiveEmitters();
 	if (emitters.empty()) {
 		return;
 	}

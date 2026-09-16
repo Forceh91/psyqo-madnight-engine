@@ -3,9 +3,6 @@
 #include "particle_emitter.hh"
 #include <psyqo/fixed-point.hh>
 
-eastl::array<ParticleEmitter, MAX_PARTICLE_EMITTERS> ParticleEmitterManager::m_emitters;
-eastl::fixed_vector<ParticleEmitter*, MAX_PARTICLE_EMITTERS> ParticleEmitterManager::m_activeEmitters;
-
 /*
  * make sure that after calling this you call the following functions to actually get particles looking good.
  * particles default to being 2D so they are sprites, which means they do need a texture
