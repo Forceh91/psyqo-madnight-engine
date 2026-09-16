@@ -1,5 +1,6 @@
 #pragma once
 #include "animation/animation_manager.hh"
+#include "controller/controller.hh"
 #include "core/object/gameobject_manager.hh"
 #include "file_loader.hh"
 #include "helpers/load_queue.hh"
@@ -34,6 +35,7 @@ class MadnightEngine final : public psyqo::Application {
 	ModSoundManager m_modSoundManager; // this is for the MOD player
 	AnimationManager m_animationManager;
 	FileLoader m_fileLoader;
+	ControllerHelper m_controllerHelper;
 
 	// make sure you seed this with a nice number when starting your first scene
 	// using `g_madnightEngine.gpu().now()` for example.
