@@ -1,3 +1,9 @@
+/*
+ * Copyright (C) 2025-2026 Matt Hadden / Madnight Games
+ *
+ * SPDX-License-Identifier: LGPL-2.1-or-later
+ */
+
 #include "particle.hh"
 #include "../../math/vector.hh"
 #include "psyqo/fixed-point.hh"

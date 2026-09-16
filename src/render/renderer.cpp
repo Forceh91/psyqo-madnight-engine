@@ -1,7 +1,12 @@
+/*
+ * Copyright (C) 2025-2026 Matt Hadden / Madnight Games
+ *
+ * SPDX-License-Identifier: LGPL-2.1-or-later
+ */
+
 #include "renderer.hh"
 #include "EASTL/algorithm.h"
 #include "clip.hh"
-#include "colour.hh"
 
 #include "../core/billboard/billboard_manager.hh"
 #include "../core/debug/debug_menu.hh"

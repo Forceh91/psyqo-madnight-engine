@@ -1,5 +1,10 @@
-#ifndef UI_MENU_MENU_ITEM_H
-#define UI_MENU_MENU_ITEM_H
+/*
+ * Copyright (C) 2025-2026 Matt Hadden / Madnight Games
+ *
+ * SPDX-License-Identifier: LGPL-2.1-or-later
+ */
+
+#pragma once
 
 #include "psyqo/advancedpad.hh"
 #include "psyqo/primitives/common.hh"
@@ -72,5 +77,3 @@ class MenuItem {
 		}
 	};
 };
-
-#endif

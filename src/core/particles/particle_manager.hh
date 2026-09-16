@@ -1,9 +1,14 @@
+/*
+ * Copyright (C) 2025-2026 Matt Hadden / Madnight Games
+ *
+ * SPDX-License-Identifier: LGPL-2.1-or-later
+ */
+
 #pragma once
 #include "defs.hh"
 #include "particle_emitter.hh"
 
 #include "EASTL/array.h"
-#include "EASTL/fixed_string.h"
 #include "EASTL/fixed_vector.h"
 #include "psyqo/fixed-point.hh"
 #include "psyqo/vector.hh"

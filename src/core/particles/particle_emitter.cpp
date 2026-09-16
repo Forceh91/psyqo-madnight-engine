@@ -1,6 +1,11 @@
+/*
+ * Copyright (C) 2025-2026 Matt Hadden / Madnight Games
+ *
+ * SPDX-License-Identifier: LGPL-2.1-or-later
+ */
+
 #include "particle_emitter.hh"
 #include "../../madnight.hh"
-#include "../../math/gte-math.hh"
 #include "../../render/renderer.hh"
 #include "defs.hh"
 #include "particle.hh"

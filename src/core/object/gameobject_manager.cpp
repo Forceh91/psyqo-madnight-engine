@@ -1,3 +1,9 @@
+/*
+ * Copyright (C) 2025-2026 Matt Hadden / Madnight Games
+ *
+ * SPDX-License-Identifier: LGPL-2.1-or-later
+ */
+
 #include "gameobject_manager.hh"
 
 GameObject* GameObjectManager::CreateGameObject(const eastl::string_view& name, const uint64_t& nameHash,

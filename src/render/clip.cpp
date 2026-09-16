@@ -34,7 +34,7 @@
 #define CLIP_TOP 4
 #define CLIP_BOTTOM 8
 
-int test_clip(const psyqo::Rect *clip, int16_t x, int16_t y) {
+int test_clip(const psyqo::Rect* clip, int16_t x, int16_t y) {
 	int result = 0;
 
 	if (x < clip->pos.x) {
@@ -56,7 +56,7 @@ int test_clip(const psyqo::Rect *clip, int16_t x, int16_t y) {
 	return result;
 }
 
-int quad_clip(const psyqo::Rect *clip, psyqo::Vertex *v0, psyqo::Vertex *v1, psyqo::Vertex *v2, psyqo::Vertex *v3) {
+int quad_clip(const psyqo::Rect* clip, psyqo::Vertex* v0, psyqo::Vertex* v1, psyqo::Vertex* v2, psyqo::Vertex* v3) {
 
 	// Returns non-zero if a quad is outside the screen boundaries
 
@@ -67,23 +67,29 @@ int quad_clip(const psyqo::Rect *clip, psyqo::Vertex *v0, psyqo::Vertex *v1, psy
 	c[2] = test_clip(clip, v2->x, v2->y);
 	c[3] = test_clip(clip, v3->x, v3->y);
 
-	if ((c[0] & c[1]) == 0)
+	if ((c[0] & c[1]) == 0) {
 		return 0;
-	if ((c[1] & c[2]) == 0)
+	}
+	if ((c[1] & c[2]) == 0) {
 		return 0;
-	if ((c[2] & c[3]) == 0)
+	}
+	if ((c[2] & c[3]) == 0) {
 		return 0;
-	if ((c[3] & c[0]) == 0)
+	}
+	if ((c[3] & c[0]) == 0) {
 		return 0;
-	if ((c[0] & c[2]) == 0)
+	}
+	if ((c[0] & c[2]) == 0) {
 		return 0;
-	if ((c[1] & c[3]) == 0)
+	}
+	if ((c[1] & c[3]) == 0) {
 		return 0;
+	}
 
 	return 1;
 }
 
-int tri_clip(const psyqo::Rect *clip, psyqo::Vertex *v0, psyqo::Vertex *v1, psyqo::Vertex *v2) {
+int tri_clip(const psyqo::Rect* clip, psyqo::Vertex* v0, psyqo::Vertex* v1, psyqo::Vertex* v2) {
 
 	// Returns non-zero if a triangle is outside the screen boundaries
 
@@ -93,12 +99,15 @@ int tri_clip(const psyqo::Rect *clip, psyqo::Vertex *v0, psyqo::Vertex *v1, psyq
 	c[1] = test_clip(clip, v1->x, v1->y);
 	c[2] = test_clip(clip, v2->x, v2->y);
 
-	if ((c[0] & c[1]) == 0)
+	if ((c[0] & c[1]) == 0) {
 		return 0;
-	if ((c[1] & c[2]) == 0)
+	}
+	if ((c[1] & c[2]) == 0) {
 		return 0;
-	if ((c[2] & c[0]) == 0)
+	}
+	if ((c[2] & c[0]) == 0) {
 		return 0;
+	}
 
 	return 1;
 }
