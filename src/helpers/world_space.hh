@@ -1,6 +1,10 @@
-#ifndef _WORLD_SPACE_H
-#define _WORLD_SPACE_H
+/*
+ * Copyright (C) 2025-2026 Matt Hadden / Madnight Games
+ *
+ * SPDX-License-Identifier: LGPL-2.1-or-later
+ */
 
+#pragma once
 #include "psyqo/fixed-point.hh"
 
 using namespace psyqo::fixed_point_literals;
@@ -10,15 +14,13 @@ using namespace psyqo::fixed_point_literals;
 // 2m, 1 blender units = 1.0_ws
 // basically if blender says X is 50m, then you want 25.0_ws, if it says 1m, you want 0.5_ws
 consteval psyqo::FixedPoint<> operator""_ws(long double blenderUnits) {
-    psyqo::FixedPoint<> output;
-    output.value = blenderUnits * 128;
-    return output;
+	psyqo::FixedPoint<> output;
+	output.value = blenderUnits * 128;
+	return output;
 }
 
 consteval psyqo::FixedPoint<10> operator""_ws10(long double blenderUnits) {
-    psyqo::FixedPoint<10> output;
-    output.value = blenderUnits * 128;
-    return output;
+	psyqo::FixedPoint<10> output;
+	output.value = blenderUnits * 128;
+	return output;
 }
-
-#endif

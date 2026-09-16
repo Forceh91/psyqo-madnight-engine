@@ -1,21 +1,18 @@
+/*
+ * Copyright (C) 2025-2026 Matt Hadden / Madnight Games
+ *
+ * SPDX-License-Identifier: LGPL-2.1-or-later
+ */
+
 #include "cdrom.hh"
-#include "psyqo/alloc.h"
-#include "psyqo/coroutine.hh"
-#include "psyqo/xprintf.h"
-#include "../render/renderer.hh"
+#include "../madnight.hh"
 #include "archive.hh"
+#include <psyqo/alloc.h>
+#include <psyqo/coroutine.hh>
+#include <psyqo/xprintf.h>
 
-#ifndef PCDRV
-
-psyqo::CDRomDevice CDRomHelper::m_cdrom;
-psyqo::ISO9660Parser CDRomHelper::m_isoParser = psyqo::ISO9660Parser(&m_cdrom);
-psyqo::paths::CDRomLoader CDRomHelper::m_cdromLoader;
-char CDRomHelper::m_loadingFileName[32];
-
-#else
-
+#ifdef PCDRV
 #include "common/kernel/pcdrv.h"
-
 #endif
 
 void CDRomHelper::init(eastl::function<void()> cb) {
@@ -26,27 +23,28 @@ void CDRomHelper::init(eastl::function<void()> cb) {
 	PCinit();
 #endif
 
-  ArchiveHelper::init(cb);
+	g_madnightEngine.m_archiveHelper.init(cb);
 }
 
-psyqo::Coroutine<psyqo::Buffer<uint8_t>> CDRomHelper::LoadFile(const char *fileName) {
+psyqo::Coroutine<psyqo::Buffer<uint8_t>> CDRomHelper::LoadFile(const eastl::string_view& fileName) {
 #ifndef PCDRV
 	get_iso_file_name(fileName, m_loadingFileName);
 	printf("CDRom: Attempting to read %s...\n", m_loadingFileName);
 
 	auto buffer = co_await m_cdromLoader.readFile(m_loadingFileName, m_isoParser);
-	if (buffer.empty())
+	if (buffer.empty()) {
 		printf("CDRom: File %s not found or empty\n", m_loadingFileName);
-	else
+	} else {
 		printf("CDRom: Read %d bytes\n", buffer.size());
-	
-        co_return eastl::move(buffer);
+	}
+
+	co_return eastl::move(buffer);
 #else
 	printf("PCDrv: Attempting to read %s...\n", fileName);
 
 	psyqo::Buffer<uint8_t> buffer;
 
-	int fd = PCopen(fileName, 0, 0);
+	int fd = PCopen(fileName.data(), 0, 0);
 	if (fd < 0) {
 		printf("PCDrv: Failed to open %s\n", fileName);
 		co_return eastl::move(buffer);
@@ -76,7 +74,7 @@ psyqo::Coroutine<psyqo::Buffer<uint8_t>> CDRomHelper::LoadFile(const char *fileN
 }
 
 #ifndef PCDRV
-void CDRomHelper::get_iso_file_name(const char *file_name, char *iso_filename) {
+void CDRomHelper::get_iso_file_name(const char* file_name, char* iso_filename) {
 	snprintf(iso_filename, 32, "%s;1", file_name);
 }
 #endif

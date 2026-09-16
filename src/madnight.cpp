@@ -1,3 +1,9 @@
+/*
+ * Copyright (C) 2025-2026 Matt Hadden / Madnight Games
+ *
+ * SPDX-License-Identifier: LGPL-2.1-or-later
+ */
+
 #include "file_loader.hh"
 
 #include "core/debug/debug_menu.hh"
@@ -23,71 +29,73 @@ MadnightEngine g_madnightEngine;
 static LoadingScene defaultLoadingScene;
 
 void MadnightEngine::prepare() {
-  // gpu config comes first, along with initialize.
-  // once we call initialize then we can start using the vram etc.
-  psyqo::GPU::Configuration gpuConfig;
-  gpuConfig.set(psyqo::GPU::Resolution::W320)
-      .set(psyqo::GPU::VideoMode::NTSC)
-      .set(psyqo::GPU::ColorMode::C15BITS)
-      .set(psyqo::GPU::Interlace::PROGRESSIVE);
-  gpu().initialize(gpuConfig);
+	// gpu config comes first, along with initialize.
+	// once we call initialize then we can start using the vram etc.
+	psyqo::GPU::Configuration gpuConfig;
+	gpuConfig.set(psyqo::GPU::Resolution::W320)
+		.set(psyqo::GPU::VideoMode::NTSC)
+		.set(psyqo::GPU::ColorMode::C15BITS)
+		.set(psyqo::GPU::Interlace::PROGRESSIVE);
+	gpu().initialize(gpuConfig);
 
-  // gpu inits
-  Renderer::Init(gpu());
+	// gpu inits
+	Renderer::Init(gpu());
 
-  // push a scene to display whilst we do hardware inits
-  pushScene(&defaultLoadingScene);
+	// push a scene to display whilst we do hardware inits
+	pushScene(&defaultLoadingScene);
 
-  // hardware inits
-  CDRomHelper::init([this]() {
-    SoundManager::Init();
-    // Unlike the `SimplePad` class, the `AdvancedPad` class doesn't need to be initialized
-    // in the `start` method of the root `Scene` object. It can be initialized here.
-    // PollingMode::Fast is used to reduce input lag, but it will increase CPU usage.
-    // PollingMode::Normal is the default, and will poll one port per frame.
-    m_input.initialize(psyqo::AdvancedPad::PollingMode::Fast);
+	// hardware inits
+	m_cdromHelper.init([this]() {
+		g_madnightEngine.m_soundManager.Init();
+		// Unlike the `SimplePad` class, the `AdvancedPad` class doesn't need to be initialized
+		// in the `start` method of the root `Scene` object. It can be initialized here.
+		// PollingMode::Fast is used to reduce input lag, but it will increase CPU usage.
+		// PollingMode::Normal is the default, and will poll one port per frame.
+		m_input.initialize(psyqo::AdvancedPad::PollingMode::Fast);
 
-    // our application inits
-    DebugMenu::Init();
+		// our application inits
+		m_debugMenu.Init();
 
-    // hook into the game code
-    m_initialLoadRoutine = InitialLoad();
-    m_initialLoadRoutine.resume();
-  });
+		// hook into the game code
+		m_initialLoadRoutine = InitialLoad();
+		m_initialLoadRoutine.resume();
+	});
 }
 
 psyqo::Coroutine<> MadnightEngine::InitialLoad(void) { co_await g_madnightEngineGame.InitialLoad(); }
 
-psyqo::Scene* MadnightEngine::SwitchScene(psyqo::Scene *newScene, bool keepPrevious) {
-  psyqo::Scene* prevScene = nullptr;
-  if (!keepPrevious)
-    prevScene = popScene();
+psyqo::Scene* MadnightEngine::SwitchScene(psyqo::Scene* newScene, bool keepPrevious) {
+	psyqo::Scene* prevScene = nullptr;
+	if (!keepPrevious) {
+		prevScene = popScene();
+	}
 
-  pushScene(newScene);
-  return prevScene;
+	pushScene(newScene);
+	return prevScene;
 }
 
 psyqo::Coroutine<> MadnightEngine::HardLoadingScreen(eastl::vector<LoadQueue>&& files, psyqo::Scene* postLoadScene) {
-  co_await HardLoadingScreen(eastl::move(files), &defaultLoadingScene, postLoadScene);
+	co_await HardLoadingScreen(eastl::move(files), &defaultLoadingScene, postLoadScene);
 }
 
-psyqo::Coroutine<> MadnightEngine::HardLoadingScreen(eastl::vector<LoadQueue>&& files, psyqo::Scene* loadingScene, psyqo::Scene* postLoadScene) {
-  popScene();
-  pushScene(loadingScene);
+psyqo::Coroutine<> MadnightEngine::HardLoadingScreen(eastl::vector<LoadQueue>&& files, psyqo::Scene* loadingScene,
+													 psyqo::Scene* postLoadScene) {
+	popScene();
+	pushScene(loadingScene);
 
-  co_await FileLoader::LoadFiles(eastl::move(files));
+	co_await m_fileLoader.LoadFiles(eastl::move(files));
 
-  popScene();
-  pushScene(postLoadScene);
+	popScene();
+	pushScene(postLoadScene);
 }
 
 psyqo::Coroutine<> MadnightEngine::SoftLoadingScreen(eastl::vector<LoadQueue>&& files) {
-  co_await SoftLoadingScreen(eastl::move(files), &defaultLoadingScene);
+	co_await SoftLoadingScreen(eastl::move(files), &defaultLoadingScene);
 }
 
 psyqo::Coroutine<> MadnightEngine::SoftLoadingScreen(eastl::vector<LoadQueue>&& files, psyqo::Scene* loadingScene) {
-  pushScene(loadingScene);
+	pushScene(loadingScene);
 
-  co_await FileLoader::LoadFiles(eastl::move(files), false);
-  popScene();
+	co_await m_fileLoader.LoadFiles(eastl::move(files), false);
+	popScene();
 }

@@ -1,11 +1,15 @@
-#ifndef _GAMEOBJECT_H
-#define _GAMEOBJECT_H
+/*
+ * Copyright (C) 2025-2026 Matt Hadden / Madnight Games
+ *
+ * SPDX-License-Identifier: LGPL-2.1-or-later
+ */
 
+#pragma once
+#include "EASTL/string_view.h"
 #include "psyqo/fixed-point.hh"
 #include "psyqo/trigonometry.hh"
 #include "psyqo/vector.hh"
 
-#include "../../helpers/archive.hh"
 #include "../../mesh/mesh_manager.hh"
 #include "../../textures/texture_manager.hh"
 #include "../collision_types.hh"
@@ -15,88 +19,90 @@ static constexpr uint8_t INVALID_GAMEOBJECT_ID = 255;
 static constexpr uint8_t MAX_GAMEOBJECT_NAME_LENGTH = 32;
 
 enum GameObjectQuadType {
-  Quad,
-  TexturedQuad,
-  GouraudQuad,
-  GouraudTextureQuad,
+	Quad,
+	TexturedQuad,
+	GouraudQuad,
+	GouraudTextureQuad,
 };
 
 typedef struct _GAMEOBJECT_ROTATION {
-  psyqo::Angle x, y, z;
+	psyqo::Angle x = 0, y = 0, z = 0;
 } GameObjectRotation;
 
 enum RenderFlags { RF_NONE = 0, RF_DISTANCE_CHECK = 1 };
 
 class GameObject final {
-  uint64_t m_nameHash = 0;
-  eastl::fixed_string<char, MAX_GAMEOBJECT_NAME_LENGTH> m_name;
-  uint8_t m_id = INVALID_GAMEOBJECT_ID;
-  GameObjectQuadType m_quadType = GameObjectQuadType::Quad;
-  GameObjectTag m_tag = GameObjectTag::NONE;
-  psyqo::Vec3 m_pos = {0, 0, 0};
-  GameObjectRotation m_rotation = {0, 0, 0};
-  psyqo::Matrix33 m_rotationMatrix = {0};
-  MeshBin *m_mesh = nullptr;
-  TimFile *m_texture = nullptr;
-  OBB m_obb = {0};
-  CollisionType m_collisionType = CollisionType::SOLID;
-  uint16_t m_renderFlags = 0;
-  uint32_t m_flags = 0;
+	friend class GameObjectManager;
 
-  void GenerateRotationMatrix(void);
-  void GenerateOBB(void);
-  void UpdateOBB(void);
+	uint64_t m_nameHash = 0;
+	eastl::fixed_string<char, MAX_GAMEOBJECT_NAME_LENGTH> m_name = "";
+	uint8_t m_id = INVALID_GAMEOBJECT_ID;
+	GameObjectQuadType m_quadType = GameObjectQuadType::Quad;
+	GameObjectTag m_tag = GameObjectTag::NONE;
+	psyqo::Vec3 m_pos = {0, 0, 0};
+	GameObjectRotation m_rotation = {0, 0, 0};
+	psyqo::Matrix33 m_rotationMatrix = {0};
+	MeshBin* m_mesh = nullptr;
+	TimFile* m_texture = nullptr;
+	OBB m_obb = {0};
+	CollisionType m_collisionType = CollisionType::SOLID;
+	uint16_t m_renderFlags = 0;
+	uint32_t m_flags = 0;
 
-public:
-  GameObject() = default;
-  GameObject(const char *name, psyqo::Vec3 pos, GameObjectRotation rotation, GameObjectTag tag, uint8_t id) {
-    m_nameHash = HashName(name);
-    m_name = name;
-    m_pos = pos;
-    m_rotation = rotation;
-    m_tag = tag;
-    m_id = id;
+	void GenerateRotationMatrix(void);
+	void GenerateOBB(void);
+	void UpdateOBB(void);
 
-    GenerateRotationMatrix();
-  };
-  void Destroy(void);
+	GameObject(const eastl::string_view& name, const uint64_t& nameHash, const psyqo::Vec3& pos,
+			   const GameObjectRotation& rotation, const GameObjectTag& tag, const uint8_t& id)
+		: m_name(name.data(), name.length()) {
+		m_nameHash = nameHash;
+		m_pos = pos;
+		m_rotation = rotation;
+		m_tag = tag;
+		m_id = id;
 
-  uint64_t nameHash() const { return m_nameHash; }
-  const eastl::fixed_string<char, MAX_GAMEOBJECT_NAME_LENGTH> &name() const { return m_name; }
-  const uint8_t &id() const { return m_id; };
-  const psyqo::Vec3 &pos() const { return m_pos; }
+		GenerateRotationMatrix();
+	};
+	void Destroy(void);
 
-  const psyqo::Vec3 *posPtr() const { return &m_pos; }
-  psyqo::Vec3 *posPtr() { return &m_pos; }
+  public:
+	GameObject() = default;
 
-  const GameObjectRotation &rotation() const { return m_rotation; }
-  const psyqo::Matrix33 &rotationMatrix() const { return m_rotationMatrix; }
-  const MeshBin *mesh() const { return m_mesh; }
-  MeshBin *mesh() { return m_mesh; }
-  const TimFile *texture() const { return m_texture; }
-  const GameObjectTag &tag() { return m_tag; }
-  const GameObjectQuadType &quadType() { return m_quadType; }
-  const OBB &obb() { return m_obb; }
-  const OBB &obb() const { return m_obb; }
+	uint64_t nameHash() const { return m_nameHash; }
+	const eastl::fixed_string<char, MAX_GAMEOBJECT_NAME_LENGTH>& name() const { return m_name; }
+	const uint8_t& id() const { return m_id; };
+	const psyqo::Vec3& pos() const { return m_pos; }
 
-  void SetPosition(const psyqo::Vec3& pos);
-  void SetPosition(psyqo::FixedPoint<12> x, psyqo::FixedPoint<12> y, psyqo::FixedPoint<12> z);
-  void SetRotation(const GameObjectRotation &rotation);
-  void SetRotation(psyqo::Angle x, psyqo::Angle y, psyqo::Angle z);
-  void SetMesh(const char *meshName);
-  void SetTexture(const char *textureName);
-  // note: doesn't actually do anything yet. need to figure it out later when its important
-  void SetQuadType(const GameObjectQuadType quadType) { m_quadType = quadType; }
-  void SetAsTrigger(const psyqo::Vec3 &size);
-  bool HasRenderFlag(const RenderFlags &rf) { return m_renderFlags & (1 << rf); }
-  void SetRenderFlag(const RenderFlags &rf) { m_renderFlags |= (1 << rf); }
-  void ClearRenderFlag(const RenderFlags &rf) { m_renderFlags &= ~(1 << rf); }
-  void ClearRenderFlags(void) { m_renderFlags = RF_NONE; }
+	const psyqo::Vec3* posPtr() const { return &m_pos; }
+	psyqo::Vec3* posPtr() { return &m_pos; }
 
-  bool HasFlag(const uint32_t &rf) { return m_flags & (1 << rf); }
-  void SetFlag(const uint32_t &rf) { m_flags |= (1 << rf); }
-  void ClearFlag(const uint32_t &rf) { m_flags &= ~(1 << rf); }
-  void ClearFlags(void) { m_flags = 0; }
+	const GameObjectRotation& rotation() const { return m_rotation; }
+	const psyqo::Matrix33& rotationMatrix() const { return m_rotationMatrix; }
+	const MeshBin* mesh() const { return m_mesh; }
+	MeshBin* mesh() { return m_mesh; }
+	const TimFile* texture() const { return m_texture; }
+	const GameObjectTag& tag() { return m_tag; }
+	const GameObjectQuadType& quadType() { return m_quadType; }
+	const OBB& obb() { return m_obb; }
+	const OBB& obb() const { return m_obb; }
+
+	void SetPosition(const psyqo::Vec3& pos);
+	void SetPosition(psyqo::FixedPoint<12> x, psyqo::FixedPoint<12> y, psyqo::FixedPoint<12> z);
+	void SetRotation(const GameObjectRotation& rotation);
+	void SetRotation(psyqo::Angle x, psyqo::Angle y, psyqo::Angle z);
+	void SetMesh(const eastl::string_view& meshName);
+	void SetTexture(const eastl::string_view& textureName);
+	// note: doesn't actually do anything yet. need to figure it out later when its important
+	void SetQuadType(const GameObjectQuadType quadType) { m_quadType = quadType; }
+	void SetAsTrigger(const psyqo::Vec3& size);
+	bool HasRenderFlag(const RenderFlags& rf) { return m_renderFlags & (1 << rf); }
+	void SetRenderFlag(const RenderFlags& rf) { m_renderFlags |= (1 << rf); }
+	void ClearRenderFlag(const RenderFlags& rf) { m_renderFlags &= ~(1 << rf); }
+	void ClearRenderFlags(void) { m_renderFlags = RF_NONE; }
+
+	bool HasFlag(const uint32_t& rf) { return m_flags & (1 << rf); }
+	void SetFlag(const uint32_t& rf) { m_flags |= (1 << rf); }
+	void ClearFlag(const uint32_t& rf) { m_flags &= ~(1 << rf); }
+	void ClearFlags(void) { m_flags = 0; }
 };
-
-#endif

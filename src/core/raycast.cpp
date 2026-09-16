@@ -1,103 +1,111 @@
+/*
+ * Copyright (C) 2025-2026 Matt Hadden / Madnight Games
+ *
+ * SPDX-License-Identifier: LGPL-2.1-or-later
+ */
+
 #include "raycast.hh"
 #include "object/gameobject_manager.hh"
-#include "psyqo/fixed-point.hh"
-#include "psyqo/soft-math.hh"
 
-bool Raycast::RaycastScene(const Ray &ray, GameObjectTag targetTag, RayHit *hitOut)
-{
-    hitOut->hit = false;
+#include "../madnight.hh"
+#include <psyqo/fixed-point.hh>
+#include <psyqo/gte-math.hh>
 
-    // make sure its not too short/long
-    if (ray.maxDistance <= 0 || ray.maxDistance > maxRayDistance)
-        return false;
+bool Raycast::RaycastScene(const Ray& ray, GameObjectTag targetTag, RayHit* hitOut) {
+	hitOut->hit = false;
 
-    // find all objects of type, if none then presume no hit
-    auto objects = GameObjectManager::GetGameObjectsWithTag(targetTag);
-    if (!objects.empty())
-    {
-        for (auto &object : objects)
-        {
-            psyqo::FixedPoint<> distance;
-            if ((hitOut->hit = DoesRaycastInterceptAABB(ray, object, &distance)))
-            {
-                hitOut->distance = distance; // get distance? do we need it
-                hitOut->object = object;
-                hitOut->hitPos = ray.origin + ray.direction * distance;
-                return true;
-            }
-        }
-    }
+	// make sure its not too short/long
+	if (ray.maxDistance <= 0 || ray.maxDistance > maxRayDistance) {
+		return false;
+	}
 
-    return false;
+	// find all objects of type, if none then presume no hit
+	auto objects = g_madnightEngine.m_gameObjectManager.GetGameObjectsWithTag(targetTag);
+	if (!objects.empty()) {
+		for (auto& object : objects) {
+			psyqo::FixedPoint<> distance;
+			if ((hitOut->hit = DoesRaycastInterceptAABB(ray, object, &distance))) {
+				hitOut->distance = distance; // get distance? do we need it
+				hitOut->object = object;
+				hitOut->hitPos = ray.origin + ray.direction * distance;
+				return true;
+			}
+		}
+	}
+
+	return false;
 }
 
 // NOTE: this will be very inaccurate if the object is rotated at all.
 // TODO: implement an OBB/SAT versin of this
-bool Raycast::DoesRaycastInterceptAABB(const Ray &ray, const GameObject *object, psyqo::FixedPoint<> *outDistance)
-{
-    // make sure the mesh is valid
-    if (object == nullptr)
-        return false;
+bool Raycast::DoesRaycastInterceptAABB(const Ray& ray, const GameObject* object, psyqo::FixedPoint<>* outDistance) {
+	// make sure the mesh is valid
+	if (object == nullptr) {
+		return false;
+	}
 
-    // get AABB box for the mesh
-    AABBCollision aabbBox;
-    if (object->mesh() != nullptr)
-    {
-        aabbBox = object->mesh()->collisionBox;
-        if (aabbBox.min.x == UINT16_MAX)
-            return false;
-    }
-    else
-    {
-        // mesh-less object (e.g. a trigger) - derive an AABB from its OBB
-        OBB obb = object->obb();
-        aabbBox.min = obb.center - obb.halfExtents;
-        aabbBox.max = obb.center + obb.halfExtents;
-    }
+	// get AABB box for the mesh
+	AABBCollision aabbBox;
+	if (object->mesh() != nullptr) {
+		aabbBox = object->mesh()->collisionBox;
+		if (aabbBox.min.x == UINT16_MAX) {
+			return false;
+		}
+	} else {
+		// mesh-less object (e.g. a trigger) - derive an AABB from its OBB
+		OBB obb = object->obb();
+		aabbBox.min = obb.center - obb.halfExtents;
+		aabbBox.max = obb.center + obb.halfExtents;
+	}
 
-    psyqo::FixedPoint<> tMin = -1000.0_fp;
-    psyqo::FixedPoint<> tMax = 1000.0_fp;
-    psyqo::Vec3 origin = ray.origin;
-    psyqo::Vec3 normalizedRayDirection = ray.direction;
-    psyqo::SoftMath::normalizeVec3(&normalizedRayDirection);
-    for (uint8_t axis = 0; axis < 3; axis++)
-    {
-        // we won't move into AABB along axis
-        if (normalizedRayDirection[axis] == 0)
-        {
-            // but are we already inside it?
-            if (origin[axis] < aabbBox.min[axis] || origin[axis] > aabbBox.max[axis])
-                return false; // no we're not
+	psyqo::FixedPoint<> tMin = -1000.0_fp;
+	psyqo::FixedPoint<> tMax = 1000.0_fp;
+	psyqo::Vec3 origin = ray.origin;
+	psyqo::Vec3 normalizedRayDirection = ray.direction;
+	psyqo::GteMath::normalizeVec3(&normalizedRayDirection);
+	for (uint8_t axis = 0; axis < 3; axis++) {
+		// we won't move into AABB along axis
+		if (normalizedRayDirection[axis] == 0) {
+			// but are we already inside it?
+			if (origin[axis] < aabbBox.min[axis] || origin[axis] > aabbBox.max[axis]) {
+				return false; // no we're not
+			}
 
-            continue; // yes we are
-        }
+			continue; // yes we are
+		}
 
-        // we know the ray isn't parallel so where do we enter/exit?
-        psyqo::FixedPoint<> invDir = 1.0_fp / normalizedRayDirection[axis];
-        psyqo::FixedPoint<> t1 = (aabbBox.min[axis] - origin[axis]) * invDir;
-        psyqo::FixedPoint<> t2 = (aabbBox.max[axis] - origin[axis]) * invDir;
+		// we know the ray isn't parallel so where do we enter/exit?
+		psyqo::FixedPoint<> invDir = 1.0_fp / normalizedRayDirection[axis];
+		psyqo::FixedPoint<> t1 = (aabbBox.min[axis] - origin[axis]) * invDir;
+		psyqo::FixedPoint<> t2 = (aabbBox.max[axis] - origin[axis]) * invDir;
 
-        // if entry > exit, swap them round
-        if (t1 > t2)
-            eastl::swap(t1, t2);
+		// if entry > exit, swap them round
+		if (t1 > t2) {
+			eastl::swap(t1, t2);
+		}
 
-        if (t1 > tMin)
-            tMin = t1;
+		if (t1 > tMin) {
+			tMin = t1;
+		}
 
-        if (t2 < tMax)
-            tMax = t2;
+		if (t2 < tMax) {
+			tMax = t2;
+		}
 
-        if (tMin > tMax)
-            return false; // missed the box
-    }
+		if (tMin > tMax) {
+			return false; // missed the box
+		}
+	}
 
-    // is the box behind or too far?
-    if (tMin < 0 || tMin > ray.maxDistance)
-        return false;
+	// is the box behind or too far?
+	if (tMin < 0 || tMin > ray.maxDistance) {
+		return false;
+	}
 
-    // how far away was it
-    if (outDistance != nullptr)
-        *outDistance = tMin;
+	// how far away was it
+	if (outDistance != nullptr) {
+		*outDistance = tMin;
+	}
 
-    return true;
+	return true;
 }

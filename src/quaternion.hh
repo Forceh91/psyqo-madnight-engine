@@ -1,3 +1,9 @@
+/*
+ * Copyright (C) 2025-2026 Matt Hadden / Madnight Games
+ *
+ * SPDX-License-Identifier: LGPL-2.1-or-later
+ */
+
 #pragma once
 
 #include <psyqo/fixed-point.hh>
@@ -8,23 +14,23 @@
 using namespace psyqo::fixed_point_literals;
 
 struct Quaternion {
-  psyqo::GTE::Short w{1.0}, x{0.0}, y{0.0}, z{0.0};
+	psyqo::FixedPoint<> w{1.0}, x{0.0}, y{0.0}, z{0.0};
 
-  auto operator<=>(const Quaternion &) const = default;
+	auto operator<=>(const Quaternion&) const = default;
 
-  psyqo::Matrix33 ToRotationMatrix() const;
-  void Normalize();
+	psyqo::Matrix33 ToRotationMatrix() const;
+	void Normalize();
 };
 
-Quaternion operator*(const Quaternion &q1, const Quaternion &q2);
-Quaternion operator-(const Quaternion &q);
+Quaternion operator*(const Quaternion& q1, const Quaternion& q2);
+Quaternion operator-(const Quaternion& q);
 
-psyqo::GTE::Short DotProduct(const Quaternion &a, const Quaternion &b);
+psyqo::FixedPoint<> DotProduct(const Quaternion& a, const Quaternion& b);
 
 /* Works for small rotations only for now - okay for animation interpolation */
-Quaternion Slerp(const Quaternion &q1, const Quaternion &q2, psyqo::FixedPoint<> factor);
+Quaternion Slerp(const Quaternion& q1, const Quaternion& q2, psyqo::FixedPoint<> factor);
 
 /* Finds a rotation quaternion from v1 to v2 */
 // Quaternion FindRotationQuat(const psyqo::Vec3 &v1, const psyqo::Vec3 &v2, psyqo::Trig<> &trig);
-Quaternion FromEulerAngles(psyqo::Angle pitch, psyqo::Angle yaw, const psyqo::Trig<> &trig);
-Quaternion FromEulerAngles(psyqo::Angle pitch, psyqo::Angle yaw, psyqo::Angle roll, const psyqo::Trig<> &trig);
+Quaternion FromEulerAngles(psyqo::Angle pitch, psyqo::Angle yaw, const psyqo::Trig<>& trig);
+Quaternion FromEulerAngles(psyqo::Angle pitch, psyqo::Angle yaw, psyqo::Angle roll, const psyqo::Trig<>& trig);
