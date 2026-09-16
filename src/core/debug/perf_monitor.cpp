@@ -2,15 +2,6 @@
 #include "../../render/renderer.hh"
 #include "psyqo/alloc.h"
 
-GameplayHUD PerfMonitor::m_perfMontiorHUD = GameplayHUD("Perf Monitor", {.pos = {5, 10}, .size = {100, 100}});
-TextHUDElement* PerfMonitor::m_heapSizeText = nullptr;
-TextHUDElement* PerfMonitor::m_fpsText = nullptr;
-bool PerfMonitor::m_hasInitialized = false;
-uint32_t PerfMonitor::m_deltaTimeAccum;
-uint32_t PerfMonitor::m_frameCount;
-uint8_t PerfMonitor::m_renderedGameObjects;
-uint8_t PerfMonitor::m_totalGameObjects;
-
 void PerfMonitor::Init(void) {
 	m_heapSizeText = m_perfMontiorHUD.AddTextHUDElement(TextHUDElement("HEAP", {.pos = {5, 0}, .size = {100, 100}}));
 	m_heapSizeText->SetFont(Renderer::Instance().SystemFont());

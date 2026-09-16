@@ -11,7 +11,6 @@
 #include "../defs.hh"
 #include "../madnight.hh"
 
-
 #include <psyqo/fixed-point.hh>
 #include <psyqo/fragments.hh>
 #include <psyqo/gte-kernels.hh>
@@ -548,7 +547,7 @@ void Renderer::RenderGameObjects(uint32_t deltaTime, const psyqo::Matrix33& came
 #endif
 	}
 
-	PerfMonitor::SetRenderedGameObjects(renderedObjects, gameObjects.size());
+	g_madnightEngine.m_perfMonitor.SetRenderedGameObjects(renderedObjects, gameObjects.size());
 }
 
 void Renderer::RenderBillboards(uint32_t deltaTime, const psyqo::Matrix33& cameraRotationMatrix) {

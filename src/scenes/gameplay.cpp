@@ -74,6 +74,6 @@ void GameplayScene::frame() {
 	}
 
 	if (g_madnightEngine.m_debugMenu.DisplayDebugHUD()) {
-		PerfMonitor::Render(deltaTime);
+		g_madnightEngine.m_perfMonitor.Render(deltaTime);
 	}
 }

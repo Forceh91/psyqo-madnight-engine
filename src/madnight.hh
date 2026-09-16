@@ -4,6 +4,7 @@
 #include "core/billboard/billboard_manager.hh"
 #include "core/collision.hh"
 #include "core/debug/debug_menu.hh"
+#include "core/debug/perf_monitor.hh"
 #include "core/object/gameobject_manager.hh"
 #include "core/particles/particle_manager.hh"
 #include "core/raycast.hh"
@@ -52,6 +53,7 @@ class MadnightEngine final : public psyqo::Application {
 	Raycast m_raycast;
 
 	DebugMenu m_debugMenu;
+	PerfMonitor m_perfMonitor;
 
 	// make sure you seed this with a nice number when starting your first scene
 	// using `g_madnightEngine.gpu().now()` for example.

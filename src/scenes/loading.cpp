@@ -19,5 +19,5 @@ void LoadingScene::frame() {
 
 	Renderer::Instance().Clear();
 	instance.SystemFont()->chainprintf(instance.GPU(), {10, 200}, COLOUR_WHITE, "Loading... (%d%%)", percent);
-	PerfMonitor::Render(deltaTime);
+	g_madnightEngine.m_perfMonitor.Render(deltaTime);
 }
