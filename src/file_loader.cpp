@@ -10,11 +10,6 @@
 
 #include <psyqo/xprintf.h>
 
-eastl::vector<LoadQueue> FileLoader::m_queue;
-uint16_t FileLoader::m_totalFiles = 0;
-uint16_t FileLoader::m_loadedFiles = 0;
-SceneLoader FileLoader::m_sceneLoader;
-
 psyqo::Coroutine<> FileLoader::LoadFiles(eastl::vector<LoadQueue>&& files, bool clearPools) {
 	if (clearPools) {
 		g_madnightEngine.m_gameObjectManager.Dump();
