@@ -14,6 +14,7 @@
 #include "helpers/load_queue.hh"
 #include "mesh/colbin_manager.hh"
 #include "mesh/mesh_manager.hh"
+#include "mesh/skeleton/skeleton.hh"
 #include "rand.hh"
 #include "sound/mod_sound_manager.hh"
 #include "sound/sound_manager.hh"
@@ -53,6 +54,7 @@ class MadnightEngine final : public psyqo::Application {
 	ControllerHelper m_controllerHelper;
 	Collision m_collisionHelper;
 	Raycast m_raycast;
+	SkeletonController m_skeletonController;
 
 	DebugMenu m_debugMenu;
 	PerfMonitor m_perfMonitor;

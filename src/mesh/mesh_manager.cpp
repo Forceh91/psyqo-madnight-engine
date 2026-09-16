@@ -297,7 +297,7 @@ psyqo::Coroutine<> MeshManager::LoadMesh(const eastl::string_view& meshName, Mes
 
 	// now generate the skeleton bones matrix's + bindpose etc.
 	if (loaded_mesh.mesh.hasSkeleton) {
-		SkeletonController::UpdateSkeletonBoneMatrices(mLoadedMeshes[meshIx].mesh.skeleton);
+		g_madnightEngine.m_skeletonController.UpdateSkeletonBoneMatrices(mLoadedMeshes[meshIx].mesh.skeleton);
 	}
 
 	// free the data

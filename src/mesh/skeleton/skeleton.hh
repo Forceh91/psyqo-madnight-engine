@@ -38,8 +38,8 @@ struct Skeleton {
 
 class SkeletonController {
   public:
-	static void UpdateSkeletonBoneMatrices(Skeleton* skeleton);
-	static void MarkBonesClean(Skeleton* skeleton);
-	static void SetAnimation(Skeleton* skeleton, Animation* animation);
-	static void PlayAnimation(Skeleton* skeleton, uint32_t deltaTime);
+	void UpdateSkeletonBoneMatrices(Skeleton* skeleton);
+	void MarkBonesClean(Skeleton* skeleton);
+	void SetAnimation(Skeleton* skeleton, Animation* animation);
+	void PlayAnimation(Skeleton* skeleton, uint32_t deltaTime);
 };

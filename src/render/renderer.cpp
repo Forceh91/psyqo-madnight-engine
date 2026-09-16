@@ -299,10 +299,10 @@ void Renderer::RenderGameObjects(uint32_t deltaTime, const psyqo::Matrix33& came
 
 		// if we've got a skeleton on this mesh
 		if (mesh->hasSkeleton) {
-			SkeletonController::PlayAnimation(mesh->skeleton, deltaTime);
+			g_madnightEngine.m_skeletonController.PlayAnimation(mesh->skeleton, deltaTime);
 
 			// update the bone/rotation matrices
-			SkeletonController::UpdateSkeletonBoneMatrices(mesh->skeleton);
+			g_madnightEngine.m_skeletonController.UpdateSkeletonBoneMatrices(mesh->skeleton);
 
 			// adjust pos of verts that are attached to bones
 			for (int32_t i = 0; i < mesh->vertexCount; i++) {
@@ -328,7 +328,7 @@ void Renderer::RenderGameObjects(uint32_t deltaTime, const psyqo::Matrix33& came
 			}
 
 			// mark all bones as clean
-			SkeletonController::MarkBonesClean(mesh->skeleton);
+			g_madnightEngine.m_skeletonController.MarkBonesClean(mesh->skeleton);
 		}
 
 		// now we've done all this we can render the mesh and apply texture (if needed)
