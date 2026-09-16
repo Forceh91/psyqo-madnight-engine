@@ -10,6 +10,7 @@
 #include "core/raycast.hh"
 #include "file_loader.hh"
 #include "helpers/archive.hh"
+#include "helpers/cdrom.hh"
 #include "helpers/load_queue.hh"
 #include "mesh/colbin_manager.hh"
 #include "mesh/mesh_manager.hh"
@@ -29,6 +30,7 @@ class MadnightEngine final : public psyqo::Application {
 	void prepare() override;
 
 	psyqo::Coroutine<> m_initialLoadRoutine;
+	CDRomHelper m_cdromHelper;
 
   public:
 	psyqo::Trig<> m_trig;

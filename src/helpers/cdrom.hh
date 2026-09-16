@@ -10,19 +10,20 @@
 #include "psyqo/iso9660-parser.hh"
 #endif
 
+[[deprecated("Replaced with `ArchiveHelper`")]];
 class CDRomHelper final {
   public:
-	static void init(eastl::function<void()> cb);
-	static psyqo::Coroutine<psyqo::Buffer<uint8_t>> LoadFile(const eastl::string_view& fileName);
+	void init(eastl::function<void()> cb);
+	psyqo::Coroutine<psyqo::Buffer<uint8_t>> LoadFile(const eastl::string_view& fileName);
 
 #ifndef PCDRV
-	static psyqo::CDRomDevice& CDRomDevice() { return m_cdrom; }
+	psyqo::CDRomDevice& CDRomDevice() { return m_cdrom; }
 
   private:
-	static psyqo::CDRomDevice m_cdrom;
-	static psyqo::ISO9660Parser m_isoParser;
-	static psyqo::paths::CDRomLoader m_cdromLoader;
-	static char m_loadingFileName[32];
-	static void get_iso_file_name(const char* file_name, char* iso_filename);
+	psyqo::CDRomDevice m_cdrom;
+	psyqo::ISO9660Parser m_isoParser = psyqo::ISO9660Parser(&m_cdrom);
+	psyqo::paths::CDRomLoader m_cdromLoader;
+	char m_loadingFileName[32];
+	void get_iso_file_name(const char* file_name, char* iso_filename);
 #endif
 };

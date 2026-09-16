@@ -45,7 +45,7 @@ void MadnightEngine::prepare() {
 	pushScene(&defaultLoadingScene);
 
 	// hardware inits
-	CDRomHelper::init([this]() {
+	m_cdromHelper.init([this]() {
 		g_madnightEngine.m_soundManager.Init();
 		// Unlike the `SimplePad` class, the `AdvancedPad` class doesn't need to be initialized
 		// in the `start` method of the root `Scene` object. It can be initialized here.

@@ -1,22 +1,12 @@
 #include "cdrom.hh"
 #include "../madnight.hh"
-#include "../render/renderer.hh"
 #include "archive.hh"
 #include <psyqo/alloc.h>
 #include <psyqo/coroutine.hh>
 #include <psyqo/xprintf.h>
 
-#ifndef PCDRV
-
-psyqo::CDRomDevice CDRomHelper::m_cdrom;
-psyqo::ISO9660Parser CDRomHelper::m_isoParser = psyqo::ISO9660Parser(&m_cdrom);
-psyqo::paths::CDRomLoader CDRomHelper::m_cdromLoader;
-char CDRomHelper::m_loadingFileName[32];
-
-#else
-
+#ifdef PCDRV
 #include "common/kernel/pcdrv.h"
-
 #endif
 
 void CDRomHelper::init(eastl::function<void()> cb) {
