@@ -12,7 +12,7 @@ struct CollisionTest {
 
 class Collision {
   public:
-	static void GenerateAABBForMesh(const GameObject* object, AABBCollision* collisionBoxOut);
-	static bool IsAABBCollision(const AABBCollision& collisionA, const AABBCollision& collisionB);
-	static bool IsSATCollision(const OBB& collisionA, const OBB& collisionB, CollisionTest* resultOut);
+	void GenerateAABBForMesh(const GameObject* object, AABBCollision* collisionBoxOut);
+	bool IsAABBCollision(const AABBCollision& collisionA, const AABBCollision& collisionB);
+	bool IsSATCollision(const OBB& collisionA, const OBB& collisionB, CollisionTest* resultOut);
 };

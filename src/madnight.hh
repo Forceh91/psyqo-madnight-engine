@@ -1,7 +1,9 @@
 #pragma once
 #include "animation/animation_manager.hh"
 #include "controller/controller.hh"
+#include "core/collision.hh"
 #include "core/object/gameobject_manager.hh"
+#include "core/raycast.hh"
 #include "file_loader.hh"
 #include "helpers/load_queue.hh"
 #include "mesh/colbin_manager.hh"
@@ -27,6 +29,7 @@ class MadnightEngine final : public psyqo::Application {
 	psyqo::Trig<> m_trig;
 	psyqo::AdvancedPad m_input;
 
+	// managers that will aid in asset management
 	TextureManager m_textureManager;
 	MeshManager m_meshManager;
 	GameObjectManager m_gameObjectManager;
@@ -35,7 +38,11 @@ class MadnightEngine final : public psyqo::Application {
 	ModSoundManager m_modSoundManager; // this is for the MOD player
 	AnimationManager m_animationManager;
 	FileLoader m_fileLoader;
+
+	// helpers for various things like controller, collisions, etc.
 	ControllerHelper m_controllerHelper;
+	Collision m_collisionHelper;
+	Raycast m_raycast;
 
 	// make sure you seed this with a nice number when starting your first scene
 	// using `g_madnightEngine.gpu().now()` for example.

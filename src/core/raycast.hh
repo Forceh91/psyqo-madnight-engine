@@ -21,8 +21,8 @@ typedef struct _RAY_HIT {
 } RayHit;
 
 class Raycast {
-	static bool DoesRaycastInterceptAABB(const Ray& ray, const GameObject* object, psyqo::FixedPoint<>* outDistance);
+	bool DoesRaycastInterceptAABB(const Ray& ray, const GameObject* object, psyqo::FixedPoint<>* outDistance);
 
   public:
-	static bool RaycastScene(const Ray& ray, GameObjectTag targetTag, RayHit* hitOut);
+	bool RaycastScene(const Ray& ray, GameObjectTag targetTag, RayHit* hitOut);
 };
