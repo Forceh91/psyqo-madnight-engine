@@ -11,6 +11,7 @@
 #include "psyqo/application.hh"
 #include "psyqo/coroutine.hh"
 #include "psyqo/trigonometry.hh"
+#include "sound/mod_sound_manager.hh"
 #include "sound/sound_manager.hh"
 #include "textures/texture_manager.hh"
 
@@ -27,7 +28,8 @@ class MadnightEngine final : public psyqo::Application {
 	MeshManager m_meshManager;
 	GameObjectManager m_gameObjectManager;
 	ColbinManager m_colbinManager;
-	SoundManager m_soundManager;
+	SoundManager m_soundManager;	   // this allows you to use VAG files via SPU
+	ModSoundManager m_modSoundManager; // this is for the MOD player
 
 	// make sure you seed this with a nice number when starting your first scene
 	// using `g_madnightEngine.gpu().now()` for example.

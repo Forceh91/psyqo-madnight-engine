@@ -8,9 +8,9 @@ static constexpr uint16_t MAX_MUSIC_VOLUME = 65535;
 static constexpr uint16_t DEFAULT_MUSIC_VOLUME = 16384;
 
 class ModSoundManager final {
-	static ModSoundFile m_currentSoundFile;
-	static unsigned m_musicTimer;
-	static uint16_t m_musicVolume;
+	ModSoundFile m_currentSoundFile = {};
+	unsigned m_musicTimer = 0;
+	uint16_t m_musicVolume = 0;
 
   public:
 	// this will find a .MOD format file on the CD ROM, given the dir/name.ext format, and load it directly into the SPU
@@ -20,24 +20,24 @@ class ModSoundManager final {
 	// as the SPU only contains 512K memory it is up to you to manage memory properly
 	// this will give back some basic info about the loaded file incase you feel it is relevant
 	// if it comes back as nullptr then something probably went wrong
-	static psyqo::Coroutine<> LoadMODSound(const eastl::string_view& modSoundFileName, ModSoundFile** modSoundFileOut);
+	psyqo::Coroutine<> LoadMODSound(const eastl::string_view& modSoundFileName, ModSoundFile** modSoundFileOut);
 	// not really important but added for convenience
-	static const ModSoundFile* CurrentMODSoundFile(void) { return &m_currentSoundFile; }
+	const ModSoundFile* CurrentMODSoundFile(void) { return &m_currentSoundFile; }
 
 	// see `MOD_PlaySoundEffect` on the best way to use this
-	static void PlaySoundEffect(uint32_t channel, uint32_t sampleID, int32_t pitch, uint32_t volume);
+	void PlaySoundEffect(uint32_t channel, uint32_t sampleID, int32_t pitch, uint32_t volume);
 	// see `MOD_PlayNote` on the best way to use this
-	static void PlayNote(uint32_t voiceID, uint32_t sampleID, uint32_t note, int16_t volume);
+	void PlayNote(uint32_t voiceID, uint32_t sampleID, uint32_t note, int16_t volume);
 	// plays the music in the MOD file using GPU timers/`MOD_Poll`, resets volume to
 	// what was previously set via either `PlayMusic(volume)` or `SetMusicVolume`
-	static void PlayMusic(void);
+	void PlayMusic(void);
 	// plays the music in the MOD file using GPU timers/`MOD_Poll` whilst setting volume
-	static void PlayMusic(uint16_t volume);
+	void PlayMusic(uint16_t volume);
 	// pauses the music in the MOD file. if you want to switch to a new track then you simply just
 	// `LoadMODSoundFromCDRom` again
-	static void PauseMusic(void);
+	void PauseMusic(void);
 	// stops the music completely
-	static void StopMusic(void);
+	void StopMusic(void);
 	// see `MOD_SetMusicVolme` on the best way to use this
-	static void SetMusicVolume(uint16_t volume);
+	void SetMusicVolume(uint16_t volume);
 };

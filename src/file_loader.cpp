@@ -6,7 +6,6 @@
 #include "mesh/mesh_manager.hh"
 #include "scenes/scene_loader.hh"
 #include "sound/mod_sound.hh"
-#include "sound/mod_sound_manager.hh"
 #include "sound/sound_manager.hh"
 
 #include <psyqo/xprintf.h>
@@ -57,7 +56,7 @@ psyqo::Coroutine<> FileLoader::LoadFiles(eastl::vector<LoadQueue>&& files, bool 
 
 		case MOD_FILE: {
 			ModSoundFile* out = nullptr;
-			co_await ModSoundManager::LoadMODSound(file.name, &out);
+			co_await g_madnightEngine.m_modSoundManager.LoadMODSound(file.name, &out);
 			break;
 		}
 

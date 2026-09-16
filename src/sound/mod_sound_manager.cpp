@@ -3,10 +3,6 @@
 #include "../render/renderer.hh"
 #include "psyqo/xprintf.h"
 
-ModSoundFile ModSoundManager::m_currentSoundFile = {"", 0, false};
-unsigned ModSoundManager::m_musicTimer = 0;
-uint16_t ModSoundManager::m_musicVolume = DEFAULT_MUSIC_VOLUME;
-
 psyqo::Coroutine<> ModSoundManager::LoadMODSound(const eastl::string_view& modSoundFileName,
 												 ModSoundFile** modSoundFileOut) {
 	*modSoundFileOut = nullptr;
