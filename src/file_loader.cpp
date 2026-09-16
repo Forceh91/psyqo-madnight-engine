@@ -61,7 +61,7 @@ psyqo::Coroutine<> FileLoader::LoadFiles(eastl::vector<LoadQueue>&& files, bool 
 		}
 
 		case ANIMATION: {
-			co_await AnimationManager::LoadAnimation(file.name);
+			co_await g_madnightEngine.m_animationManager.LoadAnimation(file.name);
 			break;
 		}
 

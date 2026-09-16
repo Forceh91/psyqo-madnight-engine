@@ -4,8 +4,6 @@
 #include "animation.hh"
 #include "psyqo/xprintf.h"
 
-AnimationBin AnimationManager::m_loadedAnimBin = {};
-
 psyqo::Coroutine<> AnimationManager::LoadAnimation(const eastl::string_view& animationsFile) {
 	auto buffer = co_await ArchiveHelper::LoadFile(animationsFile);
 

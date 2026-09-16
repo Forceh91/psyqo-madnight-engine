@@ -1,4 +1,5 @@
 #pragma once
+#include "animation/animation_manager.hh"
 #include "core/object/gameobject_manager.hh"
 #include "helpers/load_queue.hh"
 #include "mesh/colbin_manager.hh"
@@ -30,6 +31,7 @@ class MadnightEngine final : public psyqo::Application {
 	ColbinManager m_colbinManager;
 	SoundManager m_soundManager;	   // this allows you to use VAG files via SPU
 	ModSoundManager m_modSoundManager; // this is for the MOD player
+	AnimationManager m_animationManager;
 
 	// make sure you seed this with a nice number when starting your first scene
 	// using `g_madnightEngine.gpu().now()` for example.
