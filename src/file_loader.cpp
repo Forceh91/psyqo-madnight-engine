@@ -20,7 +20,7 @@ psyqo::Coroutine<> FileLoader::LoadFiles(eastl::vector<LoadQueue>&& files, bool 
 		g_madnightEngine.m_gameObjectManager.Dump();
 		g_madnightEngine.m_meshManager.Dump();
 		g_madnightEngine.m_textureManager.Dump();
-		ColbinManager::Dump();
+		g_madnightEngine.m_colbinManager.Dump();
 		SoundManager::Dump();
 	}
 
@@ -68,7 +68,7 @@ psyqo::Coroutine<> FileLoader::LoadFiles(eastl::vector<LoadQueue>&& files, bool 
 
 		case COLBIN: {
 			ColBin* out = nullptr;
-			co_await ColbinManager::LoadColbin(file.name, &out);
+			co_await g_madnightEngine.m_colbinManager.LoadColbin(file.name, &out);
 			break;
 		}
 

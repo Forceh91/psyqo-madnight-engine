@@ -43,12 +43,11 @@ struct ColBin {
 
 class ColbinManager {
   public:
-	static psyqo::Coroutine<> LoadColbin(const eastl::fixed_string<char, MAX_ARCHIVE_FILE_NAME_LEN>& name,
-										 ColBin** colbinOut);
-	static ColBin* Colbin(void) { return &m_colbin; }
-	static void Dump(void);
-	static eastl::span<OBB> walls(void) { return {m_colbin.walls, m_colbin.header.wallOBBCount}; };
+	psyqo::Coroutine<> LoadColbin(const eastl::fixed_string<char, MAX_ARCHIVE_FILE_NAME_LEN>& name, ColBin** colbinOut);
+	ColBin* Colbin(void) { return &m_colbin; }
+	void Dump(void);
+	eastl::span<OBB> walls(void) { return {m_colbin.walls, m_colbin.header.wallOBBCount}; };
 
   private:
-	static ColBin m_colbin;
+	ColBin m_colbin;
 };

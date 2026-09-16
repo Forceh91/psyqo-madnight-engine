@@ -4,8 +4,6 @@
 #include "psyqo/xprintf.h"
 #include <cstdint>
 
-ColBin ColbinManager::m_colbin = {};
-
 psyqo::Coroutine<> ColbinManager::LoadColbin(const eastl::fixed_string<char, MAX_ARCHIVE_FILE_NAME_LEN>& name,
 											 ColBin** colbinOut) {
 	// just incase something goes wrong
@@ -82,8 +80,9 @@ psyqo::Coroutine<> ColbinManager::LoadColbin(const eastl::fixed_string<char, MAX
 				__builtin_memcpy(&m_colbin.gridCells[i].indices[j], ptr, sizeof(uint16_t));
 				ptr += sizeof(uint16_t);
 			}
-		} else
+		} else {
 			m_colbin.gridCells[i].indices = nullptr;
+		}
 	}
 
 	// handle floor tris
