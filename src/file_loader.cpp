@@ -13,6 +13,7 @@
 eastl::vector<LoadQueue> FileLoader::m_queue;
 uint16_t FileLoader::m_totalFiles = 0;
 uint16_t FileLoader::m_loadedFiles = 0;
+SceneLoader FileLoader::m_sceneLoader;
 
 psyqo::Coroutine<> FileLoader::LoadFiles(eastl::vector<LoadQueue>&& files, bool clearPools) {
 	if (clearPools) {
@@ -79,7 +80,7 @@ psyqo::Coroutine<> FileLoader::LoadFiles(eastl::vector<LoadQueue>&& files, bool 
 
 		case SCENE: {
 			auto before = m_totalFiles;
-			co_await SceneLoader::LoadScene(file.name, m_queue);
+			co_await m_sceneLoader.LoadScene(file.name, m_queue);
 			m_totalFiles += m_queue.size() - before;
 			break;
 		}

@@ -6,7 +6,7 @@
 
 class SceneLoader final {
   public:
-	static psyqo::Coroutine<> LoadScene(const eastl::string_view& sceneFile, eastl::vector<LoadQueue>& queue);
+	psyqo::Coroutine<> LoadScene(const eastl::string_view& sceneFile, eastl::vector<LoadQueue>& queue);
 
   private:
 };

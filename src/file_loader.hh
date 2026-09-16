@@ -1,6 +1,7 @@
 #pragma once
 
 #include "helpers/load_queue.hh"
+#include "scenes/scene_loader.hh"
 #include <psyqo/coroutine.hh>
 
 enum LOAD_STATE : uint8_t { UNKNOWN, LOADING, COMPLETE };
@@ -34,4 +35,6 @@ class FileLoader final {
 	static uint16_t m_totalFiles;
 	// how many have been loaded
 	static uint16_t m_loadedFiles;
+
+	static SceneLoader m_sceneLoader;
 };
