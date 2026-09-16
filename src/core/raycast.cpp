@@ -1,6 +1,7 @@
 #include "raycast.hh"
 #include "object/gameobject_manager.hh"
 
+#include "../madnight.hh"
 #include <psyqo/fixed-point.hh>
 #include <psyqo/gte-math.hh>
 
@@ -13,7 +14,7 @@ bool Raycast::RaycastScene(const Ray& ray, GameObjectTag targetTag, RayHit* hitO
 	}
 
 	// find all objects of type, if none then presume no hit
-	auto objects = GameObjectManager::GetGameObjectsWithTag(targetTag);
+	auto objects = g_madnightEngine.m_gameObjectManager.GetGameObjectsWithTag(targetTag);
 	if (!objects.empty()) {
 		for (auto& object : objects) {
 			psyqo::FixedPoint<> distance;

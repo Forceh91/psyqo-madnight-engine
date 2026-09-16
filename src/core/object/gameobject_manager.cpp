@@ -1,9 +1,5 @@
 #include "gameobject_manager.hh"
 
-eastl::array<GameObject, MAX_GAME_OBJECTS> GameObjectManager::m_gameObjects;
-eastl::fixed_vector<GameObject*, MAX_GAME_OBJECTS> GameObjectManager::m_activeGameObjects;
-eastl::fixed_vector<GameObject*, MAX_GAME_OBJECTS> GameObjectManager::m_renderableGameObjects;
-
 GameObject* GameObjectManager::CreateGameObject(const eastl::string_view& name, const uint64_t& nameHash,
 												const psyqo::Vec3& pos, const GameObjectRotation& rotation,
 												const GameObjectTag& tag) {

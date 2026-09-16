@@ -24,15 +24,16 @@ psyqo::Coroutine<> MadnightEngineGame::InitialLoad(void) {
 	co_await g_madnightEngine.HardLoadingScreen(eastl::move(queue), &gameplayScene);
 
 	// create a game object
-	auto gameObject = GameObjectManager::CreateGameObject("STREET", {0, 0, 0}, {0, 0, 0}, GameObjectTag::ENVIRONMENT);
+	auto gameObject = g_madnightEngine.m_gameObjectManager.CreateGameObject("STREET", {0, 0, 0}, {0, 0, 0},
+																			GameObjectTag::ENVIRONMENT);
 	if (gameObject != nullptr) {
 		gameObject->SetQuadType(GameObjectQuadType::GouraudTextureQuad);
 		gameObject->SetMesh("MODELS/STREET.MB");
 		gameObject->SetTexture("TEXTURES/STREET.TIM");
 	}
 
-	auto gameObject2 = GameObjectManager::CreateGameObject("STREET2", {0.05_fp, 0, 0.5_fp}, {0, 1.0_pi, 0.25_pi},
-														   GameObjectTag::ENVIRONMENT);
+	auto gameObject2 = g_madnightEngine.m_gameObjectManager.CreateGameObject(
+		"STREET2", {0.05_fp, 0, 0.5_fp}, {0, 1.0_pi, 0.25_pi}, GameObjectTag::ENVIRONMENT);
 	if (gameObject2 != nullptr) {
 		gameObject2->SetQuadType(GameObjectQuadType::GouraudTextureQuad);
 		gameObject2->SetMesh("MODELS/STREET.MB");

@@ -17,7 +17,7 @@ uint16_t FileLoader::m_loadedFiles = 0;
 
 psyqo::Coroutine<> FileLoader::LoadFiles(eastl::vector<LoadQueue>&& files, bool clearPools) {
 	if (clearPools) {
-		GameObjectManager::Dump();
+		g_madnightEngine.m_gameObjectManager.Dump();
 		g_madnightEngine.m_meshManager.Dump();
 		g_madnightEngine.m_textureManager.Dump();
 		ColbinManager::Dump();

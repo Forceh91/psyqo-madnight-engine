@@ -1,4 +1,5 @@
 #pragma once
+#include "core/object/gameobject_manager.hh"
 #include "helpers/load_queue.hh"
 #include "mesh/mesh_manager.hh"
 #include "psyqo/scene.hh"
@@ -22,6 +23,7 @@ class MadnightEngine final : public psyqo::Application {
 
 	TextureManager m_textureManager;
 	MeshManager m_meshManager;
+	GameObjectManager m_gameObjectManager;
 
 	// make sure you seed this with a nice number when starting your first scene
 	// using `g_madnightEngine.gpu().now()` for example.

@@ -268,7 +268,7 @@ void Renderer::RenderGameObjects(uint32_t deltaTime, const psyqo::Matrix33& came
 	auto& ot = m_orderingTables[frameBuffer];
 
 	// get game objects. if there's nothing to render then just early return
-	const auto& gameObjects = GameObjectManager::GetActiveGameObjects();
+	const auto& gameObjects = g_madnightEngine.m_gameObjectManager.GetActiveGameObjects();
 	if (gameObjects.empty()) {
 		return;
 	}

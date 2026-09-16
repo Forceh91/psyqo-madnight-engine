@@ -61,7 +61,7 @@ void GameplayScene::frame() {
 	// printf("did hit=%d\n", didHit);
 
 	// collision detection test...
-	// auto objects = GameObjectManager::GetGameObjectsWithTag(GameObjectTag::ENVIRONMENT);
+	// auto objects = g_madnightEngine.m_gameObjectManager.GetGameObjectsWithTag(GameObjectTag::ENVIRONMENT);
 	// bool collision = Collision::IsSATCollision(objects[0]->obb(), objects[1]->obb());
 	// printf("collision=%d\n", collision);
 
