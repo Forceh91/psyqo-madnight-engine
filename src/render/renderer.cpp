@@ -559,7 +559,7 @@ void Renderer::RenderBillboards(uint32_t deltaTime, const psyqo::Matrix33& camer
 	auto& allocator = m_allocators[frameBuffer];
 	auto& ot = m_orderingTables[frameBuffer];
 
-	auto const& billboards = BillboardManager::GetActiveBillboards();
+	auto const& billboards = g_madnightEngine.m_billboardManager.GetActiveBillboards();
 	if (billboards.empty()) {
 		return;
 	}

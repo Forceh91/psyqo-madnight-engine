@@ -1,6 +1,7 @@
 #pragma once
 #include "animation/animation_manager.hh"
 #include "controller/controller.hh"
+#include "core/billboard/billboard_manager.hh"
 #include "core/collision.hh"
 #include "core/object/gameobject_manager.hh"
 #include "core/raycast.hh"
@@ -37,6 +38,7 @@ class MadnightEngine final : public psyqo::Application {
 	SoundManager m_soundManager;	   // this allows you to use VAG files via SPU
 	ModSoundManager m_modSoundManager; // this is for the MOD player
 	AnimationManager m_animationManager;
+	BillboardManager m_billboardManager;
 	FileLoader m_fileLoader;
 
 	// helpers for various things like controller, collisions, etc.

@@ -6,9 +6,6 @@
 #include <EASTL/fixed_vector.h>
 #include <EASTL/string_view.h>
 
-eastl::array<Billboard, MAX_BILLBOARDS> BillboardManager::m_billboards;
-eastl::fixed_vector<Billboard*, MAX_BILLBOARDS> BillboardManager::m_activeBillboards;
-
 Billboard* BillboardManager::CreateBillboard(const eastl::string_view& name, psyqo::Vec3 pos, psyqo::Vec2 size) {
 	auto ix = GetFreeIndex();
 	if (ix == -1) {
