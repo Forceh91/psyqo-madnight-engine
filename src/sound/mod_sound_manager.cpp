@@ -1,14 +1,15 @@
 #include "mod_sound_manager.hh"
 #include "../helpers/archive.hh"
+#include "../madnight.hh"
 #include "../render/renderer.hh"
-#include "psyqo/xprintf.h"
+#include <psyqo/xprintf.h>
 
 psyqo::Coroutine<> ModSoundManager::LoadMODSound(const eastl::string_view& modSoundFileName,
 												 ModSoundFile** modSoundFileOut) {
 	*modSoundFileOut = nullptr;
 
 	// ok checks passed, get it off the CD
-	auto buffer = co_await ArchiveHelper::LoadFile(modSoundFileName);
+	auto buffer = co_await g_madnightEngine.m_archiveHelper.LoadFile(modSoundFileName);
 	void* data = buffer.data();
 	size_t size = buffer.size();
 

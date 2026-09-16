@@ -1,11 +1,12 @@
 #include "animation_manager.hh"
 #include "../helpers/archive.hh"
-#include "EASTL/fixed_string.h"
+#include "../madnight.hh"
 #include "animation.hh"
-#include "psyqo/xprintf.h"
+#include <EASTL/fixed_string.h>
+#include <psyqo/xprintf.h>
 
 psyqo::Coroutine<> AnimationManager::LoadAnimation(const eastl::string_view& animationsFile) {
-	auto buffer = co_await ArchiveHelper::LoadFile(animationsFile);
+	auto buffer = co_await g_madnightEngine.m_archiveHelper.LoadFile(animationsFile);
 
 	void* data = buffer.data();
 	size_t size = buffer.size();

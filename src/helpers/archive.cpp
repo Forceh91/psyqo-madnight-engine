@@ -8,13 +8,6 @@
 #include <psyqo-paths/archive-manager.hh>
 #include <psyqo/xprintf.h>
 
-#ifdef PCDRV
-psyqo::CDRomPCDrv ArchiveHelper::m_cdrom(g_gameIsoName);
-#endif
-psyqo::paths::ArchiveManager ArchiveHelper::m_archiveManager;
-bool ArchiveHelper::m_archiveManagerInit = false;
-char ArchiveHelper::m_loadingFileName[MAX_ARCHIVE_FILE_NAME_LEN];
-
 void ArchiveHelper::init(eastl::function<void()> cb) {
 	m_archiveManager.registerUCL_NRV2EDecompressor();
 
@@ -24,7 +17,7 @@ void ArchiveHelper::init(eastl::function<void()> cb) {
 	auto& cdrom = m_cdrom;
 #endif
 
-	m_archiveManager.initialize(23, cdrom, [cb](bool success) {
+	m_archiveManager.initialize(23, cdrom, [cb, this](bool success) {
 		m_archiveManagerInit = success;
 		printf("ARCHIVE: Initialize result=%d\n", m_archiveManagerInit);
 		cb();

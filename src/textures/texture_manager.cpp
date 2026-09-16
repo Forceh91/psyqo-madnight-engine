@@ -1,8 +1,9 @@
 #include "texture_manager.hh"
 #include "../helpers/archive.hh"
+#include "../madnight.hh"
 #include "../render/renderer.hh"
-#include "psyqo/alloc.h"
-#include "psyqo/xprintf.h"
+#include <psyqo/alloc.h>
+#include <psyqo/xprintf.h>
 
 /*
  * ok so this is confusing as hell and we have to manage VRAM ourself which is wild.
@@ -55,7 +56,7 @@ psyqo::Coroutine<> TextureManager::LoadTIM(const eastl::string_view& textureName
 		co_return;
 	}
 
-	auto buffer = co_await ArchiveHelper::LoadFile(textureName);
+	auto buffer = co_await g_madnightEngine.m_archiveHelper.LoadFile(textureName);
 
 	void* data = buffer.data();
 	size_t size = buffer.size();

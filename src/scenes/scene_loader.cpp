@@ -1,4 +1,5 @@
 #include "scene_loader.hh"
+#include "../madnight.hh"
 
 #include <EASTL/fixed_string.h>
 #include <EASTL/string_view.h>
@@ -6,7 +7,7 @@
 
 psyqo::Coroutine<> SceneLoader::LoadScene(const eastl::string_view& sceneFile, eastl::vector<LoadQueue>& queue) {
 	// load the file from the archive
-	auto buffer = co_await ArchiveHelper::LoadFile(sceneFile);
+	auto buffer = co_await g_madnightEngine.m_archiveHelper.LoadFile(sceneFile);
 	uint8_t* data = buffer.data();
 	size_t size = buffer.size();
 

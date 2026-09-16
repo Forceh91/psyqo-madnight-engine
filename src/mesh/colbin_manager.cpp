@@ -1,15 +1,16 @@
 #include "colbin_manager.hh"
-#include "psyqo/alloc.h"
-#include "psyqo/coroutine.hh"
-#include "psyqo/xprintf.h"
+#include "../madnight.hh"
 #include <cstdint>
+#include <psyqo/alloc.h>
+#include <psyqo/coroutine.hh>
+#include <psyqo/xprintf.h>
 
 psyqo::Coroutine<> ColbinManager::LoadColbin(const eastl::fixed_string<char, MAX_ARCHIVE_FILE_NAME_LEN>& name,
 											 ColBin** colbinOut) {
 	// just incase something goes wrong
 	*colbinOut = nullptr;
 
-	auto buffer = co_await ArchiveHelper::LoadFile(name);
+	auto buffer = co_await g_madnightEngine.m_archiveHelper.LoadFile(name);
 	void* data = buffer.data();
 	size_t size = buffer.size();
 

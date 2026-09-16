@@ -1,5 +1,6 @@
 #include "mesh_manager.hh"
 #include "../helpers/archive.hh"
+#include "../madnight.hh"
 #include "skeleton/skeleton.hh"
 
 #include <EASTL/string.h>
@@ -25,7 +26,7 @@ psyqo::Coroutine<> MeshManager::LoadMesh(const eastl::string_view& meshName, Mes
 		co_return;
 	}
 
-	auto buffer = co_await ArchiveHelper::LoadFile(meshName);
+	auto buffer = co_await g_madnightEngine.m_archiveHelper.LoadFile(meshName);
 
 	void* data = buffer.data();
 	size_t size = buffer.size();

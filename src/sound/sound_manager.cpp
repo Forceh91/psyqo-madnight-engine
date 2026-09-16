@@ -1,8 +1,8 @@
-#include "sound_manager.hh"
-#include "EASTL/algorithm.h"
-#include "psyqo/fixed-point.hh"
-#include "psyqo/spu.hh"
-#include "psyqo/xprintf.h"
+#include "../madnight.hh"
+#include <EASTL/algorithm.h>
+#include <psyqo/fixed-point.hh>
+#include <psyqo/spu.hh>
+#include <psyqo/xprintf.h>
 
 using namespace psyqo::fixed_point_literals;
 
@@ -34,7 +34,7 @@ psyqo::Coroutine<> SoundManager::LoadVAGFile(const eastl::fixed_string<char, MAX
 	}
 
 	// get the actual data off the cd and make sure its valid
-	auto buffer = co_await ArchiveHelper::LoadFile(fileName);
+	auto buffer = co_await g_madnightEngine.m_archiveHelper.LoadFile(fileName);
 	void* data = buffer.data();
 	size_t size = buffer.size();
 

@@ -1,9 +1,10 @@
 #include "cdrom.hh"
+#include "../madnight.hh"
 #include "../render/renderer.hh"
 #include "archive.hh"
-#include "psyqo/alloc.h"
-#include "psyqo/coroutine.hh"
-#include "psyqo/xprintf.h"
+#include <psyqo/alloc.h>
+#include <psyqo/coroutine.hh>
+#include <psyqo/xprintf.h>
 
 #ifndef PCDRV
 
@@ -26,7 +27,7 @@ void CDRomHelper::init(eastl::function<void()> cb) {
 	PCinit();
 #endif
 
-	ArchiveHelper::init(cb);
+	g_madnightEngine.m_archiveHelper.init(cb);
 }
 
 psyqo::Coroutine<psyqo::Buffer<uint8_t>> CDRomHelper::LoadFile(const eastl::string_view& fileName) {

@@ -8,6 +8,7 @@
 #include "core/particles/particle_manager.hh"
 #include "core/raycast.hh"
 #include "file_loader.hh"
+#include "helpers/archive.hh"
 #include "helpers/load_queue.hh"
 #include "mesh/colbin_manager.hh"
 #include "mesh/mesh_manager.hh"
@@ -15,7 +16,6 @@
 #include "sound/mod_sound_manager.hh"
 #include "sound/sound_manager.hh"
 #include "textures/texture_manager.hh"
-
 
 #include <EASTL/vector.h>
 #include <psyqo/advancedpad.hh>
@@ -43,7 +43,8 @@ class MadnightEngine final : public psyqo::Application {
 	AnimationManager m_animationManager;
 	BillboardManager m_billboardManager;
 	ParticleEmitterManager m_particleEmitterManager;
-	FileLoader m_fileLoader;
+	FileLoader m_fileLoader;	   // loading screens use this to load a queue of files from an archive
+	ArchiveHelper m_archiveHelper; // used for loading a single file from an archive
 
 	// helpers for various things like controller, collisions, etc.
 	ControllerHelper m_controllerHelper;
@@ -99,9 +100,3 @@ static inline void exitBreak(int code) {
 }
 
 extern MadnightEngine g_madnightEngine;
-
-// PCDRV debug builds (-pcdrv) mount an ISO from your host filesystem instead
-// of real CD-ROM hardware. Each game must define this exactly once,
-// somewhere in its own source (not the engine's) — e.g.:
-//     const char* g_gameIsoName = "ssweep.iso";
-extern const char* g_gameIsoName;
