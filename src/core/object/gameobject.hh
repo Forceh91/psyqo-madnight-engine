@@ -29,7 +29,7 @@ class GameObject final {
 	friend class GameObjectManager;
 
 	uint64_t m_nameHash = 0;
-	eastl::fixed_string<char, MAX_GAMEOBJECT_NAME_LENGTH> m_name;
+	eastl::fixed_string<char, MAX_GAMEOBJECT_NAME_LENGTH> m_name = "";
 	uint8_t m_id = INVALID_GAMEOBJECT_ID;
 	GameObjectQuadType m_quadType = GameObjectQuadType::Quad;
 	GameObjectTag m_tag = GameObjectTag::NONE;

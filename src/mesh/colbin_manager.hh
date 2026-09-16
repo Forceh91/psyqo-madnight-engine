@@ -49,5 +49,5 @@ class ColbinManager {
 	eastl::span<OBB> walls(void) { return {m_colbin.walls, m_colbin.header.wallOBBCount}; };
 
   private:
-	ColBin m_colbin;
+	ColBin m_colbin = {};
 };
