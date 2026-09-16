@@ -8,10 +8,6 @@ using namespace psyqo::fixed_point_literals;
 
 #define SWAP32(x) ((x >> 24) | ((x >> 8) & 0xFF00) | ((x << 8) & 0xFF0000) | (x << 24))
 
-bool SoundManager::m_isInitialized = false;
-eastl::fixed_vector<VagEntry, MAX_VAG_FILE_COUNT> SoundManager::m_vagFiles;
-uint32_t SoundManager::m_spuAllocPtr = psyqo::SPU::BASE_ALLOC_ADDR;
-
 void SoundManager::Init(void) {
 	psyqo::SPU::initialize();
 	m_isInitialized = true;

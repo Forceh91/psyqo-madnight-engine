@@ -46,7 +46,7 @@ void MadnightEngine::prepare() {
 
 	// hardware inits
 	CDRomHelper::init([this]() {
-		SoundManager::Init();
+		g_madnightEngine.m_soundManager.Init();
 		// Unlike the `SimplePad` class, the `AdvancedPad` class doesn't need to be initialized
 		// in the `start` method of the root `Scene` object. It can be initialized here.
 		// PollingMode::Fast is used to reduce input lag, but it will increase CPU usage.

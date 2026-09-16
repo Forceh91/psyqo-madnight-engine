@@ -21,7 +21,7 @@ psyqo::Coroutine<> FileLoader::LoadFiles(eastl::vector<LoadQueue>&& files, bool 
 		g_madnightEngine.m_meshManager.Dump();
 		g_madnightEngine.m_textureManager.Dump();
 		g_madnightEngine.m_colbinManager.Dump();
-		SoundManager::Dump();
+		g_madnightEngine.m_soundManager.Dump();
 	}
 
 	if (!files.size()) {
@@ -74,7 +74,7 @@ psyqo::Coroutine<> FileLoader::LoadFiles(eastl::vector<LoadQueue>&& files, bool 
 
 		case VAG: {
 			VagEntry* out = nullptr;
-			co_await SoundManager::LoadVAGFile(file.name, &out);
+			co_await g_madnightEngine.m_soundManager.LoadVAGFile(file.name, &out);
 			break;
 		}
 
