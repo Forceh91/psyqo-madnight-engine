@@ -36,7 +36,7 @@ class ParticleEmitter final {
 	void Destroy(void);
 
 	void Process(const uint32_t& deltaTime);
-	const eastl::vector<Particle>& particles() const { return m_spawnedParticles; };
+	const constexpr eastl::vector<Particle>& particles() const { return m_spawnedParticles; };
 
 	void SetRotation(const EmitterRotation& rotation);
 
@@ -55,8 +55,8 @@ class ParticleEmitter final {
 							const eastl::array<psyqo::PrimPieces::UVCoords, 4>& uv);
 	void SetParticleUVCoords(const eastl::array<psyqo::PrimPieces::UVCoords, 4>& uv);
 
-	const TimFile* pParticleTexture() const { return m_particleTexture; }
-	const bool& AreParticles2D() const { return m_particleIs2D; }
+	const constexpr TimFile* pParticleTexture() const { return m_particleTexture; }
+	const constexpr bool& AreParticles2D() const { return m_particleIs2D; }
 
   private:
 	friend class ParticleEmitterManager;

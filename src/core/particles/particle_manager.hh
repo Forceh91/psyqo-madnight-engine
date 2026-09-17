@@ -21,7 +21,7 @@ class ParticleEmitterManager final {
 	void DestroyParticleEmitter(ParticleEmitter* emitter);
 
 	const eastl::fixed_vector<ParticleEmitter*, MAX_PARTICLE_EMITTERS>& GetActiveEmitters(void);
-	const eastl::array<ParticleEmitter, MAX_PARTICLE_EMITTERS>& GetEmitters(void) { return m_emitters; }
+	const constexpr eastl::array<ParticleEmitter, MAX_PARTICLE_EMITTERS>& GetEmitters(void) { return m_emitters; }
 	ParticleEmitter* GetEmitterByName(const eastl::string_view& name);
 	ParticleEmitter* GetEmitterByName(uint64_t nameHash);
 
