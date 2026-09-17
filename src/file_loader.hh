@@ -19,11 +19,11 @@ class FileLoader final {
 	// this is a FIFO worklist and the queue will be loaded backwards.
 	psyqo::Coroutine<> LoadFiles(eastl::vector<LoadQueue>&& files, bool clearPools = true);
 	// how many files in total *will* be loaded. this number will increase when a scene file is reached
-	uint16_t TotalFiles(void) { return m_totalFiles; }
+	constexpr uint16_t TotalFiles(void) { return m_totalFiles; }
 	// how many files in total *have* been loaded.
-	uint16_t LoadedFiles(void) { return m_loadedFiles; }
+	constexpr uint16_t LoadedFiles(void) { return m_loadedFiles; }
 
-	LOAD_STATE LoadState(void) {
+	constexpr LOAD_STATE LoadState(void) {
 		if (!m_totalFiles) {
 			return UNKNOWN;
 		}
