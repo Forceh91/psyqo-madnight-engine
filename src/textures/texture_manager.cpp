@@ -229,7 +229,7 @@ psyqo::Rect TextureManager::GetTPageUVForTim(const TimFile* tim) {
 	return rect;
 }
 
-int16_t TextureManager::GetFreeIndex(void) {
+constexpr int16_t TextureManager::GetFreeIndex(void) {
 	for (auto i = 0; i < MAX_TEXTURES; i++) {
 		if (!m_textures.at(i).isLoaded) {
 			return i;
@@ -241,7 +241,7 @@ int16_t TextureManager::GetFreeIndex(void) {
 
 TimFile* TextureManager::IsTextureLoaded(const eastl::string_view& name) { return IsTextureLoaded(HashName(name)); }
 
-TimFile* TextureManager::IsTextureLoaded(uint64_t nameHash) {
+constexpr TimFile* TextureManager::IsTextureLoaded(uint64_t nameHash) {
 	for (auto i = 0; i < MAX_TEXTURES; i++) {
 		if (m_textures.at(i).isLoaded && m_textures.at(i).nameHash == nameHash) {
 			return &m_textures.at(i);

@@ -37,9 +37,9 @@ class TextureManager final {
 	psyqo::Vertex GetTPageIndex(uint16_t x, uint16_t y);
 	eastl::array<TimFile, MAX_TEXTURES> m_textures;
 
-	int16_t GetFreeIndex(void);
+	constexpr int16_t GetFreeIndex(void);
 	TimFile* IsTextureLoaded(const eastl::string_view& name);
-	TimFile* IsTextureLoaded(uint64_t nameHash);
+	constexpr TimFile* IsTextureLoaded(uint64_t nameHash);
 
   public:
 	psyqo::Coroutine<> LoadTIM(const eastl::string_view& textureName, uint16_t x, uint16_t y, uint16_t clutX,
