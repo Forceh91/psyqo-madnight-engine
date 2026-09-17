@@ -68,25 +68,25 @@ class Camera final {
 
 	~Camera() {};
 
-	const psyqo::Vec3 pos(void) const { return m_pos; };
-	const psyqo::Vec3 deltaOffset(void) const {
+	const constexpr psyqo::Vec3 pos(void) const { return m_pos; };
+	const constexpr psyqo::Vec3 deltaOffset(void) const {
 		return m_cameraMode != CameraMode::FOLLOW ? psyqo::Vec3{0, 0, 0} : m_pos;
 	}
-	const psyqo::Vec3* posPtr(void) const { return &m_pos; }
-	const CameraAngle* angle(void) const { return &m_angle; }
-	const psyqo::Vec3 forwardVector(void) const {
+	const constexpr psyqo::Vec3* posPtr(void) const { return &m_pos; }
+	const constexpr CameraAngle* angle(void) const { return &m_angle; }
+	const constexpr psyqo::Vec3 forwardVector(void) const {
 		return {-m_rotationMatrix.vs[0].z, m_rotationMatrix.vs[1].z, m_rotationMatrix.vs[2].z};
 	}
 
-	const psyqo::Vec3 rightVector(void) const {
+	const constexpr psyqo::Vec3 rightVector(void) const {
 		return {m_rotationMatrix.vs[0].x, m_rotationMatrix.vs[1].x, m_rotationMatrix.vs[2].x};
 	}
 
-	const psyqo::Vec3 upVector(void) const {
+	const constexpr psyqo::Vec3 upVector(void) const {
 		return {m_rotationMatrix.vs[0].y, m_rotationMatrix.vs[1].y, m_rotationMatrix.vs[2].y};
 	}
 
-	const psyqo::Matrix33& rotationMatrix(void) { return m_rotationMatrix; }
+	const constexpr psyqo::Matrix33& rotationMatrix(void) { return m_rotationMatrix; }
 	psyqo::Matrix33 inverseRotationMatrix(void);
 
 	void Process(uint32_t deltaTime);
@@ -119,10 +119,10 @@ class Camera final {
 
 	void LookAt(const psyqo::Vec3* target);
 
-	const psyqo::Vec3 SwingTarget(void) const { return m_swingTarget; }
+	const constexpr psyqo::Vec3 SwingTarget(void) const { return m_swingTarget; }
 	void SetSwingTarget(const psyqo::Vec3& target) { m_swingTarget = target; }
 
-	const CameraAngle OrbitAngle(void) const { return m_orbitAngle; }
+	const constexpr CameraAngle OrbitAngle(void) const { return m_orbitAngle; }
 	void SetOrbitAngle(const CameraAngle& angle) { m_orbitAngle = angle; }
 	// deltaTime in terms of frames
 	void UpdateOrbitAngles(psyqo::Angle xDeltaAmount, psyqo::Angle yDeltaAmount);
