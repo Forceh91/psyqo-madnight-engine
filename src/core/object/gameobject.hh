@@ -69,23 +69,23 @@ class GameObject final {
   public:
 	GameObject() = default;
 
-	uint64_t nameHash() const { return m_nameHash; }
-	const eastl::fixed_string<char, MAX_GAMEOBJECT_NAME_LENGTH>& name() const { return m_name; }
-	const uint8_t& id() const { return m_id; };
-	const psyqo::Vec3& pos() const { return m_pos; }
+	const constexpr uint64_t nameHash() const { return m_nameHash; }
+	const constexpr eastl::fixed_string<char, MAX_GAMEOBJECT_NAME_LENGTH>& name() const { return m_name; }
+	const constexpr uint8_t& id() const { return m_id; };
+	const constexpr psyqo::Vec3& pos() const { return m_pos; }
 
-	const psyqo::Vec3* posPtr() const { return &m_pos; }
-	psyqo::Vec3* posPtr() { return &m_pos; }
+	const constexpr psyqo::Vec3* posPtr() const { return &m_pos; }
+	constexpr psyqo::Vec3* posPtr() { return &m_pos; }
 
-	const GameObjectRotation& rotation() const { return m_rotation; }
-	const psyqo::Matrix33& rotationMatrix() const { return m_rotationMatrix; }
-	const MeshBin* mesh() const { return m_mesh; }
-	MeshBin* mesh() { return m_mesh; }
-	const TimFile* texture() const { return m_texture; }
-	const GameObjectTag& tag() { return m_tag; }
-	const GameObjectQuadType& quadType() { return m_quadType; }
-	const OBB& obb() { return m_obb; }
-	const OBB& obb() const { return m_obb; }
+	const constexpr GameObjectRotation& rotation() const { return m_rotation; }
+	const constexpr psyqo::Matrix33& rotationMatrix() const { return m_rotationMatrix; }
+	const constexpr MeshBin* mesh() const { return m_mesh; }
+	constexpr MeshBin* mesh() { return m_mesh; }
+	const constexpr TimFile* texture() const { return m_texture; }
+	const constexpr GameObjectTag& tag() { return m_tag; }
+	const constexpr GameObjectQuadType& quadType() { return m_quadType; }
+	const constexpr OBB& obb() { return m_obb; }
+	const constexpr OBB& obb() const { return m_obb; }
 
 	void SetPosition(const psyqo::Vec3& pos);
 	void SetPosition(psyqo::FixedPoint<12> x, psyqo::FixedPoint<12> y, psyqo::FixedPoint<12> z);
