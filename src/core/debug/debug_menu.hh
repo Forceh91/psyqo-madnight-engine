@@ -1,30 +1,31 @@
-#ifndef _DEBUG_MENU_H
-#define _DEBUG_MENU_H
+/*
+ * Copyright (C) 2025-2026 Matt Hadden / Madnight Games
+ *
+ * SPDX-License-Identifier: LGPL-2.1-or-later
+ */
 
-#include "../../madnight.hh"
-#include "../world_defs.hh"
+#pragma once
+
+#include <psyqo/gpu.hh>
 
 static constexpr uint8_t DEBUG_MENU_OPTION_COUNT = 2;
 
-class DebugMenu final
-{
-    static bool m_isEnabled;
-    static uint8_t m_raycastDistance;
-    static uint8_t m_selectedDebugOption;
-    static uint32_t m_startDebugMenuOpenCapture;
-    static uint8_t m_debugMenuOpenCapturedInputs;
-    static bool m_displayDebugHUD;
+class DebugMenu final {
+	bool m_isEnabled = false;
+	uint8_t m_raycastDistance = 3;
+	uint8_t m_selectedDebugOption = 0;
+	uint32_t m_startDebugMenuOpenCapture = 0;
+	uint8_t m_debugMenuOpenCapturedInputs = 0;
+	bool m_displayDebugHUD = true;
 
-    static void ToggleEnabled(void);
-    static void ResetInputCapture(void);
+	void ToggleEnabled(void);
+	void ResetInputCapture(void);
 
-public:
-    static void Init(void);
-    static void Process(void);
-    static void Draw(psyqo::GPU &gpu);
-    static bool IsEnabled() { return m_isEnabled; }
-    static uint8_t RaycastDistance() { return m_raycastDistance; }
-    static bool DisplayDebugHUD() { return m_displayDebugHUD; }
+  public:
+	void Init(void);
+	void Process(void);
+	void Draw(psyqo::GPU& gpu);
+	bool IsEnabled() { return m_isEnabled; }
+	uint8_t RaycastDistance() { return m_raycastDistance; }
+	bool DisplayDebugHUD() { return m_displayDebugHUD; }
 };
-
-#endif

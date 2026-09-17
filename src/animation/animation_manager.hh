@@ -1,16 +1,19 @@
-#ifndef _ANIMATION_MANAGER_H
-#define _ANIMATION_MANAGER_H
+/*
+ * Copyright (C) 2025-2026 Matt Hadden / Madnight Games
+ *
+ * SPDX-License-Identifier: LGPL-2.1-or-later
+ */
+
+#pragma once
 
 #include "EASTL/fixed_string.h"
 #include "animation.hh"
 #include "psyqo/coroutine.hh"
 
 class AnimationManager final {
-  static AnimationBin m_loadedAnimBin;
+	AnimationBin m_loadedAnimBin = {};
 
-public:
-  static psyqo::Coroutine<> LoadAnimation(const char *animationsFile);
-  static Animation *GetAnimationFromName(const eastl::fixed_string<char, MAX_ANIMATION_NAME_LENGTH> &animationName);
+  public:
+	psyqo::Coroutine<> LoadAnimation(const eastl::string_view& animationsFile);
+	Animation* GetAnimationFromName(const eastl::fixed_string<char, MAX_ANIMATION_NAME_LENGTH>& animationName);
 };
-
-#endif

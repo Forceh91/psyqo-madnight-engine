@@ -29,3 +29,7 @@ Huge thank you to the following for their involvement in getting this engine sta
 
 - [PSX.Dev Discord](https://discord.gg/QByKPpH)
 - [Nicolas Noble](https://github.com/nicolasnoble)
+
+Also shout-out to Quilt for providing the models and textures for the unreleased tech demo of [Supermarket Sweep](https://discord.com/channels/642647820683444236/1485343661439848508) which is what has pushed engine development forward!
+
+- [Quilt](https://github.com/MrQuetch)

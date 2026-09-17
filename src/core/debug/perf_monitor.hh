@@ -1,26 +1,32 @@
-#ifndef _PERF_MONITOR_H
-#define _PERF_MONITOR_H
+/*
+ * Copyright (C) 2025-2026 Matt Hadden / Madnight Games
+ *
+ * SPDX-License-Identifier: LGPL-2.1-or-later
+ */
+
+#pragma once
 
 #include "../../ui/hud/gameplay_hud.hh"
 
 class PerfMonitor final {
-public:
-  // this should be called last in your render loop
-  static void Render(uint32_t deltaTime);
-  static void SetRenderedGameObjects(uint8_t renderedObjects, uint8_t totalObjects) { m_renderedGameObjects = renderedObjects; m_totalGameObjects = totalObjects; }
+  public:
+	// this should be called last in your render loop
+	void Render(uint32_t deltaTime);
+	void SetRenderedGameObjects(uint8_t renderedObjects, uint8_t totalObjects) {
+		m_renderedGameObjects = renderedObjects;
+		m_totalGameObjects = totalObjects;
+	}
 
-private:
-  static bool m_hasInitialized;
-  static GameplayHUD m_perfMontiorHUD;
-  static TextHUDElement *m_heapSizeText;
-  static TextHUDElement *m_fpsText;
+  private:
+	void Init(void);
 
-  static void Init(void);
+	bool m_hasInitialized = false;
+	GameplayHUD m_perfMontiorHUD = GameplayHUD("Perf Monitor", {.pos = {5, 10}, .size = {100, 100}});
+	TextHUDElement* m_heapSizeText = nullptr;
+	TextHUDElement* m_fpsText = nullptr;
 
-  static uint32_t m_deltaTimeAccum;
-  static uint32_t m_frameCount;
-  static uint8_t m_renderedGameObjects;
-  static uint8_t m_totalGameObjects;
+	uint32_t m_deltaTimeAccum = 0;
+	uint32_t m_frameCount = 0;
+	uint8_t m_renderedGameObjects = 0;
+	uint8_t m_totalGameObjects = 0;
 };
-
-#endif

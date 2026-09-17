@@ -1,6 +1,4 @@
-#ifndef _CLIP_H
-#define _CLIP_H
-
+#pragma once
 #include "psyqo/primitives/common.hh"
 
 /* tri_clip
@@ -22,5 +20,3 @@ int tri_clip(const psyqo::Rect *clip, psyqo::Vertex *v0, psyqo::Vertex *v1, psyq
  *
  */
 int quad_clip(const psyqo::Rect *clip, psyqo::Vertex *v0, psyqo::Vertex *v1, psyqo::Vertex *v2, psyqo::Vertex *v3);
-
-#endif // _CLIP_H

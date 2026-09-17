@@ -1,125 +1,130 @@
+/*
+ * Copyright (C) 2025-2026 Matt Hadden / Madnight Games
+ *
+ * SPDX-License-Identifier: LGPL-2.1-or-later
+ */
+
 #include "menu.hh"
 #include "../../madnight.hh"
 #include "../../render/renderer.hh"
 
-void Menu::start(StartReason startReason)
-{
-    g_madnightEngine.m_input.setOnEvent([&](auto event)
-                                        { ProcessInputs(event); });
+void Menu::start(StartReason startReason) {
+	g_madnightEngine.m_input.setOnEvent([&](auto event) { ProcessInputs(event); });
 }
 
-void Menu::teardown(TearDownReason teardownReason)
-{
-    g_madnightEngine.m_input.setOnEvent(nullptr);
-    m_shouldDeactivate = false;
+void Menu::teardown(TearDownReason teardownReason) {
+	g_madnightEngine.m_input.setOnEvent(nullptr);
+	m_shouldDisable = false;
 }
 
-void Menu::frame(void)
-{
-    uint32_t deltaTime = Renderer::Instance().Process();
-    if (deltaTime == 0)
-        return;
+void Menu::frame(void) {
+	uint32_t deltaTime = Renderer::Instance().Process();
+	if (deltaTime == 0) {
+		return;
+	}
 
-    if (!m_isEnabled)
-        return;
+	if (!m_isEnabled) {
+		return;
+	}
 
-    if (m_shouldDeactivate)
-    {
-        Deactivate();
-        return;
-    }
+	if (m_shouldDisable) {
+		Disable();
+		return;
+	}
 
-    if (m_onFrame)
-        m_onFrame(deltaTime);
+	if (m_onFrame) {
+		m_onFrame(deltaTime);
+	}
 
-    for (auto &text : m_textElements)
-        text.Render(m_rect, m_defaultFont);
+	for (auto& text : m_textElements) {
+		text.Render(m_rect, m_defaultFont);
+	}
 
-    for (auto &sprite : m_spriteElements)
-        sprite.Render(m_rect);
+	for (auto& sprite : m_spriteElements) {
+		sprite.Render(m_rect);
+	}
 
-    uint32_t i = 0;
-    for (auto &menuItem : m_menuItems) {
-        auto selected = m_currentSelectedMenuItem == i++;
-        // if the menu item is selected but not enabled, move to the next one
-        if (selected && !menuItem.IsEnabled()) {
-            selected = false;
-            MoveSelectedMenuItemNext();
-        }
+	uint32_t i = 0;
+	for (auto& menuItem : m_menuItems) {
+		auto selected = m_currentSelectedMenuItem == i++;
+		// if the menu item is selected but not enabled, move to the next one
+		if (selected && !menuItem.IsEnabled()) {
+			selected = false;
+			MoveSelectedMenuItemNext();
+		}
 
-        menuItem.Render(m_rect, selected, m_defaultFont);
-    }
+		menuItem.Render(m_rect, selected, m_defaultFont);
+	}
 }
 
-void Menu::Activate()
-{
-    m_isEnabled = true;
-    g_madnightEngine.pushScene(this);
-    OnActivate();
+void Menu::Enable() {
+	m_isEnabled = true;
+	g_madnightEngine.pushScene(this);
+	OnActivate();
 }
 
-void Menu::Deactivate(void)
-{
-    m_isEnabled = false;
-    g_madnightEngine.popScene();
-    OnDeactivate();
+void Menu::Disable(void) {
+	m_isEnabled = false;
+	g_madnightEngine.popScene();
+	OnDeactivate();
 }
 
 void Menu::Destroy(void) {
-    m_isEnabled = false;
-    g_madnightEngine.popScene();
+	m_isEnabled = false;
+	g_madnightEngine.popScene();
 
-    m_textElements.clear(true);
-    m_spriteElements.clear(true);
-    m_menuItems.clear(true);
+	m_textElements.clear(true);
+	m_spriteElements.clear(true);
+	m_menuItems.clear(true);
 
-    OnDestroy();
+	OnDestroy();
 }
 
-void Menu::SetControllerBindings(const MenuControllerBinds &bindings)
-{
-    m_keyBindings = bindings;
+void Menu::SetControllerBindings(const MenuControllerBinds& bindings) { m_keyBindings = bindings; }
+
+void Menu::SetCustomInputCallbackButtons(const eastl::array<psyqo::AdvancedPad::Button, 16>& customBindings) {
+	m_keyBindings.menuItemCustom = customBindings;
 }
 
-void Menu::SetCustomInputCallbackButtons(const eastl::array<psyqo::AdvancedPad::Button, 16> &customBindings)
-{
-    m_keyBindings.menuItemCustom = customBindings;
+void Menu::ProcessInputs(const psyqo::AdvancedPad::Event& event) {
+	if (event.type != m_keyBindings.onEventType.type || !m_isEnabled || !m_menuItems.size()) {
+		return;
+	}
+
+	if (event.button == m_keyBindings.menuItemNext) {
+		MoveSelectedMenuItemNext();
+	}
+	if (event.button == m_keyBindings.menuItemPrev) {
+		MoveSelectedMenuItemPrev();
+	}
+
+	if (event.button == m_keyBindings.menuItemConfirm) {
+		m_menuItems[m_currentSelectedMenuItem].Confirm();
+	}
+
+	if (eastl::find(m_keyBindings.menuItemCustom.begin(), m_keyBindings.menuItemCustom.end(), event.button) !=
+		m_keyBindings.menuItemCustom.end()) {
+		m_menuItems[m_currentSelectedMenuItem].InputCallback(event.button);
+	}
+
+	if (event.button == m_keyBindings.menuItemBackCancel) {
+		m_shouldDisable = true;
+	}
 }
 
-void Menu::ProcessInputs(const psyqo::AdvancedPad::Event &event)
-{
-    if (event.type != m_keyBindings.onEventType.type || !m_isEnabled || !m_menuItems.size())
-        return;
-
-    if (event.button == m_keyBindings.menuItemNext)
-        MoveSelectedMenuItemNext();
-    if (event.button == m_keyBindings.menuItemPrev)
-        MoveSelectedMenuItemPrev();
-
-    if (event.button == m_keyBindings.menuItemConfirm)
-        m_menuItems[m_currentSelectedMenuItem].Confirm();
-
-    if (eastl::find(m_keyBindings.menuItemCustom.begin(), m_keyBindings.menuItemCustom.end(), event.button) != m_keyBindings.menuItemCustom.end())
-        m_menuItems[m_currentSelectedMenuItem].InputCallback(event.button);
-
-    if (event.button == m_keyBindings.menuItemBackCancel)
-        m_shouldDeactivate = true;
+MenuItem* Menu::AddMenuItem(const eastl::string_view& name, const eastl::string_view& displayText,
+							const psyqo::Rect posSize) {
+	m_menuItems.push_back(MenuItem(name, displayText, posSize));
+	return &m_menuItems.back();
 }
 
-MenuItem *Menu::AddMenuItem(const char *name, const char *displayText, const psyqo::Rect posSize)
-{
-    m_menuItems.push_back(MenuItem(name, displayText, posSize));
-    return &m_menuItems.back();
-}
-
-MenuItem *Menu::AddMenuItem(const MenuItem &item)
-{
-    m_menuItems.push_back(eastl::move(item));
-    return &m_menuItems.back();
+MenuItem* Menu::AddMenuItem(const MenuItem& item) {
+	m_menuItems.push_back(eastl::move(item));
+	return &m_menuItems.back();
 };
 
-void Menu::AddMenuItems(const eastl::span<MenuItem> &items)
-{
-    for (const auto &item : items)
-        m_menuItems.push_back(item);
+void Menu::AddMenuItems(const eastl::span<MenuItem>& items) {
+	for (const auto& item : items) {
+		m_menuItems.push_back(item);
+	}
 }

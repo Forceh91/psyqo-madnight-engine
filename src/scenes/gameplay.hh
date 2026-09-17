@@ -1,7 +1,11 @@
-#ifndef _GAMEPLAY_SCENE_H
-#define _GAMEPLAY_SCENE_H
+/*
+ * Copyright (C) 2025-2026 Matt Hadden / Madnight Games
+ *
+ * SPDX-License-Identifier: LGPL-2.1-or-later
+ */
 
-#include "psyqo/coroutine.hh"
+#pragma once
+
 #include "psyqo/scene.hh"
 
 #include "../render/camera.hh"
@@ -16,18 +20,14 @@
  * you can build off of this scene or create your own
  */
 class GameplayScene final : public psyqo::Scene {
-  void start(StartReason reason) override;
-  void teardown(TearDownReason reason) override;
-  void frame() override;
+	void start(StartReason reason) override;
+	void teardown(TearDownReason reason) override;
+	void frame() override;
 
-  GameplayHUD m_debugHUD = GameplayHUD("Debug HUD", {.pos = {5, 10}, .size = {100, 100}});
-  TextHUDElement *m_heapSizeText = nullptr;
-  TextHUDElement *m_fpsText = nullptr;
+	GameplayHUD m_debugHUD = GameplayHUD("Debug HUD", {.pos = {5, 10}, .size = {100, 100}});
+	TextHUDElement* m_heapSizeText = nullptr;
+	TextHUDElement* m_fpsText = nullptr;
 
-  Menu m_menu;
-  Camera *m_camera = nullptr;
-
-public:
+	Menu m_menu;
+	Camera* m_camera = nullptr;
 };
-
-#endif

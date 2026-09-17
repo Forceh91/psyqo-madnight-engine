@@ -1,30 +1,33 @@
-#ifndef _PARTICLE_MANAGER_H
-#define _PARTICLE_MANAGER_H
+/*
+ * Copyright (C) 2025-2026 Matt Hadden / Madnight Games
+ *
+ * SPDX-License-Identifier: LGPL-2.1-or-later
+ */
 
+#pragma once
 #include "defs.hh"
 #include "particle_emitter.hh"
 
 #include "EASTL/array.h"
-#include "EASTL/fixed_string.h"
 #include "EASTL/fixed_vector.h"
 #include "psyqo/fixed-point.hh"
 #include "psyqo/vector.hh"
 
 class ParticleEmitterManager final {
-public:
-    static ParticleEmitter* CreateParticleEmitter(const eastl::fixed_string<char, MAX_PARTICLE_EMITTER_NAME_LENGTH> &name, const psyqo::Vec3 &pos, const psyqo::FixedPoint<> &radius, const uint8_t &particlesPerSecond, const uint8_t &particleLifeTimeSecs);
-    static void DestroyParticleEmitter(ParticleEmitter* emitter);
+  public:
+	ParticleEmitter* CreateParticleEmitter(const eastl::string_view& name, const psyqo::Vec3& pos,
+										   const psyqo::FixedPoint<>& radius, const uint8_t& particlesPerSecond,
+										   const uint8_t& particleLifeTimeSecs);
+	void DestroyParticleEmitter(ParticleEmitter* emitter);
 
-    static const eastl::fixed_vector<ParticleEmitter*, MAX_PARTICLE_EMITTERS> &GetActiveEmitters(void);
-    static const eastl::array<ParticleEmitter, MAX_PARTICLE_EMITTERS> &GetEmitters(void) { return m_emitters; }
-    static ParticleEmitter* GetEmitterByName(const eastl::fixed_string<char, MAX_PARTICLE_EMITTER_NAME_LENGTH> &name);
-    static ParticleEmitter* GetEmitterByName(uint64_t nameHash);
+	const eastl::fixed_vector<ParticleEmitter*, MAX_PARTICLE_EMITTERS>& GetActiveEmitters(void);
+	const constexpr eastl::array<ParticleEmitter, MAX_PARTICLE_EMITTERS>& GetEmitters(void) { return m_emitters; }
+	ParticleEmitter* GetEmitterByName(const eastl::string_view& name);
+	ParticleEmitter* GetEmitterByName(uint64_t nameHash);
 
-private:
-    static eastl::array<ParticleEmitter, MAX_PARTICLE_EMITTERS> m_emitters;
-    static eastl::fixed_vector<ParticleEmitter*, MAX_PARTICLE_EMITTERS> m_activeEmitters;
-    
-    static int16_t GetFreeIndex(void);
+  private:
+	eastl::array<ParticleEmitter, MAX_PARTICLE_EMITTERS> m_emitters;
+	eastl::fixed_vector<ParticleEmitter*, MAX_PARTICLE_EMITTERS> m_activeEmitters;
+
+	int16_t GetFreeIndex(void);
 };
-
-#endif
