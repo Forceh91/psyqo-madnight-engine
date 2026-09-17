@@ -317,7 +317,7 @@ psyqo::Coroutine<> MeshManager::LoadMesh(const eastl::string_view& meshName, Mes
 
 MeshBin* MeshManager::IsMeshLoaded(const eastl::string_view& meshName) { return IsMeshLoaded(HashName(meshName)); }
 
-MeshBin* MeshManager::IsMeshLoaded(uint64_t meshNameHash) {
+constexpr MeshBin* MeshManager::IsMeshLoaded(uint64_t meshNameHash) {
 	LoadedMeshBin* loadedMesh = nullptr;
 	for (int i = 0; i < MAX_LOADED_MESHES; i++) {
 		// find the first loaded mesh that matches this mesh_name
@@ -331,7 +331,7 @@ MeshBin* MeshManager::IsMeshLoaded(uint64_t meshNameHash) {
 	return nullptr;
 }
 
-int16_t MeshManager::FindSpaceForMesh(void) {
+constexpr int16_t MeshManager::FindSpaceForMesh(void) {
 	for (auto i = 0; i < MAX_LOADED_MESHES; i++) {
 		// return the first mesh that isn't loaded
 		if (mLoadedMeshes[i].isLoaded == false) {
