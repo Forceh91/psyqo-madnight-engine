@@ -69,7 +69,7 @@ class GameObject final {
   public:
 	GameObject() = default;
 
-	const constexpr uint64_t nameHash() const { return m_nameHash; }
+	constexpr uint64_t nameHash() { return m_nameHash; }
 	const constexpr eastl::fixed_string<char, MAX_GAMEOBJECT_NAME_LENGTH>& name() const { return m_name; }
 	const constexpr uint8_t& id() const { return m_id; };
 	const constexpr psyqo::Vec3& pos() const { return m_pos; }
@@ -80,11 +80,9 @@ class GameObject final {
 	const constexpr GameObjectRotation& rotation() const { return m_rotation; }
 	const constexpr psyqo::Matrix33& rotationMatrix() const { return m_rotationMatrix; }
 	const constexpr MeshBin* mesh() const { return m_mesh; }
-	constexpr MeshBin* mesh() { return m_mesh; }
 	const constexpr TimFile* texture() const { return m_texture; }
-	const constexpr GameObjectTag& tag() { return m_tag; }
-	const constexpr GameObjectQuadType& quadType() { return m_quadType; }
-	const constexpr OBB& obb() { return m_obb; }
+	const constexpr GameObjectTag& tag() const { return m_tag; }
+	const constexpr GameObjectQuadType& quadType() const { return m_quadType; }
 	const constexpr OBB& obb() const { return m_obb; }
 
 	void SetPosition(const psyqo::Vec3& pos);
