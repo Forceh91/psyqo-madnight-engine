@@ -33,7 +33,7 @@ class Menu : public psyqo::Scene {
 
 	// this is potentially redundant
 	bool m_isEnabled = false;
-	bool m_shouldDeactivate = false;
+	bool m_shouldDisable = false;
 	eastl::fixed_string<char, MENU_MAX_NAME_LEN> m_name = "";
 	psyqo::Rect m_rect = {0};
 	psyqo::Font<100>* m_defaultFont = nullptr;
@@ -51,8 +51,8 @@ class Menu : public psyqo::Scene {
 
 	// callback when `frame` is called, will not callback if delta time is 0
 	eastl::function<void(uint32_t)> m_onFrame;
-	eastl::function<void(void)> m_onActivate;
-	eastl::function<void(void)> m_onDeactivate;
+	eastl::function<void(void)> m_onEnable;
+	eastl::function<void(void)> m_onDisable;
 	eastl::function<void(void)> m_onDestroy;
 
 	void Process(void);
@@ -61,14 +61,14 @@ class Menu : public psyqo::Scene {
 	// these are called when activate/deactivate functions are called
 	// deactivate is additionally called when the backcancel button is pressed
 	void OnActivate(void) {
-		if (m_onActivate) {
-			m_onActivate();
+		if (m_onEnable) {
+			m_onEnable();
 		}
 	}
 
 	void OnDeactivate(void) {
-		if (m_onDeactivate) {
-			m_onDeactivate();
+		if (m_onDisable) {
+			m_onDisable();
 		}
 	}
 
@@ -108,9 +108,9 @@ class Menu : public psyqo::Scene {
 	constexpr bool IsEnabled(void) { return m_isEnabled; }
 
 	// activate the menu
-	void Activate(void);
+	void Enable(void);
 	// deactivate the menu and go back to the previous scene/menu/whatever
-	void Deactivate(void);
+	void Disable(void);
 
 	// deactive the menu and destroy everything it was holding
 	void Destroy(void);
@@ -127,10 +127,10 @@ class Menu : public psyqo::Scene {
 	void SetOnFrame(eastl::function<void(uint32_t)> callback) { m_onFrame = eastl::move(callback); }
 
 	// callback when menu is activated
-	void SetOnActivate(eastl::function<void(void)> callback) { m_onActivate = eastl::move(callback); }
+	void SetOnEnable(eastl::function<void(void)> callback) { m_onEnable = eastl::move(callback); }
 
 	// callback when menu is deactivated
-	void SetOnDeactivate(eastl::function<void(void)> callback) { m_onDeactivate = eastl::move(callback); }
+	void SetOnDisable(eastl::function<void(void)> callback) { m_onDisable = eastl::move(callback); }
 
 	// callback when menu is destroyed
 	void SetOnDestroy(eastl::function<void(void)> callback) { m_onDestroy = eastl::move(callback); }

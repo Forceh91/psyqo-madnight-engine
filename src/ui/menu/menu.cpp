@@ -14,7 +14,7 @@ void Menu::start(StartReason startReason) {
 
 void Menu::teardown(TearDownReason teardownReason) {
 	g_madnightEngine.m_input.setOnEvent(nullptr);
-	m_shouldDeactivate = false;
+	m_shouldDisable = false;
 }
 
 void Menu::frame(void) {
@@ -27,8 +27,8 @@ void Menu::frame(void) {
 		return;
 	}
 
-	if (m_shouldDeactivate) {
-		Deactivate();
+	if (m_shouldDisable) {
+		Disable();
 		return;
 	}
 
@@ -57,13 +57,13 @@ void Menu::frame(void) {
 	}
 }
 
-void Menu::Activate() {
+void Menu::Enable() {
 	m_isEnabled = true;
 	g_madnightEngine.pushScene(this);
 	OnActivate();
 }
 
-void Menu::Deactivate(void) {
+void Menu::Disable(void) {
 	m_isEnabled = false;
 	g_madnightEngine.popScene();
 	OnDeactivate();
@@ -108,7 +108,7 @@ void Menu::ProcessInputs(const psyqo::AdvancedPad::Event& event) {
 	}
 
 	if (event.button == m_keyBindings.menuItemBackCancel) {
-		m_shouldDeactivate = true;
+		m_shouldDisable = true;
 	}
 }
 

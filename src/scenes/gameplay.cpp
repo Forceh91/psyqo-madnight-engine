@@ -25,7 +25,7 @@ void GameplayScene::start(StartReason reason) {
 			return;
 		}
 		if (event.button == psyqo::AdvancedPad::Button::Start) {
-			m_menu.Activate();
+			m_menu.Enable();
 		}
 	});
 
