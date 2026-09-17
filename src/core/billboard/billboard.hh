@@ -18,28 +18,28 @@ class Billboard {
 
 	void Destroy(void);
 
-	uint64_t nameHash() const { return m_nameHash; }
-	const uint8_t& id() const { return m_id; }
+	constexpr uint64_t nameHash() const { return m_nameHash; }
+	constexpr const uint8_t& id() const { return m_id; }
 
-	const psyqo::Vec3& pos() const { return m_pos; }
-	const psyqo::Vec3* pPos() const { return &m_pos; }
+	constexpr const psyqo::Vec3& pos() const { return m_pos; }
+	constexpr const psyqo::Vec3* pPos() const { return &m_pos; }
 	void SetPosition(const psyqo::Vec3 pos);
 
-	const psyqo::Vec2& size() const { return m_size; }
-	const psyqo::Vec2* pSize() const { return &m_size; }
+	constexpr const psyqo::Vec2& size() const { return m_size; }
+	constexpr const psyqo::Vec2* pSize() const { return &m_size; }
 	void setSize(const psyqo::Vec2 size);
 
-	const psyqo::Color& colour() const { return m_colour; }
-	const psyqo::Color* pColour() const { return &m_colour; }
+	constexpr const psyqo::Color& colour() const { return m_colour; }
+	constexpr const psyqo::Color* pColour() const { return &m_colour; }
 	void SetColour(const psyqo::Color colour);
 
-	const TimFile* pTexture() const { return m_texture; }
+	const constexpr TimFile* pTexture() const { return m_texture; }
 	void SetTexture(const eastl::string_view& textureName, const eastl::array<psyqo::PrimPieces::UVCoords, 4>& uv);
 	void SetTexture(TimFile* texture, const eastl::array<psyqo::PrimPieces::UVCoords, 4>& uv);
 
-	const eastl::array<psyqo::Vec3, 4>& corners() const { return m_quadCorners; }
+	const constexpr eastl::array<psyqo::Vec3, 4>& corners() const { return m_quadCorners; }
 
-	const eastl::array<psyqo::PrimPieces::UVCoords, 4>& uv() const { return m_uvCoords; }
+	const constexpr eastl::array<psyqo::PrimPieces::UVCoords, 4>& uv() const { return m_uvCoords; }
 	void SetUVCoords(const eastl::array<psyqo::PrimPieces::UVCoords, 4>& uv);
 
   protected:

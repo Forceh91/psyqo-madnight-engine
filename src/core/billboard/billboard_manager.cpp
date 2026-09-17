@@ -54,7 +54,7 @@ Billboard* BillboardManager::GetBillboardByName(const eastl::string_view& name) 
 	return GetBillboardByName(HashName(name));
 }
 
-Billboard* BillboardManager::GetBillboardByName(uint64_t nameHash) {
+constexpr Billboard* BillboardManager::GetBillboardByName(uint64_t nameHash) {
 	for (auto i = 0; i < MAX_BILLBOARDS; i++) {
 		if (m_billboards.at(i).id() != INVALID_BILLBOARD_ID && m_billboards.at(i).nameHash() == nameHash) {
 			return &m_billboards.at(i);
