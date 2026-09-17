@@ -40,7 +40,7 @@ class SoundManager final {
 								   VagEntry** out);
 	VagEntry* IsVAGLoaded(const eastl::fixed_string<char, MAX_ARCHIVE_FILE_NAME_LEN>& fileName);
 	VagEntry* IsVAGLoaded(uint64_t nameHash);
-	VagEntry* IsVAGLoaded(const uint8_t& fileName);
+	VagEntry* IsVAGLoaded(const uint8_t& id);
 	void SilenceChannels(const uint32_t channels);
 	void PlayVAGFile(const VagEntry* vag, uint8_t channelId, const psyqo::SPU::ChannelPlaybackConfig& config,
 					 bool hardCut = false);
