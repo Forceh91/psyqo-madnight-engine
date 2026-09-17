@@ -15,14 +15,14 @@ class Lighting {
 		return s_instance;
 	}
 
-	const bool& IsSimpleFogEnabled(void) const { return m_isSimpleFogEnabled; }
+	const constexpr bool& IsSimpleFogEnabled(void) const { return m_isSimpleFogEnabled; }
 	void EnableSimpleFog(void) { m_isSimpleFogEnabled = true; }
 	void DisableSimpleFog(void) { m_isSimpleFogEnabled = false; }
 
-	const psyqo::Color& GetAmbientColour(void) const { return m_ambient; }
+	const constexpr psyqo::Color& GetAmbientColour(void) const { return m_ambient; }
 	void SetAmbientColour(psyqo::Color colour) { m_ambient = colour; }
 
-	const psyqo::Color& GetFogColour(void) const { return m_fogColour; }
+	const constexpr psyqo::Color& GetFogColour(void) const { return m_fogColour; }
 	void SetFogColour(psyqo::Color colour) { m_fogColour = colour; }
 
   private:
