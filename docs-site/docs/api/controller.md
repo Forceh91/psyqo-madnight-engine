@@ -42,6 +42,6 @@ if (ControllerHelper::IsPadAnalog(pad)) {
 
 ### Internals
 
-- `GetNormalizedAnalogStickInput` applies the `ANALOG_STICK_DEADZONE*` constants (16 on each axis) before returning, so stick drift near center already reads as zero.
+- `GetNormalizedAnalogStickInput` applies no deadzone. It returns the raw ADC reading re-centred on 0, so a resting stick gives you whatever it drifts to. `ANALOG_STICK_DEADZONE`, `_X` and `_Y` are provided as sane starting values for a game to apply itself, deliberately, so the threshold stays the game's decision rather than the engine's.
 - `init()` is a stub. It is where forcing the pad into analog mode would go, and nothing calls it yet, so pads report whatever mode they power up in.
 - Unlike `ControllerHelper`'s explicit `Pad` parameter, the engine's `AdvancedPad::Event`-driven code (menu navigation, the debug menu, the pause-menu bind) never checks `event.pad`: on a multitap, any connected pad fires those handlers, not just the one you might expect.

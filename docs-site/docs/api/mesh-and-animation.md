@@ -217,13 +217,14 @@ psyqo::GTE::Short DotProduct(const Quaternion &a, const Quaternion &b);
 // Small-rotation only for now — fine for animation interpolation.
 Quaternion Slerp(const Quaternion &q1, const Quaternion &q2, psyqo::FixedPoint<> factor);
 
-// Rotation quaternion that takes v1 to v2.
-Quaternion FindRotationQuat(const psyqo::Vec3 &v1, const psyqo::Vec3 &v2, psyqo::Trig<> &trig);
 Quaternion FromEulerAngles(psyqo::Angle pitch, psyqo::Angle yaw, const psyqo::Trig<> &trig);
+Quaternion FromEulerAngles(psyqo::Angle pitch, psyqo::Angle yaw, psyqo::Angle roll, const psyqo::Trig<> &trig);
 ```
 
 :::caution
 `Slerp` isn't slerp. The implementation is a component-wise linear blend of the two quaternions followed by a normalize, with no `acos`/`sin` anywhere in it: it's nlerp. The in-source comment calling it "small rotations only" is describing the accuracy limits of that nlerp approximation, not a spherical interpolation with a reduced range. It's fine for interpolating between adjacent animation keyframes and not fine for arbitrary large-angle rotation blending.
 :::
 
-`FindRotationQuat` returns the rotation quaternion that takes `v1` to `v2`. `FromEulerAngles` builds a quaternion from the given pitch and yaw angles.
+`FromEulerAngles` builds a quaternion from the given angles. The three argument form takes roll as well; the two argument form is the same thing with roll fixed at zero.
+
+`FindRotationQuat` is not listed above because you cannot call it. Its declaration is commented out in `quaternion.hh` while its definition, a stub returning `{0,0,0,0}`, is still compiled into the library.
