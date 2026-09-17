@@ -105,7 +105,7 @@ class Menu : public psyqo::Scene {
 
 	~Menu() = default;
 
-	bool IsEnabled(void) { return m_isEnabled; }
+	constexpr bool IsEnabled(void) { return m_isEnabled; }
 
 	// activate the menu
 	void Activate(void);
