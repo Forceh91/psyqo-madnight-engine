@@ -1,5 +1,10 @@
-#ifndef _CAMERA_H
-#define _CAMERA_H
+/*
+ * Copyright (C) 2025-2026 Matt Hadden / Madnight Games
+ *
+ * SPDX-License-Identifier: LGPL-2.1-or-later
+ */
+
+#pragma once
 
 #include "psyqo/fixed-point.hh"
 #include "psyqo/matrix.hh"
@@ -10,140 +15,140 @@ using namespace psyqo::fixed_point_literals;
 using namespace psyqo::trig_literals;
 
 enum CameraMode {
-  FIXED /* camera is fixed, `LookAt` can still be used. good for cutscenes etc. responds to `SetPosition`, `SetAngle`,
-           and `UpdateAngles` for convenience but recommended to take control away from the user when in this mode */
-  ,
-  FOLLOW /* camera will follow a set pos at a set distance, user can orbit around said pos (see: `UpdateOrbitAngles`),
-            automatically calls `LookAt` on the followed position. essentially a third person camera */
-  ,
-  FREE_LOOK /* user has full control over the camera rotation (see: `UpdateAngles`, `SetAngle`), `LookAt` will also
-               work, but will override user input. essentially a first person cam. up to you to update its position
-               (see: `SetPosition`) when you move your character if you want it to be FPS style */
+	FIXED /* camera is fixed, `LookAt` can still be used. good for cutscenes etc. responds to `SetPosition`, `SetAngle`,
+			 and `UpdateAngles` for convenience but recommended to take control away from the user when in this mode */
+	,
+	FOLLOW /* camera will follow a set pos at a set distance, user can orbit around said pos (see: `UpdateOrbitAngles`),
+			  automatically calls `LookAt` on the followed position. essentially a third person camera */
+	,
+	FREE_LOOK /* user has full control over the camera rotation (see: `UpdateAngles`, `SetAngle`), `LookAt` will also
+				 work, but will override user input. essentially a first person cam. up to you to update its position
+				 (see: `SetPosition`) when you move your character if you want it to be FPS style */
 };
 
 struct CameraAngle {
-  psyqo::Angle x;
-  psyqo::Angle y;
-  psyqo::Angle z;
+	psyqo::Angle x = 0;
+	psyqo::Angle y = 0;
+	psyqo::Angle z = 0;
 };
 
 struct CameraMaxAngle {
-  psyqo::Angle maxX;
-  psyqo::Angle maxY;
-  psyqo::Angle maxZ;
+	psyqo::Angle maxX = 0;
+	psyqo::Angle maxY = 0;
+	psyqo::Angle maxZ = 0;
 };
 
 struct CameraTracking {
-  psyqo::Vec3 *pos;
-  psyqo::Vec2 offsetPos;
-  psyqo::FixedPoint<> distance;
+	psyqo::Vec3* pos = nullptr;
+	psyqo::Vec2 offsetPos = {0, 0};
+	psyqo::FixedPoint<> distance = 0;
 };
 
 class Camera final {
-public:
-  Camera() {
-    m_initialPos = m_pos;
-    m_initialAngle = m_angle;
-    SetRotationMatrix();
-  }
+  public:
+	Camera() {
+		m_initialPos = m_pos;
+		m_initialAngle = m_angle;
+		SetRotationMatrix();
+	}
 
-  Camera(psyqo::Vec3 pos) {
-    m_pos = pos;
-    m_initialPos = m_pos;
-    m_initialAngle = m_angle;
-    SetRotationMatrix();
-  }
+	Camera(psyqo::Vec3 pos) {
+		m_pos = pos;
+		m_initialPos = m_pos;
+		m_initialAngle = m_angle;
+		SetRotationMatrix();
+	}
 
-  Camera(psyqo::FixedPoint<12> x, psyqo::FixedPoint<12> y, psyqo::FixedPoint<12> z) {
-    m_pos = {x, y, z};
-    m_initialPos = m_pos;
-    m_initialAngle = m_angle;
-    SetRotationMatrix();
-  }
+	Camera(psyqo::FixedPoint<12> x, psyqo::FixedPoint<12> y, psyqo::FixedPoint<12> z) {
+		m_pos = {x, y, z};
+		m_initialPos = m_pos;
+		m_initialAngle = m_angle;
+		SetRotationMatrix();
+	}
 
-  ~Camera(){};
+	~Camera() {};
 
-  const psyqo::Vec3 pos(void) const { return m_pos; };
-  const psyqo::Vec3 deltaOffset(void) const { return m_cameraMode != CameraMode::FOLLOW ? psyqo::Vec3{0, 0, 0} : m_pos; }
-  const psyqo::Vec3 *posPtr(void) const { return &m_pos; }
-  const CameraAngle *angle(void) const { return &m_angle; }
-  const psyqo::Vec3 forwardVector(void) const {
-    return {-m_rotationMatrix.vs[0].z, m_rotationMatrix.vs[1].z, m_rotationMatrix.vs[2].z};
-  }
+	const constexpr psyqo::Vec3 pos(void) const { return m_pos; };
+	const constexpr psyqo::Vec3 deltaOffset(void) const {
+		return m_cameraMode != CameraMode::FOLLOW ? psyqo::Vec3{0, 0, 0} : m_pos;
+	}
+	const constexpr psyqo::Vec3* posPtr(void) const { return &m_pos; }
+	const constexpr CameraAngle* angle(void) const { return &m_angle; }
+	constexpr psyqo::Vec3 forwardVector(void) {
+		return {-m_rotationMatrix.vs[0].z, m_rotationMatrix.vs[1].z, m_rotationMatrix.vs[2].z};
+	}
 
-  const psyqo::Vec3 rightVector(void) const {
-    return {m_rotationMatrix.vs[0].x, m_rotationMatrix.vs[1].x, m_rotationMatrix.vs[2].x};
-  }
+	constexpr psyqo::Vec3 rightVector(void) {
+		return {m_rotationMatrix.vs[0].x, m_rotationMatrix.vs[1].x, m_rotationMatrix.vs[2].x};
+	}
 
-  const psyqo::Vec3 upVector(void) const {
-    return {m_rotationMatrix.vs[0].y, m_rotationMatrix.vs[1].y, m_rotationMatrix.vs[2].y};
-  }
+	constexpr psyqo::Vec3 upVector(void) {
+		return {m_rotationMatrix.vs[0].y, m_rotationMatrix.vs[1].y, m_rotationMatrix.vs[2].y};
+	}
 
-  const psyqo::Matrix33 &rotationMatrix(void) { return m_rotationMatrix; }
-  psyqo::Matrix33 inverseRotationMatrix(void);
+	const constexpr psyqo::Matrix33& rotationMatrix(void) const { return m_rotationMatrix; }
+	psyqo::Matrix33 inverseRotationMatrix(void);
 
-  void Process(uint32_t deltaTime);
-  void SetPosition(psyqo::FixedPoint<> x, psyqo::FixedPoint<> y, psyqo::FixedPoint<> z);
-  void SetPosition(psyqo::Vec3 pos);
-  void SetAngle(psyqo::Angle x, psyqo::Angle y, psyqo::Angle z);
-  void SetAngle(CameraAngle angle);
+	void Process(uint32_t deltaTime);
+	void SetPosition(psyqo::FixedPoint<> x, psyqo::FixedPoint<> y, psyqo::FixedPoint<> z);
+	void SetPosition(psyqo::Vec3 pos);
+	void SetAngle(psyqo::Angle x, psyqo::Angle y, psyqo::Angle z);
+	void SetAngle(CameraAngle angle);
 
-  void SetFixed(void);
-  void SetFixed(psyqo::Vec3 pos);
-  void SetFixed(psyqo::Vec3 pos, CameraAngle angle);
-  // returns the camera back to the previously set mode
-  void ClearFixed(void);
+	void SetFixed(void);
+	void SetFixed(psyqo::Vec3 pos);
+	void SetFixed(psyqo::Vec3 pos, CameraAngle angle);
+	// returns the camera back to the previously set mode
+	void ClearFixed(void);
 
-  // pointer to a vec3 (e.g. player position) that you want to track
-  // distance is in metres. try to keep this value small. 128px = 1m
-  // NOTE: will force the camera into follow mode, and will only take affect when in that mode
-  void SetFollow(psyqo::Vec3 *pos, psyqo::FixedPoint<> distance);
-  void SetFollow(psyqo::Vec3 *pos, psyqo::Vec2 offsetPos, psyqo::FixedPoint<> distance);
-  // stops following, turns the camera into a fixed camera
-  void ClearFollow(void);
+	// pointer to a vec3 (e.g. player position) that you want to track
+	// distance is in metres. try to keep this value small. 128px = 1m
+	// NOTE: will force the camera into follow mode, and will only take affect when in that mode
+	void SetFollow(psyqo::Vec3* pos, psyqo::FixedPoint<> distance);
+	void SetFollow(psyqo::Vec3* pos, psyqo::Vec2 offsetPos, psyqo::FixedPoint<> distance);
+	// stops following, turns the camera into a fixed camera
+	void ClearFollow(void);
 
-  void SetFreeLook(void);
-  void SetFreeLook(psyqo::Vec3 pos);
-  void SetFreeLook(psyqo::Vec3 pos, CameraAngle initialAngle);
-  // defaults to 0.5_pi (90deg/-90deg) if not set.
-  void SetFreeLookMaxAngles(CameraMaxAngle maxAngles);
-  // turns the camera into a fixed camera
-  void ClearFreeLook(void);
+	void SetFreeLook(void);
+	void SetFreeLook(psyqo::Vec3 pos);
+	void SetFreeLook(psyqo::Vec3 pos, CameraAngle initialAngle);
+	// defaults to 0.5_pi (90deg/-90deg) if not set.
+	void SetFreeLookMaxAngles(CameraMaxAngle maxAngles);
+	// turns the camera into a fixed camera
+	void ClearFreeLook(void);
 
-  void LookAt(const psyqo::Vec3 *target);
+	void LookAt(const psyqo::Vec3* target);
 
-  const psyqo::Vec3 SwingTarget(void) const { return m_swingTarget; }
-  void SetSwingTarget(const psyqo::Vec3 &target) { m_swingTarget = target; }
+	const constexpr psyqo::Vec3 SwingTarget(void) const { return m_swingTarget; }
+	void SetSwingTarget(const psyqo::Vec3& target) { m_swingTarget = target; }
 
-  const CameraAngle OrbitAngle(void) const { return m_orbitAngle; }
-  void SetOrbitAngle(const CameraAngle &angle) { m_orbitAngle = angle; }
-  // deltaTime in terms of frames
-  void UpdateOrbitAngles(psyqo::Angle xDeltaAmount, psyqo::Angle yDeltaAmount);
-  void UpdateOrbitAngles(psyqo::Angle xAmount, psyqo::Angle yAmount, uint32_t deltaTime);
-  void ResetOrbitAngles(void) { m_orbitAngle = {0, 0, 0}; }
+	const constexpr CameraAngle OrbitAngle(void) const { return m_orbitAngle; }
+	void SetOrbitAngle(const CameraAngle& angle) { m_orbitAngle = angle; }
+	// deltaTime in terms of frames
+	void UpdateOrbitAngles(psyqo::Angle xDeltaAmount, psyqo::Angle yDeltaAmount);
+	void UpdateOrbitAngles(psyqo::Angle xAmount, psyqo::Angle yAmount, uint32_t deltaTime);
+	void ResetOrbitAngles(void) { m_orbitAngle = {0, 0, 0}; }
 
-  // deltatime in terms of frames
-  void UpdateAngles(psyqo::Angle xDeltaAmount, psyqo::Angle yDeltaAmount, psyqo::Angle zDeltaAmount);
-  void UpdateAngles(psyqo::Angle xDeltaAmount, psyqo::Angle yDeltaAmount, psyqo::Angle zDeltaAmount,
-                    uint32_t deltaTime);
+	// deltatime in terms of frames
+	void UpdateAngles(psyqo::Angle xDeltaAmount, psyqo::Angle yDeltaAmount, psyqo::Angle zDeltaAmount);
+	void UpdateAngles(psyqo::Angle xDeltaAmount, psyqo::Angle yDeltaAmount, psyqo::Angle zDeltaAmount,
+					  uint32_t deltaTime);
 
-private:
-  psyqo::Vec3 m_pos = {0, 0, 0};
-  psyqo::Vec3 m_swingTarget = {0, 0, 0};
-  psyqo::Vec3 m_initialPos = {0, 0, 0};
-  CameraTracking m_tracking = {nullptr, 0, 0};
-  CameraAngle m_angle = {0, 0, 0};
-  CameraAngle m_orbitAngle = {0, 0, 0}; // only used when camera is in FOLLOW mode
-  CameraAngle m_initialAngle = {0, 0, 0};
-  psyqo::Matrix33 m_rotationMatrix = {0, 0, 0};
-  CameraMode m_cameraMode = CameraMode::FIXED;
-  CameraMode m_prevCameraMode = m_cameraMode;
-  psyqo::FixedPoint<> m_movementSpeed = 0.001_fp;
-  psyqo::Angle m_rotationSpeed = 0.005_pi;
-  CameraMaxAngle m_maxFreeLookAngles = {0.5_pi, 0.5_pi, 0.5_pi};
+  private:
+	psyqo::Vec3 m_pos = {0, 0, 0};
+	psyqo::Vec3 m_swingTarget = {0, 0, 0};
+	psyqo::Vec3 m_initialPos = {0, 0, 0};
+	CameraTracking m_tracking = {nullptr, 0, 0};
+	CameraAngle m_angle = {0, 0, 0};
+	CameraAngle m_orbitAngle = {0, 0, 0}; // only used when camera is in FOLLOW mode
+	CameraAngle m_initialAngle = {0, 0, 0};
+	psyqo::Matrix33 m_rotationMatrix = {0, 0, 0};
+	CameraMode m_cameraMode = CameraMode::FIXED;
+	CameraMode m_prevCameraMode = m_cameraMode;
+	psyqo::FixedPoint<> m_movementSpeed = 0.001_fp;
+	psyqo::Angle m_rotationSpeed = 0.005_pi;
+	CameraMaxAngle m_maxFreeLookAngles = {0.5_pi, 0.5_pi, 0.5_pi};
 
-  void SetRotationMatrix(void);
-  psyqo::Vec3 CalculateOrbitPosition(void);
+	void SetRotationMatrix(void);
+	psyqo::Vec3 CalculateOrbitPosition(void);
 };
-
-#endif

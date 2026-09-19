@@ -1,3 +1,9 @@
+/*
+ * Copyright (C) 2025-2026 Matt Hadden / Madnight Games
+ *
+ * SPDX-License-Identifier: LGPL-2.1-or-later
+ */
+
 #pragma once
 
 #include <psyqo/scene.hh>
@@ -10,8 +16,7 @@
  * then take a look at `LoadingScene::frame` and
  * `Renderer::RenderLoadingScreen`.
  */
-class LoadingScene final : public psyqo::Scene
-{
-    void start(StartReason reason) override;
-    void frame() override;
+class LoadingScene final : public psyqo::Scene {
+	void start(StartReason reason) override;
+	void frame() override;
 };

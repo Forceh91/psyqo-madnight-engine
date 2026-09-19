@@ -1,30 +1,40 @@
-#include "skeleton.hh"
-#include "../../math/gte-math.hh"
-#include "../../math/matrix.hh"
-#include "psyqo/fixed-point.hh"
-#include "psyqo/gte-registers.hh"
-#include "psyqo/matrix.hh"
-#include "psyqo/vector.hh"
-#include "../../defs.hh"
+/*
+ * Copyright (C) 2025-2026 Matt Hadden / Madnight Games
+ *
+ * SPDX-License-Identifier: LGPL-2.1-or-later
+ */
 
-void SkeletonController::UpdateSkeletonBoneMatrices(Skeleton *skeleton) {
-	if (!skeleton)
+#include "skeleton.hh"
+#include "../../defs.hh"
+#include "../../math/matrix.hh"
+
+#include <psyqo/fixed-point.hh>
+#include <psyqo/gte-math.hh>
+#include <psyqo/matrix.hh>
+#include <psyqo/vector.hh>
+
+void SkeletonController::UpdateSkeletonBoneMatrices(Skeleton* skeleton) {
+	if (!skeleton) {
 		return;
+	}
 
 	for (int32_t i = 0; i < skeleton->numBones; i++) {
 		// for each bone in the skeleton, we need to do a recursive world matrix update
 		// but we need to know its local matrix first
-		auto *bone = &skeleton->bones[i];
-		if (!bone)
+		auto* bone = &skeleton->bones[i];
+		if (!bone) {
 			continue;
+		}
 
 		// not got a parent and its not dirty, continue
-		if (bone->parent == -1 && !bone->isDirty)
+		if (bone->parent == -1 && !bone->isDirty) {
 			continue;
+		}
 
 		// parent isnt dirty, and this bone isn't dirty, continue
-		if (bone->parent != -1 && !skeleton->bones[bone->parent].isDirty && !bone->isDirty)
+		if (bone->parent != -1 && !skeleton->bones[bone->parent].isDirty && !bone->isDirty) {
 			continue;
+		}
 
 		// normalize quat rotation
 		auto localRot = bone->localRotation;
@@ -39,27 +49,32 @@ void SkeletonController::UpdateSkeletonBoneMatrices(Skeleton *skeleton) {
 
 		// next we need to compute its world matrix.
 		// if we have no parent then just use the local matrix for this
-		if (bone->parent == -1)
+		if (bone->parent == -1) {
 			bone->worldMatrix = bone->localMatrix;
-		else {
-			auto *parent = &skeleton->bones[bone->parent];
-			if (!parent)
+		} else {
+			auto* parent = &skeleton->bones[bone->parent];
+			if (!parent) {
 				continue;
+			}
 
 			// if the parent is dirty, then this one is
-			if (parent->isDirty)
+			if (parent->isDirty) {
 				bone->isDirty = true;
+			}
 
-			if (!bone->isDirty)
+			if (!bone->isDirty) {
 				continue;
+			}
 
 			// rotation
 			psyqo::Matrix33 worldRot;
-			GTEMath::MultiplyMatrix33(parent->worldMatrix.rotationMatrix, bone->localMatrix.rotationMatrix, &worldRot);
+			psyqo::GteMath::multiplyMatrix33(parent->worldMatrix.rotationMatrix, bone->localMatrix.rotationMatrix,
+											 &worldRot);
 
 			// translation
 			psyqo::Vec3 worldTrans;
-			GTEMath::MultiplyMatrixVec3(parent->worldMatrix.rotationMatrix, bone->localMatrix.translation, &worldTrans);
+			psyqo::GteMath::matrixVecMul3(parent->worldMatrix.rotationMatrix, bone->localMatrix.translation,
+										  &worldTrans);
 
 			// final world matrix (parent + rotated local)
 			bone->worldMatrix = {worldRot, parent->worldMatrix.translation + worldTrans};
@@ -74,19 +89,19 @@ void SkeletonController::UpdateSkeletonBoneMatrices(Skeleton *skeleton) {
 			// inverse of bind pose
 			auto inverseRotation = TransposeMatrix33(bone->bindPose.rotationMatrix);
 			psyqo::Vec3 inverseTranslation;
-			GTEMath::MultiplyMatrixVec3(inverseRotation, -bone->bindPose.translation, &inverseTranslation);
+			psyqo::GteMath::matrixVecMul3(inverseRotation, -bone->bindPose.translation, &inverseTranslation);
 			bone->bindPoseInverse = {inverseRotation, inverseTranslation};
 
 			// mark it as having done this so we dont lose t-pose data
 			bone->hasDoneBindPose = true;
 		}
 	}
- 
-	#if ENABLE_BONE_DEBUG
-	for (int j = 0; j < skeleton->numBones; j++) {
-		auto *bone = &skeleton->bones[j];
 
-		// find first child of this bone 
+#if ENABLE_BONE_DEBUG
+	for (int j = 0; j < skeleton->numBones; j++) {
+		auto* bone = &skeleton->bones[j];
+
+		// find first child of this bone
 		int childIndex = -1;
 		for (int k = 0; k < skeleton->numBones; k++) {
 			if (skeleton->bones[k].parent == j) {
@@ -100,7 +115,7 @@ void SkeletonController::UpdateSkeletonBoneMatrices(Skeleton *skeleton) {
 		if (childIndex != -1) {
 			bone->endPos = skeleton->bones[childIndex].worldMatrix.translation;
 		} else {
-			// fallback stub for leaf bones - point along bone's local Z axis 
+			// fallback stub for leaf bones - point along bone's local Z axis
 			psyqo::Vec3 stubDir = {0, -0.0001_fp, 0}; // adjust length as needed
 			psyqo::Vec3 worldDir;
 			GTEMath::MultiplyMatrixVec3(bone->worldMatrix.rotationMatrix, stubDir, &worldDir);
@@ -108,52 +123,56 @@ void SkeletonController::UpdateSkeletonBoneMatrices(Skeleton *skeleton) {
 			bone->endPos = bone->startPos + worldDir;
 		}
 	}
-	#endif
+#endif
 }
 
-void SkeletonController::MarkBonesClean(Skeleton *skeleton) {
+void SkeletonController::MarkBonesClean(Skeleton* skeleton) {
 	for (int32_t i = 0; i < skeleton->numBones; i++) {
 		skeleton->bones[i].isDirty = false;
 	}
 }
 
 // right now this will just overwrite the animation. no blending
-void SkeletonController::SetAnimation(Skeleton *skeleton, Animation *animation) {
-	if (skeleton == nullptr || animation == nullptr)
+void SkeletonController::SetAnimation(Skeleton* skeleton, Animation* animation) {
+	if (skeleton == nullptr || animation == nullptr) {
 		return;
+	}
 
 	// set the animation and reset its frame
 	skeleton->animation = animation;
 	skeleton->animationCurrentFrame = 0;
 }
 
-void SkeletonController::PlayAnimation(Skeleton *skeleton, uint32_t deltaTime) {
-	if (skeleton == nullptr)
+void SkeletonController::PlayAnimation(Skeleton* skeleton, uint32_t deltaTime) {
+	if (skeleton == nullptr) {
 		return;
+	}
 
 	// if theres no animation then stop
-	if (skeleton->animation == nullptr)
+	if (skeleton->animation == nullptr) {
 		return;
+	}
 
-	const auto &animation = skeleton->animation;
+	const auto& animation = skeleton->animation;
 	if (skeleton->animationCurrentFrame >= animation->length) {
 		// restart if looping, otherwise set to the last frame
-		if (animation->flags & 1)
+		if (animation->flags & 1) {
 			skeleton->animationCurrentFrame = 0;
-		else
+		} else {
 			skeleton->animationCurrentFrame = animation->length - 1;
+		}
 	}
 
 	// for each track
 	for (int32_t i = 0; i < animation->numTracks; i++) {
-		const auto &track = animation->tracks[i];
+		const auto& track = animation->tracks[i];
 
 		// placeholder prev/next key
-		const Key *prev = &track.keys[0];
-		const Key *next = &track.keys[0];
+		const Key* prev = &track.keys[0];
+		const Key* next = &track.keys[0];
 
 		// find the two keyframes around the current frame
-		auto &currentFrame = skeleton->animationCurrentFrame;
+		auto& currentFrame = skeleton->animationCurrentFrame;
 		for (int32_t j = 0; j < track.numKeys - 1; j++) {
 			if (currentFrame >= track.keys[j].frame && currentFrame < track.keys[j + 1].frame) {
 				prev = &track.keys[j];
@@ -170,10 +189,9 @@ void SkeletonController::PlayAnimation(Skeleton *skeleton, uint32_t deltaTime) {
 
 		// need to slerp
 		auto frameDiff = next->frame - prev->frame;
-		auto slerpFactor =
-		    frameDiff > 0 ? ((skeleton->animationCurrentFrame - prev->frame) / frameDiff * 1.0_fp) : 0;
+		auto slerpFactor = frameDiff > 0 ? ((skeleton->animationCurrentFrame - prev->frame) / frameDiff * 1.0_fp) : 0;
 
-		auto &bone = skeleton->bones[track.jointId];
+		auto& bone = skeleton->bones[track.jointId];
 		if (next->keyType == KeyType::ROTATION) {
 			bone.localRotation = Slerp(prev->rotation, next->rotation, slerpFactor);
 		}

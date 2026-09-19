@@ -1,82 +1,91 @@
+/*
+ * Copyright (C) 2025-2026 Matt Hadden / Madnight Games
+ *
+ * SPDX-License-Identifier: LGPL-2.1-or-later
+ */
+
 #include "scene_loader.hh"
-#include "EASTL/fixed_string.h"
-#include "psyqo/xprintf.h"
-#include <cstdint>
+#include "../madnight.hh"
 
-psyqo::Coroutine<> SceneLoader::LoadScene(const eastl::fixed_string<char, MAX_ARCHIVE_FILE_NAME_LEN> &sceneFile, eastl::vector<LoadQueue> &queue) {
-    // load the file from the archive
-    auto buffer = co_await ArchiveHelper::LoadFile(sceneFile.c_str());
-    uint8_t* data = buffer.data();
-    size_t size = buffer.size();
+#include <EASTL/fixed_string.h>
+#include <EASTL/string_view.h>
+#include <psyqo/xprintf.h>
 
-    if (!data || !size) {
-        buffer.clear();
-        printf("SCENE: Failed to load file or it has no file size.\n");
-        co_return;
-    }
+psyqo::Coroutine<> SceneLoader::LoadScene(const eastl::string_view& sceneFile, eastl::vector<LoadQueue>& queue) {
+	// load the file from the archive
+	auto buffer = co_await g_madnightEngine.m_archiveHelper.LoadFile(sceneFile);
+	uint8_t* data = buffer.data();
+	size_t size = buffer.size();
 
-    uint8_t* ptr = data;
+	if (!data || !size) {
+		buffer.clear();
+		printf("SCENE: Failed to load file or it has no file size.\n");
+		co_return;
+	}
 
-    // magic check
-    eastl::fixed_string<char, 8> magic(reinterpret_cast<char*>(ptr), 8);
-    if (magic.compare("SCENEBIN")) {
-        printf("SCENE: Header magic is invalid, aborting.\n");
-        buffer.clear();
+	uint8_t* ptr = data;
 
-        co_return;
-    }
-    ptr += 8;
+	// magic check
+	eastl::fixed_string<char, 8> magic(reinterpret_cast<char*>(ptr), 8);
+	if (magic.compare("SCENEBIN")) {
+		printf("SCENE: Header magic is invalid, aborting.\n");
+		buffer.clear();
 
-    // number of files
-    uint8_t fileCount = 0;
-    __builtin_memcpy(&fileCount, ptr, sizeof(uint8_t));
-    queue.reserve(queue.size() + fileCount);
-    ptr += sizeof(uint8_t);
+		co_return;
+	}
+	ptr += 8;
 
-    for (int i = 0; i < fileCount; i++) {
-        // file type
-        uint8_t typeByte = 0;
-        __builtin_memcpy(&typeByte, ptr, sizeof(uint8_t));
-        ptr += sizeof(uint8_t);
-        LoadFileType type = static_cast<LoadFileType>(typeByte);
+	// number of files
+	uint8_t fileCount = 0;
+	__builtin_memcpy(&fileCount, ptr, sizeof(uint8_t));
+	queue.reserve(queue.size() + fileCount);
+	ptr += sizeof(uint8_t);
 
-        // how long is the file name
-        uint8_t nameLen = 0;
-        __builtin_memcpy(&nameLen, ptr, sizeof(uint8_t));
-        ptr += sizeof(uint8_t);
-        
-        if (nameLen > MAX_ARCHIVE_FILE_NAME_LEN) {
-            printf("SCENE: Corrupt entry %d, name too long (%d).\n", i, nameLen);
-            buffer.clear();
-            co_return;
-        }
+	for (int i = 0; i < fileCount; i++) {
+		// file type
+		uint8_t typeByte = 0;
+		__builtin_memcpy(&typeByte, ptr, sizeof(uint8_t));
+		ptr += sizeof(uint8_t);
+		LoadFileType type = static_cast<LoadFileType>(typeByte);
 
-        // file name
-        eastl::fixed_string<char, MAX_ARCHIVE_FILE_NAME_LEN + 1> fileName(reinterpret_cast<char*>(ptr), nameLen);
-        ptr += nameLen;
+		// how long is the file name
+		uint8_t nameLen = 0;
+		__builtin_memcpy(&nameLen, ptr, sizeof(uint8_t));
+		ptr += sizeof(uint8_t);
 
-        // if its a tim then we have extra data like x, y, clutx, cluty
-        if (type == TEXTURE) {
-            uint16_t vramX = 0, vramY = 0, clutX = 0, clutY = 0;
-            
-            __builtin_memcpy(&vramX, ptr, sizeof(uint16_t));
-            ptr += sizeof(uint16_t);
+		if (nameLen > MAX_ARCHIVE_FILE_NAME_LEN) {
+			printf("SCENE: Corrupt entry %d, name too long (%d).\n", i, nameLen);
+			buffer.clear();
+			co_return;
+		}
 
-            __builtin_memcpy(&vramY, ptr, sizeof(uint16_t));
-            ptr += sizeof(uint16_t);
-            
-            __builtin_memcpy(&clutX, ptr, sizeof(uint16_t));
-            ptr += sizeof(uint16_t);
-            
-            __builtin_memcpy(&clutY, ptr, sizeof(uint16_t));
-            ptr += sizeof(uint16_t);
+		// file name
+		eastl::fixed_string<char, MAX_ARCHIVE_FILE_NAME_LEN + 1> fileName(reinterpret_cast<char*>(ptr), nameLen);
+		ptr += nameLen;
 
-            // add this to the out queue
-            queue.push_back({fileName.c_str(), type, vramX, vramY, clutX, clutY});
-        } else // add this to the out queue
-            queue.push_back({fileName.c_str(), type});
-    }
+		// if its a tim then we have extra data like x, y, clutx, cluty
+		if (type == TEXTURE) {
+			uint16_t vramX = 0, vramY = 0, clutX = 0, clutY = 0;
 
-    buffer.clear();
-    printf("SCENE: Successfully added %d files to the load queue.\n", queue.size());
+			__builtin_memcpy(&vramX, ptr, sizeof(uint16_t));
+			ptr += sizeof(uint16_t);
+
+			__builtin_memcpy(&vramY, ptr, sizeof(uint16_t));
+			ptr += sizeof(uint16_t);
+
+			__builtin_memcpy(&clutX, ptr, sizeof(uint16_t));
+			ptr += sizeof(uint16_t);
+
+			__builtin_memcpy(&clutY, ptr, sizeof(uint16_t));
+			ptr += sizeof(uint16_t);
+
+			// add this to the out queue
+			queue.push_back({{fileName.data(), fileName.length()}, type, vramX, vramY, clutX, clutY});
+		} else { // add this to the out queue
+			queue.push_back({{fileName.data(), fileName.length()}, type});
+		}
+	}
+
+	buffer.clear();
+	printf("SCENE: Successfully added %d files to the load queue.\n", queue.size());
 }
