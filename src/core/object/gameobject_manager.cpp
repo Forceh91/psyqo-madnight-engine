@@ -22,7 +22,7 @@ GameObject* GameObjectManager::CreateGameObject(const eastl::string_view& name, 
 }
 
 void GameObjectManager::DestroyGameObject(GameObject* object) {
-	if (object != nullptr) {
+	if (!object) {
 		return;
 	}
 
