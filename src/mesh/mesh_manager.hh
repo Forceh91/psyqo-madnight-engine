@@ -13,7 +13,13 @@
 #include "psyqo/vector.hh"
 
 #include "../core/collision_types.hh"
+#include "../pool/pool.hh"
 #include "skeleton/skeleton.hh"
+
+#include <EASTL/fixed_string.h>
+#include <psyqo/coroutine.hh>
+#include <psyqo/primitives/common.hh>
+#include <psyqo/vector.hh>
 
 static constexpr uint8_t MAX_LOADED_MESHES = 250;
 static constexpr uint16_t MAX_FACES_PER_MESH = 1000;
@@ -68,13 +74,14 @@ struct MeshBin {
 };
 
 struct LoadedMeshBin {
+	int16_t id = -1;
 	uint64_t meshNameHash = 0;
 	bool isLoaded = false;
 	MeshBin mesh = {};
 };
 
-class MeshManager {
-	LoadedMeshBin mLoadedMeshes[MAX_LOADED_MESHES];
+class MeshManager final {
+	static Pool<LoadedMeshBin, MAX_LOADED_MESHES> m_pool;
 
 	MeshBin* IsMeshLoaded(const eastl::string_view& mesh_name);
 	constexpr MeshBin* IsMeshLoaded(uint64_t meshNameHash);
