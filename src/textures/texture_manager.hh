@@ -35,7 +35,7 @@ struct TimFile {
 
 class TextureManager final {
 	psyqo::Vertex GetTPageIndex(uint16_t x, uint16_t y);
-	static Pool<TimFile, MAX_TEXTURES> m_pool;
+	Pool<TimFile, MAX_TEXTURES> m_pool;
 
 	TimFile* IsTextureLoaded(const eastl::string_view& name);
 	constexpr TimFile* IsTextureLoaded(uint64_t nameHash);

@@ -81,7 +81,7 @@ struct LoadedMeshBin {
 };
 
 class MeshManager final {
-	static Pool<LoadedMeshBin, MAX_LOADED_MESHES> m_pool;
+	Pool<LoadedMeshBin, MAX_LOADED_MESHES> m_pool;
 
 	MeshBin* IsMeshLoaded(const eastl::string_view& mesh_name);
 	constexpr MeshBin* IsMeshLoaded(uint64_t meshNameHash);

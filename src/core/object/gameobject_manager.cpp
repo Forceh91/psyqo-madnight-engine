@@ -17,7 +17,7 @@ GameObject* GameObjectManager::CreateGameObject(const eastl::string_view& name, 
 
 	// we do, lets create a new instance and add it
 	auto* gameObject = m_pool.Get(id);
-	gameObject->Init(name, pos, rotation, tag, id);
+	gameObject->Init(name, HashName(name), pos, rotation, tag, id);
 	return gameObject;
 }
 

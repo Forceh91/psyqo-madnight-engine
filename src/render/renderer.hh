@@ -5,18 +5,21 @@
  */
 
 #pragma once
+
 #include "../core/collision_types.hh"
 #include "../textures/texture_manager.hh"
+#include "camera.hh"
 #include "lighting.hh"
 
-#include "camera.hh"
-#include "psyqo/bump-allocator.hh"
-#include "psyqo/fixed-point.hh"
-#include "psyqo/font.hh"
-#include "psyqo/fragments.hh"
-#include "psyqo/gpu.hh"
-#include "psyqo/matrix.hh"
-#include "psyqo/primitives/common.hh"
+#include <psyqo/bump-allocator.hh>
+#include <psyqo/fixed-point.hh>
+#include <psyqo/font.hh>
+#include <psyqo/fragments.hh>
+#include <psyqo/gpu.hh>
+#include <psyqo/matrix.hh>
+#include <psyqo/primitives/common.hh>
+#include <psyqo/primitives/quads.hh>
+#include <psyqo/primitives/triangles.hh>
 
 static constexpr uint16_t ORDERING_TABLE_SIZE = 10'000;
 static constexpr uint16_t FULL_FOG_DISTANCE = 3'500; // screen z

@@ -25,6 +25,6 @@ class BillboardManager final {
 	constexpr Billboard* GetBillboardByName(uint64_t nameHash);
 
   private:
-	static Pool<Billboard, MAX_BILLBOARDS> m_pool;
+	Pool<Billboard, MAX_BILLBOARDS> m_pool;
 	eastl::fixed_vector<Billboard*, MAX_BILLBOARDS> m_activeBillboards;
 };

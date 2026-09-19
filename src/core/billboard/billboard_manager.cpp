@@ -19,7 +19,7 @@ Billboard* BillboardManager::CreateBillboard(const eastl::string_view& name, psy
 	}
 
 	auto* billboard = m_pool.Get(id);
-	billboard->Init(name, pos, size, id);
+	billboard->Init(HashName(name), pos, size, id);
 	return billboard;
 }
 
