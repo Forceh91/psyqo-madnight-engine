@@ -6,6 +6,7 @@
 
 #include "../madnight.hh"
 #include <EASTL/algorithm.h>
+#include <EASTL/string_view.h>
 #include <psyqo/fixed-point.hh>
 #include <psyqo/spu.hh>
 #include <psyqo/xprintf.h>
@@ -19,8 +20,7 @@ void SoundManager::Init(void) {
 	m_isInitialized = true;
 }
 
-psyqo::Coroutine<> SoundManager::LoadVAGFile(const eastl::fixed_string<char, MAX_ARCHIVE_FILE_NAME_LEN>& fileName,
-											 VagEntry** out) {
+psyqo::Coroutine<> SoundManager::LoadVAGFile(const eastl::string_view& fileName, VagEntry** out) {
 	if (!m_isInitialized) {
 		Init();
 	}
@@ -128,11 +128,9 @@ psyqo::Coroutine<> SoundManager::LoadVAGFile(const eastl::fixed_string<char, MAX
 	printf("VAG: Successfully uploaded VAG of %d bytes into the SPU.\n", size);
 }
 
-VagEntry* SoundManager::IsVAGLoaded(const eastl::fixed_string<char, MAX_ARCHIVE_FILE_NAME_LEN>& fileName) {
-	return IsVAGLoaded(HashName(fileName));
-}
+VagEntry* SoundManager::IsVAGLoaded(const eastl::string_view& fileName) { return IsVAGLoaded(HashName(fileName)); }
 
-VagEntry* SoundManager::IsVAGLoaded(uint64_t nameHash) {
+constexpr VagEntry* SoundManager::IsVAGLoaded(uint64_t nameHash) {
 	for (auto i = 0; i < MAX_VAG_FILE_COUNT; i++) {
 		auto* vag = m_pool.Get(i);
 		if (vag->nameHash == nameHash) {
@@ -144,7 +142,7 @@ VagEntry* SoundManager::IsVAGLoaded(uint64_t nameHash) {
 	return nullptr;
 }
 
-VagEntry* SoundManager::IsVAGLoaded(const uint8_t& id) {
+constexpr VagEntry* SoundManager::IsVAGLoaded(const int16_t& id) {
 	for (auto i = 0; i < MAX_VAG_FILE_COUNT; i++) {
 		auto* vag = m_pool.Get(i);
 		if (vag->id == id) {
@@ -158,7 +156,7 @@ VagEntry* SoundManager::IsVAGLoaded(const uint8_t& id) {
 
 void SoundManager::SilenceChannels(const uint32_t channelMask) { psyqo::SPU::silenceChannels(channelMask); }
 
-void SoundManager::PlayVAGFile(const eastl::fixed_string<char, MAX_ARCHIVE_FILE_NAME_LEN>& fileName, uint8_t channelId,
+void SoundManager::PlayVAGFile(const eastl::string_view& fileName, uint8_t channelId,
 							   const psyqo::SPU::ChannelPlaybackConfig& config, bool hardCut) {
 	auto vag = IsVAGLoaded(fileName);
 	if (vag) {
@@ -166,7 +164,7 @@ void SoundManager::PlayVAGFile(const eastl::fixed_string<char, MAX_ARCHIVE_FILE_
 	}
 }
 
-void SoundManager::PlayVAGFile(const uint8_t& vagID, uint8_t channelId, const psyqo::SPU::ChannelPlaybackConfig& config,
+void SoundManager::PlayVAGFile(const int16_t& vagID, uint8_t channelId, const psyqo::SPU::ChannelPlaybackConfig& config,
 							   bool hardCut) {
 	auto vag = IsVAGLoaded(vagID);
 	if (vag) {
