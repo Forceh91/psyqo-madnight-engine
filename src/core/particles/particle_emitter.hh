@@ -27,9 +27,22 @@ typedef struct _EmitterRotation {
 class ParticleEmitter final {
   public:
 	ParticleEmitter() = default;
+	void Init(const uint64_t& nameHash, const uint8_t& id, const psyqo::Vec3& pos, const psyqo::FixedPoint<> radius,
+			  const uint8_t& particlesPerSecond, const uint8_t& particleLifeTimeSecs) {
+		m_id = id;
+		m_nameHash = nameHash;
+		m_pos = pos;
+		m_rotatedPos = m_pos;
+		m_radius = radius;
+		m_particlesPerSecond = particlesPerSecond;
+		m_particleLifeTime = particleLifeTimeSecs;
+		m_maxParticles = m_particlesPerSecond * m_particleLifeTime;
+		m_spawnRate = MICROSECONDS_IN_A_SECOND / m_particlesPerSecond;
+		m_spawnedParticles.reserve(m_maxParticles);
+	}
 
 	uint64_t nameHash() const { return m_nameHash; }
-	const uint8_t& id() const { return m_id; }
+	const int16_t& id() const { return m_id; }
 
 	void Start(void);
 	void Stop(void);
@@ -78,7 +91,7 @@ class ParticleEmitter final {
 
 	bool m_isEnabled = false;
 	uint64_t m_nameHash = 0;
-	uint8_t m_id = INVALID_PARTICLE_EMITTER_ID;
+	int16_t m_id = INVALID_POOL_ID;
 	psyqo::Vec3 m_pos = {0, 0, 0};
 	psyqo::Vec3 m_rotatedPos = {0, 0, 0};
 	EmitterRotation m_rotation = {0, 0, 0};

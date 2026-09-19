@@ -5,13 +5,13 @@
  */
 
 #pragma once
+#include "../../pool/pool.hh"
 #include "defs.hh"
 #include "particle_emitter.hh"
 
-#include "EASTL/array.h"
-#include "EASTL/fixed_vector.h"
-#include "psyqo/fixed-point.hh"
-#include "psyqo/vector.hh"
+#include <EASTL/fixed_vector.h>
+#include <psyqo/fixed-point.hh>
+#include <psyqo/vector.hh>
 
 class ParticleEmitterManager final {
   public:
@@ -21,12 +21,12 @@ class ParticleEmitterManager final {
 	void DestroyParticleEmitter(ParticleEmitter* emitter);
 
 	const eastl::fixed_vector<ParticleEmitter*, MAX_PARTICLE_EMITTERS>& GetActiveEmitters(void);
-	const constexpr eastl::array<ParticleEmitter, MAX_PARTICLE_EMITTERS>& GetEmitters(void) { return m_emitters; }
+	const constexpr ParticleEmitter* GetEmitters(void) const { return m_pool.Entries(); }
 	ParticleEmitter* GetEmitterByName(const eastl::string_view& name);
 	ParticleEmitter* GetEmitterByName(uint64_t nameHash);
 
   private:
-	eastl::array<ParticleEmitter, MAX_PARTICLE_EMITTERS> m_emitters;
+	Pool<ParticleEmitter, MAX_PARTICLE_EMITTERS> m_pool;
 	eastl::fixed_vector<ParticleEmitter*, MAX_PARTICLE_EMITTERS> m_activeEmitters;
 
 	int16_t GetFreeIndex(void);
