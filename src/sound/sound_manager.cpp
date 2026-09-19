@@ -68,6 +68,7 @@ psyqo::Coroutine<> SoundManager::LoadVAGFile(const eastl::string_view& fileName,
 	magic.assign(reinterpret_cast<char*>(ptr));
 	if (magic.compare("VAGp")) {
 		printf("VAG: Header magic is invalid, aborting.\n");
+		*vag = {};
 		buffer.clear();
 		m_pool.Free(vagIx);
 		co_return;
@@ -79,6 +80,7 @@ psyqo::Coroutine<> SoundManager::LoadVAGFile(const eastl::string_view& fileName,
 	__builtin_memcpy(&version, ptr, sizeof(uint32_t));
 	if (SWAP32(version) != 0x00000020) {
 		printf("VAG: Header version is invalid, aborting.\n");
+		*vag = {};
 		buffer.clear();
 		m_pool.Free(vagIx);
 		co_return;
@@ -96,6 +98,7 @@ psyqo::Coroutine<> SoundManager::LoadVAGFile(const eastl::string_view& fileName,
 	// make sure it fits
 	if (SPU_MEMORY_SIZE - m_spuAllocPtr < vag->size) {
 		printf("VAG: Not enough space in SPU, aborting.\n");
+		*vag = {};
 		buffer.clear();
 		m_pool.Free(vagIx);
 		co_return;

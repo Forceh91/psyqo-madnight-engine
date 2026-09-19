@@ -55,7 +55,7 @@ class Billboard {
 	}
 
 	uint64_t m_nameHash = 0;
-	uint8_t m_id = INVALID_POOL_ID;
+	int16_t m_id = INVALID_POOL_ID;
 	psyqo::Vec3 m_pos = {0, 0, 0};
 	psyqo::Vec2 m_size = {0, 0};
 	psyqo::Color m_colour = {128, 128, 128};
