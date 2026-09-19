@@ -24,9 +24,12 @@ Billboard* BillboardManager::CreateBillboard(const eastl::string_view& name, psy
 }
 
 void BillboardManager::DestroyBillboard(Billboard* billboard) {
-	if (billboard) {
-		billboard->Destroy();
+	if (!billboard) {
+		return;
 	}
+
+	m_pool.Free(billboard->id());
+	billboard->Destroy();
 }
 
 const eastl::fixed_vector<Billboard*, MAX_BILLBOARDS>& BillboardManager::GetActiveBillboards(void) {

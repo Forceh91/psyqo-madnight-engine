@@ -30,9 +30,12 @@ ParticleEmitter* ParticleEmitterManager::CreateParticleEmitter(const eastl::stri
 }
 
 void ParticleEmitterManager::DestroyParticleEmitter(ParticleEmitter* emitter) {
-	if (emitter) {
-		emitter->Destroy();
+	if (!emitter) {
+		return;
 	}
+
+	m_pool.Free(emitter->id());
+	emitter->Destroy();
 }
 
 const eastl::fixed_vector<ParticleEmitter*, MAX_PARTICLE_EMITTERS>& ParticleEmitterManager::GetActiveEmitters(void) {
