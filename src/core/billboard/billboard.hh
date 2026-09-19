@@ -19,7 +19,7 @@ class Billboard {
 	void Destroy(void);
 
 	constexpr uint64_t nameHash() { return m_nameHash; }
-	constexpr const uint8_t& id() const { return m_id; }
+	constexpr const int16_t& id() const { return m_id; }
 
 	constexpr const psyqo::Vec3& pos() const { return m_pos; }
 	constexpr const psyqo::Vec3* pPos() const { return &m_pos; }
