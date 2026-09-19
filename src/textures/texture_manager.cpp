@@ -71,6 +71,7 @@ psyqo::Coroutine<> TextureManager::LoadTIM(const eastl::string_view& textureName
 	if (data == nullptr || size == 0) {
 		printf("TEXTURE: Failed to load texture or it has no file size.\n");
 		buffer.clear();
+		m_pool.Free(textureID);
 		co_return;
 	}
 
@@ -85,6 +86,7 @@ psyqo::Coroutine<> TextureManager::LoadTIM(const eastl::string_view& textureName
 	if ((*(ptr++) & 0xFF) != 0x10) {
 		printf("TEXTURE: Invalid TIM file, aborting.\n");
 		buffer.clear();
+		m_pool.Free(textureID);
 		co_return;
 	}
 
@@ -147,6 +149,7 @@ psyqo::Coroutine<> TextureManager::LoadTIM(const eastl::string_view& textureName
 	if (imageLength <= 12) {
 		printf("TEXTURE: Image data seems to be missing from TIM, aborting.\n");
 		buffer.clear();
+		m_pool.Free(textureID);
 		co_return;
 	}
 
@@ -174,6 +177,7 @@ psyqo::Coroutine<> TextureManager::LoadTIM(const eastl::string_view& textureName
 		printf("TEXTURE: Texture has no width (%d)/height (%d)/bpp (%d), aborting.\n", timFile->width, timFile->height,
 			   timFile->colourMode);
 		buffer.clear();
+		m_pool.Free(textureID);
 		co_return;
 	}
 

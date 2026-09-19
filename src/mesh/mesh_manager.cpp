@@ -38,6 +38,7 @@ psyqo::Coroutine<> MeshManager::LoadMesh(const eastl::string_view& meshName, Mes
 	size_t size = buffer.size();
 	if (data == nullptr || size == 0) {
 		buffer.clear();
+		m_pool.Free(meshIx);
 		printf("MESH: Failed to load mesh or it has no file size.\n");
 		co_return;
 	}
@@ -61,6 +62,7 @@ psyqo::Coroutine<> MeshManager::LoadMesh(const eastl::string_view& meshName, Mes
 		printf("MESH: Header is invalid. aborting (%s).\n", magic.c_str());
 		*loadedMesh = {};
 		buffer.clear();
+		m_pool.Free(meshIx);
 		co_return;
 	}
 	ptr += 7;
@@ -102,6 +104,7 @@ psyqo::Coroutine<> MeshManager::LoadMesh(const eastl::string_view& meshName, Mes
 			printf("MESH: Mesh has %d bones, max is %d, aborting load.\n", loadedMesh->mesh.numBones, MAX_BONES);
 			*loadedMesh = {};
 			buffer.clear();
+			m_pool.Free(meshIx);
 			co_return;
 		}
 	}
@@ -111,6 +114,7 @@ psyqo::Coroutine<> MeshManager::LoadMesh(const eastl::string_view& meshName, Mes
 		printf("MESH: Mesh has too many faces, aborting load.\n");
 		*loadedMesh = {};
 		buffer.clear();
+		m_pool.Free(meshIx);
 		co_return;
 	}
 
