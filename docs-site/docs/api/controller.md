@@ -17,27 +17,26 @@ class ControllerHelper final {
 public:
   enum AnalogStickIndex { RightStickX, RightStickY, LeftStickX, LeftStickY };
 
-  static void init(void);
-  static int GetNormalizedAnalogStickInput(psyqo::AdvancedPad::Pad pad, uint8_t index);
-  static bool IsPadAnalog(psyqo::AdvancedPad::Pad pad);
+  void init(void);
+  int GetNormalizedAnalogStickInput(psyqo::AdvancedPad::Pad pad, uint8_t index);
 };
 ```
 
-`GetNormalizedAnalogStickInput` returns the raw stick value re-centered around zero (`adc - 0x80`, so roughly `-128..127`), with the Y axes sign-flipped so "up" on the stick reads positive. Use `IsPadAnalog` first to check the connected pad actually supports analog input before reading stick axes from it.
+Non-`static` member of `MadnightEngine` (`g_madnightEngine.m_controllerHelper`).
+
+`GetNormalizedAnalogStickInput` returns the raw stick value re-centered around zero (`adc - 0x80`, so roughly `-128..127`), with the Y axes sign-flipped so "up" on the stick reads positive. `IsPadAnalog` was removed as of v0.0.1 — `GetNormalizedAnalogStickInput` now checks pad connection and analog support internally (via psyqo's own `AdvancedPad::hasAnalog`) and safely returns `0` if the pad isn't connected or isn't analog, so there's no need to check first.
 
 ### Usage
 
-Reading the right stick for camera control, once you've confirmed the pad is analog:
+Reading the right stick for camera control:
 
 ```cpp
 constexpr auto pad = psyqo::AdvancedPad::Pad::Pad1a;
-if (ControllerHelper::IsPadAnalog(pad)) {
-    int rx = ControllerHelper::GetNormalizedAnalogStickInput(pad, ControllerHelper::RightStickX);
-    int ry = ControllerHelper::GetNormalizedAnalogStickInput(pad, ControllerHelper::RightStickY);
+int rx = g_madnightEngine.m_controllerHelper.GetNormalizedAnalogStickInput(pad, ControllerHelper::RightStickX);
+int ry = g_madnightEngine.m_controllerHelper.GetNormalizedAnalogStickInput(pad, ControllerHelper::RightStickY);
 
-    if (ry != 0) camera.UpdateOrbitAngles(ry * ORBIT_SPEED, 0, deltaTime);
-    if (rx != 0) camera.UpdateOrbitAngles(0, rx * ORBIT_SPEED, deltaTime);
-}
+if (ry != 0) camera.UpdateOrbitAngles(ry * ORBIT_SPEED, 0, deltaTime);
+if (rx != 0) camera.UpdateOrbitAngles(0, rx * ORBIT_SPEED, deltaTime);
 ```
 
 ### Internals

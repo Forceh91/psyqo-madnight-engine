@@ -16,15 +16,17 @@ Loads and caches up to `MAX_LOADED_MESHES` (250) meshes by name, each with up to
 ```cpp
 class MeshManager {
 public:
-  static psyqo::Coroutine<> LoadMesh(const char *meshName, MeshBin **meshOut);
-  static void GetMeshFromName(const char *meshName, MeshBin **meshOut);
-  static void UnloadMesh(const char *mesh_name);
+  psyqo::Coroutine<> LoadMesh(const eastl::string_view &meshName, MeshBin **meshOut);
+  void GetMeshFromName(const eastl::string_view &meshName, MeshBin **meshOut);
+  void UnloadMesh(const eastl::string_view &mesh_name);
 
   // dump all meshes in memory and start fresh. Used when switching to a loading screen.
   // dangerous — doesn't check if anything is still in use.
-  static void Dump(void);
+  void Dump(void);
 };
 ```
+
+Non-`static` member of `MadnightEngine` (`g_madnightEngine.m_meshManager`).
 
 ### MeshBin
 
@@ -63,7 +65,7 @@ struct MeshBin {
 
 ```cpp
 MeshBin *crateMesh;
-co_await MeshManager::LoadMesh("crate", &crateMesh); // must be co_awaited inside a coroutine
+co_await g_madnightEngine.m_meshManager.LoadMesh("crate", &crateMesh); // must be co_awaited inside a coroutine
 
 crateGameObject->SetMesh("crate"); // looks it up by name once loaded
 ```
@@ -107,12 +109,14 @@ struct Skeleton {
 
 class SkeletonController {
 public:
-  static void UpdateSkeletonBoneMatrices(Skeleton *skeleton);
-  static void MarkBonesClean(Skeleton *skeleton);
-  static void SetAnimation(Skeleton *skeleton, Animation *animation);
-  static void PlayAnimation(Skeleton *skeleton, uint32_t deltaTime);
+  void UpdateSkeletonBoneMatrices(Skeleton *skeleton);
+  void MarkBonesClean(Skeleton *skeleton);
+  void SetAnimation(Skeleton *skeleton, Animation *animation);
+  void PlayAnimation(Skeleton *skeleton, uint32_t deltaTime);
 };
 ```
+
+Non-`static` member of `MadnightEngine` (`g_madnightEngine.m_skeletonController`).
 
 - `PlayAnimation` advances `animationCurrentFrame` and marks affected bones dirty; `UpdateSkeletonBoneMatrices` then recomputes each dirty bone's local/world matrices (parent-relative, walking up the hierarchy via `parent`).
 - `bindPose`/`bindPoseInverse` are captured once when the skeleton is first loaded and used to skin vertices back into their animated position each frame.
@@ -120,13 +124,13 @@ public:
 ### Usage
 
 ```cpp
-Animation *walkAnim = AnimationManager::GetAnimationFromName("walk");
-SkeletonController::SetAnimation(mesh->skeleton, walkAnim);
+Animation *walkAnim = g_madnightEngine.m_animationManager.GetAnimationFromName("walk");
+g_madnightEngine.m_skeletonController.SetAnimation(mesh->skeleton, walkAnim);
 
 // per-frame:
-SkeletonController::PlayAnimation(mesh->skeleton, deltaTime);
-SkeletonController::UpdateSkeletonBoneMatrices(mesh->skeleton);
-SkeletonController::MarkBonesClean(mesh->skeleton); // once you're done reading this frame's matrices
+g_madnightEngine.m_skeletonController.PlayAnimation(mesh->skeleton, deltaTime);
+g_madnightEngine.m_skeletonController.UpdateSkeletonBoneMatrices(mesh->skeleton);
+g_madnightEngine.m_skeletonController.MarkBonesClean(mesh->skeleton); // once you're done reading this frame's matrices
 ```
 
 ### Internals
@@ -143,14 +147,16 @@ SkeletonController::MarkBonesClean(mesh->skeleton); // once you're done reading 
 ```cpp
 class AnimationManager final {
 public:
-  static psyqo::Coroutine<> LoadAnimation(const char *animationsFile);
-  static Animation *GetAnimationFromName(const eastl::fixed_string<char, MAX_ANIMATION_NAME_LENGTH> &animationName);
+  psyqo::Coroutine<> LoadAnimation(const eastl::string_view &animationsFile);
+  Animation *GetAnimationFromName(const eastl::fixed_string<char, MAX_ANIMATION_NAME_LENGTH> &animationName);
 };
 ```
 
+Non-`static` member of `MadnightEngine` (`g_madnightEngine.m_animationManager`).
+
 Loads a whole `.ANIMBIN` file (see the [file format spec](../guides/animbin)) at once — a single `.ANIMBIN` can contain up to `MAX_ANIMATIONS` (5) named animations, retrieved individually afterwards by name.
 
-Like [`ColbinManager`](./physics-and-collision#colbinmanager), this holds one loaded `.ANIMBIN` at a time (a single static `AnimationBin`, not a pool) — loading a new file replaces whatever was loaded before.
+Like [`ColbinManager`](./physics-and-collision#colbinmanager), this holds one loaded `.ANIMBIN` at a time (a lone `AnimationBin` member, not a pool) — loading a new file replaces whatever was loaded before.
 
 ### Animation data types
 
@@ -197,11 +203,11 @@ struct AnimationBin {
 
 `src/quaternion.hh`
 
-GTE-backed quaternion type (`psyqo::GTE::Short` components) used throughout skeletal animation.
+Quaternion type used throughout skeletal animation. As of v0.0.1, its components are full `psyqo::FixedPoint<>` ("full fat int32_t") rather than `psyqo::GTE::Short` — more precision headroom at the cost of some memory per component.
 
 ```cpp
 struct Quaternion {
-  psyqo::GTE::Short w{1.0}, x{0.0}, y{0.0}, z{0.0};
+  psyqo::FixedPoint<> w{1.0}, x{0.0}, y{0.0}, z{0.0};
 
   auto operator<=>(const Quaternion &) const = default;
 
@@ -212,7 +218,7 @@ struct Quaternion {
 Quaternion operator*(const Quaternion &q1, const Quaternion &q2);
 Quaternion operator-(const Quaternion &q);
 
-psyqo::GTE::Short DotProduct(const Quaternion &a, const Quaternion &b);
+psyqo::FixedPoint<> DotProduct(const Quaternion &a, const Quaternion &b);
 
 // Small-rotation only for now — fine for animation interpolation.
 Quaternion Slerp(const Quaternion &q1, const Quaternion &q2, psyqo::FixedPoint<> factor);
@@ -225,6 +231,4 @@ Quaternion FromEulerAngles(psyqo::Angle pitch, psyqo::Angle yaw, psyqo::Angle ro
 `Slerp` isn't slerp. The implementation is a component-wise linear blend of the two quaternions followed by a normalize, with no `acos`/`sin` anywhere in it: it's nlerp. The in-source comment calling it "small rotations only" is describing the accuracy limits of that nlerp approximation, not a spherical interpolation with a reduced range. It's fine for interpolating between adjacent animation keyframes and not fine for arbitrary large-angle rotation blending.
 :::
 
-`FromEulerAngles` builds a quaternion from the given angles. The three argument form takes roll as well; the two argument form is the same thing with roll fixed at zero.
-
-`FindRotationQuat` is not listed above because you cannot call it. Its declaration is commented out in `quaternion.hh` while its definition, a stub returning `{0,0,0,0}`, is still compiled into the library.
+`FromEulerAngles` builds a quaternion from the given pitch/yaw (or pitch/yaw/roll) angles. `FindRotationQuat` — the rotation quaternion that takes one vector to another — is commented out in-source as of v0.0.1 and isn't currently available; don't rely on it.

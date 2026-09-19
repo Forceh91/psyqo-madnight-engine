@@ -14,7 +14,8 @@ static constexpr uint8_t texturePageColumns = 16;
 static constexpr uint8_t MAX_TEXTURES = 32;
 
 struct TimFile {
-  eastl::fixed_string<char, MAX_ARCHIVE_FILE_NAME_LEN> name;
+  uint64_t nameHash;
+  bool isLoaded; // is this slot actually holding a texture?
   uint16_t x, y, width, height;
   psyqo::Prim::TPageAttr::ColorMode colourMode; // bits per pixel: 4, 8, or 16
 
@@ -25,20 +26,22 @@ struct TimFile {
 
 class TextureManager final {
 public:
-  static psyqo::Coroutine<> LoadTIM(const char *textureName, uint16_t x, uint16_t y, uint16_t clutX, uint16_t clutY, TimFile **timOut);
-  static psyqo::PrimPieces::TPageAttr GetTPageAttr(const TimFile *tim);
-  static psyqo::PrimPieces::TPageAttr GetTPageAttr(const TimFile &tim);
-  static psyqo::Rect GetTPageUVForTim(const TimFile &tim);
-  static psyqo::Rect GetTPageUVForTim(const TimFile *tim);
+  psyqo::Coroutine<> LoadTIM(const eastl::string_view &textureName, uint16_t x, uint16_t y, uint16_t clutX, uint16_t clutY, TimFile **timOut);
+  psyqo::PrimPieces::TPageAttr GetTPageAttr(const TimFile *tim);
+  psyqo::PrimPieces::TPageAttr GetTPageAttr(const TimFile &tim);
+  psyqo::Rect GetTPageUVForTim(const TimFile &tim);
+  psyqo::Rect GetTPageUVForTim(const TimFile *tim);
 
-  static void GetTextureFromName(const char *textureName, TimFile **timOut);
+  void GetTextureFromName(const eastl::string_view &textureName, TimFile **timOut);
 
   // dump all textures in memory and start fresh. Used when switching to a
   // loading screen. Dangerous — doesn't check what's in use, and doesn't
   // clear VRAM itself.
-  static void Dump(void);
+  void Dump(void);
 };
 ```
+
+Non-`static` member of `MadnightEngine` (`g_madnightEngine.m_textureManager`). `TimFile` now stores a hashed `nameHash` instead of the full name string, same as `VagEntry` ([Sound](./sound#soundmanager)) and `Billboard` ([Core](./core#billboard)).
 
 - `LoadTIM` takes the target VRAM placement (`x`, `y`) and CLUT placement (`clutX`, `clutY`) explicitly, and the engine doesn't do automatic VRAM packing, so placement has to be planned per-texture (this is exactly what the `TEXTURE` entry fields in a [SCENEBIN manifest](../guides/scenebin#texture-placement) carry).
 - `GetTPageAttr`/`GetTPageUVForTim` convert a loaded `TimFile`'s VRAM placement into the texture-page attribute and UV rect a draw primitive needs — used internally by `GameObject`/`Billboard` rendering and `Renderer::RenderSprite`.
@@ -48,7 +51,7 @@ public:
 
 ```cpp
 TimFile *crateTex;
-co_await TextureManager::LoadTIM("crate.tim", /*x*/ 320, /*y*/ 0, /*clutX*/ 0, /*clutY*/ 240, &crateTex);
+co_await g_madnightEngine.m_textureManager.LoadTIM("crate.tim", /*x*/ 320, /*y*/ 0, /*clutX*/ 0, /*clutY*/ 240, &crateTex);
 crateGameObject->SetTexture("crate.tim"); // looks it up by the same name afterwards
 ```
 
