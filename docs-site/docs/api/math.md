@@ -15,12 +15,10 @@ sidebar_position: 7
 class GTEMath final {
 public:
   static psyqo::Vec3 ProjectVectorOntoAxes(const psyqo::Matrix33 &axisMatrix, const psyqo::Vec3 &normalizedVec);
-  static void MultiplyMatrix33(const psyqo::Matrix33 &rotationMatrixA, const psyqo::Matrix33 rotationMatrixB, psyqo::Matrix33 *out);
-  static void MultiplyMatrixVec3(const psyqo::Matrix33 &rotationMatrix, const psyqo::Vec3 posVector, psyqo::Vec3 *out);
 };
 ```
 
-GTE-register-backed equivalents of the matrix math you'd otherwise do on the CPU — used wherever the engine needs matrix/vector multiplication in a hot path (camera, skeleton posing, collision).
+A GTE-register-backed equivalent of vector-onto-axes projection — used wherever the engine needs that specific operation in a hot path (camera, skeleton posing, collision). As of v0.0.1, `GTEMath` lost `MultiplyMatrix33`/`MultiplyMatrixVec3` — hot-path matrix/vector multiplication elsewhere in the engine (camera, particle emitters, matrix helpers) now calls `psyqo::GteMath` directly instead of going through this wrapper.
 
 ## Matrix
 

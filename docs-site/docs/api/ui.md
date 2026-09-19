@@ -21,7 +21,7 @@ protected:
   psyqo::Rect m_rect = {0};
 
 public:
-  HUDElement(const char *name, psyqo::Rect rect);
+  HUDElement(const eastl::string_view &name, psyqo::Rect rect);
   void Enable();
   void Disable();
   eastl::fixed_string<char, GAMEPLAY_HUD_MAX_NAME_LEN> &name();
@@ -36,11 +36,11 @@ public:
 class TextHUDElement final : public HUDElement {
 public:
   TextHUDElement();
-  TextHUDElement(const char *name, psyqo::Rect rect);
-  TextHUDElement(const char *name, psyqo::Rect rect, psyqo::Color colour);
+  TextHUDElement(const eastl::string_view &name, psyqo::Rect rect);
+  TextHUDElement(const eastl::string_view &name, psyqo::Rect rect, psyqo::Color colour);
 
   void SetFont(psyqo::Font<100> *font);
-  void SetDisplayText(const char *displayText);
+  void SetDisplayText(const eastl::string_view &displayText);
   void SetColour(const psyqo::Color colour);
   void SetPositionSize(psyqo::Rect rect);
   void Render(const psyqo::Rect &parentRect);
@@ -73,8 +73,8 @@ m_hud.Render();
 class SpriteHUDElement final : public HUDElement {
 public:
   SpriteHUDElement();
-  SpriteHUDElement(const char *name, psyqo::Rect rect);
-  SpriteHUDElement(const char *name, psyqo::Rect rect, const char *textureName, psyqo::PrimPieces::UVCoords uv);
+  SpriteHUDElement(const eastl::string_view &name, psyqo::Rect rect);
+  SpriteHUDElement(const eastl::string_view &name, psyqo::Rect rect, const eastl::string_view &textureName, psyqo::PrimPieces::UVCoords uv);
 
   void Render(const psyqo::Rect &parentRect);
   void SetSize(const psyqo::Vertex& size);
@@ -112,7 +112,7 @@ A non-interactive HUD you overlay on top of gameplay — health, lives, a timer,
 class GameplayHUD final {
 public:
   GameplayHUD();
-  GameplayHUD(const char *name, psyqo::Rect rect);
+  GameplayHUD(const eastl::string_view &name, psyqo::Rect rect);
 
   void Enable();
   void Disable();
@@ -152,18 +152,18 @@ hud.Render();
 
 `src/ui/menu/menu.hh`
 
-The interactive counterpart to `GameplayHUD` — a `psyqo::Scene` subclass, so activating a menu pushes it as a scene on top of whatever's currently showing. By default it doesn't clear the frame buffer, so the previous render (e.g. paused gameplay) stays visible underneath — makes it a natural fit for a pause menu.
+The interactive counterpart to `GameplayHUD` — a `psyqo::Scene` subclass, so enabling a menu pushes it as a scene on top of whatever's currently showing. By default it doesn't clear the frame buffer, so the previous render (e.g. paused gameplay) stays visible underneath — makes it a natural fit for a pause menu. Unlike the managers in [Core](./core), [Mesh & Animation](./mesh-and-animation), etc., `Menu` and `GameplayHUD` are regular value types you construct and own yourself (typically as a scene/game member), not accessed off `g_madnightEngine`.
 
 ```cpp
 class Menu : public psyqo::Scene {
 public:
   Menu() = default;
-  Menu(const char *name, psyqo::Rect posSizeRect);
+  Menu(const eastl::string_view &name, psyqo::Rect posSizeRect);
 
   bool IsEnabled(void);
-  void Activate(void);
-  void Deactivate(void); // also triggered by the configured back/cancel button
-  void Destroy(void);    // deactivates, pops the scene, and frees all held elements/items
+  void Enable(void);
+  void Disable(void); // also triggered by the configured back/cancel button
+  void Destroy(void);    // disables, pops the scene, and frees all held elements/items
 
   void SetControllerBindings(const MenuControllerBinds &bindings); // uses defaults if not called
   // Override only the buttons that trigger menu item input callbacks, on top
@@ -171,8 +171,8 @@ public:
   void SetCustomInputCallbackButtons(const eastl::array<psyqo::AdvancedPad::Button, 16> &customBindings);
 
   void SetOnFrame(eastl::function<void(uint32_t)> callback);
-  void SetOnActivate(eastl::function<void(void)> callback);
-  void SetOnDeactivate(eastl::function<void(void)> callback);
+  void SetOnEnable(eastl::function<void(void)> callback);
+  void SetOnDisable(eastl::function<void(void)> callback);
   void SetOnDestroy(eastl::function<void(void)> callback);
 
   TextHUDElement *AddTextHUDElement(TextHUDElement &&textElement);
@@ -181,7 +181,7 @@ public:
   void RemoveSpriteHUDElement(SpriteHUDElement *element);
 
   MenuItem *AddMenuItem(const MenuItem &item);
-  MenuItem *AddMenuItem(const char *name, const char *displayText, const psyqo::Rect posSize);
+  MenuItem *AddMenuItem(const eastl::string_view &name, const eastl::string_view &displayText, const psyqo::Rect posSize);
   void AddMenuItems(const eastl::span<MenuItem> &items);
   void SetDefaultFont(psyqo::Font<100> *font);
   void SetSelectedMenuItem(uint8_t ix); // clamped to a valid index
@@ -199,20 +199,20 @@ The pause-menu pattern from the engine's own `GameplayScene` — bind `Start` to
 ```cpp
 Menu pauseMenu("Pause", {.pos = {80, 60}, .size = {160, 100}});
 pauseMenu.AddMenuItem("resume", "Resume", {.pos = {0, 0}, .size = {100, 10}})
-    ->SetOnConfirm([&]{ pauseMenu.Deactivate(); });
+    ->SetOnConfirm([&]{ pauseMenu.Disable(); });
 pauseMenu.AddMenuItem("quit", "Quit", {.pos = {0, 15}, .size = {100, 10}})
     ->SetOnConfirm([]{ /* ... */ });
 
 g_madnightEngine.m_input.setOnEvent([&](auto event) {
     if (event.type == psyqo::AdvancedPad::Event::ButtonReleased && event.button == psyqo::AdvancedPad::Button::Start)
-        pauseMenu.Activate();
+        pauseMenu.Enable();
 });
 ```
 
 ### Internals
 
-- Backing out via the bound cancel button (`Triangle` by default) doesn't call `Deactivate()` immediately — it just sets a flag that's checked at the top of the *next* `frame()` call, so there's a one-frame delay. Calling `Deactivate()` yourself (e.g. from an `OnConfirm` callback, as above) pops the scene immediately.
-- `Deactivate()` just pops the scene, leaving the menu's elements/items intact for next time; `Destroy()` additionally frees all held text/sprite elements and menu items — use it for a menu you won't reopen (e.g. a one-shot results screen), not a pause menu you expect to reactivate.
+- Backing out via the bound cancel button (`Triangle` by default) doesn't call `Disable()` immediately — it just sets a flag that's checked at the top of the *next* `frame()` call, so there's a one-frame delay. Calling `Disable()` yourself (e.g. from an `OnConfirm` callback, as above) pops the scene immediately.
+- `Disable()` just pops the scene, leaving the menu's elements/items intact for next time; `Destroy()` additionally frees all held text/sprite elements and menu items — use it for a menu you won't reopen (e.g. a one-shot results screen), not a pause menu you expect to reactivate.
 - `ProcessInputs` never checks `event.pad`: on a multitap, any connected pad drives the menu, not just the one you might expect. The pause-menu sample above binds without checking it either.
 
 Menus aren't limited to "list of items, navigate up/down" — a single `MenuItem` with `SetOnInputCallback` can act as a left/right selector over a completely different data set instead of a list of item states, using `SetCustomInputCallbackButtons` to opt those buttons in:
@@ -260,9 +260,9 @@ A single selectable entry in a `Menu`, combining a `TextHUDElement` and `SpriteH
 ```cpp
 class MenuItem {
 public:
-  MenuItem(const char *name, psyqo::Rect posSizeRect);
-  MenuItem(const char *name, const char *text, psyqo::Rect posSizeRect);
-  MenuItem(const char *name, const char *text, psyqo::Rect posSizeRect, psyqo::Color defaultTextColour, psyqo::Color selectedTextColour);
+  MenuItem(const eastl::string_view &name, psyqo::Rect posSizeRect);
+  MenuItem(const eastl::string_view &name, const eastl::string_view &text, psyqo::Rect posSizeRect);
+  MenuItem(const eastl::string_view &name, const eastl::string_view &text, psyqo::Rect posSizeRect, psyqo::Color defaultTextColour, psyqo::Color selectedTextColour);
 
   void Enable();
   void Disable();
@@ -272,7 +272,7 @@ public:
   void SetSpriteElement(const SpriteHUDElement &sprite);
   void SetFont(psyqo::Font<100> *font);
   void SetTextElement(const TextHUDElement &text);
-  void SetText(const char *text);
+  void SetText(const eastl::string_view &text);
   void SetTextColour(const psyqo::Color colour);
   void SetPositionSize(psyqo::Rect rect);
 

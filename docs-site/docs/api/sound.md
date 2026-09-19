@@ -24,7 +24,7 @@ static constexpr uint8_t SPU_MAX_CHANNEL_ID = 23;
 
 struct VagEntry {
   int8_t id = INVALID_VAG_FILE_ID;
-  eastl::fixed_string<char, MAX_ARCHIVE_FILE_NAME_LEN> name; // the name supplied for the CD-ROM load, not the header's
+  uint64_t nameHash; // hash of the name supplied for the CD-ROM load, not the header's
   uint32_t spuAddr; // where it lives in SPU RAM
   uint32_t pitch;   // precomputed from sample rate
   uint32_t size;    // SPU RAM footprint
@@ -32,22 +32,25 @@ struct VagEntry {
 
 class SoundManager final {
 public:
-  static void Init(void); // called automatically by the engine
+  void Init(void); // called automatically by the engine
 
-  static void Dump(void); // resets the SPU alloc pointer, doesn't clear SPU contents
-  static psyqo::Coroutine<> LoadVAGFile(const eastl::fixed_string<char, MAX_ARCHIVE_FILE_NAME_LEN>& fileName, VagEntry** out);
-  static VagEntry* IsVAGLoaded(const eastl::fixed_string<char, MAX_ARCHIVE_FILE_NAME_LEN>& fileName);
-  static VagEntry* IsVAGLoaded(const uint8_t& fileName);
-  static void SilenceChannels(const uint32_t channels);
+  void Dump(void); // resets the SPU alloc pointer, doesn't clear SPU contents
+  psyqo::Coroutine<> LoadVAGFile(const eastl::fixed_string<char, MAX_ARCHIVE_FILE_NAME_LEN>& fileName, VagEntry** out);
+  VagEntry* IsVAGLoaded(const eastl::fixed_string<char, MAX_ARCHIVE_FILE_NAME_LEN>& fileName);
+  VagEntry* IsVAGLoaded(uint64_t nameHash);
+  VagEntry* IsVAGLoaded(const uint8_t& id);
+  void SilenceChannels(const uint32_t channels);
 
-  static void PlayVAGFile(const VagEntry* vag, uint8_t channelId, const psyqo::SPU::ChannelPlaybackConfig &config, bool hardCut = false);
-  static void PlayVAGFile(const eastl::fixed_string<char, MAX_ARCHIVE_FILE_NAME_LEN>& fileName, uint8_t channelId, const psyqo::SPU::ChannelPlaybackConfig &config, bool hardCut = false);
-  static void PlayVAGFile(const uint8_t& vagID, uint8_t channelId, const psyqo::SPU::ChannelPlaybackConfig &config, bool hardCut = false);
+  void PlayVAGFile(const VagEntry* vag, uint8_t channelId, const psyqo::SPU::ChannelPlaybackConfig &config, bool hardCut = false);
+  void PlayVAGFile(const eastl::fixed_string<char, MAX_ARCHIVE_FILE_NAME_LEN>& fileName, uint8_t channelId, const psyqo::SPU::ChannelPlaybackConfig &config, bool hardCut = false);
+  void PlayVAGFile(const uint8_t& vagID, uint8_t channelId, const psyqo::SPU::ChannelPlaybackConfig &config, bool hardCut = false);
 
-  static psyqo::SPU::ChannelPlaybackConfig CreatePlaybackConfig(const VagEntry* vag, uint16_t volume, uint32_t adsr = SPU_ADR_INSTANT_ATTACK_NO_DECAY);
-  static psyqo::SPU::ChannelPlaybackConfig CreatePlaybackConfig(const VagEntry* vag, uint16_t volumeL, uint16_t volumeR, uint32_t adsr = SPU_ADR_INSTANT_ATTACK_NO_DECAY);
+  psyqo::SPU::ChannelPlaybackConfig CreatePlaybackConfig(const VagEntry* vag, uint16_t volume, uint32_t adsr = SPU_ADR_INSTANT_ATTACK_NO_DECAY);
+  psyqo::SPU::ChannelPlaybackConfig CreatePlaybackConfig(const VagEntry* vag, uint16_t volumeL, uint16_t volumeR, uint32_t adsr = SPU_ADR_INSTANT_ATTACK_NO_DECAY);
 };
 ```
+
+Non-`static` member of `MadnightEngine` (`g_madnightEngine.m_soundManager`). `VagEntry` now stores a hashed `nameHash` instead of the full name string, and `IsVAGLoaded` gained a `uint64_t nameHash` overload alongside the existing by-name and by-id ones — precompute the hash with `HashName()` if you're checking the same name repeatedly.
 
 Typical flow: `LoadVAGFile` once at load time, `CreatePlaybackConfig` to build a channel config for it (mono or stereo volume), then `PlayVAGFile` on whichever channel you want it to occupy. `hardCut = true` cuts the sample off immediately rather than releasing it naturally — useful when you need a channel back right away.
 
@@ -55,23 +58,24 @@ Typical flow: `LoadVAGFile` once at load time, `CreatePlaybackConfig` to build a
 
 ```cpp
 VagEntry *jumpSfx;
-co_await SoundManager::LoadVAGFile("jump.vag", &jumpSfx);
+co_await g_madnightEngine.m_soundManager.LoadVAGFile("jump.vag", &jumpSfx);
 
-auto config = SoundManager::CreatePlaybackConfig(jumpSfx, /*volume*/ 0x3FFF);
-SoundManager::PlayVAGFile(jumpSfx, /*channelId*/ 0, config);
+auto config = g_madnightEngine.m_soundManager.CreatePlaybackConfig(jumpSfx, /*volume*/ 0x3FFF);
+g_madnightEngine.m_soundManager.PlayVAGFile(jumpSfx, /*channelId*/ 0, config);
 ```
 
 Checking whether a looping music/ambience sample is already loaded (e.g. preloaded during a level's asset manifest) before playing it, then silencing everything before switching scenes:
 
 ```cpp
-auto vag = SoundManager::IsVAGLoaded("SFX/FCNTNA.VAG"); // nullptr if not loaded
+auto vag = g_madnightEngine.m_soundManager.IsVAGLoaded("SFX/FCNTNA.VAG"); // nullptr if not loaded
 if (vag) {
     auto volume = saveData->GetMusicVolumeSPU();
-    SoundManager::PlayVAGFile(vag, SPU_MAX_CHANNEL_ID, SoundManager::CreatePlaybackConfig(vag, volume));
+    auto &soundManager = g_madnightEngine.m_soundManager;
+    soundManager.PlayVAGFile(vag, SPU_MAX_CHANNEL_ID, soundManager.CreatePlaybackConfig(vag, volume));
 }
 
 // later, e.g. right before switching scenes:
-SoundManager::SilenceChannels(1 << SPU_MAX_CHANNEL_ID); // bitmask, one bit per channel
+g_madnightEngine.m_soundManager.SilenceChannels(1 << SPU_MAX_CHANNEL_ID); // bitmask, one bit per channel
 ```
 
 ### Internals
@@ -100,26 +104,26 @@ class ModSoundManager final {
 public:
   // Finds a .MOD file on the CD-ROM (dir/name.ext) and loads it directly into the SPU.
   // The SPU only has 512K, so it's on you to manage memory sensibly.
-  static psyqo::Coroutine<> LoadMODSound(const char *modSoundFileName, ModSoundFile **modSoundFileOut);
-  static const ModSoundFile *CurrentMODSoundFile(void);
+  psyqo::Coroutine<> LoadMODSound(const eastl::string_view &modSoundFileName, ModSoundFile **modSoundFileOut);
+  const ModSoundFile *CurrentMODSoundFile(void);
 
-  static void PlaySoundEffect(uint32_t channel, uint32_t sampleID, int32_t pitch, uint32_t volume);
-  static void PlayNote(uint32_t voiceID, uint32_t sampleID, uint32_t note, int16_t volume);
+  void PlaySoundEffect(uint32_t channel, uint32_t sampleID, int32_t pitch, uint32_t volume);
+  void PlayNote(uint32_t voiceID, uint32_t sampleID, uint32_t note, int16_t volume);
 
-  static void PlayMusic(void);              // resumes at the last-set volume
-  static void PlayMusic(uint16_t volume);   // plays and sets volume in one call
-  static void PauseMusic(void);
-  static void StopMusic(void);              // stops completely
-  static void SetMusicVolume(uint16_t volume);
+  void PlayMusic(void);              // resumes at the last-set volume
+  void PlayMusic(uint16_t volume);   // plays and sets volume in one call
+  void PauseMusic(void);
+  void StopMusic(void);              // stops completely
+  void SetMusicVolume(uint16_t volume);
 };
 ```
 
-To switch tracks, just call `LoadMODSound` again with the new file — no explicit unload step is needed.
+Non-`static` member of `MadnightEngine` (`g_madnightEngine.m_modSoundManager`). To switch tracks, just call `LoadMODSound` again with the new file — no explicit unload step is needed.
 
 ### Usage
 
 ```cpp
 ModSoundFile *track;
-co_await ModSoundManager::LoadMODSound("level01.mod", &track);
-ModSoundManager::PlayMusic(20000);
+co_await g_madnightEngine.m_modSoundManager.LoadMODSound("level01.mod", &track);
+g_madnightEngine.m_modSoundManager.PlayMusic(20000);
 ```

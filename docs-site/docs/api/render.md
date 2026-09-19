@@ -96,8 +96,8 @@ camera.SetFollow(player->posPtr(), /*distance*/ 3.0_ws);
 Renderer::Instance().SetActiveCamera(&camera);
 
 // per-frame, feeding controller input into the orbit
-auto rx = ControllerHelper::GetNormalizedAnalogStickInput(pad, ControllerHelper::RightStickX);
-auto ry = ControllerHelper::GetNormalizedAnalogStickInput(pad, ControllerHelper::RightStickY);
+auto rx = g_madnightEngine.m_controllerHelper.GetNormalizedAnalogStickInput(pad, ControllerHelper::RightStickX);
+auto ry = g_madnightEngine.m_controllerHelper.GetNormalizedAnalogStickInput(pad, ControllerHelper::RightStickY);
 camera.UpdateOrbitAngles(ry * ORBIT_SPEED, rx * ORBIT_SPEED, deltaTime);
 camera.Process(deltaTime); // recalculates orbit position + LookAt
 ```
@@ -128,10 +128,12 @@ int rotationX = 0, rotationY = 0;
 if (input.isButtonPressed(pad1, psyqo::AdvancedPad::L2)) rotationY = -128;
 if (input.isButtonPressed(pad1, psyqo::AdvancedPad::R2)) rotationY = 128;
 
-if (ControllerHelper::IsPadAnalog(pad1)) {
-    auto rx = ControllerHelper::GetNormalizedAnalogStickInput(pad1, ControllerHelper::RightStickX);
-    auto ry = ControllerHelper::GetNormalizedAnalogStickInput(pad1, ControllerHelper::RightStickY);
-    // GetNormalizedAnalogStickInput already applies the built-in deadzone (see Controller)
+auto rx = g_madnightEngine.m_controllerHelper.GetNormalizedAnalogStickInput(pad1, ControllerHelper::RightStickX);
+auto ry = g_madnightEngine.m_controllerHelper.GetNormalizedAnalogStickInput(pad1, ControllerHelper::RightStickY);
+// GetNormalizedAnalogStickInput already checks the pad is connected/analog but does not provide any deadzone checks
+// `ANALOG_STICK_DEADZONE`, `_X` and `_Y` are provided as sane starting values for a game to apply itself, deliberately,
+// so the threshold stays the game's decision rather than the engine's.
+if (rx != 0 || ry != 0) {
     rotationX = ry;
     rotationY = rx;
 }
@@ -186,13 +188,13 @@ public:
 
 Key constants (`src/render/renderer.hh`):
 
-| Constant | Value | Purpose |
-|---|---|---|
-| `ORDERING_TABLE_SIZE` | 10,000 | Depth buckets in each frame's ordering table |
-| `FULL_FOG_DISTANCE` | 3,500 | Screen-space Z past which fog is fully opaque, 2D sprite particles only (see below) |
-| `NEAR_FOG_DISTANCE` | 2,000 | Screen-space Z where fog starts blending in, 2D sprite particles only (see below) |
-| `BUMP_ALLOCATOR_BYTES` | 125,000 | Per-frame draw-command arena (×2 for double buffering) |
-| `SUBDIVISION_DISTANCE` | 750 | View-space distance closer than which large textured quads/tris get subdivided to reduce perspective warping (`renderer.cpp` subdivides when `zIndex <= SUBDIVISION_DISTANCE`) |
+| Constant               | Value   | Purpose                                                                                                                                                                        |
+| ---------------------- | ------- | ------------------------------------------------------------------------------------------------------------------------------------------------------------------------------ |
+| `ORDERING_TABLE_SIZE`  | 10,000  | Depth buckets in each frame's ordering table                                                                                                                                   |
+| `FULL_FOG_DISTANCE`    | 3,500   | Screen-space Z past which fog is fully opaque, 2D sprite particles only (see below)                                                                                            |
+| `NEAR_FOG_DISTANCE`    | 2,000   | Screen-space Z where fog starts blending in, 2D sprite particles only (see below)                                                                                              |
+| `BUMP_ALLOCATOR_BYTES` | 125,000 | Per-frame draw-command arena (×2 for double buffering)                                                                                                                         |
+| `SUBDIVISION_DISTANCE` | 750     | View-space distance closer than which large textured quads/tris get subdivided to reduce perspective warping (`renderer.cpp` subdivides when `zIndex <= SUBDIVISION_DISTANCE`) |
 
 **Typical per-frame flow:** call `Process()` to get `deltaTime`, `Clear()`/`StartScene()`, update and render your game objects/scene, then `Render(deltaTime)` to flush the ordering table to the GPU. `Renderer` draws whatever `GameObjectManager::GetActiveGameObjects` returns each frame (see [Core](./core#gameobjectmanager) on the renderable-objects subset, which currently isn't wired up to anything); visibility is culled per-object against the camera via `IsGameObjectVisible` internally, using each object's bounding volume.
 
@@ -223,7 +225,7 @@ void GameplayScene::frame() {
 ### Internals
 
 - `Process()` diffs `m_gpu.getFrameCount()` against the last call and returns 0 if nothing's changed yet — that's the "early return on 0" the header comment recommends, and it's how the engine avoids doing GTE/render work more than once per actual display refresh.
-- `Render()` walks game objects, then billboards, then particles, all against the *same* per-frame ordering table — draw order between those three categories is fixed, not something you control per-call.
+- `Render()` walks game objects, then billboards, then particles, all against the _same_ per-frame ordering table — draw order between those three categories is fixed, not something you control per-call.
 - `RenderSprite` draws a single 2D sprite, a region of a `TimFile` given by `uv` and placed at `rect`, straight to the screen, outside the ordering table. Up to 40 `RenderSprite` calls are supported per frame: `m_tpages`/`m_sprites` are fixed 40-entry arrays, indexed by `m_currentSpriteFragment`, which resets once per frame inside `Process()`.
 
 :::caution Bump allocator exhaustion is unguarded outside the subdivision path
