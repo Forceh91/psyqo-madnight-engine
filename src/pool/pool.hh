@@ -54,6 +54,8 @@ template <class T, int16_t size> class Pool {
 		m_nextFreeIx = 0;
 	}
 
+	constexpr int16_t count(void) { return size; }
+
   private:
 	int16_t m_freeIxs[size];
 	int16_t m_nextFreeIx = 0;

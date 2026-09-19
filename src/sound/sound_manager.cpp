@@ -200,5 +200,17 @@ psyqo::SPU::ChannelPlaybackConfig SoundManager::CreatePlaybackConfig(const VagEn
 void SoundManager::Dump(void) {
 	psyqo::SPU::silenceChannels(0xffffffff);
 	m_spuAllocPtr = psyqo::SPU::BASE_ALLOC_ADDR;
+
+	auto count = m_pool.count();
+	for (auto i = 0; i < count; i++) {
+		auto vag = m_pool.Get(i);
+		if (!vag) {
+			continue;
+		}
+
+		*vag = {};
+		vag->id = INVALID_POOL_ID;
+	}
+
 	m_pool.Dump();
 }
