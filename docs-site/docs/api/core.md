@@ -149,7 +149,7 @@ GameObjectManager::ClearRenderableGameObjects(); // falls back to all active obj
 
 ### Internals
 
-- Finding a free slot is a linear scan over all 250, which is fine normally but worth knowing if you're creating/destroying many objects in one frame. If the pool is full, `CreateGameObject` returns `null`.
+- If the pool is full, `CreateGameObject` returns `null`.
 - `GetActiveGameObjects()` silently returns the renderable list instead if one's been set via `SetRenderableGameObjects` — call `ClearRenderableGameObjects()` to go back to "all active objects".
 - `GetGameObjectsWithTag` and `GetActiveGameObjects` share the same internal scratch buffer — don't hold a reference from one across a call to the other.
 
