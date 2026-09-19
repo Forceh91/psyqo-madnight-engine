@@ -238,7 +238,7 @@ psyqo::Rect TextureManager::GetTPageUVForTim(const TimFile* tim) {
 TimFile* TextureManager::IsTextureLoaded(const eastl::string_view& name) { return IsTextureLoaded(HashName(name)); }
 
 constexpr TimFile* TextureManager::IsTextureLoaded(uint64_t nameHash) {
-	auto count = m_pool.count();
+	auto count = m_pool.size();
 	for (auto i = 0; i < count; i++) {
 		auto* texture = m_pool.Get(i);
 		if (texture->isLoaded && texture->nameHash == nameHash) {
@@ -254,7 +254,7 @@ void TextureManager::GetTextureFromName(const eastl::string_view& textureName, T
 }
 
 void TextureManager::Dump(void) {
-	auto count = m_pool.count();
+	auto count = m_pool.size();
 	for (auto i = 0; i < count; i++) {
 		auto* texture = m_pool.Get(i);
 		if (!texture) {
