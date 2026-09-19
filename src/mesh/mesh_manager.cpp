@@ -27,7 +27,7 @@ psyqo::Coroutine<> MeshManager::LoadMesh(const eastl::string_view& meshName, Mes
 	}
 
 	// is there space for this mesh?
-	auto meshIx = FindSpaceForMesh();
+	auto meshIx = m_pool.Acquire();
 	if (meshIx == -1) {
 		co_return;
 	}
@@ -366,7 +366,8 @@ void MeshManager::FreeLoadedMesh(LoadedMeshBin* mesh) {
 	psyqo_free(mesh->mesh.uvs);
 	psyqo_free(mesh->mesh.uvIndices);
 
-	__builtin_memset(mesh, 0, sizeof(LoadedMeshBin));
+	*mesh = {};
+	mesh->id = INVALID_POOL_ID;
 }
 
 void MeshManager::GetMeshFromName(const eastl::string_view& meshName, MeshBin** meshOut) {
@@ -378,4 +379,6 @@ void MeshManager::Dump(void) {
 	for (auto i = 0; i < MAX_LOADED_MESHES; i++) {
 		FreeLoadedMesh(m_pool.Get(i));
 	}
+
+	m_pool.Dump();
 }

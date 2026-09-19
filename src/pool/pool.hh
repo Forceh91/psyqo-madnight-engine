@@ -44,7 +44,6 @@ template <class T, int16_t size> class Pool {
 		return &m_entries[ix];
 	}
 
-  private:
 	void Dump(void) {
 		auto safeSize = size < 0 ? 1 : size;
 		for (int16_t i = 0; i < safeSize; i++) {
@@ -55,6 +54,7 @@ template <class T, int16_t size> class Pool {
 		m_nextFreeIx = 0;
 	}
 
+  private:
 	int16_t m_freeIxs[size];
 	int16_t m_nextFreeIx = 0;
 	T m_entries[size];

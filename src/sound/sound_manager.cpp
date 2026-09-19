@@ -39,6 +39,11 @@ psyqo::Coroutine<> SoundManager::LoadVAGFile(const eastl::fixed_string<char, MAX
 		co_return;
 	}
 
+	auto vagIx = m_pool.Acquire();
+	if (vagIx == INVALID_POOL_ID) {
+		co_return;
+	}
+
 	// get the actual data off the cd and make sure its valid
 	auto buffer = co_await g_madnightEngine.m_archiveHelper.LoadFile(fileName);
 	void* data = buffer.data();
@@ -51,7 +56,9 @@ psyqo::Coroutine<> SoundManager::LoadVAGFile(const eastl::fixed_string<char, MAX
 	}
 
 	// begin loading data
-	VagEntry vag = {};
+	auto* vag = m_pool.Get(vagIx);
+	*vag = {};
+	vag->id = vagIx;
 
 	uint8_t* ptr = (uint8_t*)data;
 
@@ -79,12 +86,12 @@ psyqo::Coroutine<> SoundManager::LoadVAGFile(const eastl::fixed_string<char, MAX
 	ptr += sizeof(uint32_t);
 
 	// store the data size which is aligned to the nearest 64 bytes (upwards)
-	__builtin_memcpy(&vag.size, ptr, sizeof(uint32_t));
+	__builtin_memcpy(&vag->size, ptr, sizeof(uint32_t));
 	ptr += sizeof(uint32_t);
-	vag.size = (SWAP32(vag.size) + 63) & ~63;
+	vag->size = (SWAP32(vag->size) + 63) & ~63;
 
 	// make sure it fits
-	if (SPU_MEMORY_SIZE - m_spuAllocPtr < vag.size) {
+	if (SPU_MEMORY_SIZE - m_spuAllocPtr < vag->size) {
 		printf("VAG: Not enough space in SPU, aborting.\n");
 		buffer.clear();
 		co_return;
@@ -93,24 +100,23 @@ psyqo::Coroutine<> SoundManager::LoadVAGFile(const eastl::fixed_string<char, MAX
 	// store the pitch based off of sample rate
 	uint32_t sampleRate;
 	__builtin_memcpy(&sampleRate, ptr, sizeof(uint32_t));
-	vag.pitch = SWAP32(sampleRate) * SPU_NOMINAL_PITCH / psyqo::SPU::BASE_SAMPLE_RATE;
+	vag->pitch = SWAP32(sampleRate) * SPU_NOMINAL_PITCH / psyqo::SPU::BASE_SAMPLE_RATE;
 	ptr += sizeof(uint32_t);
 
 	// store our name for it
-	vag.nameHash = HashName(fileName);
+	vag->nameHash = HashName(fileName);
 
 	// skip past the rest of the header
 	ptr += 28;
 
 	// upload data to spu ram and update where in ram we are
-	psyqo::SPU::dmaWrite(m_spuAllocPtr, ptr, vag.size);
-	vag.spuAddr = m_spuAllocPtr;
-	m_spuAllocPtr += vag.size;
+	psyqo::SPU::dmaWrite(m_spuAllocPtr, ptr, vag->size, 16);
+	vag->spuAddr = m_spuAllocPtr;
+	m_spuAllocPtr += vag->size;
 
 	// all done?
-	m_vagFiles.push_back(vag);
 	if (out) {
-		*out = &m_vagFiles.back();
+		*out = vag;
 	}
 
 	// dump it from memory
@@ -123,9 +129,10 @@ VagEntry* SoundManager::IsVAGLoaded(const eastl::fixed_string<char, MAX_ARCHIVE_
 }
 
 VagEntry* SoundManager::IsVAGLoaded(uint64_t nameHash) {
-	for (auto& vag : m_vagFiles) {
-		if (vag.nameHash == nameHash) {
-			return &vag;
+	for (auto i = 0; i < MAX_VAG_FILE_COUNT; i++) {
+		auto* vag = m_pool.Get(i);
+		if (vag->nameHash == nameHash) {
+			return vag;
 		}
 	}
 
@@ -134,10 +141,10 @@ VagEntry* SoundManager::IsVAGLoaded(uint64_t nameHash) {
 }
 
 VagEntry* SoundManager::IsVAGLoaded(const uint8_t& id) {
-	VagEntry* loadedVAG;
-	for (auto& vag : m_vagFiles) {
-		if (vag.id == id) {
-			return &vag;
+	for (auto i = 0; i < MAX_VAG_FILE_COUNT; i++) {
+		auto* vag = m_pool.Get(i);
+		if (vag->id == id) {
+			return vag;
 		}
 	}
 
@@ -193,5 +200,5 @@ psyqo::SPU::ChannelPlaybackConfig SoundManager::CreatePlaybackConfig(const VagEn
 void SoundManager::Dump(void) {
 	psyqo::SPU::silenceChannels(0xffffffff);
 	m_spuAllocPtr = psyqo::SPU::BASE_ALLOC_ADDR;
-	m_vagFiles.clear();
+	m_pool.Dump();
 }

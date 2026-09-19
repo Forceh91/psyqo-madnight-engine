@@ -74,7 +74,7 @@ struct MeshBin {
 };
 
 struct LoadedMeshBin {
-	int16_t id = -1;
+	int16_t id = INVALID_POOL_ID;
 	uint64_t meshNameHash = 0;
 	bool isLoaded = false;
 	MeshBin mesh = {};
@@ -85,7 +85,6 @@ class MeshManager final {
 
 	MeshBin* IsMeshLoaded(const eastl::string_view& mesh_name);
 	constexpr MeshBin* IsMeshLoaded(uint64_t meshNameHash);
-	constexpr int16_t FindSpaceForMesh(void);
 
   public:
 	psyqo::Coroutine<> LoadMesh(const eastl::string_view& meshName, MeshBin** meshOut);
