@@ -62,6 +62,8 @@ converter encodes it as `0xFFFF`, which VRAM can never hold. See the
 | 5 | VAG | `vag` | `.VAG` | `SoundManager::LoadVAGFile` |
 | 255 | SCENE | not emitted, see below | `.scenebin` | `SceneLoader::LoadScene`, recursively |
 
+"Loaded by" names the method that ultimately handles each type; as of v0.0.1 these are instance methods on `MadnightEngine`'s manager members (e.g. `g_madnightEngine.m_meshManager.LoadMesh`), not static calls — see [Updating the Engine → v0.0.1](../getting-started/updating-the-engine#v001-instance-based-managers).
+
 ## Source manifest
 
 Plain text, one entry per line, whitespace separated. Blank lines are ignored and lines
@@ -96,10 +98,11 @@ of the format or the engine.
 ## Loading a scene
 
 ```cpp
-eastl::vector<LoadQueue> files;
-co_await SceneLoader::LoadScene("LEVEL01.SCENEBIN", files);
-co_await FileLoader::LoadFiles(eastl::move(files));
+eastl::vector<LoadQueue> files = {{.name = "LEVEL01.SCENEBIN", .type = LoadFileType::SCENE}};
+co_await g_madnightEngine.m_fileLoader.LoadFiles(eastl::move(files));
 ```
+
+`SceneLoader` (`src/scenes/scene_loader.hh`) is what actually parses the `.scenebin` manifest into queue entries, but as of v0.0.1 it's a private member of `FileLoader`, not reachable from game code directly — pass a `SCENE`-type entry into `FileLoader::LoadFiles` (or `HardLoadingScreen`/`SoftLoadingScreen`, see below) instead, and it'll be expanded internally.
 
 `LoadFiles` clears every asset pool first unless you pass `false` as its second argument.
 `MadnightEngine::HardLoadingScreen` and `SoftLoadingScreen` wrap this pair with a loading

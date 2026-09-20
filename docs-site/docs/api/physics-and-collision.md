@@ -20,11 +20,13 @@ struct CollisionTest {
 
 class Collision {
 public:
-  static void GenerateAABBForMesh(const GameObject *object, AABBCollision *collisionBoxOut);
-  static bool IsAABBCollision(const AABBCollision &collisionA, const AABBCollision &collisionB);
-  static bool IsSATCollision(const OBB &collisionA, const OBB &collisionB, CollisionTest *resultOut);
+  void GenerateAABBForMesh(const GameObject *object, AABBCollision *collisionBoxOut);
+  bool IsAABBCollision(const AABBCollision &collisionA, const AABBCollision &collisionB);
+  bool IsSATCollision(const OBB &collisionA, const OBB &collisionB, CollisionTest *resultOut);
 };
 ```
+
+Non-`static` member of `MadnightEngine` (`g_madnightEngine.m_collisionHelper`).
 
 - **`IsAABBCollision`** is a cheap axis-aligned overlap test, provided for the game to call.
 - **`IsSATCollision`** runs the Separating Axis Theorem against two oriented boxes and, on overlap, fills `CollisionTest` with the minimum translation vector needed to push them apart. Provided for push-out collision response against `.COLBIN` wall `OBB`s (see [COLBIN](../guides/colbin#wall-obbs)).
@@ -41,7 +43,7 @@ Push-out collision response between two game objects, the standard pattern (also
 
 ```cpp
 CollisionTest result;
-if (Collision::IsSATCollision(player->obb(), wall->obb(), &result))
+if (g_madnightEngine.m_collisionHelper.IsSATCollision(player->obb(), wall->obb(), &result))
     player->SetPosition(player->pos() + result.mtv);
 ```
 
@@ -72,9 +74,11 @@ struct RayHit {
 
 class Raycast {
 public:
-  static bool RaycastScene(const Ray &ray, GameObjectTag targetTag, RayHit *hitOut);
+  bool RaycastScene(const Ray &ray, GameObjectTag targetTag, RayHit *hitOut);
 };
 ```
+
+Non-`static` member of `MadnightEngine` (`g_madnightEngine.m_raycast`).
 
 `RaycastScene` only tests against game objects carrying the given `GameObjectTag` (see [Core → GameObjectTag](./core#gameobjecttag)) — pass a specific tag to avoid testing against everything in the world, e.g. `INTERACTABLE` for a "what am I looking at" prompt. Internally it tests the ray against each candidate object's AABB.
 
@@ -87,7 +91,7 @@ public:
 ```cpp
 Ray ray = {.origin = camera->pos(), .direction = camera->forwardVector(), .maxDistance = 2.0_ws};
 RayHit hit = {0};
-if (Raycast::RaycastScene(ray, GameObjectTag::INTERACTABLE, &hit))
+if (g_madnightEngine.m_raycast.RaycastScene(ray, GameObjectTag::INTERACTABLE, &hit))
     ShowInteractPrompt(hit.object);
 ```
 
@@ -133,24 +137,24 @@ struct ColBin {
 
 class ColbinManager {
 public:
-  static psyqo::Coroutine<> LoadColbin(const eastl::fixed_string<char, MAX_ARCHIVE_FILE_NAME_LEN> &name, ColBin **colbinOut);
-  static ColBin *Colbin(void);
-  static void Dump(void);
-  static eastl::span<OBB> walls(void);
+  psyqo::Coroutine<> LoadColbin(const eastl::fixed_string<char, MAX_ARCHIVE_FILE_NAME_LEN> &name, ColBin **colbinOut);
+  ColBin *Colbin(void);
+  void Dump(void);
+  eastl::span<OBB> walls(void);
 };
 ```
 
-Unlike `MeshManager`/`TextureManager`, `ColbinManager` holds a single collision mesh at a time (`m_colbin` is a lone static instance, not a pool) — one `.COLBIN` per loaded scene/level.
+Non-`static` member of `MadnightEngine` (`g_madnightEngine.m_colbinManager`). Unlike `MeshManager`/`TextureManager`, `ColbinManager` holds a single collision mesh at a time (`m_colbin` is a lone member, not a pool) — one `.COLBIN` per loaded scene/level.
 
 ### Usage
 
 ```cpp
 ColBin *level;
-co_await ColbinManager::LoadColbin("level01.colbin", &level);
+co_await g_madnightEngine.m_colbinManager.LoadColbin("level01.colbin", &level);
 
-for (auto &wall : ColbinManager::walls()) {
+for (auto &wall : g_madnightEngine.m_colbinManager.walls()) {
     CollisionTest result;
-    if (Collision::IsSATCollision(player->obb(), wall, &result))
+    if (g_madnightEngine.m_collisionHelper.IsSATCollision(player->obb(), wall, &result))
         player->SetPosition(player->pos() + result.mtv);
 }
 ```

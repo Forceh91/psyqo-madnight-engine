@@ -16,7 +16,7 @@ Madnight Engine is a reusable engine layer for PlayStation 1 homebrew, built on 
 
 :::caution[Early days]
 
-This engine is **far from finished**, to the point where it isn't guaranteed you can ship a full game with it yet. Consider it pre-pre-pre-alpha. Pull requests with fixes and improvements are very welcome.
+This engine is in an **ALPHA state**, however it is at the point where you should be able to at least get some form of 3D game working with it. My unreleased tech demo of [Supermarket Sweep](https://discord.com/channels/642647820683444236/1485343661439848508) runs off of it. Pull requests with fixes and improvements are very welcome.
 
 :::
 
@@ -29,7 +29,7 @@ This engine is **far from finished**, to the point where it isn't guaranteed you
 - **Particles & billboards** — a lightweight [`ParticleEmitter`](./api/core#particleemitter)/[`Billboard`](./api/core#billboard) system for sprite-based effects
 - **UI** — a [`GameplayHUD`](./api/ui#gameplayhud) for on-screen text/sprites, and a [`Menu`](./api/ui#menu) scene base class for interactive menus with configurable pad bindings
 - **Audio** — SPU-backed VAG sample playback via [`SoundManager`](./api/sound#soundmanager), and MOD tracker music via [`ModSoundManager`](./api/sound#modsoundmanager)
-- **Asset loading** — CD-ROM archive loading (`ArchiveHelper`/`CDRomHelper`), texture and mesh managers, all built around `psyqo::Coroutine`
+- **Asset loading** — CD-ROM archive loading via [`ArchiveHelper`](./api/helpers#archivehelper) (`CDRomHelper` is deprecated), texture and mesh managers, all built around `psyqo::Coroutine`
 - **Debug tooling** — an in-game debug menu and a performance monitor HUD (FPS, heap usage, rendered object counts)
 
 ## Where to go next

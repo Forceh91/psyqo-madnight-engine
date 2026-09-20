@@ -16,14 +16,20 @@ The engine's default file loader — reads files out of a `psyqo::paths::Archive
 ```cpp
 constexpr uint8_t MAX_ARCHIVE_FILE_NAME_LEN = 255;
 
+// hashes a name the same way psyqo-paths hashes its own archive index, so pool entries can store
+// and compare names as a uint64_t instead of a full string. Runtime-string overload:
+uint64_t HashName(eastl::string_view name);
+// compile-time overload for string literals, folds to a constant:
+template <unsigned S> constexpr uint64_t HashName(const char (&name)[S]);
+
 class ArchiveHelper final {
 public:
-  static void init(eastl::function<void()> cb);
-  static psyqo::Coroutine<psyqo::Buffer<uint8_t>> LoadFile(const char* fileName);
+  void init(eastl::function<void()> cb);
+  psyqo::Coroutine<psyqo::Buffer<uint8_t>> LoadFile(const eastl::string_view& fileName);
 };
 ```
 
-`MAX_ARCHIVE_FILE_NAME_LEN` is the shared name-length constant used throughout the engine for fixed-capacity asset name strings (mesh names, texture names, VAG names, and so on).
+Non-`static` member of `MadnightEngine` (`g_madnightEngine.m_archiveHelper`). `MAX_ARCHIVE_FILE_NAME_LEN` is the shared name-length constant used throughout the engine for fixed-capacity asset name strings (mesh names, texture names, VAG names, and so on). `HashName` (also declared here) is the hashing helper used throughout the engine to turn a name into the `uint64_t` several managers now store/compare instead of a full string (see [Updating the Engine → v0.0.1](../getting-started/updating-the-engine#v001-instance-based-managers)) — precompute a hash with it if you're going to look the same name up repeatedly.
 
 ### Internals
 
@@ -36,13 +42,17 @@ public:
 
 A lower-level loader that reads directly off an ISO9660 filesystem instead of a packed archive.
 
+:::caution Deprecated
+As of v0.0.1, `CDRomHelper` is marked `[[deprecated]]` in favour of `ArchiveHelper`, and its instance (`m_cdromHelper`) is now a *private* member of `MadnightEngine` — game code can no longer reach it directly. It's documented here for reference/upstream reading, not for new use.
+:::
+
 ```cpp
-class CDRomHelper {
+class CDRomHelper final {
 public:
-  static void init(eastl::function<void()> cb);
-  static psyqo::Coroutine<psyqo::Buffer<uint8_t>> LoadFile(const char *fileName);
+  void init(eastl::function<void()> cb);
+  psyqo::Coroutine<psyqo::Buffer<uint8_t>> LoadFile(const eastl::string_view& fileName);
 #ifndef PCDRV
-  static psyqo::CDRomDevice& CDRomDevice();
+  psyqo::CDRomDevice& CDRomDevice();
 #endif
 };
 ```
@@ -82,20 +92,23 @@ class FileLoader final {
 public:
   // clearPools dumps all existing game objects, textures, meshes, colbins, and sfx first —
   // it does not check whether anything is still in use before doing so.
-  static psyqo::Coroutine<> LoadFiles(eastl::vector<LoadQueue> &&files, bool clearPools = true);
-  static uint16_t TotalFiles(void);  // increases as SCENE entries are encountered
-  static uint16_t LoadedFiles(void);
-  static LOAD_STATE LoadState(void);
+  psyqo::Coroutine<> LoadFiles(eastl::vector<LoadQueue> &&files, bool clearPools = true);
+  uint16_t TotalFiles(void);  // increases as SCENE entries are encountered
+  uint16_t LoadedFiles(void);
+  LOAD_STATE LoadState(void);
 };
 ```
+
+Non-`static` member of `MadnightEngine` (`g_madnightEngine.m_fileLoader`). It owns a `SceneLoader` internally (`src/scenes/scene_loader.hh`) to resolve `SCENE`-type queue entries — `SceneLoader` isn't exposed on `MadnightEngine` directly, only reached through `FileLoader`.
 
 ### Usage
 
 Most game code goes through `MadnightEngine` rather than calling `FileLoader` directly — it wraps `FileLoader::LoadFiles` with scene push/pop around the built-in (or your own) loading screen:
 
 ```cpp
-eastl::vector<LoadQueue> files;
-co_await SceneLoader::LoadScene("level01.scenebin", files); // parses the manifest into a queue
+// a SCENE-type entry gets expanded into more entries internally, via FileLoader's own
+// SceneLoader -- SceneLoader itself isn't reachable from game code directly as of v0.0.1
+eastl::vector<LoadQueue> files = {{.name = "level01.scenebin", .type = LoadFileType::SCENE}};
 
 // pops the current scene, shows the loading screen, loads everything, then switches to postLoadScene
 co_await g_madnightEngine.HardLoadingScreen(eastl::move(files), &gameplayScene);

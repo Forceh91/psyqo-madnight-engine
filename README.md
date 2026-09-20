@@ -9,9 +9,7 @@ TLDR: Use the engine to make a game however you want, I don't care. It can be fr
 
 ## Disclaimer
 
-This engine is **far from finished** to the point that **I don't even know if you can actually make a game using it yet**. It's in like the pre-pre-pre-pre-pre alpha stage or something.
-
-I wanted to open-source this now as there is zero advantage for both myself or Madnight Games to keep this closed source. Pull requests with fixes and improvements are more than welcome!
+This engine is is an **ALPHA state**, however it is at the point where you should be able to at least get some form of 3D game working with it. My unreleased tech demo of [Supermarket Sweep](https://discord.com/channels/642647820683444236/1485343661439848508) runs off of it. Pull requests with fixes and improvements are more than welcome!
 
 ## Getting Started
 
