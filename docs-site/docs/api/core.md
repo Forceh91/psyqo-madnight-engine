@@ -127,7 +127,7 @@ public:
 ```
 
 - **Active vs. renderable:** "active" objects are all objects currently alive in the world; "renderable" is meant to be a separate, explicitly-set subset (`SetRenderableGameObjects`), useful for e.g. only rendering objects in the current room/cell. The mechanism exists but nothing in the engine calls `SetRenderableGameObjects` today, so `GetActiveGameObjects` always falls through to a full scan of all 250 slots every frame.
-- **`Dump`** frees every game object at once — intended for scene teardown (see `MadnightEngine::HardLoadingScreen`), not for per-object cleanup.
+- **`Dump`** frees every game object at once — intended for scene teardown (see `MadnightEngine::HardLoadingScreen`), not for per-object cleanup. The manager's pool is reset so all slots become available again.
 
 ### Usage
 
@@ -149,7 +149,8 @@ GameObjectManager::ClearRenderableGameObjects(); // falls back to all active obj
 
 ### Internals
 
-- If the pool is full, `CreateGameObject` returns `null`.
+- If the pool is full, `CreateGameObject` returns `null` (`Pool::Acquire()` returns `INVALID_POOL_ID`).
+- `GameObject::id()` is the `int16_t` pool slot used to allocate and free the object. A free/uninitialised object has `id() == INVALID_POOL_ID`.
 - `GetActiveGameObjects()` silently returns the renderable list instead if one's been set via `SetRenderableGameObjects` — call `ClearRenderableGameObjects()` to go back to "all active objects".
 - `GetGameObjectsWithTag` and `GetActiveGameObjects` share the same internal scratch buffer — don't hold a reference from one across a call to the other.
 
@@ -195,6 +196,7 @@ glow->SetColour({255, 200, 120});
 ### Internals
 
 - Corners are stored flat, centered on the origin — camera-facing happens entirely on the render side (`Renderer::RenderBillboards`), not in `Billboard` itself.
+- `Billboard::id()` is the `int16_t` index assigned by the billboard pool; destroying a billboard returns that slot to the pool.
 - Skipping `SetTexture` is a valid, supported state — it just renders as a flat coloured quad instead of a textured one.
 
 ## BillboardManager
@@ -214,7 +216,7 @@ public:
 };
 ```
 
-Same create/destroy/slot-reuse pattern as [`GameObjectManager`](#gameobjectmanager), just over a 200-entry pool.
+Same create/destroy/slot-reuse pattern as [`GameObjectManager`](#gameobjectmanager), just over a 200-entry pool. Billboard IDs are `int16_t` pool indexes, with `INVALID_POOL_ID` used for an unused entry.
 
 ## Particle
 
@@ -277,6 +279,7 @@ public:
 ```
 
 - Constructed with a name, id, position, spawn radius, particles-per-second, and per-particle lifetime in seconds — `maxParticles` and `spawnRate` are derived from those automatically.
+- `ParticleEmitter::id()` is the `int16_t` pool slot assigned by `ParticleEmitterManager`; destroying an emitter returns that slot to the pool.
 - The single-value `Set*` overloads set both the start and end value to the same thing (no interpolation over lifetime); the two-value overloads set distinct start/end values for the particle to lerp between.
 - `SetRotation` applies an emitter-space rotation matrix so particles are emitted in a consistent cone/spread direction, then rotated into world space.
 
@@ -298,14 +301,14 @@ sparks->Process(deltaTime);
 ### Internals
 
 - `Process` advances elapsed time using the `deltaTime` you pass in: spawn timing and particle ageing both track whatever value you feed it each frame.
-- Even while stopped (`Stop()`), `Process` still advances and prunes existing particles — only *new* spawns are gated on `Start()`/`Stop()`.
+- Even while stopped (`Stop()`), `Process` still advances and prunes existing particles — only _new_ spawns are gated on `Start()`/`Stop()`.
 - Spawn points land on the circumference of a ring around the emitter, not scattered through a sphere's volume — despite the "spherical volume" framing in the header.
 
 ## ParticleEmitterManager
 
 `src/core/particles/particle_manager.hh`
 
-Fixed pool of up to `MAX_PARTICLE_EMITTERS` (3) emitters.
+Fixed pool of up to `MAX_PARTICLE_EMITTERS` (3) emitters. Slots are managed by the shared `Pool` allocator and are reused after an emitter is destroyed.
 
 ```cpp
 class ParticleEmitterManager final {
@@ -321,6 +324,47 @@ public:
 :::note Only 3 emitters at once
 `MAX_PARTICLE_EMITTERS` is 3 — noticeably smaller than the 200/250-entry pools for billboards and game objects. Budget emitters carefully (e.g. one for the player, one or two for the current room's environmental effects) rather than one per particle-emitting object in a scene.
 :::
+
+## Pool
+
+`src/pool/pool.hh`
+
+The managers use a small reusable fixed-size pool to manage their object slots. The pool stores a
+contiguous array of entries plus a free-index list, so finding a free slot no longer requires
+scanning the whole object array.
+
+```cpp
+static constexpr int16_t INVALID_POOL_ID = 0xFFFF;
+
+template <class T, int16_t N = 1>
+class Pool {
+public:
+  Pool() { Dump(); }
+
+  int16_t Acquire(void);
+  void Free(int16_t ix);
+  constexpr T* Get(int16_t ix);
+  const constexpr T* Entries(void) const;
+  void Dump(void);
+  constexpr int16_t size(void);
+};
+```
+
+### Pool behaviour
+
+- `Acquire()` returns the index of the next free slot and immediately marks that slot as used.
+- When every slot is occupied, `Acquire()` returns `INVALID_POOL_ID`.
+- `Free()` returns an index to the free list. It does **not** clean up or reset the object in that
+  slot; the owning manager is responsible for object cleanup.
+- `Get()` returns a pointer to the pool entry at an index, or `nullptr` if the index is outside
+  the pool.
+- `Entries()` returns a pointer to the pool's internal contiguous entry array.
+- `Dump()` marks every slot as free and resets the next allocation to index `0`. It does **not**
+  clear the objects stored in the entries.
+- `size()` returns the compile-time pool capacity `N`.
+
+The pool is used by the game object, billboard, particle emitter, mesh, texture, and sound
+managers. Object IDs are pool indexes, so destroying an object makes its ID available for reuse.
 
 ## PerfMonitor
 
