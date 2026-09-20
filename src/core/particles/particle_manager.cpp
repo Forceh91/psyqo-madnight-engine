@@ -5,7 +5,7 @@
  */
 
 #include "particle_manager.hh"
-#include "defs.hh"
+#include "../../helpers/archive.hh"
 #include "particle_emitter.hh"
 #include <psyqo/fixed-point.hh>
 
@@ -19,37 +19,33 @@ ParticleEmitter* ParticleEmitterManager::CreateParticleEmitter(const eastl::stri
 															   const psyqo::FixedPoint<>& radius,
 															   const uint8_t& particlesPerSecond,
 															   const uint8_t& particleLifeTimeSecs) {
-	auto ix = GetFreeIndex();
-	if (ix == -1) {
+	auto id = m_pool.Acquire();
+	if (id == INVALID_POOL_ID) {
 		return nullptr;
 	}
 
-	m_emitters[ix] = ParticleEmitter(HashName(name), ix, pos, radius, particlesPerSecond, particleLifeTimeSecs);
-	return &m_emitters[ix];
-}
-
-int16_t ParticleEmitterManager::GetFreeIndex(void) {
-	for (auto i = 0; i < MAX_PARTICLE_EMITTERS; i++) {
-		if (m_emitters.at(i).id() == INVALID_PARTICLE_EMITTER_ID) {
-			return i;
-		}
-	}
-
-	return -1;
+	auto* emitter = m_pool.Get(id);
+	emitter->Init(HashName(name), id, pos, radius, particlesPerSecond, particleLifeTimeSecs);
+	return emitter;
 }
 
 void ParticleEmitterManager::DestroyParticleEmitter(ParticleEmitter* emitter) {
-	if (emitter) {
-		emitter->Destroy();
+	if (!emitter) {
+		return;
 	}
+
+	m_pool.Free(emitter->id());
+	emitter->Destroy();
 }
 
 const eastl::fixed_vector<ParticleEmitter*, MAX_PARTICLE_EMITTERS>& ParticleEmitterManager::GetActiveEmitters(void) {
 	m_activeEmitters.clear();
 
-	for (auto& emitter : m_emitters) {
-		if (emitter.id() != INVALID_PARTICLE_EMITTER_ID) {
-			m_activeEmitters.push_back(&emitter);
+	auto count = m_pool.size();
+	for (auto i = 0; i < count; i++) {
+		auto* emitter = m_pool.Get(i);
+		if (emitter && emitter->id() != INVALID_POOL_ID) {
+			m_activeEmitters.push_back(emitter);
 		}
 	}
 
@@ -61,9 +57,11 @@ ParticleEmitter* ParticleEmitterManager::GetEmitterByName(const eastl::string_vi
 }
 
 ParticleEmitter* ParticleEmitterManager::GetEmitterByName(uint64_t nameHash) {
-	for (auto i = 0; i < MAX_PARTICLE_EMITTERS; i++) {
-		if (m_emitters.at(i).id() != INVALID_PARTICLE_EMITTER_ID && m_emitters.at(i).nameHash() == nameHash) {
-			return &m_emitters.at(i);
+	auto count = m_pool.size();
+	for (auto i = 0; i < count; i++) {
+		auto* emitter = m_pool.Get(i);
+		if (emitter && emitter->id() != INVALID_POOL_ID && emitter->nameHash() == nameHash) {
+			return emitter;
 		}
 	}
 

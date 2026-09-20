@@ -3,19 +3,18 @@
  *
  * SPDX-License-Identifier: LGPL-2.1-or-later
  */
-
 #pragma once
-#include "EASTL/string_view.h"
-#include "psyqo/fixed-point.hh"
-#include "psyqo/trigonometry.hh"
-#include "psyqo/vector.hh"
 
+#include "../../helpers/archive.hh"
 #include "../../mesh/mesh_manager.hh"
 #include "../../textures/texture_manager.hh"
 #include "../collision_types.hh"
 #include "gameobject_defs.hh"
 
-static constexpr uint8_t INVALID_GAMEOBJECT_ID = 255;
+#include <psyqo/fixed-point.hh>
+#include <psyqo/trigonometry.hh>
+#include <psyqo/vector.hh>
+
 static constexpr uint8_t MAX_GAMEOBJECT_NAME_LENGTH = 32;
 
 enum GameObjectQuadType {
@@ -36,7 +35,7 @@ class GameObject final {
 
 	uint64_t m_nameHash = 0;
 	eastl::fixed_string<char, MAX_GAMEOBJECT_NAME_LENGTH> m_name = "";
-	uint8_t m_id = INVALID_GAMEOBJECT_ID;
+	int16_t m_id = INVALID_POOL_ID;
 	GameObjectQuadType m_quadType = GameObjectQuadType::Quad;
 	GameObjectTag m_tag = GameObjectTag::NONE;
 	psyqo::Vec3 m_pos = {0, 0, 0};
@@ -53,10 +52,10 @@ class GameObject final {
 	void GenerateOBB(void);
 	void UpdateOBB(void);
 
-	GameObject(const eastl::string_view& name, const uint64_t& nameHash, const psyqo::Vec3& pos,
-			   const GameObjectRotation& rotation, const GameObjectTag& tag, const uint8_t& id)
-		: m_name(name.data(), name.length()) {
-		m_nameHash = nameHash;
+	void Init(const eastl::string_view& name, const uint64_t& nameHash, const psyqo::Vec3& pos,
+			  const GameObjectRotation& rotation, const GameObjectTag& tag, const uint8_t& id) {
+		m_nameHash = HashName(name);
+		m_name.assign(name.data(), name.length());
 		m_pos = pos;
 		m_rotation = rotation;
 		m_tag = tag;
@@ -71,7 +70,7 @@ class GameObject final {
 
 	constexpr uint64_t nameHash() { return m_nameHash; }
 	const constexpr eastl::fixed_string<char, MAX_GAMEOBJECT_NAME_LENGTH>& name() const { return m_name; }
-	const constexpr uint8_t& id() const { return m_id; };
+	const constexpr int16_t& id() const { return m_id; };
 	const constexpr psyqo::Vec3& pos() const { return m_pos; }
 
 	const constexpr psyqo::Vec3* posPtr() const { return &m_pos; }

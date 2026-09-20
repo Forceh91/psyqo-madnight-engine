@@ -7,7 +7,6 @@
 #include "particle_emitter.hh"
 #include "../../madnight.hh"
 #include "../../render/renderer.hh"
-#include "defs.hh"
 #include "particle.hh"
 
 #include <psyqo/gte-math.hh>
@@ -23,7 +22,7 @@ void ParticleEmitter::Destroy(void) {
 	m_nameHash = 0;
 	m_pos = {0, 0, 0};
 	m_radius = 0;
-	m_id = INVALID_PARTICLE_EMITTER_ID;
+	m_id = INVALID_POOL_ID;
 	m_isEnabled = false;
 	m_spawnedParticles.clear();
 }

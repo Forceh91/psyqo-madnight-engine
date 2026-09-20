@@ -18,7 +18,7 @@
 static constexpr uint8_t MAX_GAME_OBJECTS = 250;
 
 class GameObjectManager final {
-	eastl::array<GameObject, MAX_GAME_OBJECTS> m_gameObjects;
+	Pool<GameObject, MAX_GAME_OBJECTS> m_pool;
 	eastl::fixed_vector<GameObject*, MAX_GAME_OBJECTS> m_activeGameObjects;
 	eastl::fixed_vector<GameObject*, MAX_GAME_OBJECTS> m_renderableGameObjects;
 
@@ -36,7 +36,7 @@ class GameObjectManager final {
 	void ClearRenderableGameObjects(void);
 	void SetRenderableGameObjects(const eastl::span<GameObject*> renderList);
 	const eastl::fixed_vector<GameObject*, MAX_GAME_OBJECTS>& GetGameObjectsWithTag(GameObjectTag tag);
-	const eastl::array<GameObject, MAX_GAME_OBJECTS>& GetGameObjects(void) { return m_gameObjects; }
+	const constexpr GameObject* GetGameObjects(void) const { return m_pool.Entries(); }
 	GameObject* GetGameObjectByName(const eastl::string_view& name);
 	GameObject* GetGameObjectByName(uint64_t nameHash);
 	void Dump(void);

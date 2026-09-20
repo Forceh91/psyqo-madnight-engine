@@ -6,6 +6,7 @@
 
 #include "../madnight.hh"
 #include <EASTL/algorithm.h>
+#include <EASTL/string_view.h>
 #include <psyqo/fixed-point.hh>
 #include <psyqo/spu.hh>
 #include <psyqo/xprintf.h>
@@ -19,8 +20,7 @@ void SoundManager::Init(void) {
 	m_isInitialized = true;
 }
 
-psyqo::Coroutine<> SoundManager::LoadVAGFile(const eastl::fixed_string<char, MAX_ARCHIVE_FILE_NAME_LEN>& fileName,
-											 VagEntry** out) {
+psyqo::Coroutine<> SoundManager::LoadVAGFile(const eastl::string_view& fileName, VagEntry** out) {
 	if (!m_isInitialized) {
 		Init();
 	}
@@ -39,6 +39,11 @@ psyqo::Coroutine<> SoundManager::LoadVAGFile(const eastl::fixed_string<char, MAX
 		co_return;
 	}
 
+	auto vagIx = m_pool.Acquire();
+	if (vagIx == INVALID_POOL_ID) {
+		co_return;
+	}
+
 	// get the actual data off the cd and make sure its valid
 	auto buffer = co_await g_madnightEngine.m_archiveHelper.LoadFile(fileName);
 	void* data = buffer.data();
@@ -46,12 +51,15 @@ psyqo::Coroutine<> SoundManager::LoadVAGFile(const eastl::fixed_string<char, MAX
 
 	if (!data || !size) {
 		buffer.clear();
+		m_pool.Free(vagIx);
 		printf("VAG: Failed to load VAG or it has no file size.\n");
 		co_return;
 	}
 
 	// begin loading data
-	VagEntry vag = {};
+	auto* vag = m_pool.Get(vagIx);
+	*vag = {};
+	vag->id = vagIx;
 
 	uint8_t* ptr = (uint8_t*)data;
 
@@ -60,7 +68,9 @@ psyqo::Coroutine<> SoundManager::LoadVAGFile(const eastl::fixed_string<char, MAX
 	magic.assign(reinterpret_cast<char*>(ptr));
 	if (magic.compare("VAGp")) {
 		printf("VAG: Header magic is invalid, aborting.\n");
+		*vag = {};
 		buffer.clear();
+		m_pool.Free(vagIx);
 		co_return;
 	}
 	ptr += 4;
@@ -70,7 +80,9 @@ psyqo::Coroutine<> SoundManager::LoadVAGFile(const eastl::fixed_string<char, MAX
 	__builtin_memcpy(&version, ptr, sizeof(uint32_t));
 	if (SWAP32(version) != 0x00000020) {
 		printf("VAG: Header version is invalid, aborting.\n");
+		*vag = {};
 		buffer.clear();
+		m_pool.Free(vagIx);
 		co_return;
 	}
 	ptr += sizeof(uint32_t);
@@ -79,38 +91,39 @@ psyqo::Coroutine<> SoundManager::LoadVAGFile(const eastl::fixed_string<char, MAX
 	ptr += sizeof(uint32_t);
 
 	// store the data size which is aligned to the nearest 64 bytes (upwards)
-	__builtin_memcpy(&vag.size, ptr, sizeof(uint32_t));
+	__builtin_memcpy(&vag->size, ptr, sizeof(uint32_t));
 	ptr += sizeof(uint32_t);
-	vag.size = (SWAP32(vag.size) + 63) & ~63;
+	vag->size = (SWAP32(vag->size) + 63) & ~63;
 
 	// make sure it fits
-	if (SPU_MEMORY_SIZE - m_spuAllocPtr < vag.size) {
+	if (SPU_MEMORY_SIZE - m_spuAllocPtr < vag->size) {
 		printf("VAG: Not enough space in SPU, aborting.\n");
+		*vag = {};
 		buffer.clear();
+		m_pool.Free(vagIx);
 		co_return;
 	}
 
 	// store the pitch based off of sample rate
 	uint32_t sampleRate;
 	__builtin_memcpy(&sampleRate, ptr, sizeof(uint32_t));
-	vag.pitch = SWAP32(sampleRate) * SPU_NOMINAL_PITCH / psyqo::SPU::BASE_SAMPLE_RATE;
+	vag->pitch = SWAP32(sampleRate) * SPU_NOMINAL_PITCH / psyqo::SPU::BASE_SAMPLE_RATE;
 	ptr += sizeof(uint32_t);
 
 	// store our name for it
-	vag.nameHash = HashName(fileName);
+	vag->nameHash = HashName(fileName);
 
 	// skip past the rest of the header
 	ptr += 28;
 
 	// upload data to spu ram and update where in ram we are
-	psyqo::SPU::dmaWrite(m_spuAllocPtr, ptr, vag.size);
-	vag.spuAddr = m_spuAllocPtr;
-	m_spuAllocPtr += vag.size;
+	psyqo::SPU::dmaWrite(m_spuAllocPtr, ptr, vag->size, 16);
+	vag->spuAddr = m_spuAllocPtr;
+	m_spuAllocPtr += vag->size;
 
 	// all done?
-	m_vagFiles.push_back(vag);
 	if (out) {
-		*out = &m_vagFiles.back();
+		*out = vag;
 	}
 
 	// dump it from memory
@@ -118,14 +131,13 @@ psyqo::Coroutine<> SoundManager::LoadVAGFile(const eastl::fixed_string<char, MAX
 	printf("VAG: Successfully uploaded VAG of %d bytes into the SPU.\n", size);
 }
 
-VagEntry* SoundManager::IsVAGLoaded(const eastl::fixed_string<char, MAX_ARCHIVE_FILE_NAME_LEN>& fileName) {
-	return IsVAGLoaded(HashName(fileName));
-}
+VagEntry* SoundManager::IsVAGLoaded(const eastl::string_view& fileName) { return IsVAGLoaded(HashName(fileName)); }
 
-VagEntry* SoundManager::IsVAGLoaded(uint64_t nameHash) {
-	for (auto& vag : m_vagFiles) {
-		if (vag.nameHash == nameHash) {
-			return &vag;
+constexpr VagEntry* SoundManager::IsVAGLoaded(uint64_t nameHash) {
+	for (auto i = 0; i < MAX_VAG_FILE_COUNT; i++) {
+		auto* vag = m_pool.Get(i);
+		if (vag->nameHash == nameHash) {
+			return vag;
 		}
 	}
 
@@ -133,11 +145,11 @@ VagEntry* SoundManager::IsVAGLoaded(uint64_t nameHash) {
 	return nullptr;
 }
 
-VagEntry* SoundManager::IsVAGLoaded(const uint8_t& id) {
-	VagEntry* loadedVAG;
-	for (auto& vag : m_vagFiles) {
-		if (vag.id == id) {
-			return &vag;
+constexpr VagEntry* SoundManager::IsVAGLoaded(const int16_t& id) {
+	for (auto i = 0; i < MAX_VAG_FILE_COUNT; i++) {
+		auto* vag = m_pool.Get(i);
+		if (vag->id == id) {
+			return vag;
 		}
 	}
 
@@ -147,7 +159,7 @@ VagEntry* SoundManager::IsVAGLoaded(const uint8_t& id) {
 
 void SoundManager::SilenceChannels(const uint32_t channelMask) { psyqo::SPU::silenceChannels(channelMask); }
 
-void SoundManager::PlayVAGFile(const eastl::fixed_string<char, MAX_ARCHIVE_FILE_NAME_LEN>& fileName, uint8_t channelId,
+void SoundManager::PlayVAGFile(const eastl::string_view& fileName, uint8_t channelId,
 							   const psyqo::SPU::ChannelPlaybackConfig& config, bool hardCut) {
 	auto vag = IsVAGLoaded(fileName);
 	if (vag) {
@@ -155,7 +167,7 @@ void SoundManager::PlayVAGFile(const eastl::fixed_string<char, MAX_ARCHIVE_FILE_
 	}
 }
 
-void SoundManager::PlayVAGFile(const uint8_t& vagID, uint8_t channelId, const psyqo::SPU::ChannelPlaybackConfig& config,
+void SoundManager::PlayVAGFile(const int16_t& vagID, uint8_t channelId, const psyqo::SPU::ChannelPlaybackConfig& config,
 							   bool hardCut) {
 	auto vag = IsVAGLoaded(vagID);
 	if (vag) {
@@ -193,5 +205,16 @@ psyqo::SPU::ChannelPlaybackConfig SoundManager::CreatePlaybackConfig(const VagEn
 void SoundManager::Dump(void) {
 	psyqo::SPU::silenceChannels(0xffffffff);
 	m_spuAllocPtr = psyqo::SPU::BASE_ALLOC_ADDR;
-	m_vagFiles.clear();
+
+	auto count = m_pool.size();
+	for (auto i = 0; i < count; i++) {
+		auto vag = m_pool.Get(i);
+		if (!vag) {
+			continue;
+		}
+
+		*vag = {};
+	}
+
+	m_pool.Dump();
 }

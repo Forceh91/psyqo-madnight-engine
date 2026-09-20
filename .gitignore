@@ -4,3 +4,9 @@ build
 *.o
 *.a
 .sentry*
+
+#tests
+compile_commands.json
+*.ps-exe
+*.elf
+*.map

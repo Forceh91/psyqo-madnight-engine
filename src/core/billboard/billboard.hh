@@ -6,11 +6,11 @@
 
 #pragma once
 #include "../../textures/texture_manager.hh"
-#include "defs.hh"
 
 #include <EASTL/array.h>
 #include <EASTL/string_view.h>
 #include <psyqo/primitives/common.hh>
+#include <psyqo/vector.hh>
 
 class Billboard {
   public:
@@ -19,7 +19,7 @@ class Billboard {
 	void Destroy(void);
 
 	constexpr uint64_t nameHash() { return m_nameHash; }
-	constexpr const uint8_t& id() const { return m_id; }
+	constexpr const int16_t& id() const { return m_id; }
 
 	constexpr const psyqo::Vec3& pos() const { return m_pos; }
 	constexpr const psyqo::Vec3* pPos() const { return &m_pos; }
@@ -45,7 +45,7 @@ class Billboard {
   protected:
 	friend class BillboardManager;
 
-	Billboard(uint64_t nameHash, psyqo::Vec3 pos, psyqo::Vec2 size, uint8_t id) {
+	void Init(uint64_t nameHash, psyqo::Vec3 pos, psyqo::Vec2 size, int16_t id) {
 		m_nameHash = nameHash;
 		m_pos = pos;
 		m_size = size;
@@ -55,7 +55,7 @@ class Billboard {
 	}
 
 	uint64_t m_nameHash = 0;
-	uint8_t m_id = INVALID_BILLBOARD_ID;
+	int16_t m_id = INVALID_POOL_ID;
 	psyqo::Vec3 m_pos = {0, 0, 0};
 	psyqo::Vec2 m_size = {0, 0};
 	psyqo::Color m_colour = {128, 128, 128};
