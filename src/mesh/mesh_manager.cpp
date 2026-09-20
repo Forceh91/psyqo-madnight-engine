@@ -371,7 +371,6 @@ void MeshManager::FreeLoadedMesh(LoadedMeshBin* mesh) {
 	psyqo_free(mesh->mesh.uvIndices);
 
 	*mesh = {};
-	mesh->id = INVALID_POOL_ID;
 }
 
 void MeshManager::GetMeshFromName(const eastl::string_view& meshName, MeshBin** meshOut) {

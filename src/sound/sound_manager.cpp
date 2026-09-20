@@ -214,7 +214,6 @@ void SoundManager::Dump(void) {
 		}
 
 		*vag = {};
-		vag->id = INVALID_POOL_ID;
 	}
 
 	m_pool.Dump();
