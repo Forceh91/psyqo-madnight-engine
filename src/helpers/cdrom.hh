@@ -30,6 +30,6 @@ class CDRomHelper final {
 	psyqo::ISO9660Parser m_isoParser = psyqo::ISO9660Parser(&m_cdrom);
 	psyqo::paths::CDRomLoader m_cdromLoader;
 	char m_loadingFileName[32];
-	void get_iso_file_name(const char* file_name, char* iso_filename);
+	void get_iso_file_name(const eastl::string_view& file_name, char* iso_filename);
 #endif
 };
