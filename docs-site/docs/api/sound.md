@@ -14,16 +14,14 @@ sidebar_position: 8
 Loads `.VAG` samples into SPU RAM and plays them back on any of the SPU's channels (`MAX_VAG_FILE_COUNT` = 24, matching hardware channel count).
 
 ```cpp
-static constexpr uint8_t VAG_FILE_NAME_LEN = 16;
 static constexpr uint8_t MAX_VAG_FILE_COUNT = 24;
-static constexpr int8_t INVALID_VAG_FILE_ID = -1;
 static constexpr uint32_t SPU_NOMINAL_PITCH = 4096;
 static constexpr uint32_t SPU_MEMORY_SIZE = 0x80000;
 static constexpr uint32_t SPU_ADR_INSTANT_ATTACK_NO_DECAY = 0x80000000;
 static constexpr uint8_t SPU_MAX_CHANNEL_ID = 23;
 
 struct VagEntry {
-  int8_t id = INVALID_VAG_FILE_ID;
+  int16_t id = INVALID_POOL_ID; // pool index
   uint64_t nameHash; // hash of the name supplied for the CD-ROM load, not the header's
   uint32_t spuAddr; // where it lives in SPU RAM
   uint32_t pitch;   // precomputed from sample rate
@@ -35,15 +33,15 @@ public:
   void Init(void); // called automatically by the engine
 
   void Dump(void); // resets the SPU alloc pointer, doesn't clear SPU contents
-  psyqo::Coroutine<> LoadVAGFile(const eastl::fixed_string<char, MAX_ARCHIVE_FILE_NAME_LEN>& fileName, VagEntry** out);
-  VagEntry* IsVAGLoaded(const eastl::fixed_string<char, MAX_ARCHIVE_FILE_NAME_LEN>& fileName);
-  VagEntry* IsVAGLoaded(uint64_t nameHash);
-  VagEntry* IsVAGLoaded(const uint8_t& id);
+  psyqo::Coroutine<> LoadVAGFile(const eastl::string_view& fileName, VagEntry** out);
+  VagEntry* IsVAGLoaded(const eastl::string_view& fileName);
+  constexpr VagEntry* IsVAGLoaded(uint64_t nameHash);
+  constexpr VagEntry* IsVAGLoaded(const int16_t& id);
   void SilenceChannels(const uint32_t channels);
 
   void PlayVAGFile(const VagEntry* vag, uint8_t channelId, const psyqo::SPU::ChannelPlaybackConfig &config, bool hardCut = false);
-  void PlayVAGFile(const eastl::fixed_string<char, MAX_ARCHIVE_FILE_NAME_LEN>& fileName, uint8_t channelId, const psyqo::SPU::ChannelPlaybackConfig &config, bool hardCut = false);
-  void PlayVAGFile(const uint8_t& vagID, uint8_t channelId, const psyqo::SPU::ChannelPlaybackConfig &config, bool hardCut = false);
+  void PlayVAGFile(const eastl::string_view& fileName, uint8_t channelId, const psyqo::SPU::ChannelPlaybackConfig &config, bool hardCut = false);
+  void PlayVAGFile(const int16_t& vagID, uint8_t channelId, const psyqo::SPU::ChannelPlaybackConfig &config, bool hardCut = false);
 
   psyqo::SPU::ChannelPlaybackConfig CreatePlaybackConfig(const VagEntry* vag, uint16_t volume, uint32_t adsr = SPU_ADR_INSTANT_ATTACK_NO_DECAY);
   psyqo::SPU::ChannelPlaybackConfig CreatePlaybackConfig(const VagEntry* vag, uint16_t volumeL, uint16_t volumeR, uint32_t adsr = SPU_ADR_INSTANT_ATTACK_NO_DECAY);
@@ -82,7 +80,7 @@ g_madnightEngine.m_soundManager.SilenceChannels(1 << SPU_MAX_CHANNEL_ID); // bit
 
 - SPU memory allocation is a simple bump pointer (`m_spuAllocPtr`) that only ever grows. `Dump()` resets the pointer and clears the loaded-file list, but doesn't erase the sample bytes already written to SPU RAM. It also calls `psyqo::SPU::silenceChannels(0xffffffff)` first, stopping whatever is currently playing on every channel.
 - `channelId` is silently clamped to `SPU_MAX_CHANNEL_ID` (23), so passing an out-of-range channel doesn't crash, it just reuses the last channel.
-- `m_vagFiles` is `eastl::fixed_vector<VagEntry, MAX_VAG_FILE_COUNT>` with the overflow template argument omitted, which defaults to `true`. A 25th `LoadVAGFile` call silently heap-allocates past the documented 24-entry ceiling instead of failing there, unlike the UI's fixed vectors in [`GameplayHUD`](./ui#gameplayhud) and [`Menu`](./ui#menu), which explicitly disable overflow.
+- Loaded samples live in a `Pool<VagEntry, MAX_VAG_FILE_COUNT>`, so there are at most 24 at once. Once the pool is full, `LoadVAGFile` returns without loading anything and without writing to `out`, so initialise the pointer you pass in (e.g. to `nullptr`) if you need to detect that.
 
 ## ModSoundManager
 
