@@ -14,8 +14,6 @@
 
 class Billboard {
   public:
-	Billboard() = default;
-
 	void Destroy(void);
 
 	constexpr uint64_t nameHash() { return m_nameHash; }
@@ -44,6 +42,9 @@ class Billboard {
 
   protected:
 	friend class BillboardManager;
+	template <class T, int16_t N> friend class Pool;
+
+	Billboard() = default;
 
 	void Init(uint64_t nameHash, psyqo::Vec3 pos, psyqo::Vec2 size, int16_t id) {
 		m_nameHash = nameHash;

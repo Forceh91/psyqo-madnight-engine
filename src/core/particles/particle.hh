@@ -11,14 +11,13 @@
 
 class Particle final : public Billboard {
   public:
-	Particle() = default;
-
 	void Process(const uint32_t& deltaTime);
 	const bool IsDead(void) const { return m_age >= m_lifetimeMicroSeconds; }
 
   private:
 	friend class ParticleEmitter;
 
+	Particle() = default;
 	Particle(const psyqo::Vec3 pos, const psyqo::Vec2 size, const psyqo::Color colour, const psyqo::Vec3 velocity,
 			 const uint8_t lifetime = 1)
 		: Particle(pos, size, size, colour, colour, velocity, velocity, lifetime) {};
