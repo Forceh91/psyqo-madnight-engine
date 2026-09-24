@@ -34,6 +34,8 @@
 #include <psyqo/trigonometry.hh>
 
 class MadnightEngine final : public psyqo::Application {
+	friend class ArchiveHelper;
+
 	void prepare() override;
 
 	psyqo::Coroutine<> m_initialLoadRoutine;
