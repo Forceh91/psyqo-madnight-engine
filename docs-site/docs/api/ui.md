@@ -266,7 +266,7 @@ public:
 
   void Enable();
   void Disable();
-  bool IsEnabled() const;
+  constexpr bool IsEnabled();
   void Render(const psyqo::Rect parentRect, const bool isSelected, psyqo::Font<100> *fallbackFont);
 
   void SetSpriteElement(const SpriteHUDElement &sprite);

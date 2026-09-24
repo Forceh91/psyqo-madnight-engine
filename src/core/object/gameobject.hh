@@ -32,6 +32,7 @@ enum RenderFlags { RF_NONE = 0, RF_DISTANCE_CHECK = 1 };
 
 class GameObject final {
 	friend class GameObjectManager;
+	template <class T, int16_t N> friend class Pool;
 
 	uint64_t m_nameHash = 0;
 	eastl::fixed_string<char, MAX_GAMEOBJECT_NAME_LENGTH> m_name = "";
@@ -65,9 +66,9 @@ class GameObject final {
 	};
 	void Destroy(void);
 
-  public:
 	GameObject() = default;
 
+  public:
 	constexpr uint64_t nameHash() { return m_nameHash; }
 	const constexpr eastl::fixed_string<char, MAX_GAMEOBJECT_NAME_LENGTH>& name() const { return m_name; }
 	const constexpr int16_t& id() const { return m_id; };
