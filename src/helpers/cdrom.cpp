@@ -6,6 +6,7 @@
 
 #include "cdrom.hh"
 #include "../madnight.hh"
+#include "../render/renderer.hh"
 #include "archive.hh"
 #include <psyqo/alloc.h>
 #include <psyqo/coroutine.hh>
@@ -74,7 +75,7 @@ psyqo::Coroutine<psyqo::Buffer<uint8_t>> CDRomHelper::LoadFile(const eastl::stri
 }
 
 #ifndef PCDRV
-void CDRomHelper::get_iso_file_name(const char* file_name, char* iso_filename) {
-	snprintf(iso_filename, 32, "%s;1", file_name);
+void CDRomHelper::get_iso_file_name(const eastl::string_view& file_name, char* iso_filename) {
+	snprintf(iso_filename, 32, "%.*s;1", int(file_name.size()), file_name.data());
 }
 #endif

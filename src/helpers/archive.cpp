@@ -18,7 +18,7 @@ void ArchiveHelper::init(eastl::function<void()> cb) {
 	m_archiveManager.registerUCL_NRV2EDecompressor();
 
 #ifndef PCDRV
-	auto& cdrom = CDRomHelper::CDRomDevice();
+	auto& cdrom = g_madnightEngine.m_cdromHelper.CDRomDevice();
 #else
 	auto& cdrom = m_cdrom;
 #endif
@@ -35,7 +35,7 @@ psyqo::Coroutine<psyqo::Buffer<uint8_t>> ArchiveHelper::LoadFile(const eastl::st
 		printf("ARCHIVE: Attempting to read %s...\n", fileName);
 
 #ifndef PCDRV
-		auto& cdrom = CDRomHelper::CDRomDevice();
+		auto& cdrom = g_madnightEngine.m_cdromHelper.CDRomDevice();
 #else
 		auto& cdrom = m_cdrom;
 #endif
