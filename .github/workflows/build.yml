@@ -52,6 +52,15 @@ jobs:
         # pcsx-redux brings SDL video up even under -testmode.
         run: xvfb-run tools/boot-demo.sh "$GITHUB_WORKSPACE/squashfs-root/AppRun"
 
+      - name: Engine tests
+        run: |
+          make -C tests/mips -j2
+          status=0
+          timeout 120 xvfb-run squashfs-root/AppRun -no-ui -testmode -run -stdout \
+            -loadexe tests/mips/engine-tests.ps-exe > engine-tests.log 2>&1 || status=$?
+          cat engine-tests.log
+          [ $status -eq 0 ] && grep -q '^All tests passed!' engine-tests.log
+
       - uses: actions/upload-artifact@v4
         with:
           name: madnight-engine-game.ps-exe
