@@ -22,7 +22,7 @@ class BillboardManager final {
 	const eastl::fixed_vector<Billboard*, MAX_BILLBOARDS>& GetActiveBillboards(void);
 	const constexpr Billboard* GetBillboards(void) const { return m_pool.Entries(); }
 	Billboard* GetBillboardByName(const eastl::string_view& name);
-	constexpr Billboard* GetBillboardByName(uint64_t nameHash);
+	Billboard* GetBillboardByName(uint64_t nameHash);
 
   private:
 	Pool<Billboard, MAX_BILLBOARDS> m_pool;

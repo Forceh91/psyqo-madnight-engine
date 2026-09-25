@@ -50,7 +50,7 @@ Billboard* BillboardManager::GetBillboardByName(const eastl::string_view& name) 
 	return GetBillboardByName(HashName(name));
 }
 
-constexpr Billboard* BillboardManager::GetBillboardByName(uint64_t nameHash) {
+Billboard* BillboardManager::GetBillboardByName(uint64_t nameHash) {
 	auto count = m_pool.size();
 	for (auto i = 0; i < count; i++) {
 		auto* billboard = m_pool.Get(i);
