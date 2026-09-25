@@ -9,15 +9,13 @@ SRCS += $(call rwildcard,./,test_*.cpp)
 
 CXXFLAGS = -std=c++20
 
-SNITCH := ../../third_party/nugget/psyqo/snitch/
-LIBRARIES += $(SNITCH)libsnitch.a
-
 CPPFLAGS += -I../../src
-CPPFLAGS += -I../../third_party/nugget/psyqo/snitch/
+
+# Listed before the includes below, which pull in common.mk: the elf rule's
+# prerequisites are expanded when it is read, and snitch.mk adds its library
+# after that point.
+LIBRARIES += $(abspath ../../third_party/nugget/psyqo/snitch)/libsnitch.a
 
 include ../../madnight-engine.mk
 include ../../third_party/nugget/psyqo-paths/psyqo-paths.mk
-include ../../third_party/nugget/psyqo/psyqo.mk
-
-$(SNITCH)libsnitch.a:
-	$(MAKE) -C $(SNITCH) BUILD=$(BUILD)
+include ../../third_party/nugget/psyqo/snitch.mk
