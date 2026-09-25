@@ -39,8 +39,8 @@ class SoundManager final {
 	void Dump(void);
 	psyqo::Coroutine<> LoadVAGFile(const eastl::string_view& fileName, VagEntry** out);
 	VagEntry* IsVAGLoaded(const eastl::string_view& fileName);
-	constexpr VagEntry* IsVAGLoaded(uint64_t nameHash);
-	constexpr VagEntry* IsVAGLoaded(const int16_t& id);
+	VagEntry* IsVAGLoaded(uint64_t nameHash);
+	VagEntry* IsVAGLoaded(const int16_t& id);
 	void SilenceChannels(const uint32_t channels);
 	void PlayVAGFile(const VagEntry* vag, uint8_t channelId, const psyqo::SPU::ChannelPlaybackConfig& config,
 					 bool hardCut = false);

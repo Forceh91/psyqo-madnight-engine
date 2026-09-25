@@ -133,7 +133,7 @@ psyqo::Coroutine<> SoundManager::LoadVAGFile(const eastl::string_view& fileName,
 
 VagEntry* SoundManager::IsVAGLoaded(const eastl::string_view& fileName) { return IsVAGLoaded(HashName(fileName)); }
 
-constexpr VagEntry* SoundManager::IsVAGLoaded(uint64_t nameHash) {
+VagEntry* SoundManager::IsVAGLoaded(uint64_t nameHash) {
 	for (auto i = 0; i < MAX_VAG_FILE_COUNT; i++) {
 		auto* vag = m_pool.Get(i);
 		if (vag->nameHash == nameHash) {
@@ -145,7 +145,7 @@ constexpr VagEntry* SoundManager::IsVAGLoaded(uint64_t nameHash) {
 	return nullptr;
 }
 
-constexpr VagEntry* SoundManager::IsVAGLoaded(const int16_t& id) {
+VagEntry* SoundManager::IsVAGLoaded(const int16_t& id) {
 	for (auto i = 0; i < MAX_VAG_FILE_COUNT; i++) {
 		auto* vag = m_pool.Get(i);
 		if (vag->id == id) {

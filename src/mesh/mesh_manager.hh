@@ -84,7 +84,7 @@ class MeshManager final {
 	Pool<LoadedMeshBin, MAX_LOADED_MESHES> m_pool;
 
 	MeshBin* IsMeshLoaded(const eastl::string_view& mesh_name);
-	constexpr MeshBin* IsMeshLoaded(uint64_t meshNameHash);
+	MeshBin* IsMeshLoaded(uint64_t meshNameHash);
 
   public:
 	psyqo::Coroutine<> LoadMesh(const eastl::string_view& meshName, MeshBin** meshOut);

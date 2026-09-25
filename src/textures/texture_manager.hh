@@ -38,7 +38,7 @@ class TextureManager final {
 	Pool<TimFile, MAX_TEXTURES> m_pool;
 
 	TimFile* IsTextureLoaded(const eastl::string_view& name);
-	constexpr TimFile* IsTextureLoaded(uint64_t nameHash);
+	TimFile* IsTextureLoaded(uint64_t nameHash);
 
   public:
 	psyqo::Coroutine<> LoadTIM(const eastl::string_view& textureName, uint16_t x, uint16_t y, uint16_t clutX,
