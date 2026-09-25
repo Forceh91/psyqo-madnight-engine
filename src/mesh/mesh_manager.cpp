@@ -323,7 +323,7 @@ psyqo::Coroutine<> MeshManager::LoadMesh(const eastl::string_view& meshName, Mes
 
 MeshBin* MeshManager::IsMeshLoaded(const eastl::string_view& meshName) { return IsMeshLoaded(HashName(meshName)); }
 
-constexpr MeshBin* MeshManager::IsMeshLoaded(uint64_t meshNameHash) {
+MeshBin* MeshManager::IsMeshLoaded(uint64_t meshNameHash) {
 	for (auto i = 0; i < MAX_LOADED_MESHES; i++) {
 		// find the first loaded mesh that matches this mesh_name
 		auto* loadedMesh = m_pool.Get(i);
