@@ -1,0 +1,67 @@
+name: Build
+
+on:
+  push:
+  pull_request:
+  workflow_dispatch:
+
+concurrency:
+  group: ${{ github.workflow }}-${{ github.ref }}
+  cancel-in-progress: true
+
+jobs:
+  build:
+    runs-on: ubuntu-latest
+    container: ghcr.io/grumpycoders/pcsx-redux-build:latest
+
+    steps:
+      - uses: actions/checkout@v4
+
+      - name: Submodules
+        # Not through checkout: nugget carries a third_party/xmake-psx gitlink
+        # with no .gitmodules entry, and checkout recurses into it.
+        run: |
+          git config --global --add safe.directory "$GITHUB_WORKSPACE"
+          git submodule update --init third_party/nugget
+
+      - name: Library, PCDRV
+        run: |
+          make -j2 DEFINES=PCDRV
+          make clean
+
+      - name: Library
+        run: |
+          make -j2
+          ls -l libmadnight-engine.a
+
+      - name: Getting started
+        # The scaffold expects the engine as a submodule named madnight_engine.
+        run: |
+          ln -s .. getting-started/madnight_engine
+          make -C getting-started -j2
+          ls -l getting-started/build/madnight-engine-game.ps-exe
+
+      - name: pcsx-redux
+        # --appimage-extract rather than mounting it: the runner has no FUSE.
+        run: |
+          curl -sL -o pcsx-redux.zip https://distrib.app/pub/org/pcsx-redux/project/dev-linux-x64/latest
+          unzip -q pcsx-redux.zip
+          ./PCSX-Redux-*.AppImage --appimage-extract > /dev/null
+
+      - name: Boot the getting started executable
+        # pcsx-redux brings SDL video up even under -testmode.
+        run: xvfb-run tools/boot-demo.sh "$GITHUB_WORKSPACE/squashfs-root/AppRun"
+
+      - name: Engine tests
+        run: |
+          make -C tests/mips -j2
+          status=0
+          timeout 120 xvfb-run squashfs-root/AppRun -no-ui -testmode -run -stdout \
+            -loadexe tests/mips/engine-tests.ps-exe > engine-tests.log 2>&1 || status=$?
+          cat engine-tests.log
+          [ $status -eq 0 ] && grep -q '^All tests passed!' engine-tests.log
+
+      - uses: actions/upload-artifact@v4
+        with:
+          name: madnight-engine-game.ps-exe
+          path: getting-started/build/madnight-engine-game.ps-exe
