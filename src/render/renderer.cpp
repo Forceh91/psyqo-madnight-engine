@@ -513,8 +513,8 @@ void Renderer::RenderGameObjects(uint32_t deltaTime, const psyqo::Matrix33& came
 					}
 
 					// set its uv coords
-					applyUV(tri.primitive.uvA, mesh->uvIndices[i].i3);
-					applyUV(tri.primitive.uvB, mesh->uvIndices[i].i1);
+					applyUV(tri.primitive.uvA, mesh->uvIndices[i].i1);
+					applyUV(tri.primitive.uvB, mesh->uvIndices[i].i3);
 					applyUV(tri.primitive.uvC, mesh->uvIndices[i].i4);
 				}
 
