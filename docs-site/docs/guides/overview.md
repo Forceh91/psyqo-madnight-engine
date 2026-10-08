@@ -31,6 +31,12 @@ Then create a `.TIM` file with [`tim_creator.py`](https://github.com/Forceh91/ps
 python3 ./madnight_engine/tools/tim_creator.py -o cdrom/assets/map.tim --quantize 256 "../assets/Lake Dock/atlas_tim.png"
 ```
 
+### Alternative to Python
+
+If you don't have Python and/or ImageMagick installed then there is an alternative that you can use which is the **web version** of [TIM Tool](https://tools.psx.dev/timweb/). It allows you to import images, lay them out where you desire, and then export them all as .TIM files.
+
+When using this version you can apply complete transparency to your image and it will automatically apply the right settings to the image to make it transparent in your game. Anything that is pure black will be replaced to a dark grey (0x0421), or colour of your choosing.
+
 ## Animations
 
 Load an unskinned animation into Blender and export it with [`blender_animbin.py`](https://github.com/Forceh91/psyqo-madnight-engine/blob/main/tools/blender_animbin.py) to produce a basic `.ANIMBIN` file. The script still needs work for things like marker creation.
