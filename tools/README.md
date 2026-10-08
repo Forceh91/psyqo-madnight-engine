@@ -1,6 +1,5 @@
 # Using the tools
 
-
 ## Meshbins
 
 For creating Meshbins you need to export out of Blender using the [./blender_obj_skeleton_exporter.py] script, and then you can use [./obj-to-meshbin.py] to convert that into an actual meshbin file format.
@@ -26,6 +25,12 @@ Once its been converted you can then create a TIM file using [./tim_creator.py].
 ```
 python3 ./madnight_engine/tools/tim_creator.py -o cdrom/assets/map.tim --quantize 256 "../assets/Lake Dock/atlas_tim.png"
 ```
+
+### Alternative to Python
+
+If you don't have Python and/or ImageMagick installed then there is an alternative that you can use which is the **web version** of [TIM Tool](https://tools.psx.dev/timweb/). It allows you to import images, lay them out where you desire, and then export them all as .TIM files.
+
+When using this version you can apply complete transparency to your image and it will automatically apply the right settings to the image to make it transparent in your game. Anything that is pure black will be replaced to a dark grey (0x0421), or colour of your choosing.
 
 # Animations
 
