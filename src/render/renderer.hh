@@ -76,8 +76,9 @@ class Renderer final {
 	void SubdivideTexturedTri(psyqo::Fragments::SimpleFragment<psyqo::Prim::GouraudTexturedTriangle>* tri,
 							  uint32_t zIndex, psyqo::OrderingTable<ORDERING_TABLE_SIZE>* ot, uint8_t maxDepth = 1);
 
-	void ProcessMeshQuad(const RendererQuad& quad, const TimFile* texture, const psyqo::PrimPieces::TPageAttr& tpage,
-						 const psyqo::Rect& uvOffset, BA& bumpAllocator, OT& orderingTable);
+	void ProcessMeshQuad(const RendererQuad& quad, int8_t depth, const TimFile* texture,
+						 const psyqo::PrimPieces::TPageAttr& tpage, const psyqo::Rect& uvOffset, BA& bumpAllocator,
+						 OT& orderingTable);
 
 	void RenderBillboards(uint32_t deltaTime, const psyqo::Matrix33& cameraRotationMatrix);
 	void RenderParticles(uint32_t deltaTime, const psyqo::Matrix33& cameraRotationMatrix);

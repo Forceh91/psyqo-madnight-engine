@@ -359,7 +359,7 @@ void Renderer::RenderGameObjects(uint32_t deltaTime, const psyqo::Matrix33& came
 			auto isQuad = mesh->vertexIndices[i].i2 != -1;
 
 			if (isQuad) {
-				ProcessMeshQuad(mesh->quads[i], texture, tpage, offset, allocator, ot);
+				ProcessMeshQuad(mesh->quads[i], 0, texture, tpage, offset, allocator, ot);
 			}
 
 			continue;
@@ -1309,7 +1309,7 @@ void Renderer::SubdivideTexturedTri(psyqo::Fragments::SimpleFragment<psyqo::Prim
 	}
 }
 
-void Renderer::ProcessMeshQuad(const RendererQuad& quad, const TimFile* texture,
+void Renderer::ProcessMeshQuad(const RendererQuad& quad, int8_t depth, const TimFile* texture,
 							   const psyqo::PrimPieces::TPageAttr& tpage, const psyqo::Rect& uvOffset,
 							   BA& bumpAllocator, OT& orderingTable) {
 	// projections for each vert
@@ -1337,11 +1337,20 @@ void Renderer::ProcessMeshQuad(const RendererQuad& quad, const TimFile* texture,
 	psyqo::GTE::read<psyqo::GTE::Register::SXY1>(&projected[1].packed);
 	psyqo::GTE::read<psyqo::GTE::Register::SXY2>(&projected[2].packed);
 
+	// read all the SZ data
+	uint32_t usz0, usz1, usz2, usz3;
+	psyqo::GTE::read<psyqo::GTE::Register::SZ0>(&usz0);
+	psyqo::GTE::read<psyqo::GTE::Register::SZ1>(&usz1);
+	psyqo::GTE::read<psyqo::GTE::Register::SZ2>(&usz2);
+
 	// final vert
 	psyqo::GTE::writeSafe<psyqo::GTE::PseudoRegister::V0>(quad.verts[3]);
 	psyqo::GTE::Kernels::rtps();
 	ir[3] = psyqo::GTE::readRaw<psyqo::GTE::Register::IR0>();
 	psyqo::GTE::read<psyqo::GTE::Register::SXY2>(&projected[3].packed);
+	psyqo::GTE::read<psyqo::GTE::Register::SZ3>(&usz3);
+
+	int32_t sz0 = (int32_t)usz0, sz1 = (int32_t)usz1, sz2 = (int32_t)usz2, sz3 = (int32_t)usz3;
 
 	// figure out avg z index
 	psyqo::GTE::Kernels::avsz4();
@@ -1357,7 +1366,59 @@ void Renderer::ProcessMeshQuad(const RendererQuad& quad, const TimFile* texture,
 		return;
 	}
 
-	// TODO: is this within sub-division range? if so, sub-divide it
+	// sub divide if we have depth and we're close enough
+	if (depth < SUBDIVISION_MAX_DEPTH && zIndex < SUBDIVISION_DISTANCE) {
+		auto abs = [](int32_t v) -> int32_t { return v < 0 ? -v : v; };
+		auto sz01 = abs(sz0 - sz1);
+		auto sz12 = abs(sz1 - sz2);
+		auto sz23 = abs(sz2 - sz3);
+		auto sz30 = abs(sz3 - sz0);
+
+		auto quadA = quad, quadB = quad;
+		if (sz01 >= sz12 && sz01 >= sz23) {
+			// split left right, mid points of TL (v0), TR (v0)
+			psyqo::GTE::PackedVec3 midVert01, midVert23;
+			midVert01.x.value = ((quad.verts[0].x.value + quad.verts[1].x.value) >> 1);
+			midVert01.y.value = ((quad.verts[0].y.value + quad.verts[1].y.value) >> 1);
+			midVert01.z.value = ((quad.verts[0].z.value + quad.verts[1].z.value) >> 1);
+
+			midVert23.x.value = ((quad.verts[2].x.value + quad.verts[3].x.value) >> 1);
+			midVert23.y.value = ((quad.verts[2].y.value + quad.verts[3].y.value) >> 1);
+			midVert23.z.value = ((quad.verts[2].z.value + quad.verts[3].z.value) >> 1);
+
+			psyqo::PrimPieces::UVCoords midUV01, midUV23;
+			midUV01.u = (quad.uvA.u + quad.uvB.u) >> 1;
+			midUV01.v = (quad.uvA.v + quad.uvB.v) >> 1;
+			midUV23.u = (quad.uvC.u + quad.uvD.u) >> 1;
+			midUV23.v = (quad.uvC.v + quad.uvD.v) >> 1;
+
+			psyqo::Color midColour01 = {static_cast<uint8_t>((quad.colours[0].r + quad.colours[1].r) >> 1),
+										static_cast<uint8_t>((quad.colours[0].g + quad.colours[1].g) >> 1),
+										static_cast<uint8_t>((quad.colours[0].b + quad.colours[1].b) >> 1)};
+
+			psyqo::Color midColour23 = {static_cast<uint8_t>((quad.colours[2].r + quad.colours[3].r) >> 1),
+										static_cast<uint8_t>((quad.colours[2].g + quad.colours[3].g) >> 1),
+										static_cast<uint8_t>((quad.colours[2].b + quad.colours[3].b) >> 1)};
+
+			quadA.verts[1] = midVert01;
+			quadA.verts[3] = midVert23;
+			quadA.uvB = midUV01;
+			quadA.uvD = {midUV23.u, midUV23.v, 0};
+			quadA.colours[1] = midColour01;
+			quadA.colours[3] = midColour23;
+
+			quadB.verts[0] = midVert01;
+			quadB.verts[2] = midVert23;
+			quadB.uvA = midUV01;
+			quadB.uvC = {midUV23.u, midUV23.v, 0};
+			quadB.colours[0] = midColour01;
+			quadB.colours[2] = midColour23;
+		}
+
+		ProcessMeshQuad(quadA, depth + 1, texture, tpage, uvOffset, bumpAllocator, orderingTable);
+		ProcessMeshQuad(quadB, depth + 1, texture, tpage, uvOffset, bumpAllocator, orderingTable);
+		return;
+	}
 
 	// OTHERWISE continue to process and add it to OT
 	eastl::array<psyqo::Color, 4> colours;
