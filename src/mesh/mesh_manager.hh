@@ -5,15 +5,10 @@
  */
 
 #pragma once
-#include <EASTL/fixed_string.h>
-#include <stdint.h>
-
-#include "psyqo/coroutine.hh"
-#include "psyqo/primitives/common.hh"
-#include "psyqo/vector.hh"
 
 #include "../core/collision_types.hh"
 #include "../pool/pool.hh"
+#include "../render/quad.hh"
 #include "skeleton/skeleton.hh"
 
 #include <EASTL/fixed_string.h>
@@ -71,6 +66,9 @@ struct MeshBin {
 	// basic min/max collision box
 	AABBCollision collisionBox = {};
 	BoundingSphere bsphere = {};
+
+	// for fast rendering
+	RendererQuad* quads;
 };
 
 struct LoadedMeshBin {

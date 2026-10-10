@@ -10,6 +10,8 @@
 #include "../textures/texture_manager.hh"
 #include "camera.hh"
 #include "lighting.hh"
+#include "psyqo/ordering-table.hh"
+#include "quad.hh"
 
 #include <psyqo/bump-allocator.hh>
 #include <psyqo/fixed-point.hh>
@@ -26,9 +28,13 @@ static constexpr uint16_t FULL_FOG_DISTANCE = 3'500; // screen z
 static constexpr uint16_t NEAR_FOG_DISTANCE = 2'000; // screen z
 static constexpr uint32_t BUMP_ALLOCATOR_BYTES =
 	125'000; // this is for each frame, so double what this number is is used up in RAM
-static constexpr uint16_t SUBDIVISION_DISTANCE = 750; // after view space transformation
-static constexpr uint8_t MAX_SPRITE_FRAGMENTS = 40;	  // per frame, shared by every RenderSprite caller
+static constexpr uint16_t SUBDIVISION_DISTANCE = 1'500; // after view space transformation
+static constexpr uint8_t SUBDIVISION_MAX_DEPTH = 2;		// how deep to go when doing sub-division
+static constexpr uint8_t MAX_SPRITE_FRAGMENTS = 40;		// per frame, shared by every RenderSprite caller
 static constexpr psyqo::Color c_loadingBackgroundColour = {.r = 0, .g = 0, .b = 0};
+
+using OT = psyqo::OrderingTable<ORDERING_TABLE_SIZE>;
+using BA = psyqo::BumpAllocator<BUMP_ALLOCATOR_BYTES>;
 
 class Renderer final {
 	static Renderer* m_instance;
@@ -46,7 +52,7 @@ class Renderer final {
 	psyqo::Fragments::SimpleFragment<psyqo::Prim::FastFill> m_clear[2];
 
 	// bump allocator so we're not guessing at runtime how many quads/lines/etc/etc/etc we're gonna have
-	psyqo::BumpAllocator<BUMP_ALLOCATOR_BYTES> m_allocators[2];
+	BA m_allocators[2];
 
 	// texture page + sprite info
 	// TODO: move to bump allocator?
@@ -66,9 +72,12 @@ class Renderer final {
 
 	void RenderGameObjects(uint32_t deltaTime, const psyqo::Matrix33& cameraRotationMatrix);
 	void SubdivideTexturedQuad(psyqo::Fragments::SimpleFragment<psyqo::Prim::GouraudTexturedQuad>* texturedQuad,
-							   uint32_t zIndex, psyqo::OrderingTable<ORDERING_TABLE_SIZE>* ot, uint8_t maxDepth = 1);
+							   uint32_t zIndex, psyqo::OrderingTable<ORDERING_TABLE_SIZE>* ot, uint8_t depth);
 	void SubdivideTexturedTri(psyqo::Fragments::SimpleFragment<psyqo::Prim::GouraudTexturedTriangle>* tri,
 							  uint32_t zIndex, psyqo::OrderingTable<ORDERING_TABLE_SIZE>* ot, uint8_t maxDepth = 1);
+
+	void ProcessMeshQuad(const RendererQuad& quad, const TimFile* texture, const psyqo::PrimPieces::TPageAttr& tpage,
+						 const psyqo::Rect& uvOffset, BA& bumpAllocator, OT& orderingTable);
 
 	void RenderBillboards(uint32_t deltaTime, const psyqo::Matrix33& cameraRotationMatrix);
 	void RenderParticles(uint32_t deltaTime, const psyqo::Matrix33& cameraRotationMatrix);

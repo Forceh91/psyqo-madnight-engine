@@ -15,6 +15,7 @@
 #include "../core/particles/particle_manager.hh"
 #include "../defs.hh"
 #include "../madnight.hh"
+#include "quad.hh"
 
 #include <psyqo/fixed-point.hh>
 #include <psyqo/fragments.hh>
@@ -357,6 +358,12 @@ void Renderer::RenderGameObjects(uint32_t deltaTime, const psyqo::Matrix33& came
 		for (int32_t i = 0; i < mesh->facesCount; i++) {
 			auto isQuad = mesh->vertexIndices[i].i2 != -1;
 
+			if (isQuad) {
+				ProcessMeshQuad(mesh->quads[i], texture, tpage, offset, allocator, ot);
+			}
+
+			continue;
+
 			uint32_t pA, pB, pC, pD;
 
 			// vert 1
@@ -484,7 +491,7 @@ void Renderer::RenderGameObjects(uint32_t deltaTime, const psyqo::Matrix33& came
 
 				// finally we can insert the quad fragment into the ordering table at the calculated z-index
 				if (zIndex <= SUBDIVISION_DISTANCE) {
-					SubdivideTexturedQuad(&quad, zIndex, &ot, 2);
+					SubdivideTexturedQuad(&quad, zIndex, &ot, 0);
 				} else {
 					ot.insert(quad, zIndex);
 				}
@@ -978,9 +985,10 @@ bool Renderer::IsGameObjectVisible(const psyqo::Vec3& cameraPos, const AABBColli
 }
 
 void Renderer::SubdivideTexturedQuad(psyqo::Fragments::SimpleFragment<psyqo::Prim::GouraudTexturedQuad>* texturedQuad,
-									 uint32_t zIndex, psyqo::OrderingTable<ORDERING_TABLE_SIZE>* ot, uint8_t maxDepth) {
-	auto& q = texturedQuad->primitive;
+									 uint32_t zIndex, psyqo::OrderingTable<ORDERING_TABLE_SIZE>* ot, uint8_t depth) {
+	auto& originalQuad = texturedQuad->primitive;
 	auto& balloc = m_allocators[m_gpu.getParity()];
+	auto nextDepth = depth + 1;
 
 	if (balloc.remaining() < sizeof(psyqo::Prim::GouraudTexturedQuad) + 20) {
 		ot->insert(*texturedQuad, zIndex);
@@ -988,142 +996,154 @@ void Renderer::SubdivideTexturedQuad(psyqo::Fragments::SimpleFragment<psyqo::Pri
 	}
 
 	// out of recursion depth, just insert as-is
-	if (maxDepth == 0) {
+	if (depth == SUBDIVISION_MAX_DEPTH) {
 		ot->insert(*texturedQuad, zIndex);
 		return;
 	}
 
 	// check if quad is small enough to just insert
-	auto width = eastl::max(q.pointA.x, eastl::max(q.pointB.x, eastl::max(q.pointC.x, q.pointD.x))) -
-				 eastl::min(q.pointA.x, eastl::min(q.pointB.x, eastl::min(q.pointC.x, q.pointD.x)));
-	auto height = eastl::max(q.pointA.y, eastl::max(q.pointB.y, eastl::max(q.pointC.y, q.pointD.y))) -
-				  eastl::min(q.pointA.y, eastl::min(q.pointB.y, eastl::min(q.pointC.y, q.pointD.y)));
+	auto width =
+		eastl::max(originalQuad.pointA.x,
+				   eastl::max(originalQuad.pointB.x, eastl::max(originalQuad.pointC.x, originalQuad.pointD.x))) -
+		eastl::min(originalQuad.pointA.x,
+				   eastl::min(originalQuad.pointB.x, eastl::min(originalQuad.pointC.x, originalQuad.pointD.x)));
+	auto height =
+		eastl::max(originalQuad.pointA.y,
+				   eastl::max(originalQuad.pointB.y, eastl::max(originalQuad.pointC.y, originalQuad.pointD.y))) -
+		eastl::min(originalQuad.pointA.y,
+				   eastl::min(originalQuad.pointB.y, eastl::min(originalQuad.pointC.y, originalQuad.pointD.y)));
 
 	if (width < 32 && height < 32) {
 		ot->insert(*texturedQuad, zIndex);
 		return;
 	}
 
-	// dont subdivide if leaving screen space because it looks worse
-	if (q.pointA.x < -100 || q.pointA.y < -100 || q.pointB.x < -100 || q.pointB.y < -100 || q.pointC.x < -100 ||
-		q.pointC.y < -100 || q.pointD.x < -100 || q.pointD.y < -100 || width > 420 || height > 356) {
-		ot->insert(*texturedQuad, zIndex);
-		return;
-	}
+	// // dont subdivide if leaving screen space because it looks worse
+	// if (q.pointA.x < -100 || q.pointA.y < -100 || q.pointB.x < -100 || q.pointB.y < -100 || q.pointC.x < -100 ||
+	// 	q.pointC.y < -100 || q.pointD.x < -100 || q.pointD.y < -100 || width > 420 || height > 356) {
+	// 	ot->insert(*texturedQuad, zIndex);
+	// 	return;
+	// }
 
 	// Z order: A=TL, B=TR, C=BL, D=BR
 	// compare top edge (AB) vs left edge (AC) to decide split axis
-	int16_t spanAB_x = q.pointB.x - q.pointA.x;
-	int16_t spanAB_y = q.pointB.y - q.pointA.y;
-	int16_t spanAC_x = q.pointC.x - q.pointA.x;
-	int16_t spanAC_y = q.pointC.y - q.pointA.y;
+	int16_t spanAB_x = originalQuad.pointB.x - originalQuad.pointA.x;
+	int16_t spanAB_y = originalQuad.pointB.y - originalQuad.pointA.y;
+	int16_t spanAC_x = originalQuad.pointC.x - originalQuad.pointA.x;
+	int16_t spanAC_y = originalQuad.pointC.y - originalQuad.pointA.y;
 
 	int32_t lenAB = spanAB_x * spanAB_x + spanAB_y * spanAB_y;
 	int32_t lenAC = spanAC_x * spanAC_x + spanAC_y * spanAC_y;
 
+	auto& dividedQuad = balloc.allocateFragment<psyqo::Prim::GouraudTexturedQuad>();
 	if (lenAB >= lenAC) {
 		// split left/right: midpoints of AB (top) and CD (bottom)
-		psyqo::Vertex midAB = {int16_t((q.pointA.x + q.pointB.x) >> 1), int16_t((q.pointA.y + q.pointB.y) >> 1)};
-		psyqo::Vertex midCD = {int16_t((q.pointC.x + q.pointD.x) >> 1), int16_t((q.pointC.y + q.pointD.y) >> 1)};
+		psyqo::Vertex midAB = {int16_t((originalQuad.pointA.x + originalQuad.pointB.x) >> 1),
+							   int16_t((originalQuad.pointA.y + originalQuad.pointB.y) >> 1)};
+		psyqo::Vertex midCD = {int16_t((originalQuad.pointC.x + originalQuad.pointD.x) >> 1),
+							   int16_t((originalQuad.pointC.y + originalQuad.pointD.y) >> 1)};
 
-		psyqo::PrimPieces::UVCoords uvAB = {uint8_t((q.uvA.u + q.uvB.u) >> 1), uint8_t((q.uvA.v + q.uvB.v) >> 1)};
-		psyqo::PrimPieces::UVCoords uvCD = {uint8_t((q.uvC.u + q.uvD.u) >> 1), uint8_t((q.uvC.v + q.uvD.v) >> 1)};
+		psyqo::PrimPieces::UVCoords uvAB = {uint8_t((originalQuad.uvA.u + originalQuad.uvB.u) >> 1),
+											uint8_t((originalQuad.uvA.v + originalQuad.uvB.v) >> 1)};
+		psyqo::PrimPieces::UVCoords uvCD = {uint8_t((originalQuad.uvC.u + originalQuad.uvD.u) >> 1),
+											uint8_t((originalQuad.uvC.v + originalQuad.uvD.v) >> 1)};
 
-		psyqo::Color colAB = {uint8_t((q.getColorA().r + q.colorB.r) >> 1),
-							  uint8_t((q.getColorA().g + q.colorB.g) >> 1),
-							  uint8_t((q.getColorA().b + q.colorB.b) >> 1)};
-		psyqo::Color colCD = {uint8_t((q.colorC.r + q.colorD.r) >> 1), uint8_t((q.colorC.g + q.colorD.g) >> 1),
-							  uint8_t((q.colorC.b + q.colorD.b) >> 1)};
+		psyqo::Color colAB = {uint8_t((originalQuad.getColorA().r + originalQuad.colorB.r) >> 1),
+							  uint8_t((originalQuad.getColorA().g + originalQuad.colorB.g) >> 1),
+							  uint8_t((originalQuad.getColorA().b + originalQuad.colorB.b) >> 1)};
+		psyqo::Color colCD = {uint8_t((originalQuad.colorC.r + originalQuad.colorD.r) >> 1),
+							  uint8_t((originalQuad.colorC.g + originalQuad.colorD.g) >> 1),
+							  uint8_t((originalQuad.colorC.b + originalQuad.colorD.b) >> 1)};
 
 		// save original data before overwriting q
-		auto origPointB = q.pointB;
-		auto origUvB = q.uvB;
-		auto origColorB = q.colorB;
-		auto origPointD = q.pointD;
-		auto origUvD = q.uvD;
-		auto origColorD = q.colorD;
+		auto origPointB = originalQuad.pointB;
+		auto origUvB = originalQuad.uvB;
+		auto origColorB = originalQuad.colorB;
+		auto origPointD = originalQuad.pointD;
+		auto origUvD = originalQuad.uvD;
+		auto origColorD = originalQuad.colorD;
 
 		// reuse original as left half: A(TL), midAB(TM), C(BL), midCD(BM)
-		q.pointB = midAB;
-		q.uvB = uvAB;
-		q.setColorB(colAB);
-		q.pointD = midCD;
-		q.uvD = {uvCD.u, uvCD.v, 0};
-		q.setColorD(colCD);
+		originalQuad.pointB = midAB;
+		originalQuad.uvB = uvAB;
+		originalQuad.setColorB(colAB);
+		originalQuad.pointD = midCD;
+		originalQuad.uvD = {uvCD.u, uvCD.v, 0};
+		originalQuad.setColorD(colCD);
 		// pointA and pointC stay the same
 
 		// allocate one new quad for the right half: midAB(TM), B(TR), midCD(BM), D(BR)
-		auto& q2 = balloc.allocateFragment<psyqo::Prim::GouraudTexturedQuad>();
-		q2.primitive.pointA = midAB;
-		q2.primitive.uvA = uvAB;
-		q2.primitive.setColorA(colAB);
-		q2.primitive.pointB = origPointB;
-		q2.primitive.uvB = origUvB;
-		q2.primitive.setColorB(origColorB);
-		q2.primitive.pointC = midCD;
-		q2.primitive.uvC = {uvCD.u, uvCD.v, 0};
-		q2.primitive.setColorC(colCD);
-		q2.primitive.pointD = origPointD;
-		q2.primitive.uvD = origUvD;
-		q2.primitive.setColorD(origColorD);
-		q2.primitive.tpage = q.tpage;
-		q2.primitive.clutIndex = q.clutIndex;
-		q2.primitive.setOpaque();
-
-		SubdivideTexturedQuad(texturedQuad, zIndex, ot, maxDepth - 1);
-		SubdivideTexturedQuad(&q2, zIndex, ot, maxDepth - 1);
+		dividedQuad.primitive.pointA = midAB;
+		dividedQuad.primitive.uvA = uvAB;
+		dividedQuad.primitive.setColorA(colAB);
+		dividedQuad.primitive.pointB = origPointB;
+		dividedQuad.primitive.uvB = origUvB;
+		dividedQuad.primitive.setColorB(origColorB);
+		dividedQuad.primitive.pointC = midCD;
+		dividedQuad.primitive.uvC = {uvCD.u, uvCD.v, 0};
+		dividedQuad.primitive.setColorC(colCD);
+		dividedQuad.primitive.pointD = origPointD;
+		dividedQuad.primitive.uvD = origUvD;
+		dividedQuad.primitive.setColorD(origColorD);
+		dividedQuad.primitive.tpage = originalQuad.tpage;
+		dividedQuad.primitive.clutIndex = originalQuad.clutIndex;
+		dividedQuad.primitive.setOpaque();
 	} else {
 		// split top/bottom: midpoints of AC (left) and BD (right)
-		psyqo::Vertex midAC = {int16_t((q.pointA.x + q.pointC.x) >> 1), int16_t((q.pointA.y + q.pointC.y) >> 1)};
-		psyqo::Vertex midBD = {int16_t((q.pointB.x + q.pointD.x) >> 1), int16_t((q.pointB.y + q.pointD.y) >> 1)};
+		psyqo::Vertex midAC = {int16_t((originalQuad.pointA.x + originalQuad.pointC.x) >> 1),
+							   int16_t((originalQuad.pointA.y + originalQuad.pointC.y) >> 1)};
+		psyqo::Vertex midBD = {int16_t((originalQuad.pointB.x + originalQuad.pointD.x) >> 1),
+							   int16_t((originalQuad.pointB.y + originalQuad.pointD.y) >> 1)};
 
-		psyqo::PrimPieces::UVCoords uvAC = {uint8_t((q.uvA.u + q.uvC.u) >> 1), uint8_t((q.uvA.v + q.uvC.v) >> 1)};
-		psyqo::PrimPieces::UVCoords uvBD = {uint8_t((q.uvB.u + q.uvD.u) >> 1), uint8_t((q.uvB.v + q.uvD.v) >> 1)};
+		psyqo::PrimPieces::UVCoords uvAC = {uint8_t((originalQuad.uvA.u + originalQuad.uvC.u) >> 1),
+											uint8_t((originalQuad.uvA.v + originalQuad.uvC.v) >> 1)};
+		psyqo::PrimPieces::UVCoords uvBD = {uint8_t((originalQuad.uvB.u + originalQuad.uvD.u) >> 1),
+											uint8_t((originalQuad.uvB.v + originalQuad.uvD.v) >> 1)};
 
-		psyqo::Color colAC = {uint8_t((q.getColorA().r + q.colorC.r) >> 1),
-							  uint8_t((q.getColorA().g + q.colorC.g) >> 1),
-							  uint8_t((q.getColorA().b + q.colorC.b) >> 1)};
-		psyqo::Color colBD = {uint8_t((q.colorB.r + q.colorD.r) >> 1), uint8_t((q.colorB.g + q.colorD.g) >> 1),
-							  uint8_t((q.colorB.b + q.colorD.b) >> 1)};
+		psyqo::Color colAC = {uint8_t((originalQuad.getColorA().r + originalQuad.colorC.r) >> 1),
+							  uint8_t((originalQuad.getColorA().g + originalQuad.colorC.g) >> 1),
+							  uint8_t((originalQuad.getColorA().b + originalQuad.colorC.b) >> 1)};
+		psyqo::Color colBD = {uint8_t((originalQuad.colorB.r + originalQuad.colorD.r) >> 1),
+							  uint8_t((originalQuad.colorB.g + originalQuad.colorD.g) >> 1),
+							  uint8_t((originalQuad.colorB.b + originalQuad.colorD.b) >> 1)};
 
 		// save original data before overwriting q
-		auto origPointC = q.pointC;
-		auto origUvC = q.uvC;
-		auto origColorC = q.colorC;
-		auto origPointD = q.pointD;
-		auto origUvD = q.uvD;
-		auto origColorD = q.colorD;
+		auto origPointC = originalQuad.pointC;
+		auto origUvC = originalQuad.uvC;
+		auto origColorC = originalQuad.colorC;
+		auto origPointD = originalQuad.pointD;
+		auto origUvD = originalQuad.uvD;
+		auto origColorD = originalQuad.colorD;
 
 		// reuse original as top half: A(TL), B(TR), midAC(ML), midBD(MR)
-		q.pointC = midAC;
-		q.uvC = {uvAC.u, uvAC.v, 0};
-		q.setColorC(colAC);
-		q.pointD = midBD;
-		q.uvD = {uvBD.u, uvBD.v, 0};
-		q.setColorD(colBD);
+		originalQuad.pointC = midAC;
+		originalQuad.uvC = {uvAC.u, uvAC.v, 0};
+		originalQuad.setColorC(colAC);
+		originalQuad.pointD = midBD;
+		originalQuad.uvD = {uvBD.u, uvBD.v, 0};
+		originalQuad.setColorD(colBD);
 		// pointA and pointB stay the same
 
 		// allocate one new quad for the bottom half: midAC(ML), midBD(MR), C(BL), D(BR)
-		auto& q2 = balloc.allocateFragment<psyqo::Prim::GouraudTexturedQuad>();
-		q2.primitive.pointA = midAC;
-		q2.primitive.uvA = uvAC;
-		q2.primitive.setColorA(colAC);
-		q2.primitive.pointB = midBD;
-		q2.primitive.uvB = uvBD;
-		q2.primitive.setColorB(colBD);
-		q2.primitive.pointC = origPointC;
-		q2.primitive.uvC = origUvC;
-		q2.primitive.setColorC(origColorC);
-		q2.primitive.pointD = origPointD;
-		q2.primitive.uvD = origUvD;
-		q2.primitive.setColorD(origColorD);
-		q2.primitive.tpage = q.tpage;
-		q2.primitive.clutIndex = q.clutIndex;
-		q2.primitive.setOpaque();
-
-		SubdivideTexturedQuad(texturedQuad, zIndex, ot, maxDepth - 1);
-		SubdivideTexturedQuad(&q2, zIndex, ot, maxDepth - 1);
+		dividedQuad.primitive.pointA = midAC;
+		dividedQuad.primitive.uvA = uvAC;
+		dividedQuad.primitive.setColorA(colAC);
+		dividedQuad.primitive.pointB = midBD;
+		dividedQuad.primitive.uvB = uvBD;
+		dividedQuad.primitive.setColorB(colBD);
+		dividedQuad.primitive.pointC = origPointC;
+		dividedQuad.primitive.uvC = origUvC;
+		dividedQuad.primitive.setColorC(origColorC);
+		dividedQuad.primitive.pointD = origPointD;
+		dividedQuad.primitive.uvD = origUvD;
+		dividedQuad.primitive.setColorD(origColorD);
+		dividedQuad.primitive.tpage = originalQuad.tpage;
+		dividedQuad.primitive.clutIndex = originalQuad.clutIndex;
+		dividedQuad.primitive.setOpaque();
 	}
+
+	SubdivideTexturedQuad(texturedQuad, zIndex, ot, nextDepth);
+	SubdivideTexturedQuad(&dividedQuad, zIndex, ot, nextDepth);
 }
 
 void Renderer::SubdivideTexturedTri(psyqo::Fragments::SimpleFragment<psyqo::Prim::GouraudTexturedTriangle>* tri,
@@ -1286,6 +1306,111 @@ void Renderer::SubdivideTexturedTri(psyqo::Fragments::SimpleFragment<psyqo::Prim
 
 		SubdivideTexturedTri(tri, zIndex, ot, maxDepth - 1);
 		SubdivideTexturedTri(&t2, zIndex, ot, maxDepth - 1);
+	}
+}
+
+void Renderer::ProcessMeshQuad(const RendererQuad& quad, const TimFile* texture,
+							   const psyqo::PrimPieces::TPageAttr& tpage, const psyqo::Rect& uvOffset,
+							   BA& bumpAllocator, OT& orderingTable) {
+	// projections for each vert
+	eastl::array<psyqo::Vertex, 4> projected;
+
+	// IR0 for each vert
+	uint32_t ir[4];
+	uint32_t zIndex;
+
+	// vertex 1->3
+	for (int i = 0; i < 3; i++) {
+		psyqo::GTE::writeSafe<psyqo::GTE::PseudoRegister::V0>(quad.verts[i]);
+		psyqo::GTE::Kernels::rtps();
+		ir[i] = psyqo::GTE::readRaw<psyqo::GTE::Register::IR0>();
+	}
+
+	// figure out nclip and skip rendering if backfaced
+	psyqo::GTE::Kernels::nclip();
+	if (psyqo::GTE::readRaw<psyqo::GTE::Register::MAC0>() == 0) {
+		return;
+	}
+
+	// read projected verts
+	psyqo::GTE::read<psyqo::GTE::Register::SXY0>(&projected[0].packed);
+	psyqo::GTE::read<psyqo::GTE::Register::SXY1>(&projected[1].packed);
+	psyqo::GTE::read<psyqo::GTE::Register::SXY2>(&projected[2].packed);
+
+	// final vert
+	psyqo::GTE::writeSafe<psyqo::GTE::PseudoRegister::V0>(quad.verts[3]);
+	psyqo::GTE::Kernels::rtps();
+	ir[3] = psyqo::GTE::readRaw<psyqo::GTE::Register::IR0>();
+	psyqo::GTE::read<psyqo::GTE::Register::SXY2>(&projected[3].packed);
+
+	// figure out avg z index
+	psyqo::GTE::Kernels::avsz4();
+
+	// keep inside OT bounds
+	zIndex = psyqo::GTE::readRaw<psyqo::GTE::Register::OTZ>();
+	if (zIndex == 0 || zIndex >= ORDERING_TABLE_SIZE) {
+		return;
+	}
+
+	// clip screen space
+	if (quad_clip(&SCREEN_SPACE, &projected[0], &projected[1], &projected[2], &projected[3])) {
+		return;
+	}
+
+	// TODO: is this within sub-division range? if so, sub-divide it
+
+	// OTHERWISE continue to process and add it to OT
+	eastl::array<psyqo::Color, 4> colours;
+	for (int i = 0; i < 4; i++) {
+		colours[i] = quad.colours[i];
+		ApplyAmbientToColour(&colours[i]);
+		colours[i] = ApplyFogToColourGTE(colours[i], ir[i]);
+	}
+
+	// textured
+	if (texture != nullptr) {
+		auto& quadPrim = bumpAllocator.allocateFragment<psyqo::Prim::GouraudTexturedQuad>();
+		quadPrim.primitive.pointA = projected[0];
+		quadPrim.primitive.pointB = projected[1];
+		quadPrim.primitive.pointC = projected[2];
+		quadPrim.primitive.pointD = projected[3];
+
+		quadPrim.primitive.setColorA(colours[0]);
+		quadPrim.primitive.setColorB(colours[1]);
+		quadPrim.primitive.setColorC(colours[2]);
+		quadPrim.primitive.setColorD(colours[3]);
+		quadPrim.primitive.setOpaque();
+
+		quadPrim.primitive.tpage = tpage;
+
+		if (texture->hasClut) {
+			quadPrim.primitive.clutIndex = {texture->clutX, texture->clutY};
+		}
+
+		quadPrim.primitive.uvA = {static_cast<uint8_t>(uvOffset.pos.x + quad.uvA.u),
+								  static_cast<uint8_t>(uvOffset.pos.y - quad.uvA.v)};
+		quadPrim.primitive.uvB = {static_cast<uint8_t>(uvOffset.pos.x + quad.uvB.u),
+								  static_cast<uint8_t>(uvOffset.pos.y - quad.uvB.v)};
+		quadPrim.primitive.uvC = {static_cast<uint8_t>(uvOffset.pos.x + quad.uvC.u),
+								  static_cast<uint8_t>(uvOffset.pos.y - quad.uvC.v)};
+		quadPrim.primitive.uvD = {static_cast<uint8_t>(uvOffset.pos.x + quad.uvD.u),
+								  static_cast<uint8_t>(uvOffset.pos.y - quad.uvD.v)};
+
+		orderingTable.insert(quadPrim, zIndex);
+	} else { // untextured
+		auto& quadPrim = bumpAllocator.allocateFragment<psyqo::Prim::GouraudQuad>();
+		quadPrim.primitive.pointA = projected[0];
+		quadPrim.primitive.pointB = projected[1];
+		quadPrim.primitive.pointC = projected[2];
+		quadPrim.primitive.pointD = projected[3];
+
+		quadPrim.primitive.setColorA(colours[0]);
+		quadPrim.primitive.setColorB(colours[1]);
+		quadPrim.primitive.setColorC(colours[2]);
+		quadPrim.primitive.setColorD(colours[3]);
+		quadPrim.primitive.setOpaque();
+
+		orderingTable.insert(quadPrim, zIndex);
 	}
 }
 

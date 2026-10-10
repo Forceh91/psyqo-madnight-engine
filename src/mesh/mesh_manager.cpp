@@ -312,6 +312,34 @@ psyqo::Coroutine<> MeshManager::LoadMesh(const eastl::string_view& meshName, Mes
 		g_madnightEngine.m_skeletonController.UpdateSkeletonBoneMatrices(loadedMesh->mesh.skeleton);
 	}
 
+	auto& mesh = loadedMesh->mesh;
+
+	auto renderVerts = mesh.hasSkeleton ? mesh.verticesOnBonePos : mesh.vertices;
+	loadedMesh->mesh.quads = (RendererQuad*)psyqo_malloc(sizeof(RendererQuad) * mesh.facesCount);
+
+	for (int i = 0; i < mesh.facesCount; i++) {
+		if (mesh.vertexIndices[i].i2 != -1) {
+			mesh.quads[i] = {
+				{psyqo::GTE::PackedVec3(renderVerts[mesh.vertexIndices[i].i1]),
+				 psyqo::GTE::PackedVec3(renderVerts[mesh.vertexIndices[i].i2]),
+				 psyqo::GTE::PackedVec3(renderVerts[mesh.vertexIndices[i].i3]),
+				 psyqo::GTE::PackedVec3(renderVerts[mesh.vertexIndices[i].i4])},
+				psyqo::GTE::PackedVec3(mesh.normals[mesh.normalIndices[i].i1]),
+				{{mesh.vertexColours[mesh.vertexIndices[i].i1].r, mesh.vertexColours[mesh.vertexIndices[i].i1].g,
+				  mesh.vertexColours[mesh.vertexIndices[i].i1].b},
+				 {mesh.vertexColours[mesh.vertexIndices[i].i2].r, mesh.vertexColours[mesh.vertexIndices[i].i2].g,
+				  mesh.vertexColours[mesh.vertexIndices[i].i2].b},
+				 {mesh.vertexColours[mesh.vertexIndices[i].i3].r, mesh.vertexColours[mesh.vertexIndices[i].i3].g,
+				  mesh.vertexColours[mesh.vertexIndices[i].i3].b},
+				 {mesh.vertexColours[mesh.vertexIndices[i].i4].r, mesh.vertexColours[mesh.vertexIndices[i].i4].g,
+				  mesh.vertexColours[mesh.vertexIndices[i].i4].b}},
+				mesh.uvs[mesh.uvIndices[i].i1],
+				mesh.uvs[mesh.uvIndices[i].i2],
+				{mesh.uvs[mesh.uvIndices[i].i3].u, mesh.uvs[mesh.uvIndices[i].i3].v, 0},
+				{mesh.uvs[mesh.uvIndices[i].i4].u, mesh.uvs[mesh.uvIndices[i].i4].v, 0}};
+		}
+	}
+
 	// free the data
 	buffer.clear();
 
