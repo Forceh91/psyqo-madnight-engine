@@ -490,7 +490,7 @@ void Renderer::RenderGameObjects(uint32_t deltaTime, const psyqo::Matrix33& came
 				}
 
 				// finally we can insert the quad fragment into the ordering table at the calculated z-index
-				if (zIndex <= SUBDIVISION_DISTANCE) {
+				if (zIndex <= SUBDIVISION_MAX_DISTANCE) {
 					SubdivideTexturedQuad(&quad, zIndex, &ot, 0);
 				} else {
 					ot.insert(quad, zIndex);
@@ -526,7 +526,7 @@ void Renderer::RenderGameObjects(uint32_t deltaTime, const psyqo::Matrix33& came
 				}
 
 				// finally we can insert the tri fragment into the ordering table at the calculated z-index
-				if (zIndex <= SUBDIVISION_DISTANCE) {
+				if (zIndex <= SUBDIVISION_MAX_DISTANCE) {
 					SubdivideTexturedTri(&tri, zIndex, &ot, 2);
 				} else {
 					ot.insert(tri, zIndex);
@@ -1366,25 +1366,39 @@ void Renderer::ProcessMeshQuad(const RendererQuad& quad, int8_t depth, const Tim
 		return;
 	}
 
+	auto isCloseEnoughForSubDivision = sz0 <= SUBDIVISION_MAX_DISTANCE || sz1 <= SUBDIVISION_MAX_DISTANCE ||
+									   sz2 <= SUBDIVISION_MAX_DISTANCE || sz3 <= SUBDIVISION_MAX_DISTANCE;
+
 	// sub divide if we have depth and we're close enough
-	if (depth < SUBDIVISION_MAX_DEPTH && zIndex < SUBDIVISION_DISTANCE) {
+	if (depth < SUBDIVISION_MAX_DEPTH && isCloseEnoughForSubDivision) {
 		auto abs = [](int32_t v) -> int32_t { return v < 0 ? -v : v; };
-		auto sz01 = abs(sz0 - sz1);
-		auto sz12 = abs(sz1 - sz2);
-		auto sz23 = abs(sz2 - sz3);
-		auto sz30 = abs(sz3 - sz0);
+		// auto sz01 = abs(sz0 - sz1);
+		// auto sz23 = abs(sz2 - sz3);
+		// auto sz02 = abs(sz0 - sz2);
+		// auto sz13 = abs(sz1 - sz3);
+
+		auto width = eastl::max(abs(projected[0].x - projected[1].x), abs(projected[2].x - projected[3].x));
+		auto height = eastl::max(abs(projected[0].y - projected[2].y), abs(projected[1].y - projected[3].y));
+
+		auto midVert = [](const psyqo::GTE::PackedVec3& a, const psyqo::GTE::PackedVec3& b) -> auto {
+			psyqo::GTE::PackedVec3 mid;
+			mid.x.value = ((a.x.value + b.x.value) >> 1);
+			mid.y.value = ((a.y.value + b.y.value) >> 1);
+			mid.z.value = ((a.z.value + b.z.value) >> 1);
+			return mid;
+		};
+
+		auto midColour = [](const psyqo::Color& a, const psyqo::Color& b) -> auto {
+			return psyqo::Color{static_cast<uint8_t>((a.r + b.r) >> 1), static_cast<uint8_t>((a.g + b.g) >> 1),
+								static_cast<uint8_t>((a.b + b.b) >> 1)};
+		};
 
 		auto quadA = quad, quadB = quad;
-		if (sz01 >= sz12 && sz01 >= sz23) {
-			// split left right, mid points of TL (v0), TR (v0)
-			psyqo::GTE::PackedVec3 midVert01, midVert23;
-			midVert01.x.value = ((quad.verts[0].x.value + quad.verts[1].x.value) >> 1);
-			midVert01.y.value = ((quad.verts[0].y.value + quad.verts[1].y.value) >> 1);
-			midVert01.z.value = ((quad.verts[0].z.value + quad.verts[1].z.value) >> 1);
-
-			midVert23.x.value = ((quad.verts[2].x.value + quad.verts[3].x.value) >> 1);
-			midVert23.y.value = ((quad.verts[2].y.value + quad.verts[3].y.value) >> 1);
-			midVert23.z.value = ((quad.verts[2].z.value + quad.verts[3].z.value) >> 1);
+		// if (sz01 >= sz23 && sz01 >= sz02 && sz01 >= sz13) {
+		if (width >= height) {
+			// split left right, mid points of TL (v0), TR (v1)
+			psyqo::GTE::PackedVec3 midVert01 = midVert(quad.verts[0], quad.verts[1]),
+								   midVert23 = midVert(quad.verts[2], quad.verts[3]);
 
 			psyqo::PrimPieces::UVCoords midUV01, midUV23;
 			midUV01.u = (quad.uvA.u + quad.uvB.u) >> 1;
@@ -1392,13 +1406,8 @@ void Renderer::ProcessMeshQuad(const RendererQuad& quad, int8_t depth, const Tim
 			midUV23.u = (quad.uvC.u + quad.uvD.u) >> 1;
 			midUV23.v = (quad.uvC.v + quad.uvD.v) >> 1;
 
-			psyqo::Color midColour01 = {static_cast<uint8_t>((quad.colours[0].r + quad.colours[1].r) >> 1),
-										static_cast<uint8_t>((quad.colours[0].g + quad.colours[1].g) >> 1),
-										static_cast<uint8_t>((quad.colours[0].b + quad.colours[1].b) >> 1)};
-
-			psyqo::Color midColour23 = {static_cast<uint8_t>((quad.colours[2].r + quad.colours[3].r) >> 1),
-										static_cast<uint8_t>((quad.colours[2].g + quad.colours[3].g) >> 1),
-										static_cast<uint8_t>((quad.colours[2].b + quad.colours[3].b) >> 1)};
+			psyqo::Color midColour01 = midColour(quad.colours[0], quad.colours[1]),
+						 midColour23 = midColour(quad.colours[2], quad.colours[3]);
 
 			quadA.verts[1] = midVert01;
 			quadA.verts[3] = midVert23;
@@ -1413,7 +1422,90 @@ void Renderer::ProcessMeshQuad(const RendererQuad& quad, int8_t depth, const Tim
 			quadB.uvC = {midUV23.u, midUV23.v, 0};
 			quadB.colours[0] = midColour01;
 			quadB.colours[2] = midColour23;
+		} else {
+			// } else if (sz02 >= sz01 && sz02 >= sz23 && sz02 >= sz13) {
+			// split top/bottom, mid points of TL (v0), BL (v2)
+			psyqo::GTE::PackedVec3 midVert02 = midVert(quad.verts[0], quad.verts[2]),
+								   midVert13 = midVert(quad.verts[1], quad.verts[3]);
+
+			psyqo::PrimPieces::UVCoords midUVAC, midUVBD;
+			midUVAC.u = (quad.uvA.u + quad.uvC.u) >> 1;
+			midUVAC.v = (quad.uvA.v + quad.uvC.v) >> 1;
+			midUVBD.u = (quad.uvB.u + quad.uvD.u) >> 1;
+			midUVBD.v = (quad.uvB.v + quad.uvD.v) >> 1;
+
+			psyqo::Color midColour02 = midColour(quad.colours[0], quad.colours[2]),
+						 midColour13 = midColour(quad.colours[1], quad.colours[3]);
+
+			quadA.verts[2] = midVert02;
+			quadA.verts[3] = midVert13;
+			quadA.uvC = {midUVAC.u, midUVAC.v, 0};
+			quadA.uvD = {midUVBD.u, midUVBD.v, 0};
+			quadA.colours[2] = midColour02;
+			quadA.colours[3] = midColour13;
+
+			quadB.verts[0] = midVert02;
+			quadB.verts[1] = midVert13;
+			quadB.uvA = midUVAC;
+			quadB.uvB = midUVBD;
+			quadB.colours[0] = midColour02;
+			quadB.colours[1] = midColour13;
 		}
+		// } else if (sz23 >= sz01 && sz23 >= sz02 && sz23 >= sz13) {
+		// 	// split left/right, mid points of bL (v2), BR (v3)
+		// 	psyqo::GTE::PackedVec3 midVert23 = midVert(quad.verts[2], quad.verts[3]),
+		// 						   midVert01 = midVert(quad.verts[0], quad.verts[1]);
+
+		// 	psyqo::PrimPieces::UVCoords midUVAB, midUVCD;
+		// 	midUVAB.u = (quad.uvA.u + quad.uvB.u) >> 1;
+		// 	midUVAB.v = (quad.uvA.v + quad.uvB.v) >> 1;
+		// 	midUVCD.u = (quad.uvC.u + quad.uvD.u) >> 1;
+		// 	midUVCD.v = (quad.uvC.v + quad.uvD.v) >> 1;
+
+		// 	psyqo::Color midColour23 = midColour(quad.colours[2], quad.colours[3]),
+		// 				 midColour01 = midColour(quad.colours[0], quad.colours[1]);
+
+		// 	quadA.verts[3] = midVert23;
+		// 	quadA.verts[1] = midVert01;
+		// 	quadA.uvB = midUVAB;
+		// 	quadA.uvD = {midUVCD.u, midUVCD.v, 0};
+		// 	quadA.colours[3] = midColour23;
+		// 	quadA.colours[1] = midColour01;
+
+		// 	quadB.verts[2] = midVert23;
+		// 	quadB.verts[0] = midVert01;
+		// 	quadB.uvA = midUVAB;
+		// 	quadB.uvC = {midUVCD.u, midUVCD.v, 0};
+		// 	quadB.colours[2] = midColour23;
+		// 	quadB.colours[0] = midColour01;
+		// } else {
+		// 	// split top/bottom, mid points of TR (v1), BR (v3)
+		// 	psyqo::GTE::PackedVec3 midVert13 = midVert(quad.verts[1], quad.verts[3]),
+		// 						   midVert02 = midVert(quad.verts[0], quad.verts[2]);
+
+		// 	psyqo::PrimPieces::UVCoords midUVBD, midUVAC;
+		// 	midUVBD.u = (quad.uvB.u + quad.uvD.u) >> 1;
+		// 	midUVBD.v = (quad.uvB.v + quad.uvD.v) >> 1;
+		// 	midUVAC.u = (quad.uvA.u + quad.uvC.u) >> 1;
+		// 	midUVAC.v = (quad.uvA.v + quad.uvC.v) >> 1;
+
+		// 	psyqo::Color midColour13 = midColour(quad.colours[1], quad.colours[3]),
+		// 				 midColour02 = midColour(quad.colours[0], quad.colours[2]);
+
+		// 	quadA.verts[3] = midVert13;
+		// 	quadA.verts[2] = midVert02;
+		// 	quadA.uvD = {midUVBD.u, midUVBD.v, 0};
+		// 	quadA.uvC = {midUVAC.u, midUVAC.v, 0};
+		// 	quadA.colours[3] = midColour13;
+		// 	quadA.colours[2] = midColour02;
+
+		// 	quadB.verts[1] = midVert13;
+		// 	quadB.verts[0] = midVert02;
+		// 	quadB.uvB = midUVBD;
+		// 	quadB.uvA = midUVAC;
+		// 	quadB.colours[1] = midColour13;
+		// 	quadB.colours[0] = midColour02;
+		// }
 
 		ProcessMeshQuad(quadA, depth + 1, texture, tpage, uvOffset, bumpAllocator, orderingTable);
 		ProcessMeshQuad(quadB, depth + 1, texture, tpage, uvOffset, bumpAllocator, orderingTable);
