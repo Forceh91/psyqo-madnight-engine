@@ -276,11 +276,9 @@ def parse_obj_file_with_collision_data(path,texture_size):
                     continue
 
                 u, v = map(float, line.strip().split()[1:3])
-                # blender starts bottom left for uvs which is opposite to psx which is top left
-                u = int(u*texture_size)-1
-                v = int(v*texture_size)-1
-                if u < 0: u = 0
-                if v < 0: v = 0
+                # scale to texels; clamp so 1.0 lands on the last texel instead of one past it
+                u = max(0, min(int(u*texture_size), texture_size - 1))
+                v = max(0, min(int(v*texture_size), texture_size - 1))
                 uv_lookup.append(len(uvs))
                 uvs.append((u, v))
             elif line.startswith("f "):
