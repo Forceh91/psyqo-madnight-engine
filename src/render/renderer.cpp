@@ -301,7 +301,7 @@ void Renderer::RenderGameObjects(uint32_t deltaTime, const psyqo::Matrix33& came
 
 		// transform the game object into view space
 		renderedObjects++;
-		TransformObjectToViewSpace(gameObject->pos(), cameraRotationMatrix, finalCameraMatrix);
+		auto viewSpacePos = TransformObjectToViewSpace(gameObject->pos(), cameraRotationMatrix, finalCameraMatrix);
 
 		// if we've got a skeleton on this mesh
 		if (mesh->hasSkeleton) {
@@ -359,7 +359,7 @@ void Renderer::RenderGameObjects(uint32_t deltaTime, const psyqo::Matrix33& came
 			auto isQuad = mesh->vertexIndices[i].i2 != -1;
 
 			if (isQuad) {
-				ProcessMeshQuad(mesh->quads[i], 0, texture, tpage, offset, allocator, ot);
+				ProcessMeshQuad(mesh->quads[i], viewSpacePos, 0, texture, tpage, offset, allocator, ot);
 			}
 
 			continue;
@@ -1309,9 +1309,9 @@ void Renderer::SubdivideTexturedTri(psyqo::Fragments::SimpleFragment<psyqo::Prim
 	}
 }
 
-void Renderer::ProcessMeshQuad(const RendererQuad& quad, int8_t depth, const TimFile* texture,
-							   const psyqo::PrimPieces::TPageAttr& tpage, const psyqo::Rect& uvOffset,
-							   BA& bumpAllocator, OT& orderingTable) {
+void Renderer::ProcessMeshQuad(const RendererQuad& quad, const psyqo::Vec3& viewSpacePos, int8_t depth,
+							   const TimFile* texture, const psyqo::PrimPieces::TPageAttr& tpage,
+							   const psyqo::Rect& uvOffset, BA& bumpAllocator, OT& orderingTable) {
 	// projections for each vert
 	eastl::array<psyqo::Vertex, 4> projected;
 
@@ -1377,8 +1377,25 @@ void Renderer::ProcessMeshQuad(const RendererQuad& quad, int8_t depth, const Tim
 		// auto sz02 = abs(sz0 - sz2);
 		// auto sz13 = abs(sz1 - sz3);
 
-		auto width = eastl::max(abs(projected[0].x - projected[1].x), abs(projected[2].x - projected[3].x));
-		auto height = eastl::max(abs(projected[0].y - projected[2].y), abs(projected[1].y - projected[3].y));
+		int xVerts[4] = {
+			viewSpacePos.x.value + quad.verts[0].x.value,
+			viewSpacePos.x.value + quad.verts[1].x.value,
+			viewSpacePos.x.value + quad.verts[2].x.value,
+			viewSpacePos.x.value + quad.verts[3].x.value,
+		};
+
+		int yVerts[4] = {
+			viewSpacePos.y.value + quad.verts[0].y.value,
+			viewSpacePos.y.value + quad.verts[1].y.value,
+			viewSpacePos.y.value + quad.verts[2].y.value,
+			viewSpacePos.y.value + quad.verts[3].y.value,
+		};
+
+		auto width = eastl::max({xVerts[0], xVerts[1], xVerts[2], xVerts[3]}) -
+					 eastl::min({xVerts[0], xVerts[1], xVerts[2], xVerts[3]});
+
+		auto height = eastl::max({yVerts[0], yVerts[1], yVerts[2], yVerts[3]}) -
+					  eastl::min({yVerts[0], yVerts[1], yVerts[2], yVerts[3]});
 
 		auto midVert = [](const psyqo::GTE::PackedVec3& a, const psyqo::GTE::PackedVec3& b) -> auto {
 			psyqo::GTE::PackedVec3 mid;
@@ -1422,6 +1439,7 @@ void Renderer::ProcessMeshQuad(const RendererQuad& quad, int8_t depth, const Tim
 			quadB.uvC = {midUV23.u, midUV23.v, 0};
 			quadB.colours[0] = midColour01;
 			quadB.colours[2] = midColour23;
+			// }
 		} else {
 			// } else if (sz02 >= sz01 && sz02 >= sz23 && sz02 >= sz13) {
 			// split top/bottom, mid points of TL (v0), BL (v2)
@@ -1450,6 +1468,7 @@ void Renderer::ProcessMeshQuad(const RendererQuad& quad, int8_t depth, const Tim
 			quadB.uvB = midUVBD;
 			quadB.colours[0] = midColour02;
 			quadB.colours[1] = midColour13;
+			// }
 		}
 		// } else if (sz23 >= sz01 && sz23 >= sz02 && sz23 >= sz13) {
 		// 	// split left/right, mid points of bL (v2), BR (v3)
@@ -1507,8 +1526,8 @@ void Renderer::ProcessMeshQuad(const RendererQuad& quad, int8_t depth, const Tim
 		// 	quadB.colours[0] = midColour02;
 		// }
 
-		ProcessMeshQuad(quadA, depth + 1, texture, tpage, uvOffset, bumpAllocator, orderingTable);
-		ProcessMeshQuad(quadB, depth + 1, texture, tpage, uvOffset, bumpAllocator, orderingTable);
+		ProcessMeshQuad(quadA, viewSpacePos, depth + 1, texture, tpage, uvOffset, bumpAllocator, orderingTable);
+		ProcessMeshQuad(quadB, viewSpacePos, depth + 1, texture, tpage, uvOffset, bumpAllocator, orderingTable);
 		return;
 	}
 
