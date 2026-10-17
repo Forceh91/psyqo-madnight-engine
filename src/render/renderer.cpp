@@ -1377,25 +1377,14 @@ void Renderer::ProcessMeshQuad(const RendererQuad& quad, const psyqo::Vec3& view
 		// auto sz02 = abs(sz0 - sz2);
 		// auto sz13 = abs(sz1 - sz3);
 
-		int xVerts[4] = {
-			viewSpacePos.x.value + quad.verts[0].x.value,
-			viewSpacePos.x.value + quad.verts[1].x.value,
-			viewSpacePos.x.value + quad.verts[2].x.value,
-			viewSpacePos.x.value + quad.verts[3].x.value,
+		// measure the quad's own edges in 3D: v0-v1 / v2-v3 run across, v0-v2 / v1-v3 run down.
+		// an x/y bounding box can't see z, so a floor quad always looks wider than tall.
+		auto edgeLength = [&abs](const psyqo::GTE::PackedVec3& a, const psyqo::GTE::PackedVec3& b) -> int32_t {
+			return abs(a.x.value - b.x.value) + abs(a.y.value - b.y.value) + abs(a.z.value - b.z.value);
 		};
 
-		int yVerts[4] = {
-			viewSpacePos.y.value + quad.verts[0].y.value,
-			viewSpacePos.y.value + quad.verts[1].y.value,
-			viewSpacePos.y.value + quad.verts[2].y.value,
-			viewSpacePos.y.value + quad.verts[3].y.value,
-		};
-
-		auto width = eastl::max({xVerts[0], xVerts[1], xVerts[2], xVerts[3]}) -
-					 eastl::min({xVerts[0], xVerts[1], xVerts[2], xVerts[3]});
-
-		auto height = eastl::max({yVerts[0], yVerts[1], yVerts[2], yVerts[3]}) -
-					  eastl::min({yVerts[0], yVerts[1], yVerts[2], yVerts[3]});
+		auto width = edgeLength(quad.verts[0], quad.verts[1]) + edgeLength(quad.verts[2], quad.verts[3]);
+		auto height = edgeLength(quad.verts[0], quad.verts[2]) + edgeLength(quad.verts[1], quad.verts[3]);
 
 		auto midVert = [](const psyqo::GTE::PackedVec3& a, const psyqo::GTE::PackedVec3& b) -> auto {
 			psyqo::GTE::PackedVec3 mid;
