@@ -71,10 +71,6 @@ class Renderer final {
 										   const psyqo::Matrix33& finalCameraMatrix);
 
 	void RenderGameObjects(uint32_t deltaTime, const psyqo::Matrix33& cameraRotationMatrix);
-	void SubdivideTexturedQuad(psyqo::Fragments::SimpleFragment<psyqo::Prim::GouraudTexturedQuad>* texturedQuad,
-							   uint32_t zIndex, psyqo::OrderingTable<ORDERING_TABLE_SIZE>* ot, uint8_t depth);
-	void SubdivideTexturedTri(psyqo::Fragments::SimpleFragment<psyqo::Prim::GouraudTexturedTriangle>* tri,
-							  uint32_t zIndex, psyqo::OrderingTable<ORDERING_TABLE_SIZE>* ot, uint8_t maxDepth = 1);
 
 	void ProcessMeshQuad(const RendererQuad& quad, int8_t depth, const TimFile* texture,
 						 const psyqo::PrimPieces::TPageAttr& tpage, const psyqo::Rect& uvOffset, BA& bumpAllocator,
