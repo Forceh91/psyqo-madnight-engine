@@ -28,9 +28,9 @@ static constexpr uint16_t FULL_FOG_DISTANCE = 3'500; // screen z
 static constexpr uint16_t NEAR_FOG_DISTANCE = 2'000; // screen z
 static constexpr uint32_t BUMP_ALLOCATOR_BYTES =
 	125'000; // this is for each frame, so double what this number is is used up in RAM
-static constexpr uint16_t SUBDIVISION_MAX_DISTANCE = 1'500; // after view space transformation
-static constexpr uint8_t SUBDIVISION_MAX_DEPTH = 2;			// how deep to go when doing sub-division
-static constexpr uint8_t MAX_SPRITE_FRAGMENTS = 40;			// per frame, shared by every RenderSprite caller
+static constexpr uint16_t SUBDIVISION_MAX_DISTANCE = 500; // after view space transformation
+static constexpr uint8_t SUBDIVISION_MAX_DEPTH = 4;		  // how deep to go when doing sub-division
+static constexpr uint8_t MAX_SPRITE_FRAGMENTS = 40;		  // per frame, shared by every RenderSprite caller
 static constexpr psyqo::Color c_loadingBackgroundColour = {.r = 0, .g = 0, .b = 0};
 
 using OT = psyqo::OrderingTable<ORDERING_TABLE_SIZE>;
@@ -79,6 +79,10 @@ class Renderer final {
 	void ProcessMeshQuad(const RendererQuad& quad, int8_t depth, const TimFile* texture,
 						 const psyqo::PrimPieces::TPageAttr& tpage, const psyqo::Rect& uvOffset, BA& bumpAllocator,
 						 OT& orderingTable);
+
+	void ProcessMeshTri(const RendererTri& tri, int8_t depth, const TimFile* texture,
+						const psyqo::PrimPieces::TPageAttr& tpage, const psyqo::Rect& uvOffset, BA& bumpAllocator,
+						OT& orderingTable);
 
 	void RenderBillboards(uint32_t deltaTime, const psyqo::Matrix33& cameraRotationMatrix);
 	void RenderParticles(uint32_t deltaTime, const psyqo::Matrix33& cameraRotationMatrix);

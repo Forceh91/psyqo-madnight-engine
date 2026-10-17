@@ -289,9 +289,9 @@ psyqo::Coroutine<> MeshManager::LoadMesh(const eastl::string_view& meshName, Mes
 			mesh.quads[quadFace].uvC = {uvData[indices[2]].u, uvData[indices[2]].v, 0};
 			mesh.quads[quadFace].uvD = {uvData[indices[3]].u, uvData[indices[3]].v, 0};
 		} else {
-			mesh.quads[quadFace].uvA = uvData[indices[0]];
-			mesh.quads[quadFace].uvB = uvData[indices[2]];
-			mesh.quads[quadFace].uvC = {uvData[indices[3]].u, uvData[indices[3]].v, 0};
+			mesh.tris[triFace].uvA = uvData[indices[0]];
+			mesh.tris[triFace].uvB = uvData[indices[2]];
+			mesh.tris[triFace].uvC = {uvData[indices[3]].u, uvData[indices[3]].v, 0};
 		}
 
 		if (isQuad) {

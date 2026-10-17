@@ -359,9 +359,9 @@ void Renderer::RenderGameObjects(uint32_t deltaTime, const psyqo::Matrix33& came
 
 			if (faceData.isQuad) {
 				ProcessMeshQuad(mesh->quads[faceData.rendererFaceIx], 0, texture, tpage, offset, allocator, ot);
+			} else {
+				ProcessMeshTri(mesh->tris[faceData.rendererFaceIx], 0, texture, tpage, offset, allocator, ot);
 			}
-
-			continue;
 
 			// uint32_t pA, pB, pC, pD;
 
@@ -1506,6 +1506,192 @@ void Renderer::ProcessMeshQuad(const RendererQuad& quad, int8_t depth, const Tim
 		quadPrim.primitive.setOpaque();
 
 		orderingTable.insert(quadPrim, zIndex);
+	}
+}
+
+void Renderer::ProcessMeshTri(const RendererTri& tri, int8_t depth, const TimFile* texture,
+							  const psyqo::PrimPieces::TPageAttr& tpage, const psyqo::Rect& uvOffset, BA& bumpAllocator,
+							  OT& orderingTable) {
+	// projections for each vert
+	eastl::array<psyqo::Vertex, 3> projected;
+
+	// IR0 for each vert
+	uint32_t ir[3];
+	uint32_t zIndex;
+
+	// vertex 1->3
+	for (int i = 0; i < 3; i++) {
+		psyqo::GTE::writeSafe<psyqo::GTE::PseudoRegister::V0>(tri.verts[i]);
+		psyqo::GTE::Kernels::rtps();
+		ir[i] = psyqo::GTE::readRaw<psyqo::GTE::Register::IR0>();
+	}
+
+	// figure out nclip and skip rendering if backfaced
+	psyqo::GTE::Kernels::nclip();
+	if (psyqo::GTE::readRaw<psyqo::GTE::Register::MAC0>() == 0) {
+		return;
+	}
+
+	// read projected verts
+	psyqo::GTE::read<psyqo::GTE::Register::SXY0>(&projected[0].packed);
+	psyqo::GTE::read<psyqo::GTE::Register::SXY1>(&projected[1].packed);
+	psyqo::GTE::read<psyqo::GTE::Register::SXY2>(&projected[2].packed);
+
+	// read all the SZ data
+	uint32_t usz0, usz1, usz2, usz3;
+	psyqo::GTE::read<psyqo::GTE::Register::SZ0>(&usz0);
+	psyqo::GTE::read<psyqo::GTE::Register::SZ1>(&usz1);
+	psyqo::GTE::read<psyqo::GTE::Register::SZ2>(&usz2);
+
+	int32_t sz0 = (int32_t)usz0, sz1 = (int32_t)usz1, sz2 = (int32_t)usz2;
+
+	// figure out avg z index
+	psyqo::GTE::Kernels::avsz3();
+
+	// keep inside OT bounds
+	zIndex = psyqo::GTE::readRaw<psyqo::GTE::Register::OTZ>();
+	if (zIndex == 0 || zIndex >= ORDERING_TABLE_SIZE) {
+		return;
+	}
+
+	// clip screen space
+	if (tri_clip(&SCREEN_SPACE, &projected[0], &projected[1], &projected[2])) {
+		return;
+	}
+
+	auto isCloseEnoughForSubDivision =
+		sz0 <= SUBDIVISION_MAX_DISTANCE || sz1 <= SUBDIVISION_MAX_DISTANCE || sz2 <= SUBDIVISION_MAX_DISTANCE;
+
+	// sub divide if we have depth and we're close enough
+	if (depth < SUBDIVISION_MAX_DEPTH && isCloseEnoughForSubDivision) {
+		auto abs = [](int32_t v) -> int32_t { return v < 0 ? -v : v; };
+		auto edgeLength = [&abs](const psyqo::GTE::PackedVec3 a, const psyqo::GTE::PackedVec3 b) -> auto {
+			return abs(a.x.value - b.x.value) + abs(a.y.value - b.y.value) + abs(a.z.value - b.z.value);
+		};
+
+		// make sure to measure the width and height in 3d, not just 2d.
+		auto sz01 = abs(sz0 - sz1);
+		auto sz12 = abs(sz1 - sz2);
+		auto sz20 = abs(sz2 - sz0);
+
+		auto midVert = [](const psyqo::GTE::PackedVec3& a, const psyqo::GTE::PackedVec3& b) -> auto {
+			psyqo::GTE::PackedVec3 mid;
+			mid.x.value = ((a.x.value + b.x.value) >> 1);
+			mid.y.value = ((a.y.value + b.y.value) >> 1);
+			mid.z.value = ((a.z.value + b.z.value) >> 1);
+			return mid;
+		};
+
+		auto midColour = [](const psyqo::Color& a, const psyqo::Color& b) -> auto {
+			return psyqo::Color{static_cast<uint8_t>((a.r + b.r) >> 1), static_cast<uint8_t>((a.g + b.g) >> 1),
+								static_cast<uint8_t>((a.b + b.b) >> 1)};
+		};
+
+		auto triA = tri, triB = tri;
+		if (sz01 >= sz12 && sz01 >= sz20) {
+			// split mid points of v0 and v1
+			psyqo::GTE::PackedVec3 midVert01 = midVert(tri.verts[0], tri.verts[1]);
+
+			psyqo::PrimPieces::UVCoords midUV01;
+			midUV01.u = (tri.uvA.u + tri.uvB.u) >> 1;
+			midUV01.v = (tri.uvA.v + tri.uvB.v) >> 1;
+
+			psyqo::Color midColour01 = midColour(tri.colours[0], tri.colours[1]);
+
+			triA.verts[1] = midVert01;
+			triA.uvB = midUV01;
+			triA.colours[1] = midColour01;
+
+			triB.verts[0] = midVert01;
+			triB.uvA = midUV01;
+			triB.colours[0] = midColour01;
+		} else if (sz12 >= sz01 && sz12 >= sz20) {
+			// split mid points of v1 and v2
+			psyqo::GTE::PackedVec3 midVert12 = midVert(tri.verts[1], tri.verts[2]);
+
+			psyqo::PrimPieces::UVCoords midUV12;
+			midUV12.u = (tri.uvB.u + tri.uvC.u) >> 1;
+			midUV12.v = (tri.uvB.v + tri.uvC.v) >> 1;
+
+			psyqo::Color midColour12 = midColour(tri.colours[1], tri.colours[2]);
+
+			triA.verts[2] = midVert12;
+			triA.uvC = {midUV12.u, midUV12.v, 0};
+			triA.colours[2] = midColour12;
+
+			triB.verts[1] = midVert12;
+			triB.uvB = midUV12;
+			triB.colours[1] = midColour12;
+		} else {
+			// split mid points of v0 and v2
+			psyqo::GTE::PackedVec3 midVert02 = midVert(tri.verts[0], tri.verts[2]);
+
+			psyqo::PrimPieces::UVCoords midUV02;
+			midUV02.u = (tri.uvA.u + tri.uvC.u) >> 1;
+			midUV02.v = (tri.uvA.v + tri.uvC.v) >> 1;
+
+			psyqo::Color midColour02 = midColour(tri.colours[0], tri.colours[2]);
+
+			triA.verts[2] = midVert02;
+			triA.uvC = {midUV02.u, midUV02.v, 0};
+			triA.colours[2] = midColour02;
+
+			triB.verts[0] = midVert02;
+			triB.uvA = midUV02;
+			triB.colours[0] = midColour02;
+		}
+
+		ProcessMeshTri(triA, depth + 1, texture, tpage, uvOffset, bumpAllocator, orderingTable);
+		ProcessMeshTri(triB, depth + 1, texture, tpage, uvOffset, bumpAllocator, orderingTable);
+		return;
+	}
+
+	// OTHERWISE continue to process and add it to OT
+	eastl::array<psyqo::Color, 3> colours;
+	for (int i = 0; i < 3; i++) {
+		colours[i] = tri.colours[i];
+		ApplyAmbientToColour(&colours[i]);
+		colours[i] = ApplyFogToColourGTE(colours[i], ir[i]);
+	}
+
+	// textured
+	if (texture != nullptr) {
+		auto& triPrim = bumpAllocator.allocateFragment<psyqo::Prim::GouraudTexturedTriangle>();
+		triPrim.primitive.pointA = projected[0];
+		triPrim.primitive.pointB = projected[1];
+		triPrim.primitive.pointC = projected[2];
+
+		triPrim.primitive.setColorA(colours[0]);
+		triPrim.primitive.setColorB(colours[1]);
+		triPrim.primitive.setColorC(colours[2]);
+		triPrim.primitive.setOpaque();
+
+		triPrim.primitive.tpage = tpage;
+
+		if (texture->hasClut) {
+			triPrim.primitive.clutIndex = {texture->clutX, texture->clutY};
+		}
+
+		triPrim.primitive.uvA = {static_cast<uint8_t>(uvOffset.pos.x + tri.uvA.u),
+								 static_cast<uint8_t>(uvOffset.pos.y - tri.uvA.v)};
+		triPrim.primitive.uvB = {static_cast<uint8_t>(uvOffset.pos.x + tri.uvB.u),
+								 static_cast<uint8_t>(uvOffset.pos.y - tri.uvB.v)};
+		triPrim.primitive.uvC = {static_cast<uint8_t>(uvOffset.pos.x + tri.uvC.u),
+								 static_cast<uint8_t>(uvOffset.pos.y - tri.uvC.v)};
+
+		orderingTable.insert(triPrim, zIndex);
+	} else { // untextured
+		auto& triPrim = bumpAllocator.allocateFragment<psyqo::Prim::GouraudTriangle>();
+		triPrim.primitive.pointA = projected[0];
+		triPrim.primitive.pointB = projected[1];
+		triPrim.primitive.pointC = projected[2];
+
+		triPrim.primitive.setColorA(colours[0]);
+		triPrim.primitive.setColorB(colours[1]);
+		triPrim.primitive.setColorC(colours[2]);
+		triPrim.primitive.setOpaque();
+
+		orderingTable.insert(triPrim, zIndex);
 	}
 }
 
