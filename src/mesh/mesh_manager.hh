@@ -8,7 +8,7 @@
 
 #include "../core/collision_types.hh"
 #include "../pool/pool.hh"
-#include "../render/quad.hh"
+#include "../render/renderer_face_types.hh"
 #include "skeleton/skeleton.hh"
 
 #include <EASTL/fixed_string.h>
@@ -32,6 +32,11 @@ struct BoundingSphere {
 	int32_t radius = 0;
 };
 
+struct RendererFace {
+	bool isQuad = false;
+	int rendererFaceIx = -1;
+};
+
 struct MeshBin {
 	uint8_t type = 0; // 1 = quads, 2 = tris (unused)
 
@@ -44,19 +49,11 @@ struct MeshBin {
 	uint8_t hasSkeleton = 0;
 	uint8_t numBones = 0;
 
+	RendererFace* facesData = nullptr;
+
 	// variable-length data
 	// verts
 	psyqo::Vec3* vertices = nullptr;
-	MeshBinVertexColours* vertexColours = nullptr;
-	MeshBinIndex* vertexIndices = nullptr;
-
-	// noramls
-	psyqo::Vec3* normals = nullptr;
-	MeshBinIndex* normalIndices = nullptr;
-
-	// UVs
-	psyqo::PrimPieces::UVCoords* uvs = nullptr;
-	MeshBinIndex* uvIndices = nullptr;
 
 	// skeleton info
 	Skeleton* skeleton = nullptr;
@@ -67,8 +64,9 @@ struct MeshBin {
 	AABBCollision collisionBox = {};
 	BoundingSphere bsphere = {};
 
-	// for fast rendering
+	// for easier sub-divison
 	RendererQuad* quads;
+	RendererTri* tris;
 };
 
 struct LoadedMeshBin {

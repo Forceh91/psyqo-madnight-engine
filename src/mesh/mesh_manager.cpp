@@ -51,6 +51,8 @@ psyqo::Coroutine<> MeshManager::LoadMesh(const eastl::string_view& meshName, Mes
 	loadedMesh->meshNameHash = HashName(meshName);
 	loadedMesh->mesh = {};
 
+	auto& mesh = loadedMesh->mesh;
+
 	// get ready with our buffer
 	unsigned char* ptr = (unsigned char*)data;
 
@@ -118,64 +120,188 @@ psyqo::Coroutine<> MeshManager::LoadMesh(const eastl::string_view& meshName, Mes
 		co_return;
 	}
 
+	size_t facesSize = sizeof(RendererFace) * mesh.facesCount;
+	mesh.facesData = (RendererFace*)psyqo_malloc(facesSize);
+
 	// read the verts
 	size_t verticesSize = sizeof(psyqo::Vec3) * loadedMesh->mesh.vertexCount;
-	loadedMesh->mesh.vertices = (psyqo::Vec3*)psyqo_malloc(verticesSize);
+	psyqo::Vec3* verticesData = (psyqo::Vec3*)psyqo_malloc(verticesSize);
 
 	for (int32_t i = 0; i < loadedMesh->mesh.vertexCount; i++) {
-		__builtin_memcpy(&loadedMesh->mesh.vertices[i].x.value, ptr, sizeof(int32_t));
+		__builtin_memcpy(&verticesData[i].x.value, ptr, sizeof(int32_t));
 		ptr += sizeof(int32_t);
 
-		__builtin_memcpy(&loadedMesh->mesh.vertices[i].y.value, ptr, sizeof(int32_t));
+		__builtin_memcpy(&verticesData[i].y.value, ptr, sizeof(int32_t));
 		ptr += sizeof(int32_t);
 
-		__builtin_memcpy(&loadedMesh->mesh.vertices[i].z.value, ptr, sizeof(int32_t));
+		__builtin_memcpy(&verticesData[i].z.value, ptr, sizeof(int32_t));
 		ptr += sizeof(int32_t);
 	}
 
 	// read the vert colours data
 	size_t verticesPaintSize = sizeof(MeshBinVertexColours) * loadedMesh->mesh.vertexCount;
-	loadedMesh->mesh.vertexColours = (MeshBinVertexColours*)psyqo_malloc(verticesPaintSize);
-	__builtin_memcpy(loadedMesh->mesh.vertexColours, ptr, verticesPaintSize);
+	auto vertexColoursData = (MeshBinVertexColours*)psyqo_malloc(verticesPaintSize);
+	__builtin_memcpy(vertexColoursData, ptr, verticesPaintSize);
 	ptr += verticesPaintSize;
 
 	// read the verts indices
 	size_t vertexIndicesSize = sizeof(MeshBinIndex) * loadedMesh->mesh.indicesCount;
-	loadedMesh->mesh.vertexIndices = (MeshBinIndex*)psyqo_malloc(vertexIndicesSize);
-	__builtin_memcpy(loadedMesh->mesh.vertexIndices, ptr, vertexIndicesSize);
-	ptr += vertexIndicesSize;
+
+	auto startOfVertexIndices = ptr;
+
+	// theres always 4 vertex indices regardless of if its a quad or a tri (tri is -1 for i2)
+	auto triFaceCount = 0, quadFaceCount = 0;
+	int16_t vertIndex = 0xFFFF;
+	for (int i = 0; i < mesh.facesCount; i++) {
+		// ignore the first vert
+		ptr += 2;
+
+		// tris have i2 set to -1
+		__builtin_memcpy(&vertIndex, ptr, sizeof(vertIndex));
+		if (vertIndex == -1) {
+			mesh.facesData[i] = {false, triFaceCount};
+			triFaceCount++;
+		} else {
+			mesh.facesData[i] = {true, quadFaceCount};
+			quadFaceCount++;
+		}
+
+		// move forward 3 vertex indices (i2, i3, i4)
+		ptr += 6;
+	}
+
+	// go back to the start of the vertex indices
+	ptr = startOfVertexIndices;
+
+	// allocate the correct amount of renderquads
+	mesh.quads = (RendererQuad*)psyqo_malloc(sizeof(RendererQuad) * quadFaceCount);
+	mesh.tris = (RendererTri*)psyqo_malloc(sizeof(RendererTri) * triFaceCount);
+
+	// add in the vertices info
+	for (int i = 0, quadFace = 0, triFace = 0; i < mesh.facesCount; i++) {
+		int16_t indices[4] = {};
+
+		// load in the 4 indicies
+		for (int j = 0; j < 4; j++) {
+			__builtin_memcpy(&indices[j], ptr, sizeof(int16_t));
+			ptr += sizeof(int16_t);
+		}
+
+		const bool isQuad = indices[1] != -1;
+		for (int j = 0, triIx = 0; j < 4; j++) {
+			if (indices[j] == -1) {
+				continue;
+			}
+
+			auto packedVertex = psyqo::GTE::PackedVec3(verticesData[indices[j]]);
+			auto colour = vertexColoursData[indices[j]];
+
+			if (isQuad) {
+				mesh.quads[quadFace].verts[j] = packedVertex;
+				mesh.quads[quadFace].colours[j] = {colour.r, colour.g, colour.b};
+			} else {
+				mesh.tris[triFace].verts[triIx] = packedVertex;
+				mesh.tris[triFace].colours[triIx] = {colour.r, colour.g, colour.b};
+				triIx++;
+			}
+		}
+
+		if (isQuad) {
+			quadFace++;
+		} else {
+			triFace++;
+		}
+	}
+
+	psyqo_free(verticesData);
+	psyqo_free(vertexColoursData);
 
 	// read the normals data
 	size_t normalsSize = sizeof(psyqo::Vec3) * loadedMesh->mesh.normalsCount;
-	loadedMesh->mesh.normals = (psyqo::Vec3*)psyqo_malloc(normalsSize);
+	auto normalsData = (psyqo::Vec3*)psyqo_malloc(normalsSize);
 
 	for (int i = 0; i < loadedMesh->mesh.normalsCount; i++) {
-		__builtin_memcpy(&loadedMesh->mesh.normals[i].x.value, ptr, sizeof(int16_t));
+		__builtin_memcpy(&normalsData[i].x.value, ptr, sizeof(int16_t));
 		ptr += sizeof(int16_t);
 
-		__builtin_memcpy(&loadedMesh->mesh.normals[i].y.value, ptr, sizeof(int16_t));
+		__builtin_memcpy(&normalsData[i].y.value, ptr, sizeof(int16_t));
 		ptr += sizeof(int16_t);
 
-		__builtin_memcpy(&loadedMesh->mesh.normals[i].z.value, ptr, sizeof(int16_t));
+		__builtin_memcpy(&normalsData[i].z.value, ptr, sizeof(int16_t));
 		ptr += sizeof(int16_t);
 	}
 
-	size_t normalsIndicesSize = sizeof(MeshBinIndex) * loadedMesh->mesh.indicesCount;
-	loadedMesh->mesh.normalIndices = (MeshBinIndex*)psyqo_malloc(normalsIndicesSize);
-	__builtin_memcpy(loadedMesh->mesh.normalIndices, ptr, normalsIndicesSize);
-	ptr += normalsIndicesSize;
+	for (int i = 0, quadFace = 0, triFace = 0; i < mesh.facesCount; i++) {
+		int16_t indices[4] = {};
+
+		// load in the 4 indicies
+		for (int j = 0; j < 4; j++) {
+			__builtin_memcpy(&indices[j], ptr, sizeof(int16_t));
+			ptr += sizeof(int16_t);
+		}
+
+		const bool isQuad = indices[1] != -1;
+		for (int j = 0, triIx = 0; j < 4; j++) {
+			if (indices[j] == -1) {
+				continue;
+			}
+
+			auto packedNormal = psyqo::GTE::PackedVec3(normalsData[indices[j]]);
+			auto colour = vertexColoursData[indices[j]];
+
+			if (isQuad) {
+				mesh.quads[quadFace].normal = packedNormal;
+			} else {
+				mesh.tris[triFace].normal = packedNormal;
+				triIx++;
+			}
+		}
+
+		if (isQuad) {
+			quadFace++;
+		} else {
+			triFace++;
+		}
+	}
+
+	psyqo_free(normalsData);
 
 	// read the uv data
 	size_t uvSize = sizeof(psyqo::PrimPieces::UVCoords) * loadedMesh->mesh.uvCount;
-	loadedMesh->mesh.uvs = (psyqo::PrimPieces::UVCoords*)psyqo_malloc(uvSize);
-	__builtin_memcpy(loadedMesh->mesh.uvs, ptr, uvSize);
+	auto uvData = (psyqo::PrimPieces::UVCoords*)psyqo_malloc(uvSize);
+	__builtin_memcpy(uvData, ptr, uvSize);
 	ptr += uvSize;
 
-	// read the uv indices
-	size_t uvIndicesSize = sizeof(MeshBinIndex) * loadedMesh->mesh.indicesCount;
-	loadedMesh->mesh.uvIndices = (MeshBinIndex*)psyqo_malloc(uvIndicesSize);
-	__builtin_memcpy(loadedMesh->mesh.uvIndices, ptr, uvIndicesSize);
-	ptr += uvIndicesSize;
+	for (int i = 0, quadFace = 0, triFace = 0; i < mesh.facesCount; i++) {
+		int16_t indices[4] = {};
+
+		// load in the 4 indicies
+		for (int j = 0; j < 4; j++) {
+			__builtin_memcpy(&indices[j], ptr, sizeof(int16_t));
+			ptr += sizeof(int16_t);
+		}
+
+		const bool isQuad = indices[1] != -1;
+
+		if (isQuad) {
+			mesh.quads[quadFace].uvA = uvData[indices[0]];
+			mesh.quads[quadFace].uvB = uvData[indices[1]];
+			mesh.quads[quadFace].uvC = {uvData[indices[2]].u, uvData[indices[2]].v, 0};
+			mesh.quads[quadFace].uvD = {uvData[indices[3]].u, uvData[indices[3]].v, 0};
+		} else {
+			mesh.quads[quadFace].uvA = uvData[indices[0]];
+			mesh.quads[quadFace].uvB = uvData[indices[2]];
+			mesh.quads[quadFace].uvC = {uvData[indices[3]].u, uvData[indices[3]].v, 0};
+		}
+
+		if (isQuad) {
+			quadFace++;
+		} else {
+			triFace++;
+		}
+	}
+
+	psyqo_free(uvData);
 
 	// load aabb min data
 	int16_t tempVal = 0;
@@ -312,34 +438,6 @@ psyqo::Coroutine<> MeshManager::LoadMesh(const eastl::string_view& meshName, Mes
 		g_madnightEngine.m_skeletonController.UpdateSkeletonBoneMatrices(loadedMesh->mesh.skeleton);
 	}
 
-	auto& mesh = loadedMesh->mesh;
-
-	auto renderVerts = mesh.hasSkeleton ? mesh.verticesOnBonePos : mesh.vertices;
-	loadedMesh->mesh.quads = (RendererQuad*)psyqo_malloc(sizeof(RendererQuad) * mesh.facesCount);
-
-	for (int i = 0; i < mesh.facesCount; i++) {
-		if (mesh.vertexIndices[i].i2 != -1) {
-			mesh.quads[i] = {
-				{psyqo::GTE::PackedVec3(renderVerts[mesh.vertexIndices[i].i1]),
-				 psyqo::GTE::PackedVec3(renderVerts[mesh.vertexIndices[i].i2]),
-				 psyqo::GTE::PackedVec3(renderVerts[mesh.vertexIndices[i].i3]),
-				 psyqo::GTE::PackedVec3(renderVerts[mesh.vertexIndices[i].i4])},
-				psyqo::GTE::PackedVec3(mesh.normals[mesh.normalIndices[i].i1]),
-				{{mesh.vertexColours[mesh.vertexIndices[i].i1].r, mesh.vertexColours[mesh.vertexIndices[i].i1].g,
-				  mesh.vertexColours[mesh.vertexIndices[i].i1].b},
-				 {mesh.vertexColours[mesh.vertexIndices[i].i2].r, mesh.vertexColours[mesh.vertexIndices[i].i2].g,
-				  mesh.vertexColours[mesh.vertexIndices[i].i2].b},
-				 {mesh.vertexColours[mesh.vertexIndices[i].i3].r, mesh.vertexColours[mesh.vertexIndices[i].i3].g,
-				  mesh.vertexColours[mesh.vertexIndices[i].i3].b},
-				 {mesh.vertexColours[mesh.vertexIndices[i].i4].r, mesh.vertexColours[mesh.vertexIndices[i].i4].g,
-				  mesh.vertexColours[mesh.vertexIndices[i].i4].b}},
-				mesh.uvs[mesh.uvIndices[i].i1],
-				mesh.uvs[mesh.uvIndices[i].i2],
-				{mesh.uvs[mesh.uvIndices[i].i3].u, mesh.uvs[mesh.uvIndices[i].i3].v, 0},
-				{mesh.uvs[mesh.uvIndices[i].i4].u, mesh.uvs[mesh.uvIndices[i].i4].v, 0}};
-		}
-	}
-
 	// free the data
 	buffer.clear();
 
@@ -391,12 +489,12 @@ void MeshManager::FreeLoadedMesh(LoadedMeshBin* mesh) {
 	}
 
 	psyqo_free(mesh->mesh.vertices);
-	psyqo_free(mesh->mesh.vertexColours);
-	psyqo_free(mesh->mesh.vertexIndices);
-	psyqo_free(mesh->mesh.normals);
-	psyqo_free(mesh->mesh.normalIndices);
-	psyqo_free(mesh->mesh.uvs);
-	psyqo_free(mesh->mesh.uvIndices);
+	// psyqo_free(mesh->mesh.vertexColours);
+	// psyqo_free(mesh->mesh.vertexIndices);
+	// psyqo_free(mesh->mesh.normals);
+	// psyqo_free(mesh->mesh.normalIndices);
+	// psyqo_free(mesh->mesh.uvs);
+	// psyqo_free(mesh->mesh.uvIndices);
 
 	*mesh = {};
 }

@@ -11,7 +11,7 @@
 #include "camera.hh"
 #include "lighting.hh"
 #include "psyqo/ordering-table.hh"
-#include "quad.hh"
+#include "renderer_face_types.hh"
 
 #include <psyqo/bump-allocator.hh>
 #include <psyqo/fixed-point.hh>
