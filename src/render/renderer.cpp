@@ -884,14 +884,6 @@ void Renderer::ProcessMeshQuad(const RendererQuad& quad, int8_t depth, const Tim
 		return;
 	}
 
-	// figure out if this is even worth rendering
-	eastl::array<psyqo::Color, 4> colours;
-	for (int i = 0; i < 4; i++) {
-		colours[i] = quad.colours[i];
-		ApplyAmbientToColour(&colours[i]);
-		colours[i] = ApplyFogToColourGTE(colours[i], ir[i]);
-	}
-
 	// determine if it should be sub-divided if its not got bones, and at least one edge is close enough
 	auto isCloseEnoughForSubDivision =
 		!quad.boneAdjustedVerts && (sz0 <= SUBDIVISION_MAX_DISTANCE || sz1 <= SUBDIVISION_MAX_DISTANCE ||
@@ -982,6 +974,13 @@ void Renderer::ProcessMeshQuad(const RendererQuad& quad, int8_t depth, const Tim
 		ProcessMeshQuad(quadB, depth + 1, texture, tpage, uvOffset, bumpAllocator, orderingTable);
 		return;
 	} // OTHERWISE continue to process and add to OT
+
+	eastl::array<psyqo::Color, 4> colours;
+	for (int i = 0; i < 4; i++) {
+		colours[i] = quad.colours[i];
+		ApplyAmbientToColour(&colours[i]);
+		colours[i] = ApplyFogToColourGTE(colours[i], ir[i]);
+	}
 
 	// textured
 	if (texture != nullptr) {
@@ -1082,14 +1081,6 @@ void Renderer::ProcessMeshTri(const RendererTri& tri, int8_t depth, const TimFil
 		return;
 	}
 
-	// OTHERWISE continue to process and add it to OT
-	eastl::array<psyqo::Color, 3> colours;
-	for (int i = 0; i < 3; i++) {
-		colours[i] = tri.colours[i];
-		ApplyAmbientToColour(&colours[i]);
-		colours[i] = ApplyFogToColourGTE(colours[i], ir[i]);
-	}
-
 	auto isCloseEnoughForSubDivision =
 		sz0 <= SUBDIVISION_MAX_DISTANCE || sz1 <= SUBDIVISION_MAX_DISTANCE || sz2 <= SUBDIVISION_MAX_DISTANCE;
 
@@ -1175,6 +1166,14 @@ void Renderer::ProcessMeshTri(const RendererTri& tri, int8_t depth, const TimFil
 		ProcessMeshTri(triA, depth + 1, texture, tpage, uvOffset, bumpAllocator, orderingTable);
 		ProcessMeshTri(triB, depth + 1, texture, tpage, uvOffset, bumpAllocator, orderingTable);
 		return;
+	}
+
+	// OTHERWISE continue to process and add it to OT
+	eastl::array<psyqo::Color, 3> colours;
+	for (int i = 0; i < 3; i++) {
+		colours[i] = tri.colours[i];
+		ApplyAmbientToColour(&colours[i]);
+		colours[i] = ApplyFogToColourGTE(colours[i], ir[i]);
 	}
 
 	// textured
