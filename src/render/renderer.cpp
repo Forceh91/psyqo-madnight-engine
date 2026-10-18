@@ -310,26 +310,37 @@ void Renderer::RenderGameObjects(uint32_t deltaTime, const psyqo::Matrix33& came
 			g_madnightEngine.m_skeletonController.UpdateSkeletonBoneMatrices(mesh->skeleton);
 
 			// adjust pos of verts that are attached to bones
-			for (int32_t i = 0; i < mesh->vertexCount; i++) {
-				auto& bone = mesh->skeleton->bones[mesh->boneForVertex[i]];
-				if (!bone.isDirty) {
-					continue;
+			for (int32_t i = 0; i < mesh->facesCount; i++) {
+				auto& face = mesh->facesData[i];
+				const int vertCount = face.isQuad ? 4 : 3;
+				for (int j = 0; j < vertCount; j++) {
+					auto vertIx = face.isQuad ? mesh->quads[face.rendererFaceIx].vertIxs[j]
+											  : mesh->tris[face.rendererFaceIx].vertIxs[j];
+					auto vert = face.isQuad ? mesh->quads[face.rendererFaceIx].verts[j]
+											: mesh->tris[face.rendererFaceIx].verts[j];
+
+					auto& bone = mesh->skeleton->bones[mesh->boneForVertex[vertIx]];
+					if (!bone.isDirty) {
+						continue;
+					}
+
+					psyqo::Matrix33 rotationOffset;
+					psyqo::GteMath::multiplyMatrix33(bone.worldMatrix.rotationMatrix,
+													 bone.bindPoseInverse.rotationMatrix, &rotationOffset);
+
+					// translation offset = world_T + (R_world * bindPoseInverse.translation)
+					psyqo::Vec3 translationOffset;
+					psyqo::GteMath::matrixVecMul3(bone.worldMatrix.rotationMatrix, bone.bindPoseInverse.translation,
+												  &translationOffset);
+					translationOffset += bone.worldMatrix.translation;
+
+					// final position
+					psyqo::Vec3 rotatedVert;
+					psyqo::GteMath::matrixVecMul3(rotationOffset, vert, &rotatedVert);
+					auto packedBonePos = psyqo::GTE::PackedVec3(rotatedVert + translationOffset);
+					face.isQuad ? mesh->quads[face.rendererFaceIx].boneAdjustedVerts[j] = packedBonePos
+								: mesh->tris[face.rendererFaceIx].boneAdjustedVerts[j];
 				}
-
-				psyqo::Matrix33 rotationOffset;
-				psyqo::GteMath::multiplyMatrix33(bone.worldMatrix.rotationMatrix, bone.bindPoseInverse.rotationMatrix,
-												 &rotationOffset);
-
-				// translation offset = world_T + (R_world * bindPoseInverse.translation)
-				psyqo::Vec3 translationOffset;
-				psyqo::GteMath::matrixVecMul3(bone.worldMatrix.rotationMatrix, bone.bindPoseInverse.translation,
-											  &translationOffset);
-				translationOffset += bone.worldMatrix.translation;
-
-				// final position
-				psyqo::Vec3 rotatedVert;
-				psyqo::GteMath::matrixVecMul3(rotationOffset, mesh->vertices[i], &rotatedVert);
-				mesh->verticesOnBonePos[i] = rotatedVert + translationOffset;
 			}
 
 			// mark all bones as clean
@@ -353,7 +364,6 @@ void Renderer::RenderGameObjects(uint32_t deltaTime, const psyqo::Matrix33& came
 		// 	uvDest.v = offset.pos.y - uv.v;
 		// };
 
-		auto renderVerts = mesh->hasSkeleton ? mesh->verticesOnBonePos : mesh->vertices;
 		for (int32_t i = 0; i < mesh->facesCount; i++) {
 			auto faceData = mesh->facesData[i];
 
@@ -993,9 +1003,11 @@ void Renderer::ProcessMeshQuad(const RendererQuad& quad, int8_t depth, const Tim
 	uint32_t ir[4];
 	uint32_t zIndex;
 
+	auto verts = quad.boneAdjustedVerts ? quad.boneAdjustedVerts : quad.verts;
+
 	// vertex 1->3
 	for (int i = 0; i < 3; i++) {
-		psyqo::GTE::writeSafe<psyqo::GTE::PseudoRegister::V0>(quad.verts[i]);
+		psyqo::GTE::writeSafe<psyqo::GTE::PseudoRegister::V0>(verts[i]);
 		psyqo::GTE::Kernels::rtps();
 		ir[i] = psyqo::GTE::readRaw<psyqo::GTE::Register::IR0>();
 	}
@@ -1018,7 +1030,7 @@ void Renderer::ProcessMeshQuad(const RendererQuad& quad, int8_t depth, const Tim
 	psyqo::GTE::read<psyqo::GTE::Register::SZ2>(&usz2);
 
 	// final vert
-	psyqo::GTE::writeSafe<psyqo::GTE::PseudoRegister::V0>(quad.verts[3]);
+	psyqo::GTE::writeSafe<psyqo::GTE::PseudoRegister::V0>(verts[3]);
 	psyqo::GTE::Kernels::rtps();
 	ir[3] = psyqo::GTE::readRaw<psyqo::GTE::Register::IR0>();
 	psyqo::GTE::read<psyqo::GTE::Register::SXY2>(&projected[3].packed);
@@ -1040,8 +1052,10 @@ void Renderer::ProcessMeshQuad(const RendererQuad& quad, int8_t depth, const Tim
 		return;
 	}
 
-	auto isCloseEnoughForSubDivision = sz0 <= SUBDIVISION_MAX_DISTANCE || sz1 <= SUBDIVISION_MAX_DISTANCE ||
-									   sz2 <= SUBDIVISION_MAX_DISTANCE || sz3 <= SUBDIVISION_MAX_DISTANCE;
+	// determine if it should be sub-divided if its not got bones, and at least one edge is close enough
+	auto isCloseEnoughForSubDivision =
+		!quad.boneAdjustedVerts && (sz0 <= SUBDIVISION_MAX_DISTANCE || sz1 <= SUBDIVISION_MAX_DISTANCE ||
+									sz2 <= SUBDIVISION_MAX_DISTANCE || sz3 <= SUBDIVISION_MAX_DISTANCE);
 
 	// sub divide if we have depth and we're close enough
 	if (depth < SUBDIVISION_MAX_DEPTH && isCloseEnoughForSubDivision) {
@@ -1194,9 +1208,11 @@ void Renderer::ProcessMeshTri(const RendererTri& tri, int8_t depth, const TimFil
 	uint32_t ir[3];
 	uint32_t zIndex;
 
+	auto verts = tri.boneAdjustedVerts ? tri.boneAdjustedVerts : tri.verts;
+
 	// vertex 1->3
 	for (int i = 0; i < 3; i++) {
-		psyqo::GTE::writeSafe<psyqo::GTE::PseudoRegister::V0>(tri.verts[i]);
+		psyqo::GTE::writeSafe<psyqo::GTE::PseudoRegister::V0>(verts[i]);
 		psyqo::GTE::Kernels::rtps();
 		ir[i] = psyqo::GTE::readRaw<psyqo::GTE::Register::IR0>();
 	}
