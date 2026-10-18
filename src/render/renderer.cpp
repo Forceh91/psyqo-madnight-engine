@@ -36,8 +36,6 @@ static constexpr psyqo::Matrix33 identityMatrix = {
 	{{1.0_fp, 0.0_fp, 0.0_fp}, {0.0_fp, 1.0_fp, 0.0_fp}, {0.0_fp, 0.0_fp, 1.0_fp}}};
 static constexpr uint8_t PROJECTION_DISTANCE = 120;
 
-static constexpr uint8_t FOG_OBSCURED_COLOUR_THRESHOLD = 10;
-
 #if ENABLE_BONE_DEBUG
 static constexpr psyqo::Color boneColours[MAX_BONES] = {
 	// Spine + neck
@@ -887,20 +885,10 @@ void Renderer::ProcessMeshQuad(const RendererQuad& quad, int8_t depth, const Tim
 
 	// figure out if this is even worth rendering
 	eastl::array<psyqo::Color, 4> colours;
-	bool isObscuredByFog = true;
 	for (int i = 0; i < 4; i++) {
 		colours[i] = quad.colours[i];
 		ApplyAmbientToColour(&colours[i]);
 		colours[i] = ApplyFogToColourGTE(colours[i], ir[i]);
-		if (colours[i].r > FOG_OBSCURED_COLOUR_THRESHOLD || colours[i].g > FOG_OBSCURED_COLOUR_THRESHOLD ||
-			colours[i].b > FOG_OBSCURED_COLOUR_THRESHOLD) {
-			isObscuredByFog = false;
-		}
-	}
-
-	// if its gonna get fogged away anyway, skip rendering
-	if (isObscuredByFog) {
-		return;
 	}
 
 	// determine if it should be sub-divided if its not got bones, and at least one edge is close enough
@@ -1095,20 +1083,10 @@ void Renderer::ProcessMeshTri(const RendererTri& tri, int8_t depth, const TimFil
 
 	// OTHERWISE continue to process and add it to OT
 	eastl::array<psyqo::Color, 3> colours;
-	bool isObscuredByFog = true;
 	for (int i = 0; i < 3; i++) {
 		colours[i] = tri.colours[i];
 		ApplyAmbientToColour(&colours[i]);
 		colours[i] = ApplyFogToColourGTE(colours[i], ir[i]);
-		if (colours[i].r > FOG_OBSCURED_COLOUR_THRESHOLD || colours[i].g > FOG_OBSCURED_COLOUR_THRESHOLD ||
-			colours[i].b > FOG_OBSCURED_COLOUR_THRESHOLD) {
-			isObscuredByFog = false;
-		}
-	}
-
-	// if its gonna get fogged away anyway, skip rendering
-	if (isObscuredByFog) {
-		return;
 	}
 
 	auto isCloseEnoughForSubDivision =
