@@ -218,6 +218,7 @@ psyqo::Coroutine<> MeshManager::LoadMesh(const eastl::string_view& meshName, Mes
 		}
 	}
 
+	psyqo_free(verticesData);
 	psyqo_free(vertexColoursData);
 
 	// read the normals data
@@ -441,8 +442,6 @@ psyqo::Coroutine<> MeshManager::LoadMesh(const eastl::string_view& meshName, Mes
 		ptr += boneForVertexSize;
 	}
 
-	psyqo_free(verticesData);
-
 	// mark mesh as loaded
 	loadedMesh->isLoaded = true;
 
@@ -497,8 +496,16 @@ void MeshManager::FreeLoadedMesh(LoadedMeshBin* mesh) {
 
 	if (mesh->mesh.hasSkeleton && mesh->mesh.skeleton) {
 		psyqo_free(mesh->mesh.skeleton);
-		psyqo_free(mesh->mesh.verticesOnBonePos);
 		psyqo_free(mesh->mesh.boneForVertex);
+
+		for (int i = 0; i < mesh->mesh.facesCount; i++) {
+			auto& faceData = mesh->mesh.facesData[i];
+			if (faceData.isQuad) {
+				psyqo_free(mesh->mesh.quads[faceData.rendererFaceIx].boneAdjustedVerts);
+			} else {
+				psyqo_free(mesh->mesh.tris[faceData.rendererFaceIx].boneAdjustedVerts);
+			}
+		}
 	}
 
 	psyqo_free(mesh->mesh.facesData);
