@@ -51,14 +51,10 @@ struct MeshBin {
 
 	RendererFace* facesData = nullptr;
 
-	// variable-length data
-	// verts
-	psyqo::Vec3* vertices = nullptr;
-
 	// skeleton info
 	Skeleton* skeleton = nullptr;
-	uint8_t* boneForVertex = nullptr; // vertex index -> bone index
-	psyqo::Vec3* verticesOnBonePos = nullptr;
+	uint8_t* boneForVertex = nullptr;		  // vertex index -> bone index
+	psyqo::Vec3* verticesOnBonePos = nullptr; // vertex position taking into account the bone position
 
 	// basic min/max collision box
 	AABBCollision collisionBox = {};

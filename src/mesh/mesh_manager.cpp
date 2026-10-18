@@ -198,10 +198,15 @@ psyqo::Coroutine<> MeshManager::LoadMesh(const eastl::string_view& meshName, Mes
 
 			if (isQuad) {
 				mesh.quads[quadFace].verts[j] = packedVertex;
+				mesh.quads[quadFace].vertIxs[j] = indices[j];
+				mesh.quads[quadFace].boneAdjustedVerts = nullptr;
 				mesh.quads[quadFace].colours[j] = {colour.r, colour.g, colour.b};
 			} else {
 				mesh.tris[triFace].verts[triIx] = packedVertex;
+				mesh.tris[triFace].vertIxs[triIx] = indices[j];
+				mesh.tris[triFace].boneAdjustedVerts = nullptr;
 				mesh.tris[triFace].colours[triIx] = {colour.r, colour.g, colour.b};
+
 				triIx++;
 			}
 		}
@@ -213,7 +218,6 @@ psyqo::Coroutine<> MeshManager::LoadMesh(const eastl::string_view& meshName, Mes
 		}
 	}
 
-	psyqo_free(verticesData);
 	psyqo_free(vertexColoursData);
 
 	// read the normals data
@@ -370,11 +374,18 @@ psyqo::Coroutine<> MeshManager::LoadMesh(const eastl::string_view& meshName, Mes
 	// load skeleton bones
 	if (version > 1 && loadedMesh->mesh.hasSkeleton) {
 		loadedMesh->mesh.skeleton = (Skeleton*)psyqo_malloc(sizeof(Skeleton));
-		loadedMesh->mesh.verticesOnBonePos =
-			(psyqo::Vec3*)psyqo_malloc(sizeof(psyqo::Vec3) * loadedMesh->mesh.vertexCount);
 
-		for (int32_t i = 0; i < loadedMesh->mesh.vertexCount; i++) {
-			loadedMesh->mesh.verticesOnBonePos[i] = loadedMesh->mesh.vertices[i];
+		for (int i = 0; i < mesh.facesCount; i++) {
+			auto& face = mesh.facesData[i];
+			auto const vertCount = (face.isQuad ? 4 : 3);
+			auto* boneAdjustedVerts = face.isQuad ? mesh.quads[face.rendererFaceIx].boneAdjustedVerts
+												  : mesh.tris[face.rendererFaceIx].boneAdjustedVerts;
+			boneAdjustedVerts = (psyqo::GTE::PackedVec3*)psyqo_malloc(sizeof(psyqo::GTE::PackedVec3) * vertCount);
+
+			for (int32_t i = 0; i < vertCount; i++) {
+				boneAdjustedVerts[i] =
+					face.isQuad ? mesh.quads[face.rendererFaceIx].verts[i] : mesh.tris[face.rendererFaceIx].verts[i];
+			}
 		}
 
 		loadedMesh->mesh.skeleton = {};
@@ -429,6 +440,8 @@ psyqo::Coroutine<> MeshManager::LoadMesh(const eastl::string_view& meshName, Mes
 		__builtin_memcpy(loadedMesh->mesh.boneForVertex, ptr, boneForVertexSize);
 		ptr += boneForVertexSize;
 	}
+
+	psyqo_free(verticesData);
 
 	// mark mesh as loaded
 	loadedMesh->isLoaded = true;
@@ -488,13 +501,9 @@ void MeshManager::FreeLoadedMesh(LoadedMeshBin* mesh) {
 		psyqo_free(mesh->mesh.boneForVertex);
 	}
 
-	psyqo_free(mesh->mesh.vertices);
-	// psyqo_free(mesh->mesh.vertexColours);
-	// psyqo_free(mesh->mesh.vertexIndices);
-	// psyqo_free(mesh->mesh.normals);
-	// psyqo_free(mesh->mesh.normalIndices);
-	// psyqo_free(mesh->mesh.uvs);
-	// psyqo_free(mesh->mesh.uvIndices);
+	psyqo_free(mesh->mesh.facesData);
+	psyqo_free(mesh->mesh.quads);
+	psyqo_free(mesh->mesh.tris);
 
 	*mesh = {};
 }
