@@ -281,6 +281,7 @@ void Renderer::RenderGameObjects(uint32_t deltaTime, const psyqo::Matrix33& came
 
 	// now for each object...
 	int renderedObjects = 0;
+	auto meshStart = 0;
 	for (const auto& gameObject : gameObjects) {
 		// we dont need to get mesh data for every single vert since it wont change, so lets only do that once
 		const auto mesh = gameObject->mesh();
@@ -347,6 +348,7 @@ void Renderer::RenderGameObjects(uint32_t deltaTime, const psyqo::Matrix33& came
 			g_madnightEngine.m_skeletonController.MarkBonesClean(mesh->skeleton);
 		}
 
+		meshStart = m_gpu.now();
 		// now we've done all this we can render the mesh and apply texture (if needed)
 		// we dont need to get texture data for every single vert since it wont change, so lets only do that once
 		// if its not a nullptr fill out some data so we don't have to do it every face
@@ -357,12 +359,6 @@ void Renderer::RenderGameObjects(uint32_t deltaTime, const psyqo::Matrix33& came
 			offset = g_madnightEngine.m_textureManager.GetTPageUVForTim(texture);
 			offset.pos.y += (texture->height - 1);
 		}
-
-		// auto applyUV = [&](auto& uvDest, int index) {
-		// 	auto uv = mesh->uvs[index];
-		// 	uvDest.u = offset.pos.x + uv.u;
-		// 	uvDest.v = offset.pos.y - uv.v;
-		// };
 
 		for (int32_t i = 0; i < mesh->facesCount; i++) {
 			auto faceData = mesh->facesData[i];
@@ -398,6 +394,11 @@ void Renderer::RenderGameObjects(uint32_t deltaTime, const psyqo::Matrix33& came
 		}
 #endif
 	}
+
+	m_gpu.pumpCallbacks();
+	auto delta = m_gpu.now() - meshStart;
+	auto avg = delta / renderedObjects;
+	printf("processing %i objects took %ius (avg. %ius) to complete\n", renderedObjects, delta, avg);
 
 	g_madnightEngine.m_perfMonitor.SetRenderedGameObjects(renderedObjects, gameObjects.size());
 }
