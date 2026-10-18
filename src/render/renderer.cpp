@@ -835,7 +835,7 @@ void Renderer::ProcessMeshQuad(const RendererQuad& quad, int8_t depth, const Tim
 	uint32_t ir[4];
 	uint32_t zIndex;
 
-	auto verts = quad.boneAdjustedVerts ? quad.boneAdjustedVerts : quad.verts;
+	auto* verts = quad.boneAdjustedVerts ? quad.boneAdjustedVerts : quad.verts;
 
 	// vertex 1->3
 	for (int i = 0; i < 3; i++) {
@@ -898,7 +898,7 @@ void Renderer::ProcessMeshQuad(const RendererQuad& quad, int8_t depth, const Tim
 									sz2 <= SUBDIVISION_MAX_DISTANCE || sz3 <= SUBDIVISION_MAX_DISTANCE);
 
 	// sub divide if we have depth and we're close enough
-	if (depth < SUBDIVISION_MAX_DEPTH && isCloseEnoughForSubDivision) {
+	if (depth <= SUBDIVISION_MAX_DEPTH && isCloseEnoughForSubDivision) {
 		auto abs = [](int32_t v) -> int32_t { return v < 0 ? -v : v; };
 		auto edgeLength = [&abs](const psyqo::GTE::PackedVec3 a, const psyqo::GTE::PackedVec3 b) -> auto {
 			return abs(a.x.value - b.x.value) + abs(a.y.value - b.y.value) + abs(a.z.value - b.z.value);
@@ -1040,7 +1040,7 @@ void Renderer::ProcessMeshTri(const RendererTri& tri, int8_t depth, const TimFil
 	uint32_t ir[3];
 	uint32_t zIndex;
 
-	auto verts = tri.boneAdjustedVerts ? tri.boneAdjustedVerts : tri.verts;
+	auto* verts = tri.boneAdjustedVerts ? tri.boneAdjustedVerts : tri.verts;
 
 	// vertex 1->3
 	for (int i = 0; i < 3; i++) {
@@ -1061,7 +1061,7 @@ void Renderer::ProcessMeshTri(const RendererTri& tri, int8_t depth, const TimFil
 	psyqo::GTE::read<psyqo::GTE::Register::SXY2>(&projected[2].packed);
 
 	// read all the SZ data
-	uint32_t usz0, usz1, usz2, usz3;
+	uint32_t usz0, usz1, usz2;
 	psyqo::GTE::read<psyqo::GTE::Register::SZ0>(&usz0);
 	psyqo::GTE::read<psyqo::GTE::Register::SZ1>(&usz1);
 	psyqo::GTE::read<psyqo::GTE::Register::SZ2>(&usz2);
@@ -1094,7 +1094,7 @@ void Renderer::ProcessMeshTri(const RendererTri& tri, int8_t depth, const TimFil
 		sz0 <= SUBDIVISION_MAX_DISTANCE || sz1 <= SUBDIVISION_MAX_DISTANCE || sz2 <= SUBDIVISION_MAX_DISTANCE;
 
 	// sub divide if we have depth and we're close enough
-	if (depth < SUBDIVISION_MAX_DEPTH && isCloseEnoughForSubDivision) {
+	if (depth <= SUBDIVISION_MAX_DEPTH && isCloseEnoughForSubDivision) {
 		auto abs = [](int32_t v) -> int32_t { return v < 0 ? -v : v; };
 		auto edgeLength = [&abs](const psyqo::GTE::PackedVec3 a, const psyqo::GTE::PackedVec3 b) -> auto {
 			return abs(a.x.value - b.x.value) + abs(a.y.value - b.y.value) + abs(a.z.value - b.z.value);

@@ -29,7 +29,7 @@ static constexpr uint16_t NEAR_FOG_DISTANCE = 2'000; // screen z
 static constexpr uint32_t BUMP_ALLOCATOR_BYTES =
 	125'000; // this is for each frame, so double what this number is is used up in RAM
 static constexpr uint16_t SUBDIVISION_MAX_DISTANCE = 750; // after view space transformation
-static constexpr uint8_t SUBDIVISION_MAX_DEPTH = 4;		  // how deep to go when doing sub-division
+static constexpr uint8_t SUBDIVISION_MAX_DEPTH = 2;		  // how deep to go when doing sub-division
 static constexpr uint8_t MAX_SPRITE_FRAGMENTS = 40;		  // per frame, shared by every RenderSprite caller
 static constexpr psyqo::Color c_loadingBackgroundColour = {.r = 0, .g = 0, .b = 0};
 
