@@ -252,7 +252,6 @@ psyqo::Coroutine<> MeshManager::LoadMesh(const eastl::string_view& meshName, Mes
 			}
 
 			auto packedNormal = psyqo::GTE::PackedVec3(normalsData[indices[j]]);
-			auto colour = vertexColoursData[indices[j]];
 
 			if (isQuad) {
 				mesh.quads[quadFace].normal = packedNormal;
