@@ -339,8 +339,12 @@ void Renderer::RenderGameObjects(uint32_t deltaTime, const psyqo::Matrix33& came
 					psyqo::Vec3 rotatedVert;
 					psyqo::GteMath::matrixVecMul3(rotationOffset, vert, &rotatedVert);
 					auto packedBonePos = psyqo::GTE::PackedVec3(rotatedVert + translationOffset);
-					face.isQuad ? mesh->quads[face.rendererFaceIx].boneAdjustedVerts[j] = packedBonePos
-								: mesh->tris[face.rendererFaceIx].boneAdjustedVerts[j];
+
+					if (face.isQuad) {
+						mesh->quads[face.rendererFaceIx].boneAdjustedVerts[j] = packedBonePos;
+					} else {
+						mesh->tris[face.rendererFaceIx].boneAdjustedVerts[j] = packedBonePos;
+					}
 				}
 			}
 

@@ -378,7 +378,7 @@ psyqo::Coroutine<> MeshManager::LoadMesh(const eastl::string_view& meshName, Mes
 		for (int i = 0; i < mesh.facesCount; i++) {
 			auto& face = mesh.facesData[i];
 			auto const vertCount = (face.isQuad ? 4 : 3);
-			auto* boneAdjustedVerts = face.isQuad ? mesh.quads[face.rendererFaceIx].boneAdjustedVerts
+			auto*& boneAdjustedVerts = face.isQuad ? mesh.quads[face.rendererFaceIx].boneAdjustedVerts
 												  : mesh.tris[face.rendererFaceIx].boneAdjustedVerts;
 			boneAdjustedVerts = (psyqo::GTE::PackedVec3*)psyqo_malloc(sizeof(psyqo::GTE::PackedVec3) * vertCount);
 
@@ -388,7 +388,7 @@ psyqo::Coroutine<> MeshManager::LoadMesh(const eastl::string_view& meshName, Mes
 			}
 		}
 
-		loadedMesh->mesh.skeleton = {};
+		*loadedMesh->mesh.skeleton = {};
 		for (auto i = 0; i < MAX_BONES; i++) {
 			loadedMesh->mesh.skeleton->bones[i].id = -1;
 		}
