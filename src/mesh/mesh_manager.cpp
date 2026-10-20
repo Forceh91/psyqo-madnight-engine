@@ -150,8 +150,7 @@ psyqo::Coroutine<> MeshManager::LoadMesh(const eastl::string_view& meshName, Mes
 	auto startOfVertexIndices = ptr;
 
 	// theres always 4 vertex indices regardless of if its a quad or a tri (tri is -1 for i2)
-	auto triFaceCount = 0, quadFaceCount = 0;
-	int16_t vertIndex = 0xFFFF;
+	int16_t triFaceCount = 0, quadFaceCount = 0, vertIndex = 0xFFFF;
 	for (int i = 0; i < mesh.facesCount; i++) {
 		// ignore the first vert
 		ptr += 2;
@@ -379,7 +378,7 @@ psyqo::Coroutine<> MeshManager::LoadMesh(const eastl::string_view& meshName, Mes
 			auto& face = mesh.facesData[i];
 			auto const vertCount = (face.isQuad ? 4 : 3);
 			auto*& boneAdjustedVerts = face.isQuad ? mesh.quads[face.rendererFaceIx].boneAdjustedVerts
-												  : mesh.tris[face.rendererFaceIx].boneAdjustedVerts;
+												   : mesh.tris[face.rendererFaceIx].boneAdjustedVerts;
 			boneAdjustedVerts = (psyqo::GTE::PackedVec3*)psyqo_malloc(sizeof(psyqo::GTE::PackedVec3) * vertCount);
 
 			for (int32_t i = 0; i < vertCount; i++) {
