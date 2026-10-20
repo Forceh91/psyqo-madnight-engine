@@ -850,7 +850,7 @@ void Renderer::ProcessMeshQuad(const RendererQuad& quad, int8_t depth, const Tim
 
 	// figure out nclip and skip rendering if backfaced
 	psyqo::GTE::Kernels::nclip();
-	if ((int32_t)psyqo::GTE::readRaw<psyqo::GTE::Register::MAC0>() <= 0) {
+	if ((int32_t)psyqo::GTE::readRaw<psyqo::GTE::Register::MAC0>() == 0) {
 		return;
 	}
 
@@ -1064,7 +1064,7 @@ void Renderer::ProcessMeshTri(const RendererTri& tri, int8_t depth, const TimFil
 
 	// figure out nclip and skip rendering if backfaced
 	psyqo::GTE::Kernels::nclip();
-	if ((int32_t)psyqo::GTE::readRaw<psyqo::GTE::Register::MAC0>() <= 0) {
+	if ((int32_t)psyqo::GTE::readRaw<psyqo::GTE::Register::MAC0>() == 0) {
 		return;
 	}
 
@@ -1096,7 +1096,7 @@ void Renderer::ProcessMeshTri(const RendererTri& tri, int8_t depth, const TimFil
 	// apply fog colours now so we can drop early if needed
 	eastl::array<psyqo::Color, 3> colours;
 	bool isObscuredByFog = true;
-	for (int i = 0; i < 4; i++) {
+	for (int i = 0; i < 3; i++) {
 		colours[i] = tri.colours[i];
 		ApplyAmbientToColour(&colours[i]);
 		colours[i] = ApplyFogToColourGTE(colours[i], ir[i]);
@@ -1107,7 +1107,7 @@ void Renderer::ProcessMeshTri(const RendererTri& tri, int8_t depth, const TimFil
 
 	if (isObscuredByFog) {
 		return;
-	}	
+	}
 
 	int32_t sz0 = (int32_t)usz0, sz1 = (int32_t)usz1, sz2 = (int32_t)usz2;
 	auto shouldSubDivide =
