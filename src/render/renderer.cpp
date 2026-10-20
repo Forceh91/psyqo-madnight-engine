@@ -886,6 +886,22 @@ void Renderer::ProcessMeshQuad(const RendererQuad& quad, int8_t depth, const Tim
 		return;
 	}
 
+	// apply fog colours now so we can drop early if needed
+	eastl::array<psyqo::Color, 4> colours;
+	bool isObscuredByFog = true;
+	for (int i = 0; i < 4; i++) {
+		colours[i] = quad.colours[i];
+		ApplyAmbientToColour(&colours[i]);
+		colours[i] = ApplyFogToColourGTE(colours[i], ir[i]);
+		if (colours[i].r >= 10 && colours[i].g >= 10 && colours[i].b >= 10) {
+			isObscuredByFog = false;
+		}
+	}
+
+	if (isObscuredByFog) {
+		return;
+	}
+
 	// determine if it should be sub-divided if its not got bones, and at least one edge is close enough
 	int32_t sz0 = (int32_t)usz0, sz1 = (int32_t)usz1, sz2 = (int32_t)usz2, sz3 = (int32_t)usz3;
 	auto shouldSubDivide = !quad.boneAdjustedVerts &&
@@ -979,13 +995,6 @@ void Renderer::ProcessMeshQuad(const RendererQuad& quad, int8_t depth, const Tim
 		ProcessMeshQuad(quadB, depth + 1, texture, tpage, uvOffset, bumpAllocator, orderingTable);
 		return;
 	} // OTHERWISE continue to process and add to OT
-
-	eastl::array<psyqo::Color, 4> colours;
-	for (int i = 0; i < 4; i++) {
-		colours[i] = quad.colours[i];
-		ApplyAmbientToColour(&colours[i]);
-		colours[i] = ApplyFogToColourGTE(colours[i], ir[i]);
-	}
 
 	// textured
 	if (texture != nullptr) {
@@ -1084,6 +1093,22 @@ void Renderer::ProcessMeshTri(const RendererTri& tri, int8_t depth, const TimFil
 		return;
 	}
 
+	// apply fog colours now so we can drop early if needed
+	eastl::array<psyqo::Color, 3> colours;
+	bool isObscuredByFog = true;
+	for (int i = 0; i < 4; i++) {
+		colours[i] = tri.colours[i];
+		ApplyAmbientToColour(&colours[i]);
+		colours[i] = ApplyFogToColourGTE(colours[i], ir[i]);
+		if (colours[i].r >= 10 && colours[i].g >= 10 && colours[i].b >= 10) {
+			isObscuredByFog = false;
+		}
+	}
+
+	if (isObscuredByFog) {
+		return;
+	}	
+
 	int32_t sz0 = (int32_t)usz0, sz1 = (int32_t)usz1, sz2 = (int32_t)usz2;
 	auto shouldSubDivide =
 		!tri.boneAdjustedVerts &&
@@ -1172,15 +1197,7 @@ void Renderer::ProcessMeshTri(const RendererTri& tri, int8_t depth, const TimFil
 		ProcessMeshTri(triA, depth + 1, texture, tpage, uvOffset, bumpAllocator, orderingTable);
 		ProcessMeshTri(triB, depth + 1, texture, tpage, uvOffset, bumpAllocator, orderingTable);
 		return;
-	}
-
-	// OTHERWISE continue to process and add it to OT
-	eastl::array<psyqo::Color, 3> colours;
-	for (int i = 0; i < 3; i++) {
-		colours[i] = tri.colours[i];
-		ApplyAmbientToColour(&colours[i]);
-		colours[i] = ApplyFogToColourGTE(colours[i], ir[i]);
-	}
+	} // OTHERWISE continue to process and add it to OT
 
 	// textured
 	if (texture != nullptr) {
