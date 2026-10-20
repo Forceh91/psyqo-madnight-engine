@@ -888,12 +888,14 @@ void Renderer::ProcessMeshQuad(const RendererQuad& quad, int8_t depth, const Tim
 
 	// determine if it should be sub-divided if its not got bones, and at least one edge is close enough
 	int32_t sz0 = (int32_t)usz0, sz1 = (int32_t)usz1, sz2 = (int32_t)usz2, sz3 = (int32_t)usz3;
-	auto isCloseEnoughForSubDivision =
-		!quad.boneAdjustedVerts && (sz0 <= SUBDIVISION_MAX_DISTANCE || sz1 <= SUBDIVISION_MAX_DISTANCE ||
-									sz2 <= SUBDIVISION_MAX_DISTANCE || sz3 <= SUBDIVISION_MAX_DISTANCE);
+	auto shouldSubDivide = !quad.boneAdjustedVerts &&
+						   (sz0 >= SUBDIVISION_MIN_DISTANCE || sz1 >= SUBDIVISION_MIN_DISTANCE ||
+							sz2 >= SUBDIVISION_MIN_DISTANCE || sz3 >= SUBDIVISION_MIN_DISTANCE) &&
+						   (sz0 <= SUBDIVISION_MAX_DISTANCE || sz1 <= SUBDIVISION_MAX_DISTANCE ||
+							sz2 <= SUBDIVISION_MAX_DISTANCE || sz3 <= SUBDIVISION_MAX_DISTANCE);
 
 	// sub divide if we have depth and we're close enough
-	if (depth <= SUBDIVISION_MAX_DEPTH && isCloseEnoughForSubDivision) {
+	if (depth <= SUBDIVISION_MAX_DEPTH && shouldSubDivide) {
 		auto abs = [](int32_t v) -> int32_t { return v < 0 ? -v : v; };
 		auto edgeLength = [&abs](const psyqo::GTE::PackedVec3 a, const psyqo::GTE::PackedVec3 b) -> auto {
 			return abs(a.x.value - b.x.value) + abs(a.y.value - b.y.value) + abs(a.z.value - b.z.value);
@@ -1083,12 +1085,13 @@ void Renderer::ProcessMeshTri(const RendererTri& tri, int8_t depth, const TimFil
 	}
 
 	int32_t sz0 = (int32_t)usz0, sz1 = (int32_t)usz1, sz2 = (int32_t)usz2;
-	auto isCloseEnoughForSubDivision =
+	auto shouldSubDivide =
 		!tri.boneAdjustedVerts &&
+		(sz0 >= SUBDIVISION_MIN_DISTANCE || sz1 >= SUBDIVISION_MIN_DISTANCE || sz2 >= SUBDIVISION_MIN_DISTANCE) &&
 		(sz0 <= SUBDIVISION_MAX_DISTANCE || sz1 <= SUBDIVISION_MAX_DISTANCE || sz2 <= SUBDIVISION_MAX_DISTANCE);
 
 	// sub divide if we have depth and we're close enough
-	if (depth <= SUBDIVISION_MAX_DEPTH && isCloseEnoughForSubDivision) {
+	if (depth <= SUBDIVISION_MAX_DEPTH && shouldSubDivide) {
 		auto abs = [](int32_t v) -> int32_t { return v < 0 ? -v : v; };
 		auto edgeLength = [&abs](const psyqo::GTE::PackedVec3 a, const psyqo::GTE::PackedVec3 b) -> auto {
 			return abs(a.x.value - b.x.value) + abs(a.y.value - b.y.value) + abs(a.z.value - b.z.value);

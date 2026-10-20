@@ -28,6 +28,7 @@ static constexpr uint16_t FULL_FOG_DISTANCE = 3'500; // screen z
 static constexpr uint16_t NEAR_FOG_DISTANCE = 2'000; // screen z
 static constexpr uint32_t BUMP_ALLOCATOR_BYTES =
 	125'000; // this is for each frame, so double what this number is is used up in RAM
+static constexpr uint8_t SUBDIVISION_MIN_DISTANCE = 1; // after view space transformation. stuff behind the camera is clamped to 0 so this tries to prevent us sub dividing stuff we can't see
 static constexpr uint16_t SUBDIVISION_MAX_DISTANCE = 750; // after view space transformation
 static constexpr uint8_t SUBDIVISION_MAX_DEPTH = 2;		  // how deep to go when doing sub-division
 static constexpr uint8_t MAX_SPRITE_FRAGMENTS = 40;		  // per frame, shared by every RenderSprite caller
