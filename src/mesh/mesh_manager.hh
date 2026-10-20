@@ -34,7 +34,7 @@ struct BoundingSphere {
 
 struct RendererFace {
 	bool isQuad = false;
-	int rendererFaceIx = -1;
+	int16_t rendererFaceIx = -1;
 };
 
 struct MeshBin {
