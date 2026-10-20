@@ -23,7 +23,7 @@
 #include <psyqo/primitives/quads.hh>
 #include <psyqo/primitives/triangles.hh>
 
-static constexpr uint16_t ORDERING_TABLE_SIZE = 10'000;
+static constexpr uint16_t ORDERING_TABLE_SIZE = 3'000;
 static constexpr uint16_t FULL_FOG_DISTANCE = 3'500; // screen z
 static constexpr uint16_t NEAR_FOG_DISTANCE = 2'000; // screen z
 static constexpr uint32_t BUMP_ALLOCATOR_BYTES =
@@ -46,7 +46,7 @@ class Renderer final {
 	psyqo::Vec3 m_gteCameraPos = {0, 0, 0};
 
 	// create 2 ordering tables, one for each frame buffer
-	psyqo::OrderingTable<ORDERING_TABLE_SIZE> m_orderingTables[2];
+	OT m_orderingTables[2];
 
 	// when using ordering tables we also need to sort fill commands as well
 	psyqo::Fragments::SimpleFragment<psyqo::Prim::FastFill> m_clear[2];
