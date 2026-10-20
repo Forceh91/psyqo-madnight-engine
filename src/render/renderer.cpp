@@ -850,7 +850,7 @@ void Renderer::ProcessMeshQuad(const RendererQuad& quad, int8_t depth, const Tim
 
 	// figure out nclip and skip rendering if backfaced
 	psyqo::GTE::Kernels::nclip();
-	if (psyqo::GTE::readRaw<psyqo::GTE::Register::MAC0>() == 0) {
+	if ((int32_t)psyqo::GTE::readRaw<psyqo::GTE::Register::MAC0>() <= 0) {
 		return;
 	}
 
@@ -1053,7 +1053,7 @@ void Renderer::ProcessMeshTri(const RendererTri& tri, int8_t depth, const TimFil
 
 	// figure out nclip and skip rendering if backfaced
 	psyqo::GTE::Kernels::nclip();
-	if (psyqo::GTE::readRaw<psyqo::GTE::Register::MAC0>() == 0) {
+	if ((int32_t)psyqo::GTE::readRaw<psyqo::GTE::Register::MAC0>() <= 0) {
 		return;
 	}
 
@@ -1084,7 +1084,8 @@ void Renderer::ProcessMeshTri(const RendererTri& tri, int8_t depth, const TimFil
 
 	int32_t sz0 = (int32_t)usz0, sz1 = (int32_t)usz1, sz2 = (int32_t)usz2;
 	auto isCloseEnoughForSubDivision =
-		sz0 <= SUBDIVISION_MAX_DISTANCE || sz1 <= SUBDIVISION_MAX_DISTANCE || sz2 <= SUBDIVISION_MAX_DISTANCE;
+		!tri.boneAdjustedVerts &&
+		(sz0 <= SUBDIVISION_MAX_DISTANCE || sz1 <= SUBDIVISION_MAX_DISTANCE || sz2 <= SUBDIVISION_MAX_DISTANCE);
 
 	// sub divide if we have depth and we're close enough
 	if (depth <= SUBDIVISION_MAX_DEPTH && isCloseEnoughForSubDivision) {
