@@ -284,7 +284,7 @@ void Renderer::RenderGameObjects(uint32_t deltaTime, const psyqo::Matrix33& came
 	auto meshStart = 0;
 	for (const auto& gameObject : gameObjects) {
 		// we dont need to get mesh data for every single vert since it wont change, so lets only do that once
-		const auto mesh = gameObject->mesh();
+		const auto* mesh = gameObject->mesh();
 		if (!mesh) {
 			continue;
 		}
@@ -301,7 +301,7 @@ void Renderer::RenderGameObjects(uint32_t deltaTime, const psyqo::Matrix33& came
 
 		// transform the game object into view space
 		renderedObjects++;
-		auto viewSpacePos = TransformObjectToViewSpace(gameObject->pos(), cameraRotationMatrix, finalCameraMatrix);
+		TransformObjectToViewSpace(gameObject->pos(), cameraRotationMatrix, finalCameraMatrix);
 
 		// if we've got a skeleton on this mesh
 		if (mesh->hasSkeleton) {
@@ -365,7 +365,7 @@ void Renderer::RenderGameObjects(uint32_t deltaTime, const psyqo::Matrix33& came
 		}
 
 		for (int32_t i = 0; i < mesh->facesCount; i++) {
-			auto faceData = mesh->facesData[i];
+			const auto& faceData = mesh->facesData[i];
 
 			if (faceData.isQuad) {
 				ProcessMeshQuad(mesh->quads[faceData.rendererFaceIx], 0, texture, tpage, offset, allocator, ot);
@@ -402,7 +402,7 @@ void Renderer::RenderGameObjects(uint32_t deltaTime, const psyqo::Matrix33& came
 	m_gpu.pumpCallbacks();
 	auto delta = m_gpu.now() - meshStart;
 	auto avg = delta / renderedObjects;
-	printf("processing %i objects took %ius (avg. %ius) to complete\n", renderedObjects, delta, avg);
+	// printf("processing %i objects took %ius (avg. %ius) to complete\n", renderedObjects, delta, avg);
 
 	g_madnightEngine.m_perfMonitor.SetRenderedGameObjects(renderedObjects, gameObjects.size());
 }
@@ -872,8 +872,6 @@ void Renderer::ProcessMeshQuad(const RendererQuad& quad, int8_t depth, const Tim
 	psyqo::GTE::read<psyqo::GTE::Register::SXY2>(&projected[3].packed);
 	psyqo::GTE::read<psyqo::GTE::Register::SZ3>(&usz3);
 
-	int32_t sz0 = (int32_t)usz0, sz1 = (int32_t)usz1, sz2 = (int32_t)usz2, sz3 = (int32_t)usz3;
-
 	// figure out avg z index
 	psyqo::GTE::Kernels::avsz4();
 
@@ -889,6 +887,7 @@ void Renderer::ProcessMeshQuad(const RendererQuad& quad, int8_t depth, const Tim
 	}
 
 	// determine if it should be sub-divided if its not got bones, and at least one edge is close enough
+	int32_t sz0 = (int32_t)usz0, sz1 = (int32_t)usz1, sz2 = (int32_t)usz2, sz3 = (int32_t)usz3;
 	auto isCloseEnoughForSubDivision =
 		!quad.boneAdjustedVerts && (sz0 <= SUBDIVISION_MAX_DISTANCE || sz1 <= SUBDIVISION_MAX_DISTANCE ||
 									sz2 <= SUBDIVISION_MAX_DISTANCE || sz3 <= SUBDIVISION_MAX_DISTANCE);
@@ -1069,8 +1068,6 @@ void Renderer::ProcessMeshTri(const RendererTri& tri, int8_t depth, const TimFil
 	psyqo::GTE::read<psyqo::GTE::Register::SZ1>(&usz1);
 	psyqo::GTE::read<psyqo::GTE::Register::SZ2>(&usz2);
 
-	int32_t sz0 = (int32_t)usz0, sz1 = (int32_t)usz1, sz2 = (int32_t)usz2;
-
 	// figure out avg z index
 	psyqo::GTE::Kernels::avsz3();
 
@@ -1085,6 +1082,7 @@ void Renderer::ProcessMeshTri(const RendererTri& tri, int8_t depth, const TimFil
 		return;
 	}
 
+	int32_t sz0 = (int32_t)usz0, sz1 = (int32_t)usz1, sz2 = (int32_t)usz2;
 	auto isCloseEnoughForSubDivision =
 		sz0 <= SUBDIVISION_MAX_DISTANCE || sz1 <= SUBDIVISION_MAX_DISTANCE || sz2 <= SUBDIVISION_MAX_DISTANCE;
 
