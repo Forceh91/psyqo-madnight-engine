@@ -835,10 +835,8 @@ void Renderer::ProcessMeshQuad(const RendererQuad& quad, int8_t depth, const Tim
 							   BA& bumpAllocator, OT& orderingTable) {
 	// projections for each vert
 	eastl::array<psyqo::Vertex, 4> projected;
-
-	// IR0 for each vert
-	uint32_t ir[4];
-	uint32_t zIndex;
+	QuadNode node;
+	node.isSkeleton = quad.boneAdjustedVerts != nullptr;
 
 	auto* verts = quad.boneAdjustedVerts ? quad.boneAdjustedVerts : quad.verts;
 
@@ -846,7 +844,7 @@ void Renderer::ProcessMeshQuad(const RendererQuad& quad, int8_t depth, const Tim
 	for (int i = 0; i < 3; i++) {
 		psyqo::GTE::writeSafe<psyqo::GTE::PseudoRegister::V0>(verts[i]);
 		psyqo::GTE::Kernels::rtps();
-		ir[i] = psyqo::GTE::readRaw<psyqo::GTE::Register::IR0>();
+		node.irs[i] = psyqo::GTE::readRaw<psyqo::GTE::Register::IR0>();
 	}
 
 	// figure out nclip and skip rendering if backfaced
@@ -856,33 +854,32 @@ void Renderer::ProcessMeshQuad(const RendererQuad& quad, int8_t depth, const Tim
 	}
 
 	// read projected verts
-	psyqo::GTE::read<psyqo::GTE::Register::SXY0>(&projected[0].packed);
-	psyqo::GTE::read<psyqo::GTE::Register::SXY1>(&projected[1].packed);
-	psyqo::GTE::read<psyqo::GTE::Register::SXY2>(&projected[2].packed);
+	psyqo::GTE::read<psyqo::GTE::Register::SXY0>(&node.projected[0].packed);
+	psyqo::GTE::read<psyqo::GTE::Register::SXY1>(&node.projected[1].packed);
+	psyqo::GTE::read<psyqo::GTE::Register::SXY2>(&node.projected[2].packed);
 
 	// final vert
 	psyqo::GTE::writeSafe<psyqo::GTE::PseudoRegister::V0>(verts[3]);
 	psyqo::GTE::Kernels::rtps();
-	ir[3] = psyqo::GTE::readRaw<psyqo::GTE::Register::IR0>();
-	psyqo::GTE::read<psyqo::GTE::Register::SXY2>(&projected[3].packed);
+	node.irs[3] = psyqo::GTE::readRaw<psyqo::GTE::Register::IR0>();
+	psyqo::GTE::read<psyqo::GTE::Register::SXY2>(&node.projected[3].packed);
 
 	// read all the SZ data
-	uint32_t usz0, usz1, usz2, usz3;
-	psyqo::GTE::read<psyqo::GTE::Register::SZ0>(&usz0);
-	psyqo::GTE::read<psyqo::GTE::Register::SZ1>(&usz1);
-	psyqo::GTE::read<psyqo::GTE::Register::SZ2>(&usz2);
-	psyqo::GTE::read<psyqo::GTE::Register::SZ3>(&usz3);
+	psyqo::GTE::read<psyqo::GTE::Register::SZ0>(&node.projectedDepths[0]);
+	psyqo::GTE::read<psyqo::GTE::Register::SZ1>(&node.projectedDepths[1]);
+	psyqo::GTE::read<psyqo::GTE::Register::SZ2>(&node.projectedDepths[2]);
+	psyqo::GTE::read<psyqo::GTE::Register::SZ3>(&node.projectedDepths[3]);
 
-	QuadNode node = {{quad.verts[0], quad.verts[1], quad.verts[2], quad.verts[3]},
-					 projected,
-					 {usz0, usz1, usz2, usz3},
-					 {quad.colours[0], quad.colours[1], quad.colours[2], quad.colours[3]},
-					 {ir[0], ir[1], ir[2], ir[3]},
-					 quad.uvA,
-					 quad.uvB,
-					 quad.uvC,
-					 quad.uvD,
-					 quad.boneAdjustedVerts != nullptr};
+	// copy any remaining data we couldn't read straight from the GTE
+	for (int i = 0; i < 4; i++) {
+		node.verts[i] = quad.verts[i];
+		node.colours[i] = quad.colours[i];
+	}
+
+	node.uvA = quad.uvA;
+	node.uvB = quad.uvB;
+	node.uvC = quad.uvC;
+	node.uvD = quad.uvD;
 
 	ProcessQuadNode(node, depth, texture, tpage, uvOffset, bumpAllocator, orderingTable);
 }
@@ -1001,6 +998,7 @@ void Renderer::ProcessQuadNode(QuadNode& node, uint8_t subDivsionDepth, const Ti
 			psyqo::Color midColour01 = midColour(node.colours[0], node.colours[1]),
 						 midColour23 = midColour(node.colours[2], node.colours[3]);
 
+			// quad A
 			quadA.verts[0] = node.verts[0];
 			quadA.verts[1] = midVert01;
 			quadA.verts[2] = node.verts[2];
@@ -1031,6 +1029,7 @@ void Renderer::ProcessQuadNode(QuadNode& node, uint8_t subDivsionDepth, const Ti
 			quadA.irs[2] = node.irs[2];
 			quadA.irs[3] = midIR23;
 
+			// quadB
 			quadB.verts[0] = midVert01;
 			quadB.verts[1] = node.verts[1];
 			quadB.verts[2] = midVert23;
@@ -1060,6 +1059,7 @@ void Renderer::ProcessQuadNode(QuadNode& node, uint8_t subDivsionDepth, const Ti
 			quadB.irs[1] = node.irs[1];
 			quadB.irs[2] = midIR23;
 			quadB.irs[3] = node.irs[3];
+			// end quadB
 		} else {
 			// split top/bottom, mid points of TL (v0), BL (v2)
 			psyqo::GTE::PackedVec3 midVert02 = midVert(node.verts[0], node.verts[2]),
@@ -1090,6 +1090,7 @@ void Renderer::ProcessQuadNode(QuadNode& node, uint8_t subDivsionDepth, const Ti
 			psyqo::Color midColour02 = midColour(node.colours[0], node.colours[2]),
 						 midColour13 = midColour(node.colours[1], node.colours[3]);
 
+			// quadA
 			quadA.verts[0] = node.verts[0];
 			quadA.verts[1] = node.verts[1];
 			quadA.verts[2] = midVert02;
@@ -1120,6 +1121,7 @@ void Renderer::ProcessQuadNode(QuadNode& node, uint8_t subDivsionDepth, const Ti
 			quadA.irs[2] = midIR02;
 			quadA.irs[3] = midIR13;
 
+			// quadB
 			quadB.verts[0] = midVert02;
 			quadB.verts[1] = midVert13;
 			quadB.verts[2] = node.verts[2];
@@ -1149,6 +1151,7 @@ void Renderer::ProcessQuadNode(QuadNode& node, uint8_t subDivsionDepth, const Ti
 			quadB.irs[1] = midIR13;
 			quadB.irs[2] = node.irs[2];
 			quadB.irs[3] = node.irs[3];
+			// end quadB
 		}
 
 		ProcessQuadNode(quadA, subDivsionDepth + 1, texture, tpage, uvOffset, bumpAllocator, orderingTable);
