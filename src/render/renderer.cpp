@@ -580,9 +580,10 @@ void Renderer::RenderParticles(uint32_t deltaTime, const psyqo::Matrix33& camera
 				// single point rotation/translation
 				psyqo::GTE::Kernels::rtps();
 
-				// keep it within the OT
-				zIndex = psyqo::GTE::readRaw<psyqo::GTE::Register::OTZ>();
-				if (zIndex >= ORDERING_TABLE_SIZE) {
+				// keep it within the OT. we dont have all sz points written here so we need to derive it ourselves
+				auto sz = psyqo::GTE::readRaw<psyqo::GTE::Register::SZ3>();
+				uint32_t zIndex = ((ORDERING_TABLE_SIZE / 3) * 3 * sz) >> 12;
+				if (zIndex == 0 || zIndex >= ORDERING_TABLE_SIZE) {
 					continue;
 				}
 
@@ -622,7 +623,6 @@ void Renderer::RenderParticles(uint32_t deltaTime, const psyqo::Matrix33& camera
 				ApplyAmbientToColour(&colour);
 
 				if (m_lighting->IsSimpleFogEnabled()) {
-					auto sz = psyqo::GTE::readRaw<psyqo::GTE::Register::SZ1>();
 					ApplyFogToColour(&colour, GetFogFactor(sz));
 				}
 
