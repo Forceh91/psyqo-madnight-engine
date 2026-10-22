@@ -24,45 +24,54 @@ void Collision::GenerateAABBForMesh(const GameObject* object, AABBCollision* col
 	}
 
 	// vec for min/max points
-	collisionBoxOut->min.x = UINT16_MAX;
-	collisionBoxOut->min.y = UINT16_MAX;
-	collisionBoxOut->min.z = UINT16_MAX;
-	collisionBoxOut->max.x = -UINT16_MAX;
-	collisionBoxOut->max.y = -UINT16_MAX;
-	collisionBoxOut->max.z = -UINT16_MAX;
+	collisionBoxOut->min.x.value = UINT16_MAX;
+	collisionBoxOut->min.y.value = UINT16_MAX;
+	collisionBoxOut->min.z.value = UINT16_MAX;
+	collisionBoxOut->max.x.value = -UINT16_MAX;
+	collisionBoxOut->max.y.value = -UINT16_MAX;
+	collisionBoxOut->max.z.value = -UINT16_MAX;
 
 	psyqo::Vec3 transformedPos = {0};
 	psyqo::GteMath::matrixVecMul3(object->rotationMatrix(), object->pos(), &transformedPos);
 
 	// for each vertex on the mesh
-	for (uint16_t vert = 0; vert < mesh->vertexCount; vert++) {
-		// apply object rotation to the vert positions
-		auto vertPos = mesh->vertices[vert];
+	for (int face = 0; face < mesh->facesCount; face++) {
 
-		// mins
-		if (vertPos.x < collisionBoxOut->min.x) {
-			collisionBoxOut->min.x = vertPos.x;
-		}
+		auto faceData = mesh->facesData[face];
+		for (int i = 0; i < 4; i++) {
+			// tris are only 3 verts not 4.
+			if (!faceData.isQuad && i == 3) {
+				continue;
+			}
 
-		if (vertPos.y < collisionBoxOut->min.y) {
-			collisionBoxOut->min.y = vertPos.y;
-		}
+			auto vertPos = faceData.isQuad ? mesh->quads[faceData.rendererFaceIx].verts[i]
+										   : mesh->tris[faceData.rendererFaceIx].verts[i];
 
-		if (vertPos.z < collisionBoxOut->min.z) {
-			collisionBoxOut->min.z = vertPos.z;
-		}
+			// mins
+			if (vertPos.x.value < collisionBoxOut->min.x.value) {
+				collisionBoxOut->min.x.value = vertPos.x.value;
+			}
 
-		// maxes
-		if (vertPos.x > collisionBoxOut->max.x) {
-			collisionBoxOut->max.x = vertPos.x;
-		}
+			if (vertPos.y.value < collisionBoxOut->min.y.value) {
+				collisionBoxOut->min.y.value = vertPos.y.value;
+			}
 
-		if (vertPos.y > collisionBoxOut->max.y) {
-			collisionBoxOut->max.y = vertPos.y;
-		}
+			if (vertPos.z.value < collisionBoxOut->min.z.value) {
+				collisionBoxOut->min.z.value = vertPos.z.value;
+			}
 
-		if (vertPos.z > collisionBoxOut->max.z) {
-			collisionBoxOut->max.z = vertPos.z;
+			// maxes
+			if (vertPos.x.value > collisionBoxOut->max.x.value) {
+				collisionBoxOut->max.x.value = vertPos.x.value;
+			}
+
+			if (vertPos.y.value > collisionBoxOut->max.y.value) {
+				collisionBoxOut->max.y.value = vertPos.y.value;
+			}
+
+			if (vertPos.z.value > collisionBoxOut->max.z.value) {
+				collisionBoxOut->max.z.value = vertPos.z.value;
+			}
 		}
 	}
 }

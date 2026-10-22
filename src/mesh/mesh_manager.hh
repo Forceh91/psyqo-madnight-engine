@@ -5,15 +5,10 @@
  */
 
 #pragma once
-#include <EASTL/fixed_string.h>
-#include <stdint.h>
-
-#include "psyqo/coroutine.hh"
-#include "psyqo/primitives/common.hh"
-#include "psyqo/vector.hh"
 
 #include "../core/collision_types.hh"
 #include "../pool/pool.hh"
+#include "../render/renderer_face_types.hh"
 #include "skeleton/skeleton.hh"
 
 #include <EASTL/fixed_string.h>
@@ -37,6 +32,11 @@ struct BoundingSphere {
 	int32_t radius = 0;
 };
 
+struct RendererFace {
+	bool isQuad = false;
+	int16_t rendererFaceIx = -1;
+};
+
 struct MeshBin {
 	uint8_t type = 0; // 1 = quads, 2 = tris (unused)
 
@@ -49,28 +49,19 @@ struct MeshBin {
 	uint8_t hasSkeleton = 0;
 	uint8_t numBones = 0;
 
-	// variable-length data
-	// verts
-	psyqo::Vec3* vertices = nullptr;
-	MeshBinVertexColours* vertexColours = nullptr;
-	MeshBinIndex* vertexIndices = nullptr;
-
-	// noramls
-	psyqo::Vec3* normals = nullptr;
-	MeshBinIndex* normalIndices = nullptr;
-
-	// UVs
-	psyqo::PrimPieces::UVCoords* uvs = nullptr;
-	MeshBinIndex* uvIndices = nullptr;
+	RendererFace* facesData = nullptr;
 
 	// skeleton info
 	Skeleton* skeleton = nullptr;
 	uint8_t* boneForVertex = nullptr; // vertex index -> bone index
-	psyqo::Vec3* verticesOnBonePos = nullptr;
 
 	// basic min/max collision box
 	AABBCollision collisionBox = {};
 	BoundingSphere bsphere = {};
+
+	// for easier sub-divison
+	RendererQuad* quads;
+	RendererTri* tris;
 };
 
 struct LoadedMeshBin {
