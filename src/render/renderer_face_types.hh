@@ -24,7 +24,7 @@ struct RendererTri {
 	psyqo::PrimPieces::UVCoordsPadded uvC = {};
 };
 
-struct QuadNode {
+struct FaceNode {
 	psyqo::GTE::PackedVec3 verts[4];		  // world space vert positions
 	eastl::array<psyqo::Vertex, 4> projected; // actually projected vert positions
 	uint32_t projectedDepths[4];			  // the z value of each projected corner

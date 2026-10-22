@@ -84,9 +84,10 @@ class Renderer final {
 	void RenderGameObjects(uint32_t deltaTime, const psyqo::Matrix33& cameraRotationMatrix);
 
 	void ProcessMeshQuad(const RendererQuad& quad, int8_t depth, const FaceData& faceData);
-	void ProcessQuadNode(QuadNode& node, uint8_t subDivsionDepth, const FaceData& faceData);
+	void ProcessQuadNode(FaceNode& node, uint8_t subDivsionDepth, const FaceData& faceData);
 
 	void ProcessMeshTri(const RendererTri& tri, int8_t depth, const FaceData& faceData);
+	void ProcessTriNode(FaceNode& node, uint8_t subDivsionDepth, const FaceData& faceData);
 
 	void RenderBillboards(uint32_t deltaTime, const psyqo::Matrix33& cameraRotationMatrix);
 	void RenderParticles(uint32_t deltaTime, const psyqo::Matrix33& cameraRotationMatrix);
