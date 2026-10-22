@@ -1271,7 +1271,6 @@ void Renderer::ProcessQuadNode(FaceNode& node, uint8_t subDivsionDepth, const Fa
 
 void Renderer::ProcessMeshTri(const RendererTri& tri, int8_t depth, const FaceData& faceData) {
 	// projections for each vert
-	eastl::array<psyqo::Vertex, 3> projected;
 	FaceNode node;
 
 	auto* verts = tri.boneAdjustedVerts ? tri.boneAdjustedVerts : tri.verts;
@@ -1419,7 +1418,6 @@ void Renderer::ProcessTriNode(FaceNode& node, uint8_t subDivsionDepth, const Fac
 	// if its the parent then do colour work that can be propogated
 	if (subDivsionDepth == 0) {
 		// apply fog colours
-		eastl::array<psyqo::Color, 3> colours;
 		for (int i = 0; i < 3; i++) {
 			ApplyAmbientToColour(&node.colours[i]);
 			node.colours[i] = ApplyFogToColourGTE(node.colours[i], node.irs[i]);
@@ -1430,7 +1428,7 @@ void Renderer::ProcessTriNode(FaceNode& node, uint8_t subDivsionDepth, const Fac
 	if (subDivsionDepth <= SUBDIVISION_MAX_DEPTH) {
 		auto abs = [](int32_t v) -> int32_t { return v < 0 ? -v : v; };
 
-		// make sure to measure in 3d, not just 2d. Cast to signed so the subtraction can't wrap.
+		// we're not as bothered about 3d-ness on tris, we can just check projected depths instead
 		const int32_t sz0 = static_cast<int32_t>(node.projectedDepths[0]);
 		const int32_t sz1 = static_cast<int32_t>(node.projectedDepths[1]);
 		const int32_t sz2 = static_cast<int32_t>(node.projectedDepths[2]);
