@@ -366,12 +366,13 @@ void Renderer::RenderGameObjects(uint32_t deltaTime, const psyqo::Matrix33& came
 		}
 
 		for (int32_t i = 0; i < mesh->facesCount; i++) {
-			const auto& faceData = mesh->facesData[i];
+			const auto& rendererFace = mesh->facesData[i];
+			const FaceData faceData = {texture, tpage, offset, allocator, ot};
 
-			if (faceData.isQuad) {
-				ProcessMeshQuad(mesh->quads[faceData.rendererFaceIx], 0, texture, tpage, offset, allocator, ot);
+			if (rendererFace.isQuad) {
+				ProcessMeshQuad(mesh->quads[rendererFace.rendererFaceIx], 0, faceData);
 			} else {
-				ProcessMeshTri(mesh->tris[faceData.rendererFaceIx], 0, texture, tpage, offset, allocator, ot);
+				ProcessMeshTri(mesh->tris[rendererFace.rendererFaceIx], 0, faceData);
 			}
 		}
 
@@ -830,9 +831,7 @@ bool Renderer::IsGameObjectVisible(const psyqo::Vec3& cameraPos, const AABBColli
 	return true;
 }
 
-void Renderer::ProcessMeshQuad(const RendererQuad& quad, int8_t depth, const TimFile* texture,
-							   const psyqo::PrimPieces::TPageAttr& tpage, const psyqo::Rect& uvOffset,
-							   BA& bumpAllocator, OT& orderingTable) {
+void Renderer::ProcessMeshQuad(const RendererQuad& quad, int8_t depth, const FaceData& faceData) {
 	// projections for each vert
 	eastl::array<psyqo::Vertex, 4> projected;
 	QuadNode node;
@@ -881,12 +880,10 @@ void Renderer::ProcessMeshQuad(const RendererQuad& quad, int8_t depth, const Tim
 	node.uvC = quad.uvC;
 	node.uvD = quad.uvD;
 
-	ProcessQuadNode(node, depth, texture, tpage, uvOffset, bumpAllocator, orderingTable);
+	ProcessQuadNode(node, depth, faceData);
 }
 
-void Renderer::ProcessQuadNode(QuadNode& node, uint8_t subDivsionDepth, const TimFile* texture,
-							   const psyqo::PrimPieces::TPageAttr& tpage, const psyqo::Rect& uvOffset,
-							   BA& bumpAllocator, OT& orderingTable) {
+void Renderer::ProcessQuadNode(QuadNode& node, uint8_t subDivsionDepth, const FaceData& faceData) {
 	// depth == 0 is handled by `ProcessMeshQuad`
 	if (subDivsionDepth > 0) {
 		// write the projected values back into sxy*
@@ -1154,14 +1151,14 @@ void Renderer::ProcessQuadNode(QuadNode& node, uint8_t subDivsionDepth, const Ti
 			// end quadB
 		}
 
-		ProcessQuadNode(quadA, subDivsionDepth + 1, texture, tpage, uvOffset, bumpAllocator, orderingTable);
-		ProcessQuadNode(quadB, subDivsionDepth + 1, texture, tpage, uvOffset, bumpAllocator, orderingTable);
+		ProcessQuadNode(quadA, subDivsionDepth + 1, faceData);
+		ProcessQuadNode(quadB, subDivsionDepth + 1, faceData);
 		return;
 	} // OTHERWISE continue to process and add to OT
 
 	// textured
-	if (texture != nullptr) {
-		auto& quadPrim = bumpAllocator.allocateFragment<psyqo::Prim::GouraudTexturedQuad>();
+	if (faceData.texture != nullptr) {
+		auto& quadPrim = faceData.bumpAllocator.allocateFragment<psyqo::Prim::GouraudTexturedQuad>();
 		quadPrim.primitive.pointA = node.projected[0];
 		quadPrim.primitive.pointB = node.projected[1];
 		quadPrim.primitive.pointC = node.projected[2];
@@ -1173,24 +1170,24 @@ void Renderer::ProcessQuadNode(QuadNode& node, uint8_t subDivsionDepth, const Ti
 		quadPrim.primitive.setColorD(node.colours[3]);
 		quadPrim.primitive.setOpaque();
 
-		quadPrim.primitive.tpage = tpage;
+		quadPrim.primitive.tpage = faceData.tpage;
 
-		if (texture->hasClut) {
-			quadPrim.primitive.clutIndex = {texture->clutX, texture->clutY};
+		if (faceData.texture->hasClut) {
+			quadPrim.primitive.clutIndex = {faceData.texture->clutX, faceData.texture->clutY};
 		}
 
-		quadPrim.primitive.uvA = {static_cast<uint8_t>(uvOffset.pos.x + node.uvA.u),
-								  static_cast<uint8_t>(uvOffset.pos.y - node.uvA.v)};
-		quadPrim.primitive.uvB = {static_cast<uint8_t>(uvOffset.pos.x + node.uvB.u),
-								  static_cast<uint8_t>(uvOffset.pos.y - node.uvB.v)};
-		quadPrim.primitive.uvC = {static_cast<uint8_t>(uvOffset.pos.x + node.uvC.u),
-								  static_cast<uint8_t>(uvOffset.pos.y - node.uvC.v)};
-		quadPrim.primitive.uvD = {static_cast<uint8_t>(uvOffset.pos.x + node.uvD.u),
-								  static_cast<uint8_t>(uvOffset.pos.y - node.uvD.v)};
+		quadPrim.primitive.uvA = {static_cast<uint8_t>(faceData.uvOffset.pos.x + node.uvA.u),
+								  static_cast<uint8_t>(faceData.uvOffset.pos.y - node.uvA.v)};
+		quadPrim.primitive.uvB = {static_cast<uint8_t>(faceData.uvOffset.pos.x + node.uvB.u),
+								  static_cast<uint8_t>(faceData.uvOffset.pos.y - node.uvB.v)};
+		quadPrim.primitive.uvC = {static_cast<uint8_t>(faceData.uvOffset.pos.x + node.uvC.u),
+								  static_cast<uint8_t>(faceData.uvOffset.pos.y - node.uvC.v)};
+		quadPrim.primitive.uvD = {static_cast<uint8_t>(faceData.uvOffset.pos.x + node.uvD.u),
+								  static_cast<uint8_t>(faceData.uvOffset.pos.y - node.uvD.v)};
 
-		orderingTable.insert(quadPrim, zIndex);
+		faceData.orderingTable.insert(quadPrim, zIndex);
 	} else { // untextured
-		auto& quadPrim = bumpAllocator.allocateFragment<psyqo::Prim::GouraudQuad>();
+		auto& quadPrim = faceData.bumpAllocator.allocateFragment<psyqo::Prim::GouraudQuad>();
 		quadPrim.primitive.pointA = node.projected[0];
 		quadPrim.primitive.pointB = node.projected[1];
 		quadPrim.primitive.pointC = node.projected[2];
@@ -1202,13 +1199,11 @@ void Renderer::ProcessQuadNode(QuadNode& node, uint8_t subDivsionDepth, const Ti
 		quadPrim.primitive.setColorD(node.colours[3]);
 		quadPrim.primitive.setOpaque();
 
-		orderingTable.insert(quadPrim, zIndex);
+		faceData.orderingTable.insert(quadPrim, zIndex);
 	}
 }
 
-void Renderer::ProcessMeshTri(const RendererTri& tri, int8_t depth, const TimFile* texture,
-							  const psyqo::PrimPieces::TPageAttr& tpage, const psyqo::Rect& uvOffset, BA& bumpAllocator,
-							  OT& orderingTable) {
+void Renderer::ProcessMeshTri(const RendererTri& tri, int8_t depth, const FaceData& faceData) {
 	// projections for each vert
 	eastl::array<psyqo::Vertex, 3> projected;
 
@@ -1341,8 +1336,8 @@ void Renderer::ProcessMeshTri(const RendererTri& tri, int8_t depth, const TimFil
 			triB.colours[0] = midColour02;
 		}
 
-		ProcessMeshTri(triA, depth + 1, texture, tpage, uvOffset, bumpAllocator, orderingTable);
-		ProcessMeshTri(triB, depth + 1, texture, tpage, uvOffset, bumpAllocator, orderingTable);
+		ProcessMeshTri(triA, depth + 1, faceData);
+		ProcessMeshTri(triB, depth + 1, faceData);
 		return;
 	} // OTHERWISE continue to process and add it to OT
 
@@ -1355,8 +1350,8 @@ void Renderer::ProcessMeshTri(const RendererTri& tri, int8_t depth, const TimFil
 	}
 
 	// textured
-	if (texture != nullptr) {
-		auto& triPrim = bumpAllocator.allocateFragment<psyqo::Prim::GouraudTexturedTriangle>();
+	if (faceData.texture != nullptr) {
+		auto& triPrim = faceData.bumpAllocator.allocateFragment<psyqo::Prim::GouraudTexturedTriangle>();
 		triPrim.primitive.pointA = projected[0];
 		triPrim.primitive.pointB = projected[1];
 		triPrim.primitive.pointC = projected[2];
@@ -1366,22 +1361,22 @@ void Renderer::ProcessMeshTri(const RendererTri& tri, int8_t depth, const TimFil
 		triPrim.primitive.setColorC(colours[2]);
 		triPrim.primitive.setOpaque();
 
-		triPrim.primitive.tpage = tpage;
+		triPrim.primitive.tpage = faceData.tpage;
 
-		if (texture->hasClut) {
-			triPrim.primitive.clutIndex = {texture->clutX, texture->clutY};
+		if (faceData.texture->hasClut) {
+			triPrim.primitive.clutIndex = {faceData.texture->clutX, faceData.texture->clutY};
 		}
 
-		triPrim.primitive.uvA = {static_cast<uint8_t>(uvOffset.pos.x + tri.uvA.u),
-								 static_cast<uint8_t>(uvOffset.pos.y - tri.uvA.v)};
-		triPrim.primitive.uvB = {static_cast<uint8_t>(uvOffset.pos.x + tri.uvB.u),
-								 static_cast<uint8_t>(uvOffset.pos.y - tri.uvB.v)};
-		triPrim.primitive.uvC = {static_cast<uint8_t>(uvOffset.pos.x + tri.uvC.u),
-								 static_cast<uint8_t>(uvOffset.pos.y - tri.uvC.v)};
+		triPrim.primitive.uvA = {static_cast<uint8_t>(faceData.uvOffset.pos.x + tri.uvA.u),
+								 static_cast<uint8_t>(faceData.uvOffset.pos.y - tri.uvA.v)};
+		triPrim.primitive.uvB = {static_cast<uint8_t>(faceData.uvOffset.pos.x + tri.uvB.u),
+								 static_cast<uint8_t>(faceData.uvOffset.pos.y - tri.uvB.v)};
+		triPrim.primitive.uvC = {static_cast<uint8_t>(faceData.uvOffset.pos.x + tri.uvC.u),
+								 static_cast<uint8_t>(faceData.uvOffset.pos.y - tri.uvC.v)};
 
-		orderingTable.insert(triPrim, zIndex);
+		faceData.orderingTable.insert(triPrim, zIndex);
 	} else { // untextured
-		auto& triPrim = bumpAllocator.allocateFragment<psyqo::Prim::GouraudTriangle>();
+		auto& triPrim = faceData.bumpAllocator.allocateFragment<psyqo::Prim::GouraudTriangle>();
 		triPrim.primitive.pointA = projected[0];
 		triPrim.primitive.pointB = projected[1];
 		triPrim.primitive.pointC = projected[2];
@@ -1391,7 +1386,7 @@ void Renderer::ProcessMeshTri(const RendererTri& tri, int8_t depth, const TimFil
 		triPrim.primitive.setColorC(colours[2]);
 		triPrim.primitive.setOpaque();
 
-		orderingTable.insert(triPrim, zIndex);
+		faceData.orderingTable.insert(triPrim, zIndex);
 	}
 }
 

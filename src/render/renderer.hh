@@ -40,6 +40,14 @@ static constexpr psyqo::Color c_loadingBackgroundColour = {.r = 0, .g = 0, .b = 
 using OT = psyqo::OrderingTable<ORDERING_TABLE_SIZE>;
 using BA = psyqo::BumpAllocator<BUMP_ALLOCATOR_BYTES>;
 
+struct FaceData {
+	const TimFile* texture;
+	psyqo::PrimPieces::TPageAttr& tpage;
+	psyqo::Rect& uvOffset;
+	BA& bumpAllocator;
+	OT& orderingTable;
+};
+
 class Renderer final {
 	static Renderer* m_instance;
 	static psyqo::Font<100> m_systemFont;
@@ -76,16 +84,10 @@ class Renderer final {
 
 	void RenderGameObjects(uint32_t deltaTime, const psyqo::Matrix33& cameraRotationMatrix);
 
-	void ProcessMeshQuad(const RendererQuad& quad, int8_t depth, const TimFile* texture,
-						 const psyqo::PrimPieces::TPageAttr& tpage, const psyqo::Rect& uvOffset, BA& bumpAllocator,
-						 OT& orderingTable);
-	void ProcessQuadNode(QuadNode& node, uint8_t subDivsionDepth, const TimFile* texture,
-						 const psyqo::PrimPieces::TPageAttr& tpage, const psyqo::Rect& uvOffset, BA& bumpAllocator,
-						 OT& orderingTable);
+	void ProcessMeshQuad(const RendererQuad& quad, int8_t depth, const FaceData& faceData);
+	void ProcessQuadNode(QuadNode& node, uint8_t subDivsionDepth, const FaceData& faceData);
 
-	void ProcessMeshTri(const RendererTri& tri, int8_t depth, const TimFile* texture,
-						const psyqo::PrimPieces::TPageAttr& tpage, const psyqo::Rect& uvOffset, BA& bumpAllocator,
-						OT& orderingTable);
+	void ProcessMeshTri(const RendererTri& tri, int8_t depth, const FaceData& faceData);
 
 	void RenderBillboards(uint32_t deltaTime, const psyqo::Matrix33& cameraRotationMatrix);
 	void RenderParticles(uint32_t deltaTime, const psyqo::Matrix33& cameraRotationMatrix);
