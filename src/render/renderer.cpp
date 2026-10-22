@@ -867,13 +867,6 @@ void Renderer::ProcessMeshQuad(const RendererQuad& quad, int8_t depth, const Fac
 	psyqo::GTE::read<psyqo::GTE::Register::SZ2>(&node.projectedDepths[2]);
 	psyqo::GTE::read<psyqo::GTE::Register::SZ3>(&node.projectedDepths[3]);
 
-	// apply fog colours
-	eastl::array<psyqo::Color, 4> colours = {quad.colours[0], quad.colours[1], quad.colours[2], quad.colours[3]};
-	for (int i = 0; i < 4; i++) {
-		ApplyAmbientToColour(&colours[i]);
-		node.colours[i] = ApplyFogToColourGTE(colours[i], node.irs[i]);
-	}	
-
 	auto shouldSubDivide =
 		!quad.boneAdjustedVerts &&
 		(node.projectedDepths[0] >= SUBDIVISION_MIN_DISTANCE || node.projectedDepths[1] >= SUBDIVISION_MIN_DISTANCE ||
@@ -885,6 +878,7 @@ void Renderer::ProcessMeshQuad(const RendererQuad& quad, int8_t depth, const Fac
 		// copy any remaining data we couldn't read straight from the GTE
 		for (int i = 0; i < 4; i++) {
 			node.verts[i] = quad.verts[i];
+			node.colours[i] = quad.colours[i];
 		}
 
 		node.uvA = quad.uvA;
@@ -907,6 +901,13 @@ void Renderer::ProcessMeshQuad(const RendererQuad& quad, int8_t depth, const Fac
 		// clip screen space
 		if (quad_clip(&SCREEN_SPACE, &node.projected[0], &node.projected[1], &node.projected[2], &node.projected[3])) {
 			return;
+		}
+		
+		// apply fog colours
+		eastl::array<psyqo::Color, 4> colours = {quad.colours[0], quad.colours[1], quad.colours[2], quad.colours[3]};
+		for (int i = 0; i < 4; i++) {
+			ApplyAmbientToColour(&colours[i]);
+			colours[i] = ApplyFogToColourGTE(colours[i], node.irs[i]);
 		}		
 
 		if (faceData.texture != nullptr) {
@@ -916,10 +917,10 @@ void Renderer::ProcessMeshQuad(const RendererQuad& quad, int8_t depth, const Fac
 			quadPrim.primitive.pointC = node.projected[2];
 			quadPrim.primitive.pointD = node.projected[3];
 
-			quadPrim.primitive.setColorA(node.colours[0]);
-			quadPrim.primitive.setColorB(node.colours[1]);
-			quadPrim.primitive.setColorC(node.colours[2]);
-			quadPrim.primitive.setColorD(node.colours[3]);
+			quadPrim.primitive.setColorA(colours[0]);
+			quadPrim.primitive.setColorB(colours[1]);
+			quadPrim.primitive.setColorC(colours[2]);
+			quadPrim.primitive.setColorD(colours[3]);
 			quadPrim.primitive.setOpaque();
 
 			quadPrim.primitive.tpage = faceData.tpage;
@@ -945,10 +946,10 @@ void Renderer::ProcessMeshQuad(const RendererQuad& quad, int8_t depth, const Fac
 			quadPrim.primitive.pointC = node.projected[2];
 			quadPrim.primitive.pointD = node.projected[3];
 
-			quadPrim.primitive.setColorA(node.colours[0]);
-			quadPrim.primitive.setColorB(node.colours[1]);
-			quadPrim.primitive.setColorC(node.colours[2]);
-			quadPrim.primitive.setColorD(node.colours[3]);
+			quadPrim.primitive.setColorA(colours[0]);
+			quadPrim.primitive.setColorB(colours[1]);
+			quadPrim.primitive.setColorC(colours[2]);
+			quadPrim.primitive.setColorD(colours[3]);
 			quadPrim.primitive.setOpaque();
 
 			faceData.orderingTable.insert(quadPrim, zIndex);
@@ -991,6 +992,16 @@ void Renderer::ProcessQuadNode(QuadNode& node, uint8_t subDivsionDepth, const Fa
 	// clip screen space
 	if (quad_clip(&SCREEN_SPACE, &node.projected[0], &node.projected[1], &node.projected[2], &node.projected[3])) {
 		return;
+	}
+
+	// if its the parent then do colour work that can be propogated
+	if (subDivsionDepth == 0) {
+		// apply fog colours
+		eastl::array<psyqo::Color, 4> colours;
+		for (int i = 0; i < 4; i++) {
+			ApplyAmbientToColour(&node.colours[i]);
+			node.colours[i] = ApplyFogToColourGTE(node.colours[i], node.irs[i]);
+		}
 	}
 
 	// sub divide if we have depth and we're close enough
