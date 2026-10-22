@@ -15,6 +15,7 @@
 #include "../core/particles/particle_manager.hh"
 #include "../defs.hh"
 #include "../madnight.hh"
+#include "node.hh"
 
 #include <psyqo/fixed-point.hh>
 #include <psyqo/fragments.hh>
@@ -859,67 +860,98 @@ void Renderer::ProcessMeshQuad(const RendererQuad& quad, int8_t depth, const Tim
 	psyqo::GTE::read<psyqo::GTE::Register::SXY1>(&projected[1].packed);
 	psyqo::GTE::read<psyqo::GTE::Register::SXY2>(&projected[2].packed);
 
-	// read all the SZ data
-	uint32_t usz0, usz1, usz2, usz3;
-	psyqo::GTE::read<psyqo::GTE::Register::SZ0>(&usz0);
-	psyqo::GTE::read<psyqo::GTE::Register::SZ1>(&usz1);
-	psyqo::GTE::read<psyqo::GTE::Register::SZ2>(&usz2);
-
 	// final vert
 	psyqo::GTE::writeSafe<psyqo::GTE::PseudoRegister::V0>(verts[3]);
 	psyqo::GTE::Kernels::rtps();
 	ir[3] = psyqo::GTE::readRaw<psyqo::GTE::Register::IR0>();
 	psyqo::GTE::read<psyqo::GTE::Register::SXY2>(&projected[3].packed);
+
+	// read all the SZ data
+	uint32_t usz0, usz1, usz2, usz3;
+	psyqo::GTE::read<psyqo::GTE::Register::SZ0>(&usz0);
+	psyqo::GTE::read<psyqo::GTE::Register::SZ1>(&usz1);
+	psyqo::GTE::read<psyqo::GTE::Register::SZ2>(&usz2);
 	psyqo::GTE::read<psyqo::GTE::Register::SZ3>(&usz3);
+
+	// apply fog colours
+	eastl::array<psyqo::Color, 4> colours;
+	for (int i = 0; i < 4; i++) {
+		colours[i] = quad.colours[i];
+		ApplyAmbientToColour(&colours[i]);
+		colours[i] = ApplyFogToColourGTE(colours[i], ir[i]);
+	}
+
+	QuadNode node = {{quad.verts[0], quad.verts[1], quad.verts[2], quad.verts[3]},
+					 projected,
+					 {usz0, usz1, usz2, usz3},
+					 {colours[0], colours[1], colours[2], colours[3]},
+					 {ir[0], ir[1], ir[2], ir[3]},
+					 quad.uvA,
+					 quad.uvB,
+					 quad.uvC,
+					 quad.uvD,
+					 quad.boneAdjustedVerts != nullptr};
+
+	ProcessQuadNode(node, depth, texture, tpage, uvOffset, bumpAllocator, orderingTable);
+}
+
+void Renderer::ProcessQuadNode(QuadNode& node, uint8_t subDivsionDepth, const TimFile* texture,
+							   const psyqo::PrimPieces::TPageAttr& tpage, const psyqo::Rect& uvOffset,
+							   BA& bumpAllocator, OT& orderingTable) {
+	// depth == 0 is handled by `ProcessMeshQuad`
+	if (subDivsionDepth > 0) {
+		// write the projected values back into sxy*
+		psyqo::GTE::write<psyqo::GTE::Register::SXY0, psyqo::GTE::Unsafe>(node.projected[0].packed);
+		psyqo::GTE::write<psyqo::GTE::Register::SXY1, psyqo::GTE::Unsafe>(node.projected[1].packed);
+		psyqo::GTE::write<psyqo::GTE::Register::SXY2, psyqo::GTE::Unsafe>(node.projected[2].packed);
+
+		// write the projected values back into sz*
+		psyqo::GTE::write<psyqo::GTE::Register::SZ0, psyqo::GTE::Unsafe>(node.projectedDepths[0]);
+		psyqo::GTE::write<psyqo::GTE::Register::SZ1, psyqo::GTE::Unsafe>(node.projectedDepths[1]);
+		psyqo::GTE::write<psyqo::GTE::Register::SZ2, psyqo::GTE::Safe>(node.projectedDepths[2]);
+
+		// figure out nclip and skip rendering if backfaced
+		psyqo::GTE::Kernels::nclip();
+		if ((int32_t)psyqo::GTE::readRaw<psyqo::GTE::Register::MAC0>() == 0) {
+			return;
+		}
+
+		psyqo::GTE::write<psyqo::GTE::Register::SXY2, psyqo::GTE::Unsafe>(node.projected[3].packed);
+		psyqo::GTE::write<psyqo::GTE::Register::SZ3, psyqo::GTE::Safe>(node.projectedDepths[3]);
+	}
 
 	// figure out avg z index
 	psyqo::GTE::Kernels::avsz4();
 
 	// keep inside OT bounds
-	zIndex = psyqo::GTE::readRaw<psyqo::GTE::Register::OTZ>();
+	uint32_t zIndex = psyqo::GTE::readRaw<psyqo::GTE::Register::OTZ>();
 	if (zIndex == 0 || zIndex >= ORDERING_TABLE_SIZE) {
 		return;
 	}
 
 	// clip screen space
-	if (quad_clip(&SCREEN_SPACE, &projected[0], &projected[1], &projected[2], &projected[3])) {
-		return;
-	}
-
-	// apply fog colours now so we can drop early if needed
-	eastl::array<psyqo::Color, 4> colours;
-	bool isObscuredByFog = true;
-	for (int i = 0; i < 4; i++) {
-		colours[i] = quad.colours[i];
-		ApplyAmbientToColour(&colours[i]);
-		colours[i] = ApplyFogToColourGTE(colours[i], ir[i]);
-		if (colours[i].r >= 10 && colours[i].g >= 10 && colours[i].b >= 10) {
-			isObscuredByFog = false;
-		}
-	}
-
-	if (isObscuredByFog) {
+	if (quad_clip(&SCREEN_SPACE, &node.projected[0], &node.projected[1], &node.projected[2], &node.projected[3])) {
 		return;
 	}
 
 	// determine if it should be sub-divided if its not got bones, and at least one edge is close enough
-	int32_t sz0 = (int32_t)usz0, sz1 = (int32_t)usz1, sz2 = (int32_t)usz2, sz3 = (int32_t)usz3;
-	auto shouldSubDivide = !quad.boneAdjustedVerts &&
-						   (sz0 >= SUBDIVISION_MIN_DISTANCE || sz1 >= SUBDIVISION_MIN_DISTANCE ||
-							sz2 >= SUBDIVISION_MIN_DISTANCE || sz3 >= SUBDIVISION_MIN_DISTANCE) &&
-						   (sz0 <= SUBDIVISION_MAX_DISTANCE || sz1 <= SUBDIVISION_MAX_DISTANCE ||
-							sz2 <= SUBDIVISION_MAX_DISTANCE || sz3 <= SUBDIVISION_MAX_DISTANCE);
+	auto shouldSubDivide =
+		!node.isSkeleton &&
+		(node.projectedDepths[0] >= SUBDIVISION_MIN_DISTANCE || node.projectedDepths[1] >= SUBDIVISION_MIN_DISTANCE ||
+		 node.projectedDepths[2] >= SUBDIVISION_MIN_DISTANCE || node.projectedDepths[3] >= SUBDIVISION_MIN_DISTANCE) &&
+		(node.projectedDepths[0] <= SUBDIVISION_MAX_DISTANCE || node.projectedDepths[1] <= SUBDIVISION_MAX_DISTANCE ||
+		 node.projectedDepths[2] <= SUBDIVISION_MAX_DISTANCE || node.projectedDepths[3] <= SUBDIVISION_MAX_DISTANCE);
 
 	// sub divide if we have depth and we're close enough
-	if (depth <= SUBDIVISION_MAX_DEPTH && shouldSubDivide) {
+	if (subDivsionDepth <= SUBDIVISION_MAX_DEPTH && shouldSubDivide) {
 		auto abs = [](int32_t v) -> int32_t { return v < 0 ? -v : v; };
 		auto edgeLength = [&abs](const psyqo::GTE::PackedVec3 a, const psyqo::GTE::PackedVec3 b) -> auto {
 			return abs(a.x.value - b.x.value) + abs(a.y.value - b.y.value) + abs(a.z.value - b.z.value);
 		};
 
 		// make sure to measure the width and height in 3d, not just 2d.
-		auto width = edgeLength(quad.verts[0], quad.verts[1]) + edgeLength(quad.verts[2], quad.verts[3]);
-		auto height = edgeLength(quad.verts[0], quad.verts[2]) + edgeLength(quad.verts[1], quad.verts[3]);
+		auto width = edgeLength(node.verts[0], node.verts[1]) + edgeLength(node.verts[2], node.verts[3]);
+		auto height = edgeLength(node.verts[0], node.verts[2]) + edgeLength(node.verts[1], node.verts[3]);
 
 		auto midVert = [](const psyqo::GTE::PackedVec3& a, const psyqo::GTE::PackedVec3& b) -> auto {
 			psyqo::GTE::PackedVec3 mid;
@@ -934,80 +966,206 @@ void Renderer::ProcessMeshQuad(const RendererQuad& quad, int8_t depth, const Tim
 								static_cast<uint8_t>((a.b + b.b) >> 1)};
 		};
 
-		auto quadA = quad, quadB = quad;
+		auto midIR = [](const uint32_t& a, const uint32_t& b) -> auto { return (a + b) >> 1; };
+
+		QuadNode quadA = {}, quadB = {};
 		if (width >= height) {
 			// split left right, mid points of TL (v0), TR (v1)
-			psyqo::GTE::PackedVec3 midVert01 = midVert(quad.verts[0], quad.verts[1]),
-								   midVert23 = midVert(quad.verts[2], quad.verts[3]);
+			psyqo::GTE::PackedVec3 midVert01 = midVert(node.verts[0], node.verts[1]),
+								   midVert23 = midVert(node.verts[2], node.verts[3]);
+
+			psyqo::Vertex midProjectedVert01 = {}, midProjectedVert23 = {};
+			uint32_t midIR01 = 0, midIR23 = 0;
+			uint32_t midZ01 = 0, midZ23 = 0;
+
+			psyqo::GTE::writeSafe<psyqo::GTE::PseudoRegister::V0>(midVert01);
+			psyqo::GTE::Kernels::rtps();
+			midIR01 = psyqo::GTE::readRaw<psyqo::GTE::Register::IR0>();
+			psyqo::GTE::read<psyqo::GTE::Register::SXY2>(&midProjectedVert01.packed);
+			psyqo::GTE::read<psyqo::GTE::Register::SZ3>(&midZ01);
+
+			psyqo::GTE::writeSafe<psyqo::GTE::PseudoRegister::V0>(midVert23);
+			psyqo::GTE::Kernels::rtps();
+			midIR23 = psyqo::GTE::readRaw<psyqo::GTE::Register::IR0>();
+			psyqo::GTE::read<psyqo::GTE::Register::SXY2>(&midProjectedVert23.packed);
+			psyqo::GTE::read<psyqo::GTE::Register::SZ3>(&midZ23);
 
 			psyqo::PrimPieces::UVCoords midUV01, midUV23;
-			midUV01.u = (quad.uvA.u + quad.uvB.u) >> 1;
-			midUV01.v = (quad.uvA.v + quad.uvB.v) >> 1;
-			midUV23.u = (quad.uvC.u + quad.uvD.u) >> 1;
-			midUV23.v = (quad.uvC.v + quad.uvD.v) >> 1;
+			midUV01.u = (node.uvA.u + node.uvB.u) >> 1;
+			midUV01.v = (node.uvA.v + node.uvB.v) >> 1;
+			midUV23.u = (node.uvC.u + node.uvD.u) >> 1;
+			midUV23.v = (node.uvC.v + node.uvD.v) >> 1;
 
-			psyqo::Color midColour01 = midColour(quad.colours[0], quad.colours[1]),
-						 midColour23 = midColour(quad.colours[2], quad.colours[3]);
+			psyqo::Color midColour01 = midColour(node.colours[0], node.colours[1]),
+						 midColour23 = midColour(node.colours[2], node.colours[3]);
 
+			quadA.verts[0] = node.verts[0];
 			quadA.verts[1] = midVert01;
+			quadA.verts[2] = node.verts[2];
 			quadA.verts[3] = midVert23;
+
+			quadA.projected[0] = node.projected[0];
+			quadA.projected[1] = midProjectedVert01;
+			quadA.projected[2] = node.projected[2];
+			quadA.projected[3] = midProjectedVert23;
+
+			quadA.projectedDepths[0] = node.projectedDepths[0];
+			quadA.projectedDepths[1] = midZ01;
+			quadA.projectedDepths[2] = node.projectedDepths[2];
+			quadA.projectedDepths[3] = midZ23;
+
+			quadA.uvA = node.uvA;
 			quadA.uvB = midUV01;
+			quadA.uvC = node.uvC;
 			quadA.uvD = {midUV23.u, midUV23.v, 0};
+
+			quadA.colours[0] = node.colours[0];
 			quadA.colours[1] = midColour01;
+			quadA.colours[2] = node.colours[2];
 			quadA.colours[3] = midColour23;
 
+			quadA.irs[0] = node.irs[0];
+			quadA.irs[1] = midIR01;
+			quadA.irs[2] = node.irs[2];
+			quadA.irs[3] = midIR23;
+
 			quadB.verts[0] = midVert01;
+			quadB.verts[1] = node.verts[1];
 			quadB.verts[2] = midVert23;
+			quadB.verts[3] = node.verts[3];
+
+			quadB.projected[0] = midProjectedVert01;
+			quadB.projected[1] = node.projected[1];
+			quadB.projected[2] = midProjectedVert23;
+			quadB.projected[3] = node.projected[3];
+
+			quadB.projectedDepths[0] = midZ01;
+			quadB.projectedDepths[1] = node.projectedDepths[1];
+			quadB.projectedDepths[2] = midZ23;
+			quadB.projectedDepths[3] = node.projectedDepths[3];
+
 			quadB.uvA = midUV01;
+			quadB.uvB = node.uvB;
 			quadB.uvC = {midUV23.u, midUV23.v, 0};
+			quadB.uvD = node.uvD;
+
 			quadB.colours[0] = midColour01;
+			quadB.colours[1] = node.colours[1];
 			quadB.colours[2] = midColour23;
+			quadB.colours[3] = node.colours[3];
+
+			quadB.irs[0] = midIR01;
+			quadB.irs[1] = node.irs[1];
+			quadB.irs[2] = midIR23;
+			quadB.irs[3] = node.irs[3];
 		} else {
 			// split top/bottom, mid points of TL (v0), BL (v2)
-			psyqo::GTE::PackedVec3 midVert02 = midVert(quad.verts[0], quad.verts[2]),
-								   midVert13 = midVert(quad.verts[1], quad.verts[3]);
+			psyqo::GTE::PackedVec3 midVert02 = midVert(node.verts[0], node.verts[2]),
+								   midVert13 = midVert(node.verts[1], node.verts[3]);
+
+			psyqo::Vertex midProjectedVert02 = {}, midProjectedVert13 = {};
+			uint32_t midIR02 = 0, midIR13 = 0;
+			uint32_t midZ02 = 0, midZ13 = 0;
+
+			psyqo::GTE::writeSafe<psyqo::GTE::PseudoRegister::V0>(midVert02);
+			psyqo::GTE::Kernels::rtps();
+			midIR02 = psyqo::GTE::readRaw<psyqo::GTE::Register::IR0>();
+			psyqo::GTE::read<psyqo::GTE::Register::SXY2>(&midProjectedVert02.packed);
+			psyqo::GTE::read<psyqo::GTE::Register::SZ3>(&midZ02);
+
+			psyqo::GTE::writeSafe<psyqo::GTE::PseudoRegister::V0>(midVert13);
+			psyqo::GTE::Kernels::rtps();
+			midIR13 = psyqo::GTE::readRaw<psyqo::GTE::Register::IR0>();
+			psyqo::GTE::read<psyqo::GTE::Register::SXY2>(&midProjectedVert13.packed);
+			psyqo::GTE::read<psyqo::GTE::Register::SZ3>(&midZ13);
 
 			psyqo::PrimPieces::UVCoords midUVAC, midUVBD;
-			midUVAC.u = (quad.uvA.u + quad.uvC.u) >> 1;
-			midUVAC.v = (quad.uvA.v + quad.uvC.v) >> 1;
-			midUVBD.u = (quad.uvB.u + quad.uvD.u) >> 1;
-			midUVBD.v = (quad.uvB.v + quad.uvD.v) >> 1;
+			midUVAC.u = (node.uvA.u + node.uvC.u) >> 1;
+			midUVAC.v = (node.uvA.v + node.uvC.v) >> 1;
+			midUVBD.u = (node.uvB.u + node.uvD.u) >> 1;
+			midUVBD.v = (node.uvB.v + node.uvD.v) >> 1;
 
-			psyqo::Color midColour02 = midColour(quad.colours[0], quad.colours[2]),
-						 midColour13 = midColour(quad.colours[1], quad.colours[3]);
+			psyqo::Color midColour02 = midColour(node.colours[0], node.colours[2]),
+						 midColour13 = midColour(node.colours[1], node.colours[3]);
 
+			quadA.verts[0] = node.verts[0];
+			quadA.verts[1] = node.verts[1];
 			quadA.verts[2] = midVert02;
 			quadA.verts[3] = midVert13;
+
+			quadA.projected[0] = node.projected[0];
+			quadA.projected[1] = node.projected[1];
+			quadA.projected[2] = midProjectedVert02;
+			quadA.projected[3] = midProjectedVert13;
+
+			quadA.projectedDepths[0] = node.projectedDepths[0];
+			quadA.projectedDepths[1] = node.projectedDepths[1];
+			quadA.projectedDepths[2] = midZ02;
+			quadA.projectedDepths[3] = midZ13;
+
+			quadA.uvA = node.uvA;
+			quadA.uvB = node.uvB;
 			quadA.uvC = {midUVAC.u, midUVAC.v, 0};
 			quadA.uvD = {midUVBD.u, midUVBD.v, 0};
+
+			quadA.colours[0] = node.colours[0];
+			quadA.colours[1] = node.colours[1];
 			quadA.colours[2] = midColour02;
 			quadA.colours[3] = midColour13;
 
+			quadA.irs[0] = node.irs[0];
+			quadA.irs[1] = node.irs[1];
+			quadA.irs[2] = midIR02;
+			quadA.irs[3] = midIR13;
+
 			quadB.verts[0] = midVert02;
 			quadB.verts[1] = midVert13;
+			quadB.verts[2] = node.verts[2];
+			quadB.verts[3] = node.verts[3];
+
+			quadB.projected[0] = midProjectedVert02;
+			quadB.projected[1] = midProjectedVert13;
+			quadB.projected[2] = node.projected[2];
+			quadB.projected[3] = node.projected[3];
+
+			quadB.projectedDepths[0] = midZ02;
+			quadB.projectedDepths[1] = midZ13;
+			quadB.projectedDepths[2] = node.projectedDepths[2];
+			quadB.projectedDepths[3] = node.projectedDepths[3];
+
 			quadB.uvA = midUVAC;
 			quadB.uvB = midUVBD;
+			quadB.uvC = node.uvC;
+			quadB.uvD = node.uvD;
+
 			quadB.colours[0] = midColour02;
 			quadB.colours[1] = midColour13;
+			quadB.colours[2] = node.colours[2];
+			quadB.colours[3] = node.colours[3];
+
+			quadB.irs[0] = midIR02;
+			quadB.irs[1] = midIR13;
+			quadB.irs[2] = node.irs[2];
+			quadB.irs[3] = node.irs[3];
 		}
 
-		ProcessMeshQuad(quadA, depth + 1, texture, tpage, uvOffset, bumpAllocator, orderingTable);
-		ProcessMeshQuad(quadB, depth + 1, texture, tpage, uvOffset, bumpAllocator, orderingTable);
+		ProcessQuadNode(quadA, subDivsionDepth + 1, texture, tpage, uvOffset, bumpAllocator, orderingTable);
+		ProcessQuadNode(quadB, subDivsionDepth + 1, texture, tpage, uvOffset, bumpAllocator, orderingTable);
 		return;
 	} // OTHERWISE continue to process and add to OT
 
 	// textured
 	if (texture != nullptr) {
 		auto& quadPrim = bumpAllocator.allocateFragment<psyqo::Prim::GouraudTexturedQuad>();
-		quadPrim.primitive.pointA = projected[0];
-		quadPrim.primitive.pointB = projected[1];
-		quadPrim.primitive.pointC = projected[2];
-		quadPrim.primitive.pointD = projected[3];
+		quadPrim.primitive.pointA = node.projected[0];
+		quadPrim.primitive.pointB = node.projected[1];
+		quadPrim.primitive.pointC = node.projected[2];
+		quadPrim.primitive.pointD = node.projected[3];
 
-		quadPrim.primitive.setColorA(colours[0]);
-		quadPrim.primitive.setColorB(colours[1]);
-		quadPrim.primitive.setColorC(colours[2]);
-		quadPrim.primitive.setColorD(colours[3]);
+		quadPrim.primitive.setColorA(node.colours[0]);
+		quadPrim.primitive.setColorB(node.colours[1]);
+		quadPrim.primitive.setColorC(node.colours[2]);
+		quadPrim.primitive.setColorD(node.colours[3]);
 		quadPrim.primitive.setOpaque();
 
 		quadPrim.primitive.tpage = tpage;
@@ -1016,27 +1174,27 @@ void Renderer::ProcessMeshQuad(const RendererQuad& quad, int8_t depth, const Tim
 			quadPrim.primitive.clutIndex = {texture->clutX, texture->clutY};
 		}
 
-		quadPrim.primitive.uvA = {static_cast<uint8_t>(uvOffset.pos.x + quad.uvA.u),
-								  static_cast<uint8_t>(uvOffset.pos.y - quad.uvA.v)};
-		quadPrim.primitive.uvB = {static_cast<uint8_t>(uvOffset.pos.x + quad.uvB.u),
-								  static_cast<uint8_t>(uvOffset.pos.y - quad.uvB.v)};
-		quadPrim.primitive.uvC = {static_cast<uint8_t>(uvOffset.pos.x + quad.uvC.u),
-								  static_cast<uint8_t>(uvOffset.pos.y - quad.uvC.v)};
-		quadPrim.primitive.uvD = {static_cast<uint8_t>(uvOffset.pos.x + quad.uvD.u),
-								  static_cast<uint8_t>(uvOffset.pos.y - quad.uvD.v)};
+		quadPrim.primitive.uvA = {static_cast<uint8_t>(uvOffset.pos.x + node.uvA.u),
+								  static_cast<uint8_t>(uvOffset.pos.y - node.uvA.v)};
+		quadPrim.primitive.uvB = {static_cast<uint8_t>(uvOffset.pos.x + node.uvB.u),
+								  static_cast<uint8_t>(uvOffset.pos.y - node.uvB.v)};
+		quadPrim.primitive.uvC = {static_cast<uint8_t>(uvOffset.pos.x + node.uvC.u),
+								  static_cast<uint8_t>(uvOffset.pos.y - node.uvC.v)};
+		quadPrim.primitive.uvD = {static_cast<uint8_t>(uvOffset.pos.x + node.uvD.u),
+								  static_cast<uint8_t>(uvOffset.pos.y - node.uvD.v)};
 
 		orderingTable.insert(quadPrim, zIndex);
 	} else { // untextured
 		auto& quadPrim = bumpAllocator.allocateFragment<psyqo::Prim::GouraudQuad>();
-		quadPrim.primitive.pointA = projected[0];
-		quadPrim.primitive.pointB = projected[1];
-		quadPrim.primitive.pointC = projected[2];
-		quadPrim.primitive.pointD = projected[3];
+		quadPrim.primitive.pointA = node.projected[0];
+		quadPrim.primitive.pointB = node.projected[1];
+		quadPrim.primitive.pointC = node.projected[2];
+		quadPrim.primitive.pointD = node.projected[3];
 
-		quadPrim.primitive.setColorA(colours[0]);
-		quadPrim.primitive.setColorB(colours[1]);
-		quadPrim.primitive.setColorC(colours[2]);
-		quadPrim.primitive.setColorD(colours[3]);
+		quadPrim.primitive.setColorA(node.colours[0]);
+		quadPrim.primitive.setColorB(node.colours[1]);
+		quadPrim.primitive.setColorC(node.colours[2]);
+		quadPrim.primitive.setColorD(node.colours[3]);
 		quadPrim.primitive.setOpaque();
 
 		orderingTable.insert(quadPrim, zIndex);
@@ -1090,22 +1248,6 @@ void Renderer::ProcessMeshTri(const RendererTri& tri, int8_t depth, const TimFil
 
 	// clip screen space
 	if (tri_clip(&SCREEN_SPACE, &projected[0], &projected[1], &projected[2])) {
-		return;
-	}
-
-	// apply fog colours now so we can drop early if needed
-	eastl::array<psyqo::Color, 3> colours;
-	bool isObscuredByFog = true;
-	for (int i = 0; i < 3; i++) {
-		colours[i] = tri.colours[i];
-		ApplyAmbientToColour(&colours[i]);
-		colours[i] = ApplyFogToColourGTE(colours[i], ir[i]);
-		if (colours[i].r >= 10 && colours[i].g >= 10 && colours[i].b >= 10) {
-			isObscuredByFog = false;
-		}
-	}
-
-	if (isObscuredByFog) {
 		return;
 	}
 
@@ -1198,6 +1340,14 @@ void Renderer::ProcessMeshTri(const RendererTri& tri, int8_t depth, const TimFil
 		ProcessMeshTri(triB, depth + 1, texture, tpage, uvOffset, bumpAllocator, orderingTable);
 		return;
 	} // OTHERWISE continue to process and add it to OT
+
+	// apply fog colours now so we can drop early if needed
+	eastl::array<psyqo::Color, 3> colours;
+	for (int i = 0; i < 3; i++) {
+		colours[i] = tri.colours[i];
+		ApplyAmbientToColour(&colours[i]);
+		colours[i] = ApplyFogToColourGTE(colours[i], ir[i]);
+	}
 
 	// textured
 	if (texture != nullptr) {
