@@ -1427,15 +1427,14 @@ void Renderer::ProcessTriNode(FaceNode& node, uint8_t subDivsionDepth, const Fac
 	// sub divide if we have depth and we're close enough
 	if (subDivsionDepth <= SUBDIVISION_MAX_DEPTH) {
 		auto abs = [](int32_t v) -> int32_t { return v < 0 ? -v : v; };
+		auto edgeLength = [&abs](const psyqo::GTE::PackedVec3& a, const psyqo::GTE::PackedVec3& b) -> auto {
+			return abs(a.x.value - b.x.value) + abs(a.y.value - b.y.value) + abs(a.z.value - b.z.value);
+		};
 
-		// we're not as bothered about 3d-ness on tris, we can just check projected depths instead
-		const int32_t sz0 = static_cast<int32_t>(node.projectedDepths[0]);
-		const int32_t sz1 = static_cast<int32_t>(node.projectedDepths[1]);
-		const int32_t sz2 = static_cast<int32_t>(node.projectedDepths[2]);
-
-		const int32_t sz01 = abs(sz0 - sz1);
-		const int32_t sz12 = abs(sz1 - sz2);
-		const int32_t sz20 = abs(sz2 - sz0);
+		// measure the edges in 3d, not just 2d.
+		const int32_t len01 = edgeLength(node.verts[0], node.verts[1]);
+		const int32_t len12 = edgeLength(node.verts[1], node.verts[2]);
+		const int32_t len20 = edgeLength(node.verts[2], node.verts[0]);
 
 		auto midVert = [](const psyqo::GTE::PackedVec3& a, const psyqo::GTE::PackedVec3& b) -> auto {
 			psyqo::GTE::PackedVec3 mid;
@@ -1451,7 +1450,7 @@ void Renderer::ProcessTriNode(FaceNode& node, uint8_t subDivsionDepth, const Fac
 		};
 
 		FaceNode triA, triB;
-		if (sz01 >= sz12 && sz01 >= sz20) {
+		if (len01 >= len12 && len01 >= len20) {
 			// split mid points of v0 and v1
 			psyqo::GTE::PackedVec3 midVert01 = midVert(node.verts[0], node.verts[1]);
 
@@ -1520,7 +1519,7 @@ void Renderer::ProcessTriNode(FaceNode& node, uint8_t subDivsionDepth, const Fac
 			triB.irs[0] = midIR01;
 			triB.irs[1] = node.irs[1];
 			triB.irs[2] = node.irs[2];
-		} else if (sz12 >= sz01 && sz12 >= sz20) {
+		} else if (len12 >= len01 && len12 >= len20) {
 			// split mid points of v1 and v2
 			psyqo::GTE::PackedVec3 midVert12 = midVert(node.verts[1], node.verts[2]);
 
