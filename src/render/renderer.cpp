@@ -873,18 +873,10 @@ void Renderer::ProcessMeshQuad(const RendererQuad& quad, int8_t depth, const Tim
 	psyqo::GTE::read<psyqo::GTE::Register::SZ2>(&usz2);
 	psyqo::GTE::read<psyqo::GTE::Register::SZ3>(&usz3);
 
-	// apply fog colours
-	eastl::array<psyqo::Color, 4> colours;
-	for (int i = 0; i < 4; i++) {
-		colours[i] = quad.colours[i];
-		ApplyAmbientToColour(&colours[i]);
-		colours[i] = ApplyFogToColourGTE(colours[i], ir[i]);
-	}
-
 	QuadNode node = {{quad.verts[0], quad.verts[1], quad.verts[2], quad.verts[3]},
 					 projected,
 					 {usz0, usz1, usz2, usz3},
-					 {colours[0], colours[1], colours[2], colours[3]},
+					 {quad.colours[0], quad.colours[1], quad.colours[2], quad.colours[3]},
 					 {ir[0], ir[1], ir[2], ir[3]},
 					 quad.uvA,
 					 quad.uvB,
@@ -934,6 +926,16 @@ void Renderer::ProcessQuadNode(QuadNode& node, uint8_t subDivsionDepth, const Ti
 		return;
 	}
 
+	// if its the parent then do colour work that can be propogated
+	if (subDivsionDepth == 0) {
+		// apply fog colours
+		eastl::array<psyqo::Color, 4> colours;
+		for (int i = 0; i < 4; i++) {
+			ApplyAmbientToColour(&node.colours[i]);
+			node.colours[i] = ApplyFogToColourGTE(node.colours[i], node.irs[i]);
+		}
+	}
+
 	// determine if it should be sub-divided if its not got bones, and at least one edge is close enough
 	auto shouldSubDivide =
 		!node.isSkeleton &&
@@ -968,7 +970,7 @@ void Renderer::ProcessQuadNode(QuadNode& node, uint8_t subDivsionDepth, const Ti
 
 		auto midIR = [](const uint32_t& a, const uint32_t& b) -> auto { return (a + b) >> 1; };
 
-		QuadNode quadA = {}, quadB = {};
+		QuadNode quadA, quadB;
 		if (width >= height) {
 			// split left right, mid points of TL (v0), TR (v1)
 			psyqo::GTE::PackedVec3 midVert01 = midVert(node.verts[0], node.verts[1]),
