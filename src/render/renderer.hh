@@ -10,7 +10,6 @@
 #include "../textures/texture_manager.hh"
 #include "camera.hh"
 #include "lighting.hh"
-#include "node.hh"
 #include "psyqo/ordering-table.hh"
 #include "renderer_face_types.hh"
 
@@ -42,8 +41,8 @@ using BA = psyqo::BumpAllocator<BUMP_ALLOCATOR_BYTES>;
 
 struct FaceData {
 	const TimFile* texture;
-	psyqo::PrimPieces::TPageAttr& tpage;
-	psyqo::Rect& uvOffset;
+	const psyqo::PrimPieces::TPageAttr tpage;
+	const psyqo::Rect uvOffset;
 	BA& bumpAllocator;
 	OT& orderingTable;
 };

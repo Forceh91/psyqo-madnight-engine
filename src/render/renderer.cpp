@@ -15,7 +15,6 @@
 #include "../core/particles/particle_manager.hh"
 #include "../defs.hh"
 #include "../madnight.hh"
-#include "node.hh"
 
 #include <psyqo/fixed-point.hh>
 #include <psyqo/fragments.hh>
@@ -835,7 +834,6 @@ void Renderer::ProcessMeshQuad(const RendererQuad& quad, int8_t depth, const Fac
 	// projections for each vert
 	eastl::array<psyqo::Vertex, 4> projected;
 	QuadNode node;
-	node.isSkeleton = quad.boneAdjustedVerts != nullptr;
 
 	auto* verts = quad.boneAdjustedVerts ? quad.boneAdjustedVerts : quad.verts;
 
@@ -869,18 +867,96 @@ void Renderer::ProcessMeshQuad(const RendererQuad& quad, int8_t depth, const Fac
 	psyqo::GTE::read<psyqo::GTE::Register::SZ2>(&node.projectedDepths[2]);
 	psyqo::GTE::read<psyqo::GTE::Register::SZ3>(&node.projectedDepths[3]);
 
-	// copy any remaining data we couldn't read straight from the GTE
-	for (int i = 0; i < 4; i++) {
-		node.verts[i] = quad.verts[i];
-		node.colours[i] = quad.colours[i];
+	auto shouldSubDivide =
+		!quad.boneAdjustedVerts &&
+		(node.projectedDepths[0] >= SUBDIVISION_MIN_DISTANCE || node.projectedDepths[1] >= SUBDIVISION_MIN_DISTANCE ||
+		 node.projectedDepths[2] >= SUBDIVISION_MIN_DISTANCE || node.projectedDepths[3] >= SUBDIVISION_MIN_DISTANCE) &&
+		(node.projectedDepths[0] <= SUBDIVISION_MAX_DISTANCE || node.projectedDepths[1] <= SUBDIVISION_MAX_DISTANCE ||
+		 node.projectedDepths[2] <= SUBDIVISION_MAX_DISTANCE || node.projectedDepths[3] <= SUBDIVISION_MAX_DISTANCE);
+
+	if (shouldSubDivide) {
+
+		// copy any remaining data we couldn't read straight from the GTE
+		for (int i = 0; i < 4; i++) {
+			node.verts[i] = quad.verts[i];
+			node.colours[i] = quad.colours[i];
+		}
+
+		node.uvA = quad.uvA;
+		node.uvB = quad.uvB;
+		node.uvC = quad.uvC;
+		node.uvD = quad.uvD;
+
+		ProcessQuadNode(node, depth, faceData);
+	} else {
+		// it won't be sub divided so just emit it out
+		// figure out avg z index
+		psyqo::GTE::Kernels::avsz4();
+
+		// keep inside OT bounds
+		uint32_t zIndex = psyqo::GTE::readRaw<psyqo::GTE::Register::OTZ>();
+		if (zIndex == 0 || zIndex >= ORDERING_TABLE_SIZE) {
+			return;
+		}
+
+		// clip screen space
+		if (quad_clip(&SCREEN_SPACE, &node.projected[0], &node.projected[1], &node.projected[2], &node.projected[3])) {
+			return;
+		}
+
+		// apply fog colours
+		eastl::array<psyqo::Color, 4> colours;
+		for (int i = 0; i < 4; i++) {
+			colours[i] = quad.colours[i];
+			ApplyAmbientToColour(&colours[i]);
+			colours[i] = ApplyFogToColourGTE(colours[i], node.irs[i]);
+		}		
+
+		if (faceData.texture != nullptr) {
+			auto& quadPrim = faceData.bumpAllocator.allocateFragment<psyqo::Prim::GouraudTexturedQuad>();
+			quadPrim.primitive.pointA = node.projected[0];
+			quadPrim.primitive.pointB = node.projected[1];
+			quadPrim.primitive.pointC = node.projected[2];
+			quadPrim.primitive.pointD = node.projected[3];
+
+			quadPrim.primitive.setColorA(colours[0]);
+			quadPrim.primitive.setColorB(colours[1]);
+			quadPrim.primitive.setColorC(colours[2]);
+			quadPrim.primitive.setColorD(colours[3]);
+			quadPrim.primitive.setOpaque();
+
+			quadPrim.primitive.tpage = faceData.tpage;
+
+			if (faceData.texture->hasClut) {
+				quadPrim.primitive.clutIndex = {faceData.texture->clutX, faceData.texture->clutY};
+			}
+
+			quadPrim.primitive.uvA = {static_cast<uint8_t>(faceData.uvOffset.pos.x + quad.uvA.u),
+									  static_cast<uint8_t>(faceData.uvOffset.pos.y - quad.uvA.v)};
+			quadPrim.primitive.uvB = {static_cast<uint8_t>(faceData.uvOffset.pos.x + quad.uvB.u),
+									  static_cast<uint8_t>(faceData.uvOffset.pos.y - quad.uvB.v)};
+			quadPrim.primitive.uvC = {static_cast<uint8_t>(faceData.uvOffset.pos.x + quad.uvC.u),
+									  static_cast<uint8_t>(faceData.uvOffset.pos.y - quad.uvC.v)};
+			quadPrim.primitive.uvD = {static_cast<uint8_t>(faceData.uvOffset.pos.x + quad.uvD.u),
+									  static_cast<uint8_t>(faceData.uvOffset.pos.y - quad.uvD.v)};
+
+			faceData.orderingTable.insert(quadPrim, zIndex);
+		} else { // untextured
+			auto& quadPrim = faceData.bumpAllocator.allocateFragment<psyqo::Prim::GouraudQuad>();
+			quadPrim.primitive.pointA = node.projected[0];
+			quadPrim.primitive.pointB = node.projected[1];
+			quadPrim.primitive.pointC = node.projected[2];
+			quadPrim.primitive.pointD = node.projected[3];
+
+			quadPrim.primitive.setColorA(quad.colours[0]);
+			quadPrim.primitive.setColorB(quad.colours[1]);
+			quadPrim.primitive.setColorC(quad.colours[2]);
+			quadPrim.primitive.setColorD(quad.colours[3]);
+			quadPrim.primitive.setOpaque();
+
+			faceData.orderingTable.insert(quadPrim, zIndex);
+		}
 	}
-
-	node.uvA = quad.uvA;
-	node.uvB = quad.uvB;
-	node.uvC = quad.uvC;
-	node.uvD = quad.uvD;
-
-	ProcessQuadNode(node, depth, faceData);
 }
 
 void Renderer::ProcessQuadNode(QuadNode& node, uint8_t subDivsionDepth, const FaceData& faceData) {
@@ -930,16 +1006,8 @@ void Renderer::ProcessQuadNode(QuadNode& node, uint8_t subDivsionDepth, const Fa
 		}
 	}
 
-	// determine if it should be sub-divided if its not got bones, and at least one edge is close enough
-	auto shouldSubDivide =
-		!node.isSkeleton &&
-		(node.projectedDepths[0] >= SUBDIVISION_MIN_DISTANCE || node.projectedDepths[1] >= SUBDIVISION_MIN_DISTANCE ||
-		 node.projectedDepths[2] >= SUBDIVISION_MIN_DISTANCE || node.projectedDepths[3] >= SUBDIVISION_MIN_DISTANCE) &&
-		(node.projectedDepths[0] <= SUBDIVISION_MAX_DISTANCE || node.projectedDepths[1] <= SUBDIVISION_MAX_DISTANCE ||
-		 node.projectedDepths[2] <= SUBDIVISION_MAX_DISTANCE || node.projectedDepths[3] <= SUBDIVISION_MAX_DISTANCE);
-
 	// sub divide if we have depth and we're close enough
-	if (subDivsionDepth <= SUBDIVISION_MAX_DEPTH && shouldSubDivide) {
+	if (subDivsionDepth <= SUBDIVISION_MAX_DEPTH) {
 		auto abs = [](int32_t v) -> int32_t { return v < 0 ? -v : v; };
 		auto edgeLength = [&abs](const psyqo::GTE::PackedVec3 a, const psyqo::GTE::PackedVec3 b) -> auto {
 			return abs(a.x.value - b.x.value) + abs(a.y.value - b.y.value) + abs(a.z.value - b.z.value);
