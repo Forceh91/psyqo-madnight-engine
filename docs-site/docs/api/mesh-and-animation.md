@@ -36,28 +36,28 @@ The in-memory representation of a loaded `.MESHBIN` file (see the [file format s
 struct MeshBin {
   uint8_t type; // 1 = quads, 2 = tris (unused)
 
+  // sub header
   uint32_t vertexCount, indicesCount, facesCount, normalsCount, uvCount;
   uint8_t hasSkeleton;
   uint8_t numBones;
 
-  psyqo::Vec3 *vertices;
-  MeshBinVertexColours *vertexColours;
-  MeshBinIndex *vertexIndices;
+  RendererFace *facesData;
 
-  psyqo::Vec3 *normals;
-  MeshBinIndex *normalIndices;
-
-  psyqo::PrimPieces::UVCoords *uvs;
-  MeshBinIndex *uvIndices;
-
+  // skeleton info
   Skeleton *skeleton;
   uint8_t *boneForVertex;          // vertex index -> bone index
-  psyqo::Vec3 *verticesOnBonePos;
 
+  // basic min/max collision box
   AABBCollision collisionBox;
   BoundingSphere bsphere;
+
+  // for easier sub-division
+  RendererQuad *quads;
+  RendererTri *tris;
 };
 ```
+
+The loader does not keep the raw vertex, normal or UV arrays or their index lists. It bakes them into per-face `RendererQuad` / `RendererTri` entries (positions, vertex indices, colours, normal, UVs) and frees the raw arrays once loading finishes. `facesData` holds one `RendererFace` per face in file order (`isQuad` plus `rendererFaceIx`, the face's index into `quads` or `tris`).
 
 `GameObject::mesh()` returns a pointer into a manager-owned `MeshBin` — meshes are shared across every `GameObject` that references the same name, not duplicated per-instance.
 
