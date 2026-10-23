@@ -99,8 +99,8 @@ sphere.
 
 ## Caveats
 
-- **Skeletons are capped at `MAX_BONES` (15) bones.** A file cannot declare more; this is a
-  fixed capacity of the format, not a validation step.
+- **Skeletons are capped at `MAX_BONES` (15) bones.** A file that declares more is rejected
+  and the load aborts.
 
 ## Changelog
 
