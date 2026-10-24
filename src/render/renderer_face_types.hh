@@ -11,6 +11,7 @@
 #include <psyqo/primitives/common.hh>
 #include <psyqo/primitives/control.hh>
 #include <psyqo/primitives/quads.hh>
+#include <psyqo/primitives/triangles.hh>
 
 struct RendererQuad {
 	psyqo::GTE::PackedVec3 verts[4] = {};
@@ -51,5 +52,16 @@ struct CutoutFogQuad {
 	psyqo::Prim::GouraudTexturedQuad textured; // VC, setOpaque()
 	psyqo::Prim::MaskControl test{psyqo::Prim::MaskControl::FromSource, psyqo::Prim::MaskControl::Test::Yes};
 	psyqo::Prim::GouraudQuad fog; // FC*f, setSemiTrans()
+	psyqo::Prim::MaskControl reset{psyqo::Prim::MaskControl::FromSource};
+};
+
+struct CutoutFogTri {
+	psyqo::Prim::TPage tpage; // ABR = FullBackAndFullFront
+	psyqo::Prim::MaskControl forceSet{psyqo::Prim::MaskControl::ForceSet};
+	psyqo::Prim::GouraudTriangle marker; // black, setSemiTrans()
+	psyqo::Prim::MaskControl fromSource{psyqo::Prim::MaskControl::FromSource};
+	psyqo::Prim::GouraudTexturedTriangle textured; // VC, setOpaque()
+	psyqo::Prim::MaskControl test{psyqo::Prim::MaskControl::FromSource, psyqo::Prim::MaskControl::Test::Yes};
+	psyqo::Prim::GouraudTriangle fog; // FC*f, setSemiTrans()
 	psyqo::Prim::MaskControl reset{psyqo::Prim::MaskControl::FromSource};
 };

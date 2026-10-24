@@ -1037,6 +1037,7 @@ void Renderer::ProcessMeshQuad(const RendererQuad& quad, int8_t depth, const Fac
 				cutoutFogQuadPrim.primitive.textured.setColorD(vertexColours[3]);
 				cutoutFogQuadPrim.primitive.textured.setOpaque();
 
+				cutoutFogQuadPrim.primitive.textured.tpage = faceData.tpage;
 				if (faceData.texture->hasClut) {
 					cutoutFogQuadPrim.primitive.textured.clutIndex = {faceData.texture->clutX, faceData.texture->clutY};
 				}
@@ -1389,54 +1390,124 @@ void Renderer::ProcessQuadNode(FaceNode& node, uint8_t subDivsionDepth, const Fa
 
 	// textured
 	if (faceData.texture != nullptr) {
-		auto& quadPrim = faceData.bumpAllocator.allocateFragment<psyqo::Prim::GouraudTexturedQuad>();
-		quadPrim.primitive.pointA = node.projected[0];
-		quadPrim.primitive.pointB = node.projected[1];
-		quadPrim.primitive.pointC = node.projected[2];
-		quadPrim.primitive.pointD = node.projected[3];
+		if (isAdvancedFog && !(faceData.texture->flags & (1 << 0))) {
+			auto& quadPrim = faceData.bumpAllocator.allocateFragment<psyqo::Prim::GouraudTexturedQuad>();
+			quadPrim.primitive.pointA = node.projected[0];
+			quadPrim.primitive.pointB = node.projected[1];
+			quadPrim.primitive.pointC = node.projected[2];
+			quadPrim.primitive.pointD = node.projected[3];
 
-		quadPrim.primitive.setColorA(node.colours[0]);
-		quadPrim.primitive.setColorB(node.colours[1]);
-		quadPrim.primitive.setColorC(node.colours[2]);
-		quadPrim.primitive.setColorD(node.colours[3]);
-		if (!isAdvancedFog) {
-			quadPrim.primitive.setOpaque();
+			quadPrim.primitive.setColorA(node.colours[0]);
+			quadPrim.primitive.setColorB(node.colours[1]);
+			quadPrim.primitive.setColorC(node.colours[2]);
+			quadPrim.primitive.setColorD(node.colours[3]);
+			if (!isAdvancedFog) {
+				quadPrim.primitive.setOpaque();
+			} else {
+				quadPrim.primitive.setSemiTrans();
+			}
+
+			quadPrim.primitive.tpage = faceData.tpage;
+
+			if (faceData.texture->hasClut) {
+				quadPrim.primitive.clutIndex = {faceData.texture->clutX, faceData.texture->clutY};
+			}
+
+			quadPrim.primitive.uvA = {static_cast<uint8_t>(faceData.uvOffset.pos.x + node.uvA.u),
+									  static_cast<uint8_t>(faceData.uvOffset.pos.y - node.uvA.v)};
+			quadPrim.primitive.uvB = {static_cast<uint8_t>(faceData.uvOffset.pos.x + node.uvB.u),
+									  static_cast<uint8_t>(faceData.uvOffset.pos.y - node.uvB.v)};
+			quadPrim.primitive.uvC = {static_cast<uint8_t>(faceData.uvOffset.pos.x + node.uvC.u),
+									  static_cast<uint8_t>(faceData.uvOffset.pos.y - node.uvC.v)};
+			quadPrim.primitive.uvD = {static_cast<uint8_t>(faceData.uvOffset.pos.x + node.uvD.u),
+									  static_cast<uint8_t>(faceData.uvOffset.pos.y - node.uvD.v)};
+
+			faceData.orderingTable.insert(quadPrim, zIndex);
+
+			// we insert the untextured fog prim last because `insert` puts each new prim at the front of the bucket.
+			if (isAdvancedFog) {
+				auto& quadFogPrim = faceData.bumpAllocator.allocateFragment<psyqo::Prim::GouraudQuad>();
+				quadFogPrim.primitive.pointA = node.projected[0];
+				quadFogPrim.primitive.pointB = node.projected[1];
+				quadFogPrim.primitive.pointC = node.projected[2];
+				quadFogPrim.primitive.pointD = node.projected[3];
+
+				quadFogPrim.primitive.setColorA(node.fogColours[0]);
+				quadFogPrim.primitive.setColorB(node.fogColours[1]);
+				quadFogPrim.primitive.setColorC(node.fogColours[2]);
+				quadFogPrim.primitive.setColorD(node.fogColours[3]);
+				quadFogPrim.primitive.setOpaque();
+
+				faceData.orderingTable.insert(quadFogPrim, zIndex);
+			}
 		} else {
-			quadPrim.primitive.setSemiTrans();
-		}
+			auto& cutoutFogQuadPrim = faceData.bumpAllocator.allocateFragment<CutoutFogQuad>();
+			cutoutFogQuadPrim.primitive.tpage.attr = faceData.tpage;
 
-		quadPrim.primitive.tpage = faceData.tpage;
+			cutoutFogQuadPrim.primitive.marker.pointA = node.projected[0];
+			cutoutFogQuadPrim.primitive.marker.pointB = node.projected[1];
+			cutoutFogQuadPrim.primitive.marker.pointC = node.projected[2];
+			cutoutFogQuadPrim.primitive.marker.pointD = node.projected[3];
 
-		if (faceData.texture->hasClut) {
-			quadPrim.primitive.clutIndex = {faceData.texture->clutX, faceData.texture->clutY};
-		}
+			cutoutFogQuadPrim.primitive.marker.setColorA({
+				0,
+				0,
+				0,
+			});
+			cutoutFogQuadPrim.primitive.marker.setColorB({
+				0,
+				0,
+				0,
+			});
+			cutoutFogQuadPrim.primitive.marker.setColorC({
+				0,
+				0,
+				0,
+			});
+			cutoutFogQuadPrim.primitive.marker.setColorD({
+				0,
+				0,
+				0,
+			});
+			cutoutFogQuadPrim.primitive.marker.setSemiTrans();
 
-		quadPrim.primitive.uvA = {static_cast<uint8_t>(faceData.uvOffset.pos.x + node.uvA.u),
-								  static_cast<uint8_t>(faceData.uvOffset.pos.y - node.uvA.v)};
-		quadPrim.primitive.uvB = {static_cast<uint8_t>(faceData.uvOffset.pos.x + node.uvB.u),
-								  static_cast<uint8_t>(faceData.uvOffset.pos.y - node.uvB.v)};
-		quadPrim.primitive.uvC = {static_cast<uint8_t>(faceData.uvOffset.pos.x + node.uvC.u),
-								  static_cast<uint8_t>(faceData.uvOffset.pos.y - node.uvC.v)};
-		quadPrim.primitive.uvD = {static_cast<uint8_t>(faceData.uvOffset.pos.x + node.uvD.u),
-								  static_cast<uint8_t>(faceData.uvOffset.pos.y - node.uvD.v)};
+			cutoutFogQuadPrim.primitive.textured.pointA = node.projected[0];
+			cutoutFogQuadPrim.primitive.textured.pointB = node.projected[1];
+			cutoutFogQuadPrim.primitive.textured.pointC = node.projected[2];
+			cutoutFogQuadPrim.primitive.textured.pointD = node.projected[3];
 
-		faceData.orderingTable.insert(quadPrim, zIndex);
+			cutoutFogQuadPrim.primitive.textured.setColorA(node.colours[0]);
+			cutoutFogQuadPrim.primitive.textured.setColorB(node.colours[1]);
+			cutoutFogQuadPrim.primitive.textured.setColorC(node.colours[2]);
+			cutoutFogQuadPrim.primitive.textured.setColorD(node.colours[3]);
+			cutoutFogQuadPrim.primitive.textured.setOpaque();
 
-		// we insert the untextured fog prim last because `insert` puts each new prim at the front of the bucket.
-		if (isAdvancedFog) {
-			auto& quadFogPrim = faceData.bumpAllocator.allocateFragment<psyqo::Prim::GouraudQuad>();
-			quadFogPrim.primitive.pointA = node.projected[0];
-			quadFogPrim.primitive.pointB = node.projected[1];
-			quadFogPrim.primitive.pointC = node.projected[2];
-			quadFogPrim.primitive.pointD = node.projected[3];
+			cutoutFogQuadPrim.primitive.textured.tpage = faceData.tpage;
+			if (faceData.texture->hasClut) {
+				cutoutFogQuadPrim.primitive.textured.clutIndex = {faceData.texture->clutX, faceData.texture->clutY};
+			}
 
-			quadFogPrim.primitive.setColorA(node.fogColours[0]);
-			quadFogPrim.primitive.setColorB(node.fogColours[1]);
-			quadFogPrim.primitive.setColorC(node.fogColours[2]);
-			quadFogPrim.primitive.setColorD(node.fogColours[3]);
-			quadFogPrim.primitive.setOpaque();
+			cutoutFogQuadPrim.primitive.textured.uvA = {static_cast<uint8_t>(faceData.uvOffset.pos.x + node.uvA.u),
+														static_cast<uint8_t>(faceData.uvOffset.pos.y - node.uvA.v)};
+			cutoutFogQuadPrim.primitive.textured.uvB = {static_cast<uint8_t>(faceData.uvOffset.pos.x + node.uvB.u),
+														static_cast<uint8_t>(faceData.uvOffset.pos.y - node.uvB.v)};
+			cutoutFogQuadPrim.primitive.textured.uvC = {static_cast<uint8_t>(faceData.uvOffset.pos.x + node.uvC.u),
+														static_cast<uint8_t>(faceData.uvOffset.pos.y - node.uvC.v)};
+			cutoutFogQuadPrim.primitive.textured.uvD = {static_cast<uint8_t>(faceData.uvOffset.pos.x + node.uvD.u),
+														static_cast<uint8_t>(faceData.uvOffset.pos.y - node.uvD.v)};
 
-			faceData.orderingTable.insert(quadFogPrim, zIndex);
+			cutoutFogQuadPrim.primitive.fog.pointA = node.projected[0];
+			cutoutFogQuadPrim.primitive.fog.pointB = node.projected[1];
+			cutoutFogQuadPrim.primitive.fog.pointC = node.projected[2];
+			cutoutFogQuadPrim.primitive.fog.pointD = node.projected[3];
+
+			cutoutFogQuadPrim.primitive.fog.setColorA(node.fogColours[0]);
+			cutoutFogQuadPrim.primitive.fog.setColorB(node.fogColours[0]);
+			cutoutFogQuadPrim.primitive.fog.setColorC(node.fogColours[0]);
+			cutoutFogQuadPrim.primitive.fog.setColorD(node.fogColours[0]);
+			cutoutFogQuadPrim.primitive.fog.setSemiTrans();
+
+			faceData.orderingTable.insert(cutoutFogQuadPrim, zIndex);
 		}
 	} else { // untextured
 		auto& quadPrim = faceData.bumpAllocator.allocateFragment<psyqo::Prim::GouraudQuad>();
@@ -1549,48 +1620,107 @@ void Renderer::ProcessMeshTri(const RendererTri& tri, int8_t depth, const FaceDa
 		bool isAdvancedFog = faceData.isAdvancedFog && (node.irs[0] > 0 || node.irs[1] > 0 || node.irs[2] > 0);
 
 		if (faceData.texture != nullptr) {
-			auto& triPrim = faceData.bumpAllocator.allocateFragment<psyqo::Prim::GouraudTexturedTriangle>();
-			triPrim.primitive.pointA = node.projected[0];
-			triPrim.primitive.pointB = node.projected[1];
-			triPrim.primitive.pointC = node.projected[2];
+			if (isAdvancedFog && (!faceData.texture->flags & (1 << 0))) {
+				auto& triPrim = faceData.bumpAllocator.allocateFragment<psyqo::Prim::GouraudTexturedTriangle>();
+				triPrim.primitive.pointA = node.projected[0];
+				triPrim.primitive.pointB = node.projected[1];
+				triPrim.primitive.pointC = node.projected[2];
 
-			triPrim.primitive.setColorA(vertexColours[0]);
-			triPrim.primitive.setColorB(vertexColours[1]);
-			triPrim.primitive.setColorC(vertexColours[2]);
-			if (!isAdvancedFog) {
-				triPrim.primitive.setOpaque();
+				triPrim.primitive.setColorA(vertexColours[0]);
+				triPrim.primitive.setColorB(vertexColours[1]);
+				triPrim.primitive.setColorC(vertexColours[2]);
+				if (!isAdvancedFog) {
+					triPrim.primitive.setOpaque();
+				} else {
+					triPrim.primitive.setSemiTrans();
+				}
+
+				triPrim.primitive.tpage = faceData.tpage;
+
+				if (faceData.texture->hasClut) {
+					triPrim.primitive.clutIndex = {faceData.texture->clutX, faceData.texture->clutY};
+				}
+
+				triPrim.primitive.uvA = {static_cast<uint8_t>(faceData.uvOffset.pos.x + tri.uvA.u),
+										 static_cast<uint8_t>(faceData.uvOffset.pos.y - tri.uvA.v)};
+				triPrim.primitive.uvB = {static_cast<uint8_t>(faceData.uvOffset.pos.x + tri.uvB.u),
+										 static_cast<uint8_t>(faceData.uvOffset.pos.y - tri.uvB.v)};
+				triPrim.primitive.uvC = {static_cast<uint8_t>(faceData.uvOffset.pos.x + tri.uvC.u),
+										 static_cast<uint8_t>(faceData.uvOffset.pos.y - tri.uvC.v)};
+
+				faceData.orderingTable.insert(triPrim, zIndex);
+
+				// we insert the untextured fog prim last because `insert` puts each new prim at the front of the
+				// bucket.
+				if (isAdvancedFog) {
+					auto& triFogPrim = faceData.bumpAllocator.allocateFragment<psyqo::Prim::GouraudTriangle>();
+					triFogPrim.primitive.pointA = node.projected[0];
+					triFogPrim.primitive.pointB = node.projected[1];
+					triFogPrim.primitive.pointC = node.projected[2];
+
+					triFogPrim.primitive.setColorA(fogColours[0]);
+					triFogPrim.primitive.setColorB(fogColours[1]);
+					triFogPrim.primitive.setColorC(fogColours[2]);
+					triFogPrim.primitive.setOpaque();
+
+					faceData.orderingTable.insert(triFogPrim, zIndex);
+				}
 			} else {
-				triPrim.primitive.setSemiTrans();
-			}
+				auto& cutoutFogTriPrim = faceData.bumpAllocator.allocateFragment<CutoutFogTri>();
+				cutoutFogTriPrim.primitive.tpage.attr = faceData.tpage;
 
-			triPrim.primitive.tpage = faceData.tpage;
+				cutoutFogTriPrim.primitive.marker.pointA = node.projected[0];
+				cutoutFogTriPrim.primitive.marker.pointB = node.projected[1];
+				cutoutFogTriPrim.primitive.marker.pointC = node.projected[2];
 
-			if (faceData.texture->hasClut) {
-				triPrim.primitive.clutIndex = {faceData.texture->clutX, faceData.texture->clutY};
-			}
+				cutoutFogTriPrim.primitive.marker.setColorA({
+					0,
+					0,
+					0,
+				});
+				cutoutFogTriPrim.primitive.marker.setColorB({
+					0,
+					0,
+					0,
+				});
+				cutoutFogTriPrim.primitive.marker.setColorC({
+					0,
+					0,
+					0,
+				});
+				cutoutFogTriPrim.primitive.marker.setSemiTrans();
 
-			triPrim.primitive.uvA = {static_cast<uint8_t>(faceData.uvOffset.pos.x + tri.uvA.u),
-									 static_cast<uint8_t>(faceData.uvOffset.pos.y - tri.uvA.v)};
-			triPrim.primitive.uvB = {static_cast<uint8_t>(faceData.uvOffset.pos.x + tri.uvB.u),
-									 static_cast<uint8_t>(faceData.uvOffset.pos.y - tri.uvB.v)};
-			triPrim.primitive.uvC = {static_cast<uint8_t>(faceData.uvOffset.pos.x + tri.uvC.u),
-									 static_cast<uint8_t>(faceData.uvOffset.pos.y - tri.uvC.v)};
+				cutoutFogTriPrim.primitive.textured.pointA = node.projected[0];
+				cutoutFogTriPrim.primitive.textured.pointB = node.projected[1];
+				cutoutFogTriPrim.primitive.textured.pointC = node.projected[2];
 
-			faceData.orderingTable.insert(triPrim, zIndex);
+				cutoutFogTriPrim.primitive.textured.setColorA(node.colours[0]);
+				cutoutFogTriPrim.primitive.textured.setColorB(node.colours[1]);
+				cutoutFogTriPrim.primitive.textured.setColorC(node.colours[2]);
+				cutoutFogTriPrim.primitive.textured.setOpaque();
 
-			// we insert the untextured fog prim last because `insert` puts each new prim at the front of the bucket.
-			if (isAdvancedFog) {
-				auto& triFogPrim = faceData.bumpAllocator.allocateFragment<psyqo::Prim::GouraudTriangle>();
-				triFogPrim.primitive.pointA = node.projected[0];
-				triFogPrim.primitive.pointB = node.projected[1];
-				triFogPrim.primitive.pointC = node.projected[2];
+				cutoutFogTriPrim.primitive.textured.tpage = faceData.tpage;
+				if (faceData.texture->hasClut) {
+					cutoutFogTriPrim.primitive.textured.clutIndex = {faceData.texture->clutX, faceData.texture->clutY};
+				}
 
-				triFogPrim.primitive.setColorA(fogColours[0]);
-				triFogPrim.primitive.setColorB(fogColours[1]);
-				triFogPrim.primitive.setColorC(fogColours[2]);
-				triFogPrim.primitive.setOpaque();
+				cutoutFogTriPrim.primitive.textured.uvA = {static_cast<uint8_t>(faceData.uvOffset.pos.x + node.uvA.u),
+														   static_cast<uint8_t>(faceData.uvOffset.pos.y - node.uvA.v)};
+				cutoutFogTriPrim.primitive.textured.uvB = {static_cast<uint8_t>(faceData.uvOffset.pos.x + node.uvB.u),
+														   static_cast<uint8_t>(faceData.uvOffset.pos.y - node.uvB.v)};
+				cutoutFogTriPrim.primitive.textured.uvC = {static_cast<uint8_t>(faceData.uvOffset.pos.x + node.uvC.u),
+														   static_cast<uint8_t>(faceData.uvOffset.pos.y - node.uvC.v)};
 
-				faceData.orderingTable.insert(triFogPrim, zIndex);
+				cutoutFogTriPrim.primitive.fog.pointA = node.projected[0];
+				cutoutFogTriPrim.primitive.fog.pointB = node.projected[1];
+				cutoutFogTriPrim.primitive.fog.pointC = node.projected[2];
+
+				cutoutFogTriPrim.primitive.fog.setColorA(node.fogColours[0]);
+				cutoutFogTriPrim.primitive.fog.setColorB(node.fogColours[0]);
+				cutoutFogTriPrim.primitive.fog.setColorC(node.fogColours[0]);
+				cutoutFogTriPrim.primitive.fog.setSemiTrans();
+
+				faceData.orderingTable.insert(cutoutFogTriPrim, zIndex);
 			}
 		} else { // untextured
 			auto& triPrim = faceData.bumpAllocator.allocateFragment<psyqo::Prim::GouraudTriangle>();
@@ -1935,48 +2065,106 @@ void Renderer::ProcessTriNode(FaceNode& node, uint8_t subDivsionDepth, const Fac
 	bool isAdvancedFog = faceData.isAdvancedFog && (node.irs[0] > 0 || node.irs[1] > 0 || node.irs[2] > 0);
 
 	if (faceData.texture != nullptr) {
-		auto& triPrim = faceData.bumpAllocator.allocateFragment<psyqo::Prim::GouraudTexturedTriangle>();
-		triPrim.primitive.pointA = node.projected[0];
-		triPrim.primitive.pointB = node.projected[1];
-		triPrim.primitive.pointC = node.projected[2];
+		if (isAdvancedFog && !(faceData.texture->flags & (1 << 0))) {
+			auto& triPrim = faceData.bumpAllocator.allocateFragment<psyqo::Prim::GouraudTexturedTriangle>();
+			triPrim.primitive.pointA = node.projected[0];
+			triPrim.primitive.pointB = node.projected[1];
+			triPrim.primitive.pointC = node.projected[2];
 
-		triPrim.primitive.setColorA(node.colours[0]);
-		triPrim.primitive.setColorB(node.colours[1]);
-		triPrim.primitive.setColorC(node.colours[2]);
-		if (!isAdvancedFog) {
-			triPrim.primitive.setOpaque();
+			triPrim.primitive.setColorA(node.colours[0]);
+			triPrim.primitive.setColorB(node.colours[1]);
+			triPrim.primitive.setColorC(node.colours[2]);
+			if (!isAdvancedFog) {
+				triPrim.primitive.setOpaque();
+			} else {
+				triPrim.primitive.setSemiTrans();
+			}
+
+			triPrim.primitive.tpage = faceData.tpage;
+
+			if (faceData.texture->hasClut) {
+				triPrim.primitive.clutIndex = {faceData.texture->clutX, faceData.texture->clutY};
+			}
+
+			triPrim.primitive.uvA = {static_cast<uint8_t>(faceData.uvOffset.pos.x + node.uvA.u),
+									 static_cast<uint8_t>(faceData.uvOffset.pos.y - node.uvA.v)};
+			triPrim.primitive.uvB = {static_cast<uint8_t>(faceData.uvOffset.pos.x + node.uvB.u),
+									 static_cast<uint8_t>(faceData.uvOffset.pos.y - node.uvB.v)};
+			triPrim.primitive.uvC = {static_cast<uint8_t>(faceData.uvOffset.pos.x + node.uvC.u),
+									 static_cast<uint8_t>(faceData.uvOffset.pos.y - node.uvC.v)};
+
+			faceData.orderingTable.insert(triPrim, zIndex);
+
+			// we insert the untextured fog prim last because `insert` puts each new prim at the front of the bucket.
+			if (isAdvancedFog) {
+				auto& triFogPrim = faceData.bumpAllocator.allocateFragment<psyqo::Prim::GouraudTriangle>();
+				triFogPrim.primitive.pointA = node.projected[0];
+				triFogPrim.primitive.pointB = node.projected[1];
+				triFogPrim.primitive.pointC = node.projected[2];
+
+				triFogPrim.primitive.setColorA(node.fogColours[0]);
+				triFogPrim.primitive.setColorB(node.fogColours[1]);
+				triFogPrim.primitive.setColorC(node.fogColours[2]);
+				triFogPrim.primitive.setOpaque();
+
+				faceData.orderingTable.insert(triFogPrim, zIndex);
+			}
 		} else {
-			triPrim.primitive.setSemiTrans();
-		}
+			auto& cutoutFogTriPrim = faceData.bumpAllocator.allocateFragment<CutoutFogTri>();
+			cutoutFogTriPrim.primitive.tpage.attr = faceData.tpage;
 
-		triPrim.primitive.tpage = faceData.tpage;
+			cutoutFogTriPrim.primitive.marker.pointA = node.projected[0];
+			cutoutFogTriPrim.primitive.marker.pointB = node.projected[1];
+			cutoutFogTriPrim.primitive.marker.pointC = node.projected[2];
 
-		if (faceData.texture->hasClut) {
-			triPrim.primitive.clutIndex = {faceData.texture->clutX, faceData.texture->clutY};
-		}
+			cutoutFogTriPrim.primitive.marker.setColorA({
+				0,
+				0,
+				0,
+			});
+			cutoutFogTriPrim.primitive.marker.setColorB({
+				0,
+				0,
+				0,
+			});
+			cutoutFogTriPrim.primitive.marker.setColorC({
+				0,
+				0,
+				0,
+			});
+			cutoutFogTriPrim.primitive.marker.setSemiTrans();
 
-		triPrim.primitive.uvA = {static_cast<uint8_t>(faceData.uvOffset.pos.x + node.uvA.u),
-								 static_cast<uint8_t>(faceData.uvOffset.pos.y - node.uvA.v)};
-		triPrim.primitive.uvB = {static_cast<uint8_t>(faceData.uvOffset.pos.x + node.uvB.u),
-								 static_cast<uint8_t>(faceData.uvOffset.pos.y - node.uvB.v)};
-		triPrim.primitive.uvC = {static_cast<uint8_t>(faceData.uvOffset.pos.x + node.uvC.u),
-								 static_cast<uint8_t>(faceData.uvOffset.pos.y - node.uvC.v)};
+			cutoutFogTriPrim.primitive.textured.pointA = node.projected[0];
+			cutoutFogTriPrim.primitive.textured.pointB = node.projected[1];
+			cutoutFogTriPrim.primitive.textured.pointC = node.projected[2];
 
-		faceData.orderingTable.insert(triPrim, zIndex);
+			cutoutFogTriPrim.primitive.textured.setColorA(node.colours[0]);
+			cutoutFogTriPrim.primitive.textured.setColorB(node.colours[1]);
+			cutoutFogTriPrim.primitive.textured.setColorC(node.colours[2]);
+			cutoutFogTriPrim.primitive.textured.setOpaque();
 
-		// we insert the untextured fog prim last because `insert` puts each new prim at the front of the bucket.
-		if (isAdvancedFog) {
-			auto& triFogPrim = faceData.bumpAllocator.allocateFragment<psyqo::Prim::GouraudTriangle>();
-			triFogPrim.primitive.pointA = node.projected[0];
-			triFogPrim.primitive.pointB = node.projected[1];
-			triFogPrim.primitive.pointC = node.projected[2];
+			cutoutFogTriPrim.primitive.textured.tpage = faceData.tpage;
+			if (faceData.texture->hasClut) {
+				cutoutFogTriPrim.primitive.textured.clutIndex = {faceData.texture->clutX, faceData.texture->clutY};
+			}
 
-			triFogPrim.primitive.setColorA(node.fogColours[0]);
-			triFogPrim.primitive.setColorB(node.fogColours[1]);
-			triFogPrim.primitive.setColorC(node.fogColours[2]);
-			triFogPrim.primitive.setOpaque();
+			cutoutFogTriPrim.primitive.textured.uvA = {static_cast<uint8_t>(faceData.uvOffset.pos.x + node.uvA.u),
+													   static_cast<uint8_t>(faceData.uvOffset.pos.y - node.uvA.v)};
+			cutoutFogTriPrim.primitive.textured.uvB = {static_cast<uint8_t>(faceData.uvOffset.pos.x + node.uvB.u),
+													   static_cast<uint8_t>(faceData.uvOffset.pos.y - node.uvB.v)};
+			cutoutFogTriPrim.primitive.textured.uvC = {static_cast<uint8_t>(faceData.uvOffset.pos.x + node.uvC.u),
+													   static_cast<uint8_t>(faceData.uvOffset.pos.y - node.uvC.v)};
 
-			faceData.orderingTable.insert(triFogPrim, zIndex);
+			cutoutFogTriPrim.primitive.fog.pointA = node.projected[0];
+			cutoutFogTriPrim.primitive.fog.pointB = node.projected[1];
+			cutoutFogTriPrim.primitive.fog.pointC = node.projected[2];
+
+			cutoutFogTriPrim.primitive.fog.setColorA(node.fogColours[0]);
+			cutoutFogTriPrim.primitive.fog.setColorB(node.fogColours[0]);
+			cutoutFogTriPrim.primitive.fog.setColorC(node.fogColours[0]);
+			cutoutFogTriPrim.primitive.fog.setSemiTrans();
+
+			faceData.orderingTable.insert(cutoutFogTriPrim, zIndex);
 		}
 	} else { // untextured
 		auto& triPrim = faceData.bumpAllocator.allocateFragment<psyqo::Prim::GouraudTriangle>();
