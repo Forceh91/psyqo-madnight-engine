@@ -128,20 +128,23 @@ void Renderer::StartScene(void) {
 	psyqo::GTE::write<psyqo::GTE::Register::ZSF4, psyqo::GTE::Unsafe>(ORDERING_TABLE_SIZE / 4);
 
 	// set fog colour (FC)
-	SetFarColour();
+	if (m_lighting->IsAdvancedFogEnabled()) {
+		SetFogNearFar(0.3_fp, 1.0_fp);
+	} else if (m_lighting->IsSimpleFogEnabled()) {
+		SetFogColour(m_lighting->GetFogColour());
+		SetFogNearFar(0.5_fp, 1.55_fp);
+	}
 }
 
 void Renderer::SetFogColour(const psyqo::Color& colour) {
 	m_lighting->SetFogColour(colour);
-	SetFarColour();
+	GTESetFarColour(colour);
 }
 
-void Renderer::SetFarColour(void) {
-	psyqo::GTE::write<psyqo::GTE::Register::RFC, psyqo::GTE::Unsafe>(m_lighting->GetFogColour().r << 4);
-	psyqo::GTE::write<psyqo::GTE::Register::GFC, psyqo::GTE::Unsafe>(m_lighting->GetFogColour().g << 4);
-	psyqo::GTE::write<psyqo::GTE::Register::BFC, psyqo::GTE::Unsafe>(m_lighting->GetFogColour().b << 4);
-
-	SetFogNearFar(0.5_fp, 1.55_fp);
+void Renderer::GTESetFarColour(const psyqo::Color& far) {
+	psyqo::GTE::write<psyqo::GTE::Register::RFC, psyqo::GTE::Unsafe>(far.r << 4);
+	psyqo::GTE::write<psyqo::GTE::Register::GFC, psyqo::GTE::Unsafe>(far.g << 4);
+	psyqo::GTE::write<psyqo::GTE::Register::BFC, psyqo::GTE::Unsafe>(far.b << 4);
 }
 
 void Renderer::SetFogNearFar(psyqo::FixedPoint<> near, psyqo::FixedPoint<> far) {
@@ -364,9 +367,9 @@ void Renderer::RenderGameObjects(uint32_t deltaTime, const psyqo::Matrix33& came
 			offset.pos.y += (texture->height - 1);
 		}
 
+		const FaceData faceData = {texture, tpage, offset, allocator, ot};
 		for (int32_t i = 0; i < mesh->facesCount; i++) {
 			const auto& rendererFace = mesh->facesData[i];
-			const FaceData faceData = {texture, tpage, offset, allocator, ot};
 
 			if (rendererFace.isQuad) {
 				ProcessMeshQuad(mesh->quads[rendererFace.rendererFaceIx], 0, faceData);
@@ -1764,14 +1767,18 @@ void Renderer::ApplyFogToColour(psyqo::Color* col, psyqo::FixedPoint<> fogFactor
 	col->b = (((col->b * inv) + (fog.b * fogFactor)).value) >> 12;
 }
 
+psyqo::Color Renderer::GTEColourLerp(const psyqo::Color& input, uint32_t p) {
+	psyqo::GTE::write<psyqo::GTE::Register::IR0, psyqo::GTE::Unsafe>(p);
+	psyqo::GTE::write<psyqo::GTE::Register::RGB, psyqo::GTE::Safe>(input.packed);
+	psyqo::GTE::Kernels::dpcs();
+	return {.packed = psyqo::GTE::readRaw<psyqo::GTE::Register::RGB2>()};
+}
+
 // Interpolate from input to FC
 psyqo::Color Renderer::ApplyFogToColourGTE(psyqo::Color input, uint32_t p) {
 	if (!m_lighting->IsSimpleFogEnabled()) {
 		return input;
 	}
 
-	psyqo::GTE::write<psyqo::GTE::Register::IR0, psyqo::GTE::Unsafe>(p);
-	psyqo::GTE::write<psyqo::GTE::Register::RGB, psyqo::GTE::Safe>(input.packed);
-	psyqo::GTE::Kernels::dpcs();
-	return {.packed = psyqo::GTE::readRaw<psyqo::GTE::Register::RGB2>()};
+	return GTEColourLerp(input, p);
 }

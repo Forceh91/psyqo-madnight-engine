@@ -102,8 +102,9 @@ class Renderer final {
 	void ApplyAmbientToColours(psyqo::Color* colA, psyqo::Color* colB, psyqo::Color* colC, psyqo::Color* colD);
 	void ApplyFogToColour(psyqo::Color* col, psyqo::FixedPoint<> fogFactor);
 	psyqo::Color ApplyFogToColourGTE(psyqo::Color input, uint32_t p = 0);
+	psyqo::Color GTEColourLerp(const psyqo::Color& input, uint32_t p = 0);
 
-	void SetFarColour(void);
+	void GTESetFarColour(const psyqo::Color& far);
 	void SetFogNearFar(psyqo::FixedPoint<> near, psyqo::FixedPoint<> far);
 
   public:
