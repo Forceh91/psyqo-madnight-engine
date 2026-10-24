@@ -875,7 +875,8 @@ void Renderer::ProcessMeshQuad(const RendererQuad& quad, int8_t depth, const Fac
 	psyqo::GTE::read<psyqo::GTE::Register::SZ3>(&node.projectedDepths[3]);
 
 	// we can skip a node if its going to be fully obscured by fog anyway
-	if (node.irs[0] >= 4096 && node.irs[1] >= 4096 && node.irs[2] >= 4096 && node.irs[3] >= 4096) {
+	if (faceData.isAdvancedFog && node.irs[0] >= 4096 && node.irs[1] >= 4096 && node.irs[2] >= 4096 &&
+		node.irs[3] >= 4096) {
 		return;
 	}
 
@@ -1413,7 +1414,7 @@ void Renderer::ProcessMeshTri(const RendererTri& tri, int8_t depth, const FaceDa
 	psyqo::GTE::read<psyqo::GTE::Register::SZ3>(&node.projectedDepths[2]);
 
 	// we can skip a node if its going to be fully obscured by fog anyway
-	if (node.irs[0] >= 4096 && node.irs[1] >= 4096 && node.irs[2] >= 4096) {
+	if (faceData.isAdvancedFog && node.irs[0] >= 4096 && node.irs[1] >= 4096 && node.irs[2] >= 4096) {
 		return;
 	}
 
