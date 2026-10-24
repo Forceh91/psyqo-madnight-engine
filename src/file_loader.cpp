@@ -53,7 +53,8 @@ psyqo::Coroutine<> FileLoader::LoadFiles(eastl::vector<LoadQueue>&& files, bool 
 		case TEXTURE: {
 			TimFile* out = nullptr;
 			co_await g_madnightEngine.m_textureManager.LoadTIM(file.name, file.x, file.y, file.clutX, file.clutY, &out,
-															   file.flags);
+															   file.name == "TEXTURES/SMS2.TIM" ? (1 << 0)
+																								: file.flags);
 			break;
 		}
 

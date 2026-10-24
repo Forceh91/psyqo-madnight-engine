@@ -9,6 +9,8 @@
 #include <EASTL/array.h>
 #include <psyqo/gte-registers.hh>
 #include <psyqo/primitives/common.hh>
+#include <psyqo/primitives/control.hh>
+#include <psyqo/primitives/quads.hh>
 
 struct RendererQuad {
 	psyqo::GTE::PackedVec3 verts[4] = {};
@@ -39,4 +41,15 @@ struct FaceNode {
 	uint32_t irs[4];						  // irs
 	psyqo::PrimPieces::UVCoords uvA = {}, uvB = {};
 	psyqo::PrimPieces::UVCoordsPadded uvC = {}, uvD = {};
+};
+
+struct CutoutFogQuad {
+	psyqo::Prim::TPage tpage; // ABR = FullBackAndFullFront
+	psyqo::Prim::MaskControl forceSet{psyqo::Prim::MaskControl::ForceSet};
+	psyqo::Prim::GouraudQuad marker; // black, setSemiTrans()
+	psyqo::Prim::MaskControl fromSource{psyqo::Prim::MaskControl::FromSource};
+	psyqo::Prim::GouraudTexturedQuad textured; // VC, setOpaque()
+	psyqo::Prim::MaskControl test{psyqo::Prim::MaskControl::FromSource, psyqo::Prim::MaskControl::Test::Yes};
+	psyqo::Prim::GouraudQuad fog; // FC*f, setSemiTrans()
+	psyqo::Prim::MaskControl reset{psyqo::Prim::MaskControl::FromSource};
 };
