@@ -48,7 +48,7 @@
  */
 
 psyqo::Coroutine<> TextureManager::LoadTIM(const eastl::string_view& textureName, uint16_t x, uint16_t y,
-										   uint16_t clutX, uint16_t clutY, TimFile** timOut) {
+										   uint16_t clutX, uint16_t clutY, TimFile** timOut, uint32_t userFlags) {
 	*timOut = nullptr;
 
 	// is it already loaded?
@@ -135,15 +135,17 @@ psyqo::Coroutine<> TextureManager::LoadTIM(const eastl::string_view& textureName
 		uint16_t* clutData = (uint16_t*)psyqo_malloc(clutDataSize);
 		__builtin_memcpy(clutData, ptr, clutDataSize);
 
-		// move pointer to the end of the clut block
-		ptr = clut_end;
-
 		// set bit 15 incase we want to pull off silent hill fog (advanced fog)
-		for (int i = 0; i < numColours; i++) {
-			if (clutData[i] != 0x0000) {
-				clutData[i] |= 0x8000;
+		if (!(userFlags & 1)) {
+			for (int i = 0; i < numColours; i++) {
+				if (clutData[i] != 0x0000) {
+					clutData[i] |= 0x8000;
+				}
 			}
 		}
+
+		// move pointer to the end of the clut block
+		ptr = clut_end;
 
 		// upload this to the vram
 		Renderer::Instance().VRamUpload(clutData, timFile->clutX, timFile->clutY, timFile->clutWidth,
@@ -168,6 +170,7 @@ psyqo::Coroutine<> TextureManager::LoadTIM(const eastl::string_view& textureName
 	timFile->y = y == TIM_POSITION_FROM_FILE ? rect[1] : y;
 	timFile->width = rect[2];
 	timFile->height = rect[3];
+	timFile->flags = userFlags;
 
 	// move past the rect (2 lots of uint32_t)
 	ptr += 2;
@@ -178,7 +181,7 @@ psyqo::Coroutine<> TextureManager::LoadTIM(const eastl::string_view& textureName
 	__builtin_memcpy(imageData, ptr, imageDataSize);
 
 	// 16bit textures wont have a clut so for advanced fog we need to change the pixels directly
-	if (timFile->colourMode == psyqo::Prim::TPageAttr::ColorMode::Tex16Bits) {
+	if (!(userFlags & 1) && timFile->colourMode == psyqo::Prim::TPageAttr::ColorMode::Tex16Bits) {
 		// set bit 15 incase we want to pull off silent hill fog (advanced fog)
 		for (int i = 0; i < (timFile->width * timFile->height); i++) {
 			if (imageData[i] != 0x0000) {

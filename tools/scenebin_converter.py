@@ -9,7 +9,7 @@ Source format (plain text, one entry per line):
 
     # comments and blank lines are ignored
     vag SFX/FCNTNA.VAG
-    texture TEXTURES/LOGO.TIM 320 0 0 240
+    texture TEXTURES/LOGO.TIM 320 0 0 240 1
     texture UI/CS_UI.TIM 320 129 0 241
     object MODELS/SBSKT.MB
     object MODELS/SCART.MB
@@ -33,6 +33,7 @@ TYPE_MAP = {
     "animation": 3,
     "colbin": 4,
     "vag": 5,
+	"texture_extra": 6,
 }
 
 MAX_ARCHIVE_FILE_NAME_LEN = 255  # keep in sync with the C++ constant
@@ -91,11 +92,11 @@ def parse_source(path: Path):
 
             entry = {"type": type_name, "name": name, "lineno": lineno}
 
-            if type_name == "texture":
-                if len(extra_fields) != 4:
+            if type_name == "texture" or type_name == "texture_extra":
+                if len(extra_fields) < 4:
                     raise SourceError(
-                        f"line {lineno}: texture requires 4 fields "
-                        f"(vramX vramY clutX clutY), got {len(extra_fields)}"
+                        f"line {lineno}: texture and texture_extra require at least 4 extra fields "
+                        f"(vramX vramY clutX clutY[, flag]), got {len(extra_fields)}"
                     )
                 def placement(v):
                     if v.lower() == POSITION_FROM_FILE_KEYWORD:
@@ -103,7 +104,10 @@ def parse_source(path: Path):
                     return int(v)
 
                 try:
-                    vram_x, vram_y, clut_x, clut_y = (placement(v) for v in extra_fields)
+                    vram_x, vram_y, clut_x, clut_y = (
+                        placement(v) for v in extra_fields[:4]
+                    )
+                    flag = int(extra_fields[4]) if len(extra_fields) > 4 else 0
                 except ValueError:
                     raise SourceError(
                         f"line {lineno}: texture coordinates must be integers "
@@ -124,7 +128,7 @@ def parse_source(path: Path):
                             f"(expected 0..{limit - 1})"
                         )
 
-                entry["placement"] = (vram_x, vram_y, clut_x, clut_y)
+                entry["placement"] = (vram_x, vram_y, clut_x, clut_y, flag)
             else:
                 if extra_fields:
                     raise SourceError(
@@ -168,8 +172,12 @@ def pack_binary(entries) -> bytes:
         out += name_bytes
 
         if entry["type"] == "texture":
-            vram_x, vram_y, clut_x, clut_y = entry["placement"]
+            vram_x, vram_y, clut_x, clut_y = entry["placement"][:4]
             out += struct.pack("<HHHH", vram_x, vram_y, clut_x, clut_y)
+
+        if entry["type"] == "texture_extra":
+            vram_x, vram_y, clut_x, clut_y, flags = entry["placement"]
+            out += struct.pack("<HHHHI", vram_x, vram_y, clut_x, clut_y, flags)
 
     return bytes(out)
 
