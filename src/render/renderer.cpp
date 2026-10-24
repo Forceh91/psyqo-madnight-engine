@@ -944,7 +944,7 @@ void Renderer::ProcessMeshQuad(const RendererQuad& quad, int8_t depth, const Fac
 			faceData.isAdvancedFog && (node.irs[0] > 0 || node.irs[1] > 0 || node.irs[2] > 0 || node.irs[3] > 0);
 
 		if (faceData.texture != nullptr) {
-			if (isAdvancedFog && !(faceData.texture->flags & (1 << 0))) {
+			if (!isAdvancedFog || !(faceData.texture->flags & (1 << 0))) {
 				auto& quadPrim = faceData.bumpAllocator.allocateFragment<psyqo::Prim::GouraudTexturedQuad>();
 				quadPrim.primitive.pointA = node.projected[0];
 				quadPrim.primitive.pointB = node.projected[1];
@@ -1390,7 +1390,7 @@ void Renderer::ProcessQuadNode(FaceNode& node, uint8_t subDivsionDepth, const Fa
 
 	// textured
 	if (faceData.texture != nullptr) {
-		if (isAdvancedFog && !(faceData.texture->flags & (1 << 0))) {
+		if (!isAdvancedFog || !(faceData.texture->flags & (1 << 0))) {
 			auto& quadPrim = faceData.bumpAllocator.allocateFragment<psyqo::Prim::GouraudTexturedQuad>();
 			quadPrim.primitive.pointA = node.projected[0];
 			quadPrim.primitive.pointB = node.projected[1];
@@ -1502,9 +1502,9 @@ void Renderer::ProcessQuadNode(FaceNode& node, uint8_t subDivsionDepth, const Fa
 			cutoutFogQuadPrim.primitive.fog.pointD = node.projected[3];
 
 			cutoutFogQuadPrim.primitive.fog.setColorA(node.fogColours[0]);
-			cutoutFogQuadPrim.primitive.fog.setColorB(node.fogColours[0]);
-			cutoutFogQuadPrim.primitive.fog.setColorC(node.fogColours[0]);
-			cutoutFogQuadPrim.primitive.fog.setColorD(node.fogColours[0]);
+			cutoutFogQuadPrim.primitive.fog.setColorB(node.fogColours[1]);
+			cutoutFogQuadPrim.primitive.fog.setColorC(node.fogColours[2]);
+			cutoutFogQuadPrim.primitive.fog.setColorD(node.fogColours[3]);
 			cutoutFogQuadPrim.primitive.fog.setSemiTrans();
 
 			faceData.orderingTable.insert(cutoutFogQuadPrim, zIndex);
@@ -1620,7 +1620,7 @@ void Renderer::ProcessMeshTri(const RendererTri& tri, int8_t depth, const FaceDa
 		bool isAdvancedFog = faceData.isAdvancedFog && (node.irs[0] > 0 || node.irs[1] > 0 || node.irs[2] > 0);
 
 		if (faceData.texture != nullptr) {
-			if (isAdvancedFog && (!faceData.texture->flags & (1 << 0))) {
+			if (!isAdvancedFog || !(faceData.texture->flags & (1 << 0))) {
 				auto& triPrim = faceData.bumpAllocator.allocateFragment<psyqo::Prim::GouraudTexturedTriangle>();
 				triPrim.primitive.pointA = node.projected[0];
 				triPrim.primitive.pointB = node.projected[1];
@@ -1694,9 +1694,9 @@ void Renderer::ProcessMeshTri(const RendererTri& tri, int8_t depth, const FaceDa
 				cutoutFogTriPrim.primitive.textured.pointB = node.projected[1];
 				cutoutFogTriPrim.primitive.textured.pointC = node.projected[2];
 
-				cutoutFogTriPrim.primitive.textured.setColorA(node.colours[0]);
-				cutoutFogTriPrim.primitive.textured.setColorB(node.colours[1]);
-				cutoutFogTriPrim.primitive.textured.setColorC(node.colours[2]);
+				cutoutFogTriPrim.primitive.textured.setColorA(vertexColours[0]);
+				cutoutFogTriPrim.primitive.textured.setColorB(vertexColours[1]);
+				cutoutFogTriPrim.primitive.textured.setColorC(vertexColours[2]);
 				cutoutFogTriPrim.primitive.textured.setOpaque();
 
 				cutoutFogTriPrim.primitive.textured.tpage = faceData.tpage;
@@ -1715,9 +1715,9 @@ void Renderer::ProcessMeshTri(const RendererTri& tri, int8_t depth, const FaceDa
 				cutoutFogTriPrim.primitive.fog.pointB = node.projected[1];
 				cutoutFogTriPrim.primitive.fog.pointC = node.projected[2];
 
-				cutoutFogTriPrim.primitive.fog.setColorA(node.fogColours[0]);
-				cutoutFogTriPrim.primitive.fog.setColorB(node.fogColours[0]);
-				cutoutFogTriPrim.primitive.fog.setColorC(node.fogColours[0]);
+				cutoutFogTriPrim.primitive.fog.setColorA(fogColours[0]);
+				cutoutFogTriPrim.primitive.fog.setColorB(fogColours[1]);
+				cutoutFogTriPrim.primitive.fog.setColorC(fogColours[2]);
 				cutoutFogTriPrim.primitive.fog.setSemiTrans();
 
 				faceData.orderingTable.insert(cutoutFogTriPrim, zIndex);
@@ -2065,7 +2065,7 @@ void Renderer::ProcessTriNode(FaceNode& node, uint8_t subDivsionDepth, const Fac
 	bool isAdvancedFog = faceData.isAdvancedFog && (node.irs[0] > 0 || node.irs[1] > 0 || node.irs[2] > 0);
 
 	if (faceData.texture != nullptr) {
-		if (isAdvancedFog && !(faceData.texture->flags & (1 << 0))) {
+		if (!isAdvancedFog || !(faceData.texture->flags & (1 << 0))) {
 			auto& triPrim = faceData.bumpAllocator.allocateFragment<psyqo::Prim::GouraudTexturedTriangle>();
 			triPrim.primitive.pointA = node.projected[0];
 			triPrim.primitive.pointB = node.projected[1];
@@ -2160,8 +2160,8 @@ void Renderer::ProcessTriNode(FaceNode& node, uint8_t subDivsionDepth, const Fac
 			cutoutFogTriPrim.primitive.fog.pointC = node.projected[2];
 
 			cutoutFogTriPrim.primitive.fog.setColorA(node.fogColours[0]);
-			cutoutFogTriPrim.primitive.fog.setColorB(node.fogColours[0]);
-			cutoutFogTriPrim.primitive.fog.setColorC(node.fogColours[0]);
+			cutoutFogTriPrim.primitive.fog.setColorB(node.fogColours[1]);
+			cutoutFogTriPrim.primitive.fog.setColorC(node.fogColours[2]);
 			cutoutFogTriPrim.primitive.fog.setSemiTrans();
 
 			faceData.orderingTable.insert(cutoutFogTriPrim, zIndex);
