@@ -35,6 +35,7 @@ struct FaceNode {
 	eastl::array<psyqo::Vertex, 4> projected; // actually projected vert positions
 	uint32_t projectedDepths[4];			  // the z value of each projected corner
 	psyqo::Color colours[4];				  // colours
+	psyqo::Color fogColours[4];				  // for advanced fog colours
 	uint32_t irs[4];						  // irs
 	psyqo::PrimPieces::UVCoords uvA = {}, uvB = {};
 	psyqo::PrimPieces::UVCoordsPadded uvC = {}, uvD = {};

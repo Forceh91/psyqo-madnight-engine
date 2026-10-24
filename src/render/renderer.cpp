@@ -1044,10 +1044,22 @@ void Renderer::ProcessQuadNode(FaceNode& node, uint8_t subDivsionDepth, const Fa
 	// if its the parent then do colour work that can be propogated
 	if (subDivsionDepth == 0) {
 		// apply fog colours
-		eastl::array<psyqo::Color, 4> colours;
-		for (int i = 0; i < 4; i++) {
-			ApplyAmbientToColour(&node.colours[i]);
-			node.colours[i] = ApplyFogToColourGTE(node.colours[i], node.irs[i]);
+		if (!faceData.isAdvancedFog) {
+			for (int i = 0; i < 4; i++) {
+				ApplyAmbientToColour(&node.colours[i]);
+				node.colours[i] = ApplyFogToColourGTE(node.colours[i], node.irs[i]);
+			}
+		} else {
+			GTESetFarColour({0, 0, 0});
+			for (int i = 0; i < 4; i++) {
+				ApplyAmbientToColour(&node.colours[i]);
+				node.colours[i] = GTEColourLerp(node.colours[i], node.irs[i]);
+			}
+
+			GTESetFarColour(m_lighting->GetFogColour());
+			for (int i = 0; i < 4; i++) {
+				node.fogColours[i] = GTEColourLerp({0, 0, 0}, node.irs[i]);
+			}
 		}
 	}
 
@@ -1108,6 +1120,9 @@ void Renderer::ProcessQuadNode(FaceNode& node, uint8_t subDivsionDepth, const Fa
 			psyqo::Color midColour01 = midColour(node.colours[0], node.colours[1]),
 						 midColour23 = midColour(node.colours[2], node.colours[3]);
 
+			psyqo::Color midFogColour01 = midColour(node.fogColours[0], node.fogColours[1]),
+						 midFogColour23 = midColour(node.fogColours[2], node.fogColours[3]);
+
 			// quad A
 			quadA.verts[0] = node.verts[0];
 			quadA.verts[1] = midVert01;
@@ -1133,6 +1148,11 @@ void Renderer::ProcessQuadNode(FaceNode& node, uint8_t subDivsionDepth, const Fa
 			quadA.colours[1] = midColour01;
 			quadA.colours[2] = node.colours[2];
 			quadA.colours[3] = midColour23;
+
+			quadA.fogColours[0] = node.fogColours[0];
+			quadA.fogColours[1] = midFogColour01;
+			quadA.fogColours[2] = node.fogColours[2];
+			quadA.fogColours[3] = midFogColour23;
 
 			quadA.irs[0] = node.irs[0];
 			quadA.irs[1] = midIR01;
@@ -1164,6 +1184,11 @@ void Renderer::ProcessQuadNode(FaceNode& node, uint8_t subDivsionDepth, const Fa
 			quadB.colours[1] = node.colours[1];
 			quadB.colours[2] = midColour23;
 			quadB.colours[3] = node.colours[3];
+
+			quadB.fogColours[0] = midFogColour01;
+			quadB.fogColours[1] = node.fogColours[1];
+			quadB.fogColours[2] = midFogColour23;
+			quadB.fogColours[3] = node.fogColours[3];
 
 			quadB.irs[0] = midIR01;
 			quadB.irs[1] = node.irs[1];
@@ -1200,6 +1225,9 @@ void Renderer::ProcessQuadNode(FaceNode& node, uint8_t subDivsionDepth, const Fa
 			psyqo::Color midColour02 = midColour(node.colours[0], node.colours[2]),
 						 midColour13 = midColour(node.colours[1], node.colours[3]);
 
+			psyqo::Color midFogColour02 = midColour(node.fogColours[0], node.fogColours[2]),
+						 midFogColour13 = midColour(node.fogColours[1], node.fogColours[3]);
+
 			// quadA
 			quadA.verts[0] = node.verts[0];
 			quadA.verts[1] = node.verts[1];
@@ -1225,6 +1253,11 @@ void Renderer::ProcessQuadNode(FaceNode& node, uint8_t subDivsionDepth, const Fa
 			quadA.colours[1] = node.colours[1];
 			quadA.colours[2] = midColour02;
 			quadA.colours[3] = midColour13;
+
+			quadA.fogColours[0] = node.fogColours[0];
+			quadA.fogColours[1] = node.fogColours[1];
+			quadA.fogColours[2] = midFogColour02;
+			quadA.fogColours[3] = midFogColour13;
 
 			quadA.irs[0] = node.irs[0];
 			quadA.irs[1] = node.irs[1];
@@ -1257,6 +1290,11 @@ void Renderer::ProcessQuadNode(FaceNode& node, uint8_t subDivsionDepth, const Fa
 			quadB.colours[2] = node.colours[2];
 			quadB.colours[3] = node.colours[3];
 
+			quadB.fogColours[0] = midFogColour02;
+			quadB.fogColours[1] = midFogColour13;
+			quadB.fogColours[2] = node.fogColours[2];
+			quadB.fogColours[3] = node.fogColours[3];
+
 			quadB.irs[0] = midIR02;
 			quadB.irs[1] = midIR13;
 			quadB.irs[2] = node.irs[2];
@@ -1268,6 +1306,9 @@ void Renderer::ProcessQuadNode(FaceNode& node, uint8_t subDivsionDepth, const Fa
 		ProcessQuadNode(quadB, subDivsionDepth + 1, faceData);
 		return;
 	} // OTHERWISE continue to process and add to OT
+
+	bool isAdvancedFog =
+		faceData.isAdvancedFog && (node.irs[0] > 0 || node.irs[1] > 0 || node.irs[2] > 0 || node.irs[3] > 0);
 
 	// textured
 	if (faceData.texture != nullptr) {
@@ -1281,7 +1322,11 @@ void Renderer::ProcessQuadNode(FaceNode& node, uint8_t subDivsionDepth, const Fa
 		quadPrim.primitive.setColorB(node.colours[1]);
 		quadPrim.primitive.setColorC(node.colours[2]);
 		quadPrim.primitive.setColorD(node.colours[3]);
-		quadPrim.primitive.setOpaque();
+		if (!isAdvancedFog) {
+			quadPrim.primitive.setOpaque();
+		} else {
+			quadPrim.primitive.setSemiTrans();
+		}
 
 		quadPrim.primitive.tpage = faceData.tpage;
 
@@ -1299,6 +1344,23 @@ void Renderer::ProcessQuadNode(FaceNode& node, uint8_t subDivsionDepth, const Fa
 								  static_cast<uint8_t>(faceData.uvOffset.pos.y - node.uvD.v)};
 
 		faceData.orderingTable.insert(quadPrim, zIndex);
+
+		// we insert the untextured fog prim last because `insert` puts each new prim at the front of the bucket.
+		if (isAdvancedFog) {
+			auto& quadFogPrim = faceData.bumpAllocator.allocateFragment<psyqo::Prim::GouraudQuad>();
+			quadFogPrim.primitive.pointA = node.projected[0];
+			quadFogPrim.primitive.pointB = node.projected[1];
+			quadFogPrim.primitive.pointC = node.projected[2];
+			quadFogPrim.primitive.pointD = node.projected[3];
+
+			quadFogPrim.primitive.setColorA(node.fogColours[0]);
+			quadFogPrim.primitive.setColorB(node.fogColours[1]);
+			quadFogPrim.primitive.setColorC(node.fogColours[2]);
+			quadFogPrim.primitive.setColorD(node.fogColours[3]);
+			quadFogPrim.primitive.setOpaque();
+
+			faceData.orderingTable.insert(quadFogPrim, zIndex);
+		}
 	} else { // untextured
 		auto& quadPrim = faceData.bumpAllocator.allocateFragment<psyqo::Prim::GouraudQuad>();
 		quadPrim.primitive.pointA = node.projected[0];
@@ -1501,9 +1563,22 @@ void Renderer::ProcessTriNode(FaceNode& node, uint8_t subDivsionDepth, const Fac
 	// if its the parent then do colour work that can be propogated
 	if (subDivsionDepth == 0) {
 		// apply fog colours
-		for (int i = 0; i < 3; i++) {
-			ApplyAmbientToColour(&node.colours[i]);
-			node.colours[i] = ApplyFogToColourGTE(node.colours[i], node.irs[i]);
+		if (!faceData.isAdvancedFog) {
+			for (int i = 0; i < 3; i++) {
+				ApplyAmbientToColour(&node.colours[i]);
+				node.colours[i] = ApplyFogToColourGTE(node.colours[i], node.irs[i]);
+			}
+		} else {
+			GTESetFarColour({0, 0, 0});
+			for (int i = 0; i < 3; i++) {
+				ApplyAmbientToColour(&node.colours[i]);
+				node.colours[i] = GTEColourLerp(node.colours[i], node.irs[i]);
+			}
+
+			GTESetFarColour(m_lighting->GetFogColour());
+			for (int i = 0; i < 3; i++) {
+				node.fogColours[i] = GTEColourLerp({0, 0, 0}, node.irs[i]);
+			}
 		}
 	}
 
@@ -1552,6 +1627,7 @@ void Renderer::ProcessTriNode(FaceNode& node, uint8_t subDivsionDepth, const Fac
 			midUV01.v = (node.uvA.v + node.uvB.v) >> 1;
 
 			psyqo::Color midColour01 = midColour(node.colours[0], node.colours[1]);
+			psyqo::Color midFogColour01 = midColour(node.fogColours[0], node.fogColours[1]);
 
 			// tri A
 			triA.verts[0] = node.verts[0];
@@ -1573,6 +1649,10 @@ void Renderer::ProcessTriNode(FaceNode& node, uint8_t subDivsionDepth, const Fac
 			triA.colours[0] = node.colours[0];
 			triA.colours[1] = midColour01;
 			triA.colours[2] = node.colours[2];
+
+			triA.fogColours[0] = node.fogColours[0];
+			triA.fogColours[1] = midFogColour01;
+			triA.fogColours[2] = node.fogColours[2];
 
 			triA.irs[0] = node.irs[0];
 			triA.irs[1] = midIR01;
@@ -1599,6 +1679,10 @@ void Renderer::ProcessTriNode(FaceNode& node, uint8_t subDivsionDepth, const Fac
 			triB.colours[1] = node.colours[1];
 			triB.colours[2] = node.colours[2];
 
+			triB.fogColours[0] = midFogColour01;
+			triB.fogColours[1] = node.fogColours[1];
+			triB.fogColours[2] = node.fogColours[2];
+
 			triB.irs[0] = midIR01;
 			triB.irs[1] = node.irs[1];
 			triB.irs[2] = node.irs[2];
@@ -1621,6 +1705,7 @@ void Renderer::ProcessTriNode(FaceNode& node, uint8_t subDivsionDepth, const Fac
 			midUV12.v = (node.uvB.v + node.uvC.v) >> 1;
 
 			psyqo::Color midColour12 = midColour(node.colours[1], node.colours[2]);
+			psyqo::Color midFogColour12 = midColour(node.colours[1], node.colours[2]);
 
 			// tri A
 			triA.verts[0] = node.verts[0];
@@ -1642,6 +1727,10 @@ void Renderer::ProcessTriNode(FaceNode& node, uint8_t subDivsionDepth, const Fac
 			triA.colours[0] = node.colours[0];
 			triA.colours[1] = node.colours[1];
 			triA.colours[2] = midColour12;
+
+			triA.fogColours[0] = node.fogColours[0];
+			triA.fogColours[1] = node.fogColours[1];
+			triA.fogColours[2] = midFogColour12;
 
 			triA.irs[0] = node.irs[0];
 			triA.irs[1] = node.irs[1];
@@ -1668,6 +1757,10 @@ void Renderer::ProcessTriNode(FaceNode& node, uint8_t subDivsionDepth, const Fac
 			triB.colours[1] = midColour12;
 			triB.colours[2] = node.colours[2];
 
+			triB.fogColours[0] = node.fogColours[0];
+			triB.fogColours[1] = midFogColour12;
+			triB.fogColours[2] = node.fogColours[2];
+
 			triB.irs[0] = node.irs[0];
 			triB.irs[1] = midIR12;
 			triB.irs[2] = node.irs[2];
@@ -1690,6 +1783,7 @@ void Renderer::ProcessTriNode(FaceNode& node, uint8_t subDivsionDepth, const Fac
 			midUV02.v = (node.uvA.v + node.uvC.v) >> 1;
 
 			psyqo::Color midColour02 = midColour(node.colours[0], node.colours[2]);
+			psyqo::Color midFogColour02 = midColour(node.colours[0], node.colours[2]);
 
 			// tri A
 			triA.verts[0] = node.verts[0];
@@ -1711,6 +1805,10 @@ void Renderer::ProcessTriNode(FaceNode& node, uint8_t subDivsionDepth, const Fac
 			triA.colours[0] = node.colours[0];
 			triA.colours[1] = node.colours[1];
 			triA.colours[2] = midColour02;
+
+			triA.fogColours[0] = node.fogColours[0];
+			triA.fogColours[1] = node.fogColours[1];
+			triA.fogColours[2] = midFogColour02;
 
 			triA.irs[0] = node.irs[0];
 			triA.irs[1] = node.irs[1];
@@ -1737,6 +1835,10 @@ void Renderer::ProcessTriNode(FaceNode& node, uint8_t subDivsionDepth, const Fac
 			triB.colours[1] = node.colours[1];
 			triB.colours[2] = node.colours[2];
 
+			triB.fogColours[0] = midFogColour02;
+			triB.fogColours[1] = node.fogColours[1];
+			triB.fogColours[2] = node.fogColours[2];
+
 			triB.irs[0] = midIR02;
 			triB.irs[1] = node.irs[1];
 			triB.irs[2] = node.irs[2];
@@ -1748,6 +1850,8 @@ void Renderer::ProcessTriNode(FaceNode& node, uint8_t subDivsionDepth, const Fac
 	} // OTHERWISE continue to process and add to OT
 
 	// textured
+	bool isAdvancedFog = faceData.isAdvancedFog && (node.irs[0] > 0 || node.irs[1] > 0 || node.irs[2] > 0);
+
 	if (faceData.texture != nullptr) {
 		auto& triPrim = faceData.bumpAllocator.allocateFragment<psyqo::Prim::GouraudTexturedTriangle>();
 		triPrim.primitive.pointA = node.projected[0];
@@ -1757,7 +1861,11 @@ void Renderer::ProcessTriNode(FaceNode& node, uint8_t subDivsionDepth, const Fac
 		triPrim.primitive.setColorA(node.colours[0]);
 		triPrim.primitive.setColorB(node.colours[1]);
 		triPrim.primitive.setColorC(node.colours[2]);
-		triPrim.primitive.setOpaque();
+		if (!isAdvancedFog) {
+			triPrim.primitive.setOpaque();
+		} else {
+			triPrim.primitive.setSemiTrans();
+		}
 
 		triPrim.primitive.tpage = faceData.tpage;
 
@@ -1773,6 +1881,21 @@ void Renderer::ProcessTriNode(FaceNode& node, uint8_t subDivsionDepth, const Fac
 								 static_cast<uint8_t>(faceData.uvOffset.pos.y - node.uvC.v)};
 
 		faceData.orderingTable.insert(triPrim, zIndex);
+
+		// we insert the untextured fog prim last because `insert` puts each new prim at the front of the bucket.
+		if (isAdvancedFog) {
+			auto& triFogPrim = faceData.bumpAllocator.allocateFragment<psyqo::Prim::GouraudTriangle>();
+			triFogPrim.primitive.pointA = node.projected[0];
+			triFogPrim.primitive.pointB = node.projected[1];
+			triFogPrim.primitive.pointC = node.projected[2];
+
+			triFogPrim.primitive.setColorA(node.fogColours[0]);
+			triFogPrim.primitive.setColorB(node.fogColours[1]);
+			triFogPrim.primitive.setColorC(node.fogColours[2]);
+			triFogPrim.primitive.setOpaque();
+
+			faceData.orderingTable.insert(triFogPrim, zIndex);
+		}
 	} else { // untextured
 		auto& triPrim = faceData.bumpAllocator.allocateFragment<psyqo::Prim::GouraudTriangle>();
 		triPrim.primitive.pointA = node.projected[0];
