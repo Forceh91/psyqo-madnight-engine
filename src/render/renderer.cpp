@@ -6,6 +6,7 @@
 
 #include "renderer.hh"
 #include "EASTL/algorithm.h"
+#include "EASTL/array.h"
 #include "clip.hh"
 
 #include "../core/billboard/billboard_manager.hh"
@@ -363,11 +364,14 @@ void Renderer::RenderGameObjects(uint32_t deltaTime, const psyqo::Matrix33& came
 		if (texture) {
 			// get the tpage and uv offset info
 			tpage = g_madnightEngine.m_textureManager.GetTPageAttr(texture);
+			if (m_lighting->IsAdvancedFogEnabled()) {
+				tpage.set(psyqo::Prim::TPageAttr::FullBackAndFullFront);
+			}
 			offset = g_madnightEngine.m_textureManager.GetTPageUVForTim(texture);
 			offset.pos.y += (texture->height - 1);
 		}
 
-		const FaceData faceData = {texture, tpage, offset, allocator, ot};
+		const FaceData faceData = {texture, tpage, offset, allocator, ot, m_lighting->IsAdvancedFogEnabled()};
 		for (int32_t i = 0; i < mesh->facesCount; i++) {
 			const auto& rendererFace = mesh->facesData[i];
 
@@ -907,11 +911,30 @@ void Renderer::ProcessMeshQuad(const RendererQuad& quad, int8_t depth, const Fac
 		}
 
 		// apply fog colours
-		eastl::array<psyqo::Color, 4> colours = {quad.colours[0], quad.colours[1], quad.colours[2], quad.colours[3]};
-		for (int i = 0; i < 4; i++) {
-			ApplyAmbientToColour(&colours[i]);
-			colours[i] = ApplyFogToColourGTE(colours[i], node.irs[i]);
+		eastl::array<psyqo::Color, 4> vertexColours = {quad.colours[0], quad.colours[1], quad.colours[2],
+													   quad.colours[3]};
+		eastl::array<psyqo::Color, 4> fogColours;
+
+		if (!faceData.isAdvancedFog) {
+			for (int i = 0; i < 4; i++) {
+				ApplyAmbientToColour(&vertexColours[i]);
+				vertexColours[i] = ApplyFogToColourGTE(vertexColours[i], node.irs[i]);
+			}
+		} else {
+			GTESetFarColour({0, 0, 0});
+			for (int i = 0; i < 4; i++) {
+				ApplyAmbientToColour(&vertexColours[i]);
+				vertexColours[i] = GTEColourLerp(vertexColours[i], node.irs[i]);
+			}
+
+			GTESetFarColour(m_lighting->GetFogColour());
+			for (int i = 0; i < 4; i++) {
+				fogColours[i] = GTEColourLerp({0, 0, 0}, node.irs[i]);
+			}
 		}
+
+		bool isAdvancedFog =
+			faceData.isAdvancedFog && (node.irs[0] > 0 || node.irs[1] > 0 || node.irs[2] > 0 || node.irs[3] > 0);
 
 		if (faceData.texture != nullptr) {
 			auto& quadPrim = faceData.bumpAllocator.allocateFragment<psyqo::Prim::GouraudTexturedQuad>();
@@ -920,11 +943,15 @@ void Renderer::ProcessMeshQuad(const RendererQuad& quad, int8_t depth, const Fac
 			quadPrim.primitive.pointC = node.projected[2];
 			quadPrim.primitive.pointD = node.projected[3];
 
-			quadPrim.primitive.setColorA(colours[0]);
-			quadPrim.primitive.setColorB(colours[1]);
-			quadPrim.primitive.setColorC(colours[2]);
-			quadPrim.primitive.setColorD(colours[3]);
-			quadPrim.primitive.setOpaque();
+			quadPrim.primitive.setColorA(vertexColours[0]);
+			quadPrim.primitive.setColorB(vertexColours[1]);
+			quadPrim.primitive.setColorC(vertexColours[2]);
+			quadPrim.primitive.setColorD(vertexColours[3]);
+			if (!isAdvancedFog) {
+				quadPrim.primitive.setOpaque();
+			} else {
+				quadPrim.primitive.setSemiTrans();
+			}
 
 			quadPrim.primitive.tpage = faceData.tpage;
 
@@ -942,6 +969,23 @@ void Renderer::ProcessMeshQuad(const RendererQuad& quad, int8_t depth, const Fac
 									  static_cast<uint8_t>(faceData.uvOffset.pos.y - quad.uvD.v)};
 
 			faceData.orderingTable.insert(quadPrim, zIndex);
+
+			// we insert the untextured fog prim last because `insert` puts each new prim at the front of the bucket.
+			if (isAdvancedFog) {
+				auto& quadFogPrim = faceData.bumpAllocator.allocateFragment<psyqo::Prim::GouraudQuad>();
+				quadFogPrim.primitive.pointA = node.projected[0];
+				quadFogPrim.primitive.pointB = node.projected[1];
+				quadFogPrim.primitive.pointC = node.projected[2];
+				quadFogPrim.primitive.pointD = node.projected[3];
+
+				quadFogPrim.primitive.setColorA(fogColours[0]);
+				quadFogPrim.primitive.setColorB(fogColours[1]);
+				quadFogPrim.primitive.setColorC(fogColours[2]);
+				quadFogPrim.primitive.setColorD(fogColours[3]);
+				quadFogPrim.primitive.setOpaque();
+
+				faceData.orderingTable.insert(quadFogPrim, zIndex);
+			}
 		} else { // untextured
 			auto& quadPrim = faceData.bumpAllocator.allocateFragment<psyqo::Prim::GouraudQuad>();
 			quadPrim.primitive.pointA = node.projected[0];
@@ -949,10 +993,10 @@ void Renderer::ProcessMeshQuad(const RendererQuad& quad, int8_t depth, const Fac
 			quadPrim.primitive.pointC = node.projected[2];
 			quadPrim.primitive.pointD = node.projected[3];
 
-			quadPrim.primitive.setColorA(colours[0]);
-			quadPrim.primitive.setColorB(colours[1]);
-			quadPrim.primitive.setColorC(colours[2]);
-			quadPrim.primitive.setColorD(colours[3]);
+			quadPrim.primitive.setColorA(vertexColours[0]);
+			quadPrim.primitive.setColorB(vertexColours[1]);
+			quadPrim.primitive.setColorC(vertexColours[2]);
+			quadPrim.primitive.setColorD(vertexColours[3]);
 			quadPrim.primitive.setOpaque();
 
 			faceData.orderingTable.insert(quadPrim, zIndex);
@@ -1337,49 +1381,85 @@ void Renderer::ProcessMeshTri(const RendererTri& tri, int8_t depth, const FaceDa
 		}
 
 		// apply fog colours
-		eastl::array<psyqo::Color, 3> colours = {tri.colours[0], tri.colours[1], tri.colours[2]};
-		for (int i = 0; i < 3; i++) {
-			ApplyAmbientToColour(&colours[i]);
-			colours[i] = ApplyFogToColourGTE(colours[i], node.irs[i]);
-		}
+		eastl::array<psyqo::Color, 3> vertexColours = {tri.colours[0], tri.colours[1], tri.colours[2]};
+		eastl::array<psyqo::Color, 3> fogColours;
 
-		if (faceData.texture != nullptr) {
-			auto& quadPrim = faceData.bumpAllocator.allocateFragment<psyqo::Prim::GouraudTexturedTriangle>();
-			quadPrim.primitive.pointA = node.projected[0];
-			quadPrim.primitive.pointB = node.projected[1];
-			quadPrim.primitive.pointC = node.projected[2];
-
-			quadPrim.primitive.setColorA(colours[0]);
-			quadPrim.primitive.setColorB(colours[1]);
-			quadPrim.primitive.setColorC(colours[2]);
-			quadPrim.primitive.setOpaque();
-
-			quadPrim.primitive.tpage = faceData.tpage;
-
-			if (faceData.texture->hasClut) {
-				quadPrim.primitive.clutIndex = {faceData.texture->clutX, faceData.texture->clutY};
+		if (!faceData.isAdvancedFog) {
+			for (int i = 0; i < 3; i++) {
+				ApplyAmbientToColour(&vertexColours[i]);
+				vertexColours[i] = ApplyFogToColourGTE(vertexColours[i], node.irs[i]);
+			}
+		} else {
+			GTESetFarColour({0, 0, 0});
+			for (int i = 0; i < 3; i++) {
+				ApplyAmbientToColour(&vertexColours[i]);
+				vertexColours[i] = GTEColourLerp(vertexColours[i], node.irs[i]);
 			}
 
-			quadPrim.primitive.uvA = {static_cast<uint8_t>(faceData.uvOffset.pos.x + tri.uvA.u),
-									  static_cast<uint8_t>(faceData.uvOffset.pos.y - tri.uvA.v)};
-			quadPrim.primitive.uvB = {static_cast<uint8_t>(faceData.uvOffset.pos.x + tri.uvB.u),
-									  static_cast<uint8_t>(faceData.uvOffset.pos.y - tri.uvB.v)};
-			quadPrim.primitive.uvC = {static_cast<uint8_t>(faceData.uvOffset.pos.x + tri.uvC.u),
-									  static_cast<uint8_t>(faceData.uvOffset.pos.y - tri.uvC.v)};
+			GTESetFarColour(m_lighting->GetFogColour());
+			for (int i = 0; i < 3; i++) {
+				fogColours[i] = GTEColourLerp({0, 0, 0}, node.irs[i]);
+			}
+		}
 
-			faceData.orderingTable.insert(quadPrim, zIndex);
+		bool isAdvancedFog = faceData.isAdvancedFog && (node.irs[0] > 0 || node.irs[1] > 0 || node.irs[2] > 0);
+
+		if (faceData.texture != nullptr) {
+			auto& triPrim = faceData.bumpAllocator.allocateFragment<psyqo::Prim::GouraudTexturedTriangle>();
+			triPrim.primitive.pointA = node.projected[0];
+			triPrim.primitive.pointB = node.projected[1];
+			triPrim.primitive.pointC = node.projected[2];
+
+			triPrim.primitive.setColorA(vertexColours[0]);
+			triPrim.primitive.setColorB(vertexColours[1]);
+			triPrim.primitive.setColorC(vertexColours[2]);
+			if (!isAdvancedFog) {
+				triPrim.primitive.setOpaque();
+			} else {
+				triPrim.primitive.setSemiTrans();
+			}
+
+			triPrim.primitive.tpage = faceData.tpage;
+
+			if (faceData.texture->hasClut) {
+				triPrim.primitive.clutIndex = {faceData.texture->clutX, faceData.texture->clutY};
+			}
+
+			triPrim.primitive.uvA = {static_cast<uint8_t>(faceData.uvOffset.pos.x + tri.uvA.u),
+									 static_cast<uint8_t>(faceData.uvOffset.pos.y - tri.uvA.v)};
+			triPrim.primitive.uvB = {static_cast<uint8_t>(faceData.uvOffset.pos.x + tri.uvB.u),
+									 static_cast<uint8_t>(faceData.uvOffset.pos.y - tri.uvB.v)};
+			triPrim.primitive.uvC = {static_cast<uint8_t>(faceData.uvOffset.pos.x + tri.uvC.u),
+									 static_cast<uint8_t>(faceData.uvOffset.pos.y - tri.uvC.v)};
+
+			faceData.orderingTable.insert(triPrim, zIndex);
+
+			// we insert the untextured fog prim last because `insert` puts each new prim at the front of the bucket.
+			if (isAdvancedFog) {
+				auto& triFogPrim = faceData.bumpAllocator.allocateFragment<psyqo::Prim::GouraudTriangle>();
+				triFogPrim.primitive.pointA = node.projected[0];
+				triFogPrim.primitive.pointB = node.projected[1];
+				triFogPrim.primitive.pointC = node.projected[2];
+
+				triFogPrim.primitive.setColorA(fogColours[0]);
+				triFogPrim.primitive.setColorB(fogColours[1]);
+				triFogPrim.primitive.setColorC(fogColours[2]);
+				triFogPrim.primitive.setOpaque();
+
+				faceData.orderingTable.insert(triFogPrim, zIndex);
+			}
 		} else { // untextured
-			auto& quadPrim = faceData.bumpAllocator.allocateFragment<psyqo::Prim::GouraudTriangle>();
-			quadPrim.primitive.pointA = node.projected[0];
-			quadPrim.primitive.pointB = node.projected[1];
-			quadPrim.primitive.pointC = node.projected[2];
+			auto& triPrim = faceData.bumpAllocator.allocateFragment<psyqo::Prim::GouraudTriangle>();
+			triPrim.primitive.pointA = node.projected[0];
+			triPrim.primitive.pointB = node.projected[1];
+			triPrim.primitive.pointC = node.projected[2];
 
-			quadPrim.primitive.setColorA(colours[0]);
-			quadPrim.primitive.setColorB(colours[1]);
-			quadPrim.primitive.setColorC(colours[2]);
-			quadPrim.primitive.setOpaque();
+			triPrim.primitive.setColorA(vertexColours[0]);
+			triPrim.primitive.setColorB(vertexColours[1]);
+			triPrim.primitive.setColorC(vertexColours[2]);
+			triPrim.primitive.setOpaque();
 
-			faceData.orderingTable.insert(quadPrim, zIndex);
+			faceData.orderingTable.insert(triPrim, zIndex);
 		}
 	}
 }

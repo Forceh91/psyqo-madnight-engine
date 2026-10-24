@@ -137,6 +137,13 @@ psyqo::Coroutine<> TextureManager::LoadTIM(const eastl::string_view& textureName
 		// move pointer to the end of the clut block
 		ptr = clut_end;
 
+		for (int i = 0; i < clutDataSize; i++) {
+			auto c = clutData[i];
+			if (c != 0x0000) {
+				c |= 0x8000;
+			}
+		}
+
 		// upload this to the vram
 		Renderer::Instance().VRamUpload(clutData, timFile->clutX, timFile->clutY, timFile->clutWidth,
 										timFile->clutHeight);

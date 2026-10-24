@@ -45,6 +45,7 @@ struct FaceData {
 	const psyqo::Rect uvOffset;
 	BA& bumpAllocator;
 	OT& orderingTable;
+	const bool isAdvancedFog;
 };
 
 class Renderer final {
