@@ -1441,73 +1441,94 @@ void Renderer::ProcessQuadNode(FaceNode& node, uint8_t subDivsionDepth, const Fa
 				faceData.orderingTable.insert(quadFogPrim, zIndex);
 			}
 		} else {
-			auto& cutoutFogQuadPrim = faceData.bumpAllocator.allocateFragment<CutoutFogQuad>();
-			cutoutFogQuadPrim.primitive.tpage.attr = faceData.tpage;
+			auto& reset = faceData.bumpAllocator.allocateFragment<psyqo::Prim::MaskControl>();
+			reset.primitive = {psyqo::Prim::MaskControl::FromSource};
+			faceData.orderingTable.insert(reset, zIndex);
 
-			cutoutFogQuadPrim.primitive.marker.pointA = node.projected[0];
-			cutoutFogQuadPrim.primitive.marker.pointB = node.projected[1];
-			cutoutFogQuadPrim.primitive.marker.pointC = node.projected[2];
-			cutoutFogQuadPrim.primitive.marker.pointD = node.projected[3];
+			auto& fog = faceData.bumpAllocator.allocateFragment<psyqo::Prim::GouraudQuad>();
+			fog.primitive.pointA = node.projected[0];
+			fog.primitive.pointB = node.projected[1];
+			fog.primitive.pointC = node.projected[2];
+			fog.primitive.pointD = node.projected[3];
 
-			cutoutFogQuadPrim.primitive.marker.setColorA({
-				0,
-				0,
-				0,
-			});
-			cutoutFogQuadPrim.primitive.marker.setColorB({
-				0,
-				0,
-				0,
-			});
-			cutoutFogQuadPrim.primitive.marker.setColorC({
-				0,
-				0,
-				0,
-			});
-			cutoutFogQuadPrim.primitive.marker.setColorD({
-				0,
-				0,
-				0,
-			});
-			cutoutFogQuadPrim.primitive.marker.setSemiTrans();
+			fog.primitive.setColorA(node.fogColours[0]);
+			fog.primitive.setColorB(node.fogColours[1]);
+			fog.primitive.setColorC(node.fogColours[2]);
+			fog.primitive.setColorD(node.fogColours[3]);
+			fog.primitive.setSemiTrans();
+			faceData.orderingTable.insert(fog, zIndex);
 
-			cutoutFogQuadPrim.primitive.textured.pointA = node.projected[0];
-			cutoutFogQuadPrim.primitive.textured.pointB = node.projected[1];
-			cutoutFogQuadPrim.primitive.textured.pointC = node.projected[2];
-			cutoutFogQuadPrim.primitive.textured.pointD = node.projected[3];
+			auto& test = faceData.bumpAllocator.allocateFragment<psyqo::Prim::MaskControl>();
+			test.primitive = {psyqo::Prim::MaskControl::FromSource, psyqo::Prim::MaskControl::Test::Yes};
+			faceData.orderingTable.insert(test, zIndex);
 
-			cutoutFogQuadPrim.primitive.textured.setColorA(node.colours[0]);
-			cutoutFogQuadPrim.primitive.textured.setColorB(node.colours[1]);
-			cutoutFogQuadPrim.primitive.textured.setColorC(node.colours[2]);
-			cutoutFogQuadPrim.primitive.textured.setColorD(node.colours[3]);
-			cutoutFogQuadPrim.primitive.textured.setOpaque();
+			auto& textured = faceData.bumpAllocator.allocateFragment<psyqo::Prim::GouraudTexturedQuad>();
+			textured.primitive.pointA = node.projected[0];
+			textured.primitive.pointB = node.projected[1];
+			textured.primitive.pointC = node.projected[2];
+			textured.primitive.pointD = node.projected[3];
 
-			cutoutFogQuadPrim.primitive.textured.tpage = faceData.tpage;
+			textured.primitive.setColorA(node.colours[0]);
+			textured.primitive.setColorB(node.colours[1]);
+			textured.primitive.setColorC(node.colours[2]);
+			textured.primitive.setColorD(node.colours[3]);
+			textured.primitive.setOpaque();
+
+			textured.primitive.tpage = faceData.tpage;
 			if (faceData.texture->hasClut) {
-				cutoutFogQuadPrim.primitive.textured.clutIndex = {faceData.texture->clutX, faceData.texture->clutY};
+				textured.primitive.clutIndex = {faceData.texture->clutX, faceData.texture->clutY};
 			}
 
-			cutoutFogQuadPrim.primitive.textured.uvA = {static_cast<uint8_t>(faceData.uvOffset.pos.x + node.uvA.u),
-														static_cast<uint8_t>(faceData.uvOffset.pos.y - node.uvA.v)};
-			cutoutFogQuadPrim.primitive.textured.uvB = {static_cast<uint8_t>(faceData.uvOffset.pos.x + node.uvB.u),
-														static_cast<uint8_t>(faceData.uvOffset.pos.y - node.uvB.v)};
-			cutoutFogQuadPrim.primitive.textured.uvC = {static_cast<uint8_t>(faceData.uvOffset.pos.x + node.uvC.u),
-														static_cast<uint8_t>(faceData.uvOffset.pos.y - node.uvC.v)};
-			cutoutFogQuadPrim.primitive.textured.uvD = {static_cast<uint8_t>(faceData.uvOffset.pos.x + node.uvD.u),
-														static_cast<uint8_t>(faceData.uvOffset.pos.y - node.uvD.v)};
+			textured.primitive.uvA = {static_cast<uint8_t>(faceData.uvOffset.pos.x + node.uvA.u),
+									  static_cast<uint8_t>(faceData.uvOffset.pos.y - node.uvA.v)};
+			textured.primitive.uvB = {static_cast<uint8_t>(faceData.uvOffset.pos.x + node.uvB.u),
+									  static_cast<uint8_t>(faceData.uvOffset.pos.y - node.uvB.v)};
+			textured.primitive.uvC = {static_cast<uint8_t>(faceData.uvOffset.pos.x + node.uvC.u),
+									  static_cast<uint8_t>(faceData.uvOffset.pos.y - node.uvC.v)};
+			textured.primitive.uvD = {static_cast<uint8_t>(faceData.uvOffset.pos.x + node.uvD.u),
+									  static_cast<uint8_t>(faceData.uvOffset.pos.y - node.uvD.v)};
+			faceData.orderingTable.insert(textured, zIndex);
 
-			cutoutFogQuadPrim.primitive.fog.pointA = node.projected[0];
-			cutoutFogQuadPrim.primitive.fog.pointB = node.projected[1];
-			cutoutFogQuadPrim.primitive.fog.pointC = node.projected[2];
-			cutoutFogQuadPrim.primitive.fog.pointD = node.projected[3];
+			auto& fromSource = faceData.bumpAllocator.allocateFragment<psyqo::Prim::MaskControl>();
+			fromSource.primitive = {psyqo::Prim::MaskControl::FromSource};
+			faceData.orderingTable.insert(fromSource, zIndex);
 
-			cutoutFogQuadPrim.primitive.fog.setColorA(node.fogColours[0]);
-			cutoutFogQuadPrim.primitive.fog.setColorB(node.fogColours[1]);
-			cutoutFogQuadPrim.primitive.fog.setColorC(node.fogColours[2]);
-			cutoutFogQuadPrim.primitive.fog.setColorD(node.fogColours[3]);
-			cutoutFogQuadPrim.primitive.fog.setSemiTrans();
+			auto& marker = faceData.bumpAllocator.allocateFragment<psyqo::Prim::GouraudQuad>();
+			marker.primitive.pointA = node.projected[0];
+			marker.primitive.pointB = node.projected[1];
+			marker.primitive.pointC = node.projected[2];
+			marker.primitive.pointD = node.projected[3];
 
-			faceData.orderingTable.insert(cutoutFogQuadPrim, zIndex);
+			marker.primitive.setColorA({
+				0,
+				0,
+				0,
+			});
+			marker.primitive.setColorB({
+				0,
+				0,
+				0,
+			});
+			marker.primitive.setColorC({
+				0,
+				0,
+				0,
+			});
+			marker.primitive.setColorD({
+				0,
+				0,
+				0,
+			});
+			marker.primitive.setSemiTrans();
+			faceData.orderingTable.insert(marker, zIndex);
+
+			auto& forceSet = faceData.bumpAllocator.allocateFragment<psyqo::Prim::MaskControl>();
+			forceSet.primitive = {psyqo::Prim::MaskControl::ForceSet};
+			faceData.orderingTable.insert(forceSet, zIndex);
+
+			auto& tpage = faceData.bumpAllocator.allocateFragment<psyqo::Prim::TPage>();
+			tpage.primitive.attr = faceData.tpage;
+			faceData.orderingTable.insert(tpage, zIndex);
 		}
 	} else { // untextured
 		auto& quadPrim = faceData.bumpAllocator.allocateFragment<psyqo::Prim::GouraudQuad>();
