@@ -1995,7 +1995,7 @@ void Renderer::ProcessTriNode(FaceNode& node, uint8_t subDivsionDepth, const Fac
 			midUV12.v = (node.uvB.v + node.uvC.v) >> 1;
 
 			psyqo::Color midColour12 = midColour(node.colours[1], node.colours[2]);
-			psyqo::Color midFogColour12 = midColour(node.colours[1], node.colours[2]);
+			psyqo::Color midFogColour12 = midColour(node.fogColours[1], node.fogColours[2]);
 
 			// tri A
 			triA.verts[0] = node.verts[0];
@@ -2073,7 +2073,7 @@ void Renderer::ProcessTriNode(FaceNode& node, uint8_t subDivsionDepth, const Fac
 			midUV02.v = (node.uvA.v + node.uvC.v) >> 1;
 
 			psyqo::Color midColour02 = midColour(node.colours[0], node.colours[2]);
-			psyqo::Color midFogColour02 = midColour(node.colours[0], node.colours[2]);
+			psyqo::Color midFogColour02 = midColour(node.fogColours[0], node.fogColours[2]);
 
 			// tri A
 			triA.verts[0] = node.verts[0];
