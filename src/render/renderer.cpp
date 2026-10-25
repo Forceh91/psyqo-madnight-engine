@@ -1039,14 +1039,14 @@ void Renderer::ProcessMeshQuad(const RendererQuad& quad, int8_t depth, const Fac
 					textured.primitive.clutIndex = {faceData.texture->clutX, faceData.texture->clutY};
 				}
 
-				textured.primitive.uvA = {static_cast<uint8_t>(faceData.uvOffset.pos.x + node.uvA.u),
-										  static_cast<uint8_t>(faceData.uvOffset.pos.y - node.uvA.v)};
-				textured.primitive.uvB = {static_cast<uint8_t>(faceData.uvOffset.pos.x + node.uvB.u),
-										  static_cast<uint8_t>(faceData.uvOffset.pos.y - node.uvB.v)};
-				textured.primitive.uvC = {static_cast<uint8_t>(faceData.uvOffset.pos.x + node.uvC.u),
-										  static_cast<uint8_t>(faceData.uvOffset.pos.y - node.uvC.v)};
-				textured.primitive.uvD = {static_cast<uint8_t>(faceData.uvOffset.pos.x + node.uvD.u),
-										  static_cast<uint8_t>(faceData.uvOffset.pos.y - node.uvD.v)};
+				textured.primitive.uvA = {static_cast<uint8_t>(faceData.uvOffset.pos.x + quad.uvA.u),
+										  static_cast<uint8_t>(faceData.uvOffset.pos.y - quad.uvA.v)};
+				textured.primitive.uvB = {static_cast<uint8_t>(faceData.uvOffset.pos.x + quad.uvB.u),
+										  static_cast<uint8_t>(faceData.uvOffset.pos.y - quad.uvB.v)};
+				textured.primitive.uvC = {static_cast<uint8_t>(faceData.uvOffset.pos.x + quad.uvC.u),
+										  static_cast<uint8_t>(faceData.uvOffset.pos.y - quad.uvC.v)};
+				textured.primitive.uvD = {static_cast<uint8_t>(faceData.uvOffset.pos.x + quad.uvD.u),
+										  static_cast<uint8_t>(faceData.uvOffset.pos.y - quad.uvD.v)};
 				faceData.orderingTable.insert(textured, zIndex);
 
 				auto& fromSource = faceData.bumpAllocator.allocateFragment<psyqo::Prim::MaskControl>();
@@ -1757,12 +1757,12 @@ void Renderer::ProcessMeshTri(const RendererTri& tri, int8_t depth, const FaceDa
 					textured.primitive.clutIndex = {faceData.texture->clutX, faceData.texture->clutY};
 				}
 
-				textured.primitive.uvA = {static_cast<uint8_t>(faceData.uvOffset.pos.x + node.uvA.u),
-										  static_cast<uint8_t>(faceData.uvOffset.pos.y - node.uvA.v)};
-				textured.primitive.uvB = {static_cast<uint8_t>(faceData.uvOffset.pos.x + node.uvB.u),
-										  static_cast<uint8_t>(faceData.uvOffset.pos.y - node.uvB.v)};
-				textured.primitive.uvC = {static_cast<uint8_t>(faceData.uvOffset.pos.x + node.uvC.u),
-										  static_cast<uint8_t>(faceData.uvOffset.pos.y - node.uvC.v)};
+				textured.primitive.uvA = {static_cast<uint8_t>(faceData.uvOffset.pos.x + tri.uvA.u),
+										  static_cast<uint8_t>(faceData.uvOffset.pos.y - tri.uvA.v)};
+				textured.primitive.uvB = {static_cast<uint8_t>(faceData.uvOffset.pos.x + tri.uvB.u),
+										  static_cast<uint8_t>(faceData.uvOffset.pos.y - tri.uvB.v)};
+				textured.primitive.uvC = {static_cast<uint8_t>(faceData.uvOffset.pos.x + tri.uvC.u),
+										  static_cast<uint8_t>(faceData.uvOffset.pos.y - tri.uvC.v)};
 				faceData.orderingTable.insert(textured, zIndex);
 
 				auto& fromSource = faceData.bumpAllocator.allocateFragment<psyqo::Prim::MaskControl>();
