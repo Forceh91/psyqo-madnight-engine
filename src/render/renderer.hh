@@ -8,6 +8,7 @@
 
 #include "../core/collision_types.hh"
 #include "../textures/texture_manager.hh"
+#include "EASTL/array.h"
 #include "camera.hh"
 #include "lighting.hh"
 #include "psyqo/ordering-table.hh"
@@ -46,6 +47,7 @@ struct FaceData {
 	BA& bumpAllocator;
 	OT& orderingTable;
 	const bool isAdvancedFog;
+	const bool useQuickAdvancedFogPass;
 };
 
 class Renderer final {
@@ -56,6 +58,8 @@ class Renderer final {
 	uint32_t m_lastFrameCounter = 0;
 	Camera* m_activeCamera;
 	psyqo::Vec3 m_gteCameraPos = {0, 0, 0};
+
+	psyqo::Fragments::SimpleFragment<psyqo::Prim::GouraudQuad> m_quickAdvancedFogOverlayQuad;
 
 	// create 2 ordering tables, one for each frame buffer
 	OT m_orderingTables[2];

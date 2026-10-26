@@ -28,7 +28,12 @@ typedef struct _GAMEOBJECT_ROTATION {
 	psyqo::Angle x = 0, y = 0, z = 0;
 } GameObjectRotation;
 
-enum RenderFlags { RF_NONE = 0, RF_DISTANCE_CHECK = 1 };
+enum RenderFlags {
+	RF_NONE = 0,
+	RF_DISTANCE_CHECK = 1,
+	RF_QUICK_ADVANCED_FOG = 2 /* when advanced fog is turned on this just masks the model with a semi transparent quad
+								 rather than drawing it twice (useful for detailed characters)*/
+};
 
 class GameObject final {
 	friend class GameObjectManager;
@@ -94,6 +99,7 @@ class GameObject final {
 	// note: doesn't actually do anything yet. need to figure it out later when its important
 	void SetQuadType(const GameObjectQuadType quadType) { m_quadType = quadType; }
 	void SetAsTrigger(const psyqo::Vec3& size);
+
 	bool HasRenderFlag(const RenderFlags& rf) { return m_renderFlags & (1 << rf); }
 	void SetRenderFlag(const RenderFlags& rf) { m_renderFlags |= (1 << rf); }
 	void ClearRenderFlag(const RenderFlags& rf) { m_renderFlags &= ~(1 << rf); }

@@ -131,7 +131,7 @@ void Renderer::StartScene(void) {
 
 	// set fog colour (FC)
 	if (m_lighting->IsAdvancedFogEnabled()) {
-		SetFogNearFar(0.3_fp, 1.0_fp);
+		SetFogNearFar(0.33_fp, 1.1_fp);
 	} else if (m_lighting->IsSimpleFogEnabled()) {
 		SetFogColour(m_lighting->GetFogColour());
 		SetFogNearFar(0.5_fp, 1.55_fp);
@@ -372,7 +372,51 @@ void Renderer::RenderGameObjects(uint32_t deltaTime, const psyqo::Matrix33& came
 			offset.pos.y += (texture->height - 1);
 		}
 
-		const FaceData faceData = {texture, tpage, offset, allocator, ot, m_lighting->IsAdvancedFogEnabled()};
+		const auto& quickAdvancedFog = gameObject->HasRenderFlag(RF_QUICK_ADVANCED_FOG);
+		const FaceData faceData = {texture,			tpage, offset, allocator, ot, m_lighting->IsAdvancedFogEnabled(),
+								   quickAdvancedFog};
+
+		// if we're doing a character then quick advanced fog is used (stp untextured quad on top)
+		if (quickAdvancedFog) {
+			auto& reset = allocator.allocateFragment<psyqo::Prim::MaskControl>();
+			reset.primitive = {psyqo::Prim::MaskControl::FromSource, psyqo::Prim::MaskControl::Test::Yes};
+			ot.insert(reset, zIndex);
+
+			// overlay
+			m_quickAdvancedFogOverlayQuad = faceData.bumpAllocator.allocateFragment<psyqo::Prim::GouraudQuad>();
+			m_quickAdvancedFogOverlayQuad.primitive.pointA = psyqo::Vertex{1024, 512};
+			m_quickAdvancedFogOverlayQuad.primitive.pointB = psyqo::Vertex{-1024, -512};
+			m_quickAdvancedFogOverlayQuad.primitive.pointC = psyqo::Vertex{1024, 512};
+			m_quickAdvancedFogOverlayQuad.primitive.pointD = psyqo::Vertex{-1024, -512};
+
+			m_quickAdvancedFogOverlayQuad.primitive.setColorA({
+				0,
+				0,
+				0,
+			});
+			m_quickAdvancedFogOverlayQuad.primitive.setColorB({
+				0,
+				0,
+				0,
+			});
+			m_quickAdvancedFogOverlayQuad.primitive.setColorC({
+				0,
+				0,
+				0,
+			});
+			m_quickAdvancedFogOverlayQuad.primitive.setColorD({
+				0,
+				0,
+				0,
+			});
+			m_quickAdvancedFogOverlayQuad.primitive.setSemiTrans();
+			faceData.orderingTable.insert(m_quickAdvancedFogOverlayQuad, zIndex);
+
+			auto& test = allocator.allocateFragment<psyqo::Prim::MaskControl>();
+			test.primitive = {psyqo::Prim::MaskControl::FromSource, psyqo::Prim::MaskControl::Test::Yes};
+			ot.insert(test, zIndex);
+		}
+
 		for (int32_t i = 0; i < mesh->facesCount; i++) {
 			const auto& rendererFace = mesh->facesData[i];
 
@@ -943,6 +987,22 @@ void Renderer::ProcessMeshQuad(const RendererQuad& quad, int8_t depth, const Fac
 		bool isAdvancedFog =
 			faceData.isAdvancedFog && (node.irs[0] > 0 || node.irs[1] > 0 || node.irs[2] > 0 || node.irs[3] > 0);
 
+		// update overlay min/max points
+		if (faceData.isAdvancedFog && faceData.useQuickAdvancedFogPass) {
+			auto& prim = m_quickAdvancedFogOverlayQuad.primitive;
+			m_quickAdvancedFogOverlayQuad.primitive.pointA = {eastl::min(node.projected[0].x, prim.pointA.x),
+															  eastl::min(node.projected[0].y, prim.pointA.y)};
+			m_quickAdvancedFogOverlayQuad.primitive.pointB = {eastl::max(node.projected[1].x, prim.pointB.x),
+															  eastl::max(node.projected[1].y, prim.pointB.y)};
+			m_quickAdvancedFogOverlayQuad.primitive.pointC = {eastl::min(node.projected[2].x, prim.pointC.x),
+															  eastl::min(node.projected[2].y, prim.pointC.y)};
+			m_quickAdvancedFogOverlayQuad.primitive.pointD = {eastl::max(node.projected[3].x, prim.pointD.x),
+															  eastl::max(node.projected[3].y, prim.pointD.y)};
+
+			printf("updating quick advanced fog overlay quad (%d,%d)\n",
+				   m_quickAdvancedFogOverlayQuad.primitive.pointA.x, m_quickAdvancedFogOverlayQuad.primitive.pointA.y);
+		}
+
 		if (faceData.texture != nullptr) {
 			if (!isAdvancedFog || !(faceData.texture->flags & (1 << 0))) {
 				auto& quadPrim = faceData.bumpAllocator.allocateFragment<psyqo::Prim::GouraudTexturedQuad>();
@@ -1148,7 +1208,7 @@ void Renderer::ProcessQuadNode(FaceNode& node, uint8_t subDivsionDepth, const Fa
 	// if its the parent then do colour work that can be propogated
 	if (subDivsionDepth == 0) {
 		// apply fog colours
-		if (!faceData.isAdvancedFog) {
+		if (!faceData.isAdvancedFog || faceData.useQuickAdvancedFogPass) {
 			for (int i = 0; i < 4; i++) {
 				ApplyAmbientToColour(&node.colours[i]);
 				node.colours[i] = ApplyFogToColourGTE(node.colours[i], node.irs[i]);
@@ -1411,8 +1471,25 @@ void Renderer::ProcessQuadNode(FaceNode& node, uint8_t subDivsionDepth, const Fa
 		return;
 	} // OTHERWISE continue to process and add to OT
 
-	bool isAdvancedFog =
-		faceData.isAdvancedFog && (node.irs[0] > 0 || node.irs[1] > 0 || node.irs[2] > 0 || node.irs[3] > 0);
+	bool isAdvancedFog = faceData.isAdvancedFog &&
+						 (node.irs[0] > 0 || node.irs[1] > 0 || node.irs[2] > 0 || node.irs[3] > 0) &&
+						 !faceData.useQuickAdvancedFogPass;
+
+	// update overlay min/max points
+	if (faceData.isAdvancedFog && faceData.useQuickAdvancedFogPass) {
+		auto& prim = m_quickAdvancedFogOverlayQuad.primitive;
+		m_quickAdvancedFogOverlayQuad.primitive.pointA = {eastl::min(node.projected[0].x, prim.pointA.x),
+														  eastl::min(node.projected[0].y, prim.pointA.y)};
+		m_quickAdvancedFogOverlayQuad.primitive.pointB = {eastl::max(node.projected[1].x, prim.pointB.x),
+														  eastl::max(node.projected[1].y, prim.pointB.y)};
+		m_quickAdvancedFogOverlayQuad.primitive.pointC = {eastl::min(node.projected[2].x, prim.pointC.x),
+														  eastl::min(node.projected[2].y, prim.pointC.y)};
+		m_quickAdvancedFogOverlayQuad.primitive.pointD = {eastl::max(node.projected[3].x, prim.pointD.x),
+														  eastl::max(node.projected[3].y, prim.pointD.y)};
+
+		printf("updating quick advanced fog overlay quad (%d,%d)\n", m_quickAdvancedFogOverlayQuad.primitive.pointA.x,
+			   m_quickAdvancedFogOverlayQuad.primitive.pointA.y);
+	}
 
 	// textured
 	if (faceData.texture != nullptr) {
