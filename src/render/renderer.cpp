@@ -387,28 +387,12 @@ void Renderer::RenderGameObjects(uint32_t deltaTime, const psyqo::Matrix33& came
 			m_quickAdvancedFogOverlayQuad->primitive.pointC = psyqo::Vertex{1024, -512};
 			m_quickAdvancedFogOverlayQuad->primitive.pointD = psyqo::Vertex{-1024, -512};
 
-			m_quickAdvancedFogOverlayQuad->primitive.setColorA({
-				0,
-				0,
-				0,
-			});
-			m_quickAdvancedFogOverlayQuad->primitive.setColorB({
-				0,
-				0,
-				0,
-			});
-			m_quickAdvancedFogOverlayQuad->primitive.setColorC({
-				0,
-				0,
-				0,
-			});
-			m_quickAdvancedFogOverlayQuad->primitive.setColorD({
-				0,
-				0,
-				0,
-			});
+			m_quickAdvancedFogOverlayQuad->primitive.setColorA(m_lighting->GetFogColour());
+			m_quickAdvancedFogOverlayQuad->primitive.setColorB(m_lighting->GetFogColour());
+			m_quickAdvancedFogOverlayQuad->primitive.setColorC(m_lighting->GetFogColour());
+			m_quickAdvancedFogOverlayQuad->primitive.setColorD(m_lighting->GetFogColour());
 			m_quickAdvancedFogOverlayQuad->primitive.setSemiTrans();
-			m_overlayIsInserted = false;
+			m_quickAdvancedFogSmallestZ = ORDERING_TABLE_SIZE - 1;
 		}
 
 		for (int32_t i = 0; i < mesh->facesCount; i++) {
@@ -419,6 +403,23 @@ void Renderer::RenderGameObjects(uint32_t deltaTime, const psyqo::Matrix33& came
 			} else {
 				ProcessMeshTri(mesh->tris[rendererFace.rendererFaceIx], 0, faceData);
 			}
+		}
+
+		if (quickAdvancedFog) {
+			auto& reset = faceData.bumpAllocator.allocateFragment<psyqo::Prim::MaskControl>();
+			reset.primitive = {psyqo::Prim::MaskControl::FromSource};
+			faceData.orderingTable.insert(reset, m_quickAdvancedFogSmallestZ - 1);
+
+			faceData.orderingTable.insert(*m_quickAdvancedFogOverlayQuad, m_quickAdvancedFogSmallestZ - 1);
+
+			auto& overlayTpage = faceData.bumpAllocator.allocateFragment<psyqo::Prim::TPage>();
+			overlayTpage.primitive.attr = tpage;
+			overlayTpage.primitive.attr.set(psyqo::Prim::TPageAttr::HalfBackAndHalfFront);
+			faceData.orderingTable.insert(overlayTpage, m_quickAdvancedFogSmallestZ - 1);
+
+			auto& test = faceData.bumpAllocator.allocateFragment<psyqo::Prim::MaskControl>();
+			test.primitive = {psyqo::Prim::MaskControl::FromSource, psyqo::Prim::MaskControl::Test::Yes};
+			faceData.orderingTable.insert(test, m_quickAdvancedFogSmallestZ - 1);
 		}
 
 #if ENABLE_BONE_DEBUG
@@ -978,8 +979,9 @@ void Renderer::ProcessMeshQuad(const RendererQuad& quad, int8_t depth, const Fac
 			}
 		}
 
-		bool isAdvancedFog =
-			faceData.isAdvancedFog && (node.irs[0] > 0 || node.irs[1] > 0 || node.irs[2] > 0 || node.irs[3] > 0);
+		bool isAdvancedFog = faceData.isAdvancedFog &&
+							 (node.irs[0] > 0 || node.irs[1] > 0 || node.irs[2] > 0 || node.irs[3] > 0) &&
+							 !faceData.useQuickAdvancedFogPass;
 
 		// update overlay min/max points
 		if (faceData.isAdvancedFog && faceData.useQuickAdvancedFogPass) {
@@ -993,19 +995,7 @@ void Renderer::ProcessMeshQuad(const RendererQuad& quad, int8_t depth, const Fac
 			m_quickAdvancedFogOverlayQuad->primitive.pointD = {eastl::max(node.projected[3].x, prim.pointD.x),
 															   eastl::max(node.projected[3].y, prim.pointD.y)};
 
-			if (!m_overlayIsInserted) {
-				auto& reset = faceData.bumpAllocator.allocateFragment<psyqo::Prim::MaskControl>();
-				reset.primitive = {psyqo::Prim::MaskControl::FromSource};
-				faceData.orderingTable.insert(reset, zIndex);
-
-				faceData.orderingTable.insert(*m_quickAdvancedFogOverlayQuad, zIndex);
-
-				auto& test = faceData.bumpAllocator.allocateFragment<psyqo::Prim::MaskControl>();
-				test.primitive = {psyqo::Prim::MaskControl::FromSource, psyqo::Prim::MaskControl::Test::Yes};
-				faceData.orderingTable.insert(test, zIndex);
-
-				m_overlayIsInserted = true;
-			}
+			m_quickAdvancedFogSmallestZ = eastl::min(m_quickAdvancedFogSmallestZ, zIndex);
 		}
 
 		if (faceData.texture != nullptr) {
