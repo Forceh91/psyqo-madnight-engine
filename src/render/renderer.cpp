@@ -386,7 +386,8 @@ void Renderer::RenderGameObjects(uint32_t deltaTime, const psyqo::Matrix33& came
 			m_quickAdvancedFogOverlayQuad->primitive.setSemiTrans();
 			m_qafSmallestZ = ORDERING_TABLE_SIZE - 1;
 
-			m_qafOverlayMinX = INT16_MAX, m_qafMinY = INT16_MAX, m_qafMaxX = -INT16_MAX, m_qafMaxY = -INT16_MAX;
+			m_qafOverlayMinX = INT16_MAX, m_qafOverlayMinY = INT16_MAX, m_qafOverlayMaxX = -INT16_MAX,
+			m_qafOverlayMaxY = -INT16_MAX;
 			m_qafIR0 = 0;
 			m_qafIROCount = 0;
 		}
@@ -402,15 +403,15 @@ void Renderer::RenderGameObjects(uint32_t deltaTime, const psyqo::Matrix33& came
 		}
 
 		if (quickAdvancedFog && m_quickAdvancedFogOverlayQuad && m_qafOverlayMinX != INT16_MAX &&
-			m_qafOverlayMinX < m_qafMaxX) {
+			m_qafOverlayMinX < m_qafOverlayMaxX) {
 			auto& reset = faceData.bumpAllocator.allocateFragment<psyqo::Prim::MaskControl>();
 			reset.primitive = {psyqo::Prim::MaskControl::FromSource};
 			faceData.orderingTable.insert(reset, m_qafSmallestZ - 1);
 
-			m_quickAdvancedFogOverlayQuad->primitive.pointA = psyqo::Vertex{m_qafOverlayMinX, m_qafMinY};
-			m_quickAdvancedFogOverlayQuad->primitive.pointB = psyqo::Vertex{m_qafMaxX, m_qafMinY};
-			m_quickAdvancedFogOverlayQuad->primitive.pointC = psyqo::Vertex{m_qafOverlayMinX, m_qafMaxY};
-			m_quickAdvancedFogOverlayQuad->primitive.pointD = psyqo::Vertex{m_qafMaxX, m_qafMaxY};
+			m_quickAdvancedFogOverlayQuad->primitive.pointA = psyqo::Vertex{m_qafOverlayMinX, m_qafOverlayMinY};
+			m_quickAdvancedFogOverlayQuad->primitive.pointB = psyqo::Vertex{m_qafOverlayMaxX, m_qafOverlayMinY};
+			m_quickAdvancedFogOverlayQuad->primitive.pointC = psyqo::Vertex{m_qafOverlayMinX, m_qafOverlayMaxY};
+			m_quickAdvancedFogOverlayQuad->primitive.pointD = psyqo::Vertex{m_qafOverlayMaxX, m_qafOverlayMaxY};
 
 			auto& fog = m_lighting->GetFogColour();
 			auto t = m_qafIROCount > 0 ? eastl::min<uint32_t>(m_qafIR0 / m_qafIROCount, 4096) : 0;
@@ -1007,9 +1008,9 @@ void Renderer::ProcessMeshQuad(const RendererQuad& quad, int8_t depth, const Fac
 		if (faceData.isAdvancedFog && faceData.useQuickAdvancedFogPass) {
 			for (int i = 0; i < 4; i++) {
 				m_qafOverlayMinX = eastl::min(m_qafOverlayMinX, node.projected[i].x);
-				m_qafMinY = eastl::min(m_qafMinY, node.projected[i].y);
-				m_qafMaxX = eastl::max(m_qafMaxX, node.projected[i].x);
-				m_qafMaxY = eastl::max(m_qafMaxY, node.projected[i].y);
+				m_qafOverlayMinY = eastl::min(m_qafOverlayMinY, node.projected[i].y);
+				m_qafOverlayMaxX = eastl::max(m_qafOverlayMaxX, node.projected[i].x);
+				m_qafOverlayMaxY = eastl::max(m_qafOverlayMaxY, node.projected[i].y);
 			}
 
 			m_qafSmallestZ = eastl::min(m_qafSmallestZ, zIndex);
@@ -1505,9 +1506,9 @@ void Renderer::ProcessQuadNode(FaceNode& node, uint8_t subDivsionDepth, const Fa
 	if (faceData.isAdvancedFog && faceData.useQuickAdvancedFogPass) {
 		for (int i = 0; i < 4; i++) {
 			m_qafOverlayMinX = eastl::min(m_qafOverlayMinX, node.projected[i].x);
-			m_qafMinY = eastl::min(m_qafMinY, node.projected[i].y);
-			m_qafMaxX = eastl::max(m_qafMaxX, node.projected[i].x);
-			m_qafMaxY = eastl::max(m_qafMaxY, node.projected[i].y);
+			m_qafOverlayMinY = eastl::min(m_qafOverlayMinY, node.projected[i].y);
+			m_qafOverlayMaxX = eastl::max(m_qafOverlayMaxX, node.projected[i].x);
+			m_qafOverlayMaxY = eastl::max(m_qafOverlayMaxY, node.projected[i].y);
 		}
 		m_qafSmallestZ = eastl::min(m_qafSmallestZ, zIndex);
 	}
@@ -1787,9 +1788,9 @@ void Renderer::ProcessMeshTri(const RendererTri& tri, int8_t depth, const FaceDa
 		if (faceData.isAdvancedFog && faceData.useQuickAdvancedFogPass) {
 			for (int i = 0; i < 3; i++) {
 				m_qafOverlayMinX = eastl::min(m_qafOverlayMinX, node.projected[i].x);
-				m_qafMinY = eastl::min(m_qafMinY, node.projected[i].y);
-				m_qafMaxX = eastl::max(m_qafMaxX, node.projected[i].x);
-				m_qafMaxY = eastl::max(m_qafMaxY, node.projected[i].y);
+				m_qafOverlayMinY = eastl::min(m_qafOverlayMinY, node.projected[i].y);
+				m_qafOverlayMaxX = eastl::max(m_qafOverlayMaxX, node.projected[i].x);
+				m_qafOverlayMaxY = eastl::max(m_qafOverlayMaxY, node.projected[i].y);
 			}
 
 			m_qafSmallestZ = eastl::min(m_qafSmallestZ, zIndex);
@@ -2279,6 +2280,17 @@ void Renderer::ProcessTriNode(FaceNode& node, uint8_t subDivsionDepth, const Fac
 
 	// textured
 	bool isAdvancedFog = faceData.isAdvancedFog && (node.irs[0] > 0 || node.irs[1] > 0 || node.irs[2] > 0);
+
+	// update overlay min/max points
+	if (faceData.isAdvancedFog && faceData.useQuickAdvancedFogPass) {
+		for (int i = 0; i < 4; i++) {
+			m_qafOverlayMinX = eastl::min(m_qafOverlayMinX, node.projected[i].x);
+			m_qafOverlayMinY = eastl::min(m_qafOverlayMinY, node.projected[i].y);
+			m_qafOverlayMaxX = eastl::max(m_qafOverlayMaxX, node.projected[i].x);
+			m_qafOverlayMaxY = eastl::max(m_qafOverlayMaxY, node.projected[i].y);
+		}
+		m_qafSmallestZ = eastl::min(m_qafSmallestZ, zIndex);
+	}
 
 	if (faceData.texture != nullptr) {
 		if (!isAdvancedFog || !(faceData.texture->flags & (1 << 0))) {

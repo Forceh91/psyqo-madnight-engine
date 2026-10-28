@@ -59,9 +59,10 @@ class Renderer final {
 	Camera* m_activeCamera;
 	psyqo::Vec3 m_gteCameraPos = {0, 0, 0};
 
+	// used when a game object has the `RF_QUICK_ADVANCED_FOG` render flag
 	psyqo::Fragments::SimpleFragment<psyqo::Prim::Quad>* m_quickAdvancedFogOverlayQuad = nullptr;
 	uint32_t m_qafSmallestZ = ORDERING_TABLE_SIZE - 1;
-	int16_t m_qafOverlayMinX, m_qafMinY, m_qafMaxX, m_qafMaxY;
+	int16_t m_qafOverlayMinX, m_qafOverlayMinY, m_qafOverlayMaxX, m_qafOverlayMaxY;
 	uint32_t m_qafIR0 = 0;
 	uint32_t m_qafIROCount = 0;
 
