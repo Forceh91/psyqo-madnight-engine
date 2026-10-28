@@ -384,11 +384,11 @@ void Renderer::RenderGameObjects(uint32_t deltaTime, const psyqo::Matrix33& came
 			// overlay
 			m_quickAdvancedFogOverlayQuad = &faceData.bumpAllocator.allocateFragment<psyqo::Prim::Quad>();
 			m_quickAdvancedFogOverlayQuad->primitive.setSemiTrans();
-			m_quickAdvancedFogSmallestZ = ORDERING_TABLE_SIZE - 1;
+			m_qafSmallestZ = ORDERING_TABLE_SIZE - 1;
 
-			m_ovMinX = INT16_MAX, m_ovMinY = INT16_MAX, m_ovMaxX = -INT16_MAX, m_ovMaxY = -INT16_MAX;
-			m_quickFogT = 0;
-			m_quickFogTCount = 0;
+			m_qafOverlayMinX = INT16_MAX, m_qafMinY = INT16_MAX, m_qafMaxX = -INT16_MAX, m_qafMaxY = -INT16_MAX;
+			m_qafIR0 = 0;
+			m_qafIROCount = 0;
 		}
 
 		for (int32_t i = 0; i < mesh->facesCount; i++) {
@@ -401,31 +401,32 @@ void Renderer::RenderGameObjects(uint32_t deltaTime, const psyqo::Matrix33& came
 			}
 		}
 
-		if (quickAdvancedFog && m_quickAdvancedFogOverlayQuad && m_ovMinX != INT16_MAX && m_ovMinX < m_ovMaxX) {
+		if (quickAdvancedFog && m_quickAdvancedFogOverlayQuad && m_qafOverlayMinX != INT16_MAX &&
+			m_qafOverlayMinX < m_qafMaxX) {
 			auto& reset = faceData.bumpAllocator.allocateFragment<psyqo::Prim::MaskControl>();
 			reset.primitive = {psyqo::Prim::MaskControl::FromSource};
-			faceData.orderingTable.insert(reset, m_quickAdvancedFogSmallestZ - 1);
+			faceData.orderingTable.insert(reset, m_qafSmallestZ - 1);
 
-			m_quickAdvancedFogOverlayQuad->primitive.pointA = psyqo::Vertex{m_ovMinX, m_ovMinY};
-			m_quickAdvancedFogOverlayQuad->primitive.pointB = psyqo::Vertex{m_ovMaxX, m_ovMinY};
-			m_quickAdvancedFogOverlayQuad->primitive.pointC = psyqo::Vertex{m_ovMinX, m_ovMaxY};
-			m_quickAdvancedFogOverlayQuad->primitive.pointD = psyqo::Vertex{m_ovMaxX, m_ovMaxY};
+			m_quickAdvancedFogOverlayQuad->primitive.pointA = psyqo::Vertex{m_qafOverlayMinX, m_qafMinY};
+			m_quickAdvancedFogOverlayQuad->primitive.pointB = psyqo::Vertex{m_qafMaxX, m_qafMinY};
+			m_quickAdvancedFogOverlayQuad->primitive.pointC = psyqo::Vertex{m_qafOverlayMinX, m_qafMaxY};
+			m_quickAdvancedFogOverlayQuad->primitive.pointD = psyqo::Vertex{m_qafMaxX, m_qafMaxY};
 
 			auto& fog = m_lighting->GetFogColour();
-			auto t = m_quickFogTCount > 0 ? eastl::min<uint32_t>(m_quickFogT / m_quickFogTCount, 4096) : 0;
+			auto t = m_qafIROCount > 0 ? eastl::min<uint32_t>(m_qafIR0 / m_qafIROCount, 4096) : 0;
 			psyqo::Color add = {uint8_t((fog.r * t) >> 12), uint8_t((fog.g * t) >> 12), uint8_t((fog.b * t) >> 12)};
 			m_quickAdvancedFogOverlayQuad->primitive.setColor(add);
 
-			faceData.orderingTable.insert(*m_quickAdvancedFogOverlayQuad, m_quickAdvancedFogSmallestZ - 1);
+			faceData.orderingTable.insert(*m_quickAdvancedFogOverlayQuad, m_qafSmallestZ - 1);
 
 			auto& overlayTpage = faceData.bumpAllocator.allocateFragment<psyqo::Prim::TPage>();
 			overlayTpage.primitive.attr = tpage;
 			overlayTpage.primitive.attr.set(psyqo::Prim::TPageAttr::FullBackAndFullFront);
-			faceData.orderingTable.insert(overlayTpage, m_quickAdvancedFogSmallestZ - 1);
+			faceData.orderingTable.insert(overlayTpage, m_qafSmallestZ - 1);
 
 			auto& test = faceData.bumpAllocator.allocateFragment<psyqo::Prim::MaskControl>();
 			test.primitive = {psyqo::Prim::MaskControl::FromSource, psyqo::Prim::MaskControl::Test::Yes};
-			faceData.orderingTable.insert(test, m_quickAdvancedFogSmallestZ - 1);
+			faceData.orderingTable.insert(test, m_qafSmallestZ - 1);
 		}
 
 #if ENABLE_BONE_DEBUG
@@ -991,10 +992,10 @@ void Renderer::ProcessMeshQuad(const RendererQuad& quad, int8_t depth, const Fac
 					vertexColours[i] = {uint8_t((vertexColours[i].r * density) >> 12),
 										uint8_t((vertexColours[i].g * density) >> 12),
 										uint8_t((vertexColours[i].b * density) >> 12)};
-					m_quickFogT += node.irs[i];
+					m_qafIR0 += node.irs[i];
 				}
 
-				m_quickFogTCount += 4;
+				m_qafIROCount += 4;
 			}
 		}
 
@@ -1005,13 +1006,13 @@ void Renderer::ProcessMeshQuad(const RendererQuad& quad, int8_t depth, const Fac
 		// update overlay min/max points
 		if (faceData.isAdvancedFog && faceData.useQuickAdvancedFogPass) {
 			for (int i = 0; i < 4; i++) {
-				m_ovMinX = eastl::min(m_ovMinX, node.projected[i].x);
-				m_ovMinY = eastl::min(m_ovMinY, node.projected[i].y);
-				m_ovMaxX = eastl::max(m_ovMaxX, node.projected[i].x);
-				m_ovMaxY = eastl::max(m_ovMaxY, node.projected[i].y);
+				m_qafOverlayMinX = eastl::min(m_qafOverlayMinX, node.projected[i].x);
+				m_qafMinY = eastl::min(m_qafMinY, node.projected[i].y);
+				m_qafMaxX = eastl::max(m_qafMaxX, node.projected[i].x);
+				m_qafMaxY = eastl::max(m_qafMaxY, node.projected[i].y);
 			}
 
-			m_quickAdvancedFogSmallestZ = eastl::min(m_quickAdvancedFogSmallestZ, zIndex);
+			m_qafSmallestZ = eastl::min(m_qafSmallestZ, zIndex);
 		}
 
 		if (faceData.texture != nullptr) {
@@ -1243,11 +1244,11 @@ void Renderer::ProcessQuadNode(FaceNode& node, uint8_t subDivsionDepth, const Fa
 					node.colours[i] = {uint8_t((node.colours[i].r * density) >> 12),
 									   uint8_t((node.colours[i].g * density) >> 12),
 									   uint8_t((node.colours[i].b * density) >> 12)};
-					m_quickFogT += node.irs[i];
+					m_qafIR0 += node.irs[i];
 				}
 
 				// average the quick fog t scale
-				m_quickFogTCount += 4;
+				m_qafIROCount += 4;
 			}
 		}
 	}
@@ -1503,12 +1504,12 @@ void Renderer::ProcessQuadNode(FaceNode& node, uint8_t subDivsionDepth, const Fa
 	// update overlay min/max points
 	if (faceData.isAdvancedFog && faceData.useQuickAdvancedFogPass) {
 		for (int i = 0; i < 4; i++) {
-			m_ovMinX = eastl::min(m_ovMinX, node.projected[i].x);
-			m_ovMinY = eastl::min(m_ovMinY, node.projected[i].y);
-			m_ovMaxX = eastl::max(m_ovMaxX, node.projected[i].x);
-			m_ovMaxY = eastl::max(m_ovMaxY, node.projected[i].y);
+			m_qafOverlayMinX = eastl::min(m_qafOverlayMinX, node.projected[i].x);
+			m_qafMinY = eastl::min(m_qafMinY, node.projected[i].y);
+			m_qafMaxX = eastl::max(m_qafMaxX, node.projected[i].x);
+			m_qafMaxY = eastl::max(m_qafMaxY, node.projected[i].y);
 		}
-		m_quickAdvancedFogSmallestZ = eastl::min(m_quickAdvancedFogSmallestZ, zIndex);
+		m_qafSmallestZ = eastl::min(m_qafSmallestZ, zIndex);
 	}
 
 	// textured
@@ -1772,10 +1773,10 @@ void Renderer::ProcessMeshTri(const RendererTri& tri, int8_t depth, const FaceDa
 					vertexColours[i] = {uint8_t((vertexColours[i].r * density) >> 12),
 										uint8_t((vertexColours[i].g * density) >> 12),
 										uint8_t((vertexColours[i].b * density) >> 12)};
-					m_quickFogT += node.irs[i];
+					m_qafIR0 += node.irs[i];
 				}
 
-				m_quickFogTCount += 3;
+				m_qafIROCount += 3;
 			}
 		}
 
@@ -1785,13 +1786,13 @@ void Renderer::ProcessMeshTri(const RendererTri& tri, int8_t depth, const FaceDa
 		// update overlay min/max points
 		if (faceData.isAdvancedFog && faceData.useQuickAdvancedFogPass) {
 			for (int i = 0; i < 3; i++) {
-				m_ovMinX = eastl::min(m_ovMinX, node.projected[i].x);
-				m_ovMinY = eastl::min(m_ovMinY, node.projected[i].y);
-				m_ovMaxX = eastl::max(m_ovMaxX, node.projected[i].x);
-				m_ovMaxY = eastl::max(m_ovMaxY, node.projected[i].y);
+				m_qafOverlayMinX = eastl::min(m_qafOverlayMinX, node.projected[i].x);
+				m_qafMinY = eastl::min(m_qafMinY, node.projected[i].y);
+				m_qafMaxX = eastl::max(m_qafMaxX, node.projected[i].x);
+				m_qafMaxY = eastl::max(m_qafMaxY, node.projected[i].y);
 			}
 
-			m_quickAdvancedFogSmallestZ = eastl::min(m_quickAdvancedFogSmallestZ, zIndex);
+			m_qafSmallestZ = eastl::min(m_qafSmallestZ, zIndex);
 		}
 
 		if (faceData.texture != nullptr) {
@@ -2000,11 +2001,11 @@ void Renderer::ProcessTriNode(FaceNode& node, uint8_t subDivsionDepth, const Fac
 					node.colours[i] = {uint8_t((node.colours[i].r * density) >> 12),
 									   uint8_t((node.colours[i].g * density) >> 12),
 									   uint8_t((node.colours[i].b * density) >> 12)};
-					m_quickFogT += node.irs[i];
+					m_qafIR0 += node.irs[i];
 				}
 
 				// average the quick fog t scale
-				m_quickFogTCount += 3;
+				m_qafIROCount += 3;
 			}
 		}
 	}

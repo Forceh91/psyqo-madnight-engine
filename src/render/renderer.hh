@@ -60,10 +60,10 @@ class Renderer final {
 	psyqo::Vec3 m_gteCameraPos = {0, 0, 0};
 
 	psyqo::Fragments::SimpleFragment<psyqo::Prim::Quad>* m_quickAdvancedFogOverlayQuad = nullptr;
-	uint32_t m_quickAdvancedFogSmallestZ = ORDERING_TABLE_SIZE - 1;
-	int16_t m_ovMinX, m_ovMinY, m_ovMaxX, m_ovMaxY;
-	uint32_t m_quickFogT = 0;
-	uint32_t m_quickFogTCount = 0;
+	uint32_t m_qafSmallestZ = ORDERING_TABLE_SIZE - 1;
+	int16_t m_qafOverlayMinX, m_qafMinY, m_qafMaxX, m_qafMaxY;
+	uint32_t m_qafIR0 = 0;
+	uint32_t m_qafIROCount = 0;
 
 	// create 2 ordering tables, one for each frame buffer
 	OT m_orderingTables[2];
