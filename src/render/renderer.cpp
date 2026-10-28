@@ -988,12 +988,16 @@ void Renderer::ProcessMeshQuad(const RendererQuad& quad, int8_t depth, const Fac
 				}
 			} else {
 				for (int i = 0; i < 4; i++) {
-					m_quickFogT = 4096 - node.irs[i];
-					ApplyAmbientToColour(&vertexColours[i]);
-					vertexColours[i] = {uint8_t((vertexColours[i].r * m_quickFogT) >> 12),
-										uint8_t((vertexColours[i].g * m_quickFogT) >> 12),
-										uint8_t((vertexColours[i].b * m_quickFogT) >> 12)};
+					auto density = 4096 - node.irs[i];
+					ApplyAmbientToColour(&node.colours[i]);
+					node.colours[i] = {uint8_t((node.colours[i].r * density) >> 12),
+									   uint8_t((node.colours[i].g * density) >> 12),
+									   uint8_t((node.colours[i].b * density) >> 12)};
+					m_quickFogT += node.irs[i];
 				}
+
+				// average the quick fog t scale
+				m_quickFogT /= 4;
 			}
 		}
 
@@ -1236,14 +1240,17 @@ void Renderer::ProcessQuadNode(FaceNode& node, uint8_t subDivsionDepth, const Fa
 					node.fogColours[i] = GTEColourLerp({0, 0, 0}, node.irs[i]);
 				}
 			} else {
-
 				for (int i = 0; i < 4; i++) {
-					m_quickFogT = 4096 - node.irs[i];
+					auto density = 4096 - node.irs[i];
 					ApplyAmbientToColour(&node.colours[i]);
-					node.colours[i] = {uint8_t((node.colours[i].r * m_quickFogT) >> 12),
-									   uint8_t((node.colours[i].g * m_quickFogT) >> 12),
-									   uint8_t((node.colours[i].b * m_quickFogT) >> 12)};
+					node.colours[i] = {uint8_t((node.colours[i].r * density) >> 12),
+									   uint8_t((node.colours[i].g * density) >> 12),
+									   uint8_t((node.colours[i].b * density) >> 12)};
+					m_quickFogT += node.irs[i];
 				}
+
+				// average the quick fog t scale
+				m_quickFogT /= 4;
 			}
 		}
 	}
