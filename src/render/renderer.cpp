@@ -382,7 +382,7 @@ void Renderer::RenderGameObjects(uint32_t deltaTime, const psyqo::Matrix33& came
 			m_quickAdvancedFogOverlayQuad = nullptr;
 
 			// overlay
-			m_quickAdvancedFogOverlayQuad = &faceData.bumpAllocator.allocateFragment<psyqo::Prim::GouraudQuad>();
+			m_quickAdvancedFogOverlayQuad = &faceData.bumpAllocator.allocateFragment<psyqo::Prim::Quad>();
 			m_quickAdvancedFogOverlayQuad->primitive.setSemiTrans();
 			m_quickAdvancedFogSmallestZ = ORDERING_TABLE_SIZE - 1;
 
@@ -412,11 +412,7 @@ void Renderer::RenderGameObjects(uint32_t deltaTime, const psyqo::Matrix33& came
 			auto& fog = m_lighting->GetFogColour();
 			psyqo::Color add = {uint8_t((fog.r * m_quickFogT) >> 12), uint8_t((fog.g * m_quickFogT) >> 12),
 								uint8_t((fog.b * m_quickFogT) >> 12)};
-
-			m_quickAdvancedFogOverlayQuad->primitive.setColorA(add);
-			m_quickAdvancedFogOverlayQuad->primitive.setColorB(add);
-			m_quickAdvancedFogOverlayQuad->primitive.setColorC(add);
-			m_quickAdvancedFogOverlayQuad->primitive.setColorD(add);
+			m_quickAdvancedFogOverlayQuad->primitive.setColor(add);
 
 			faceData.orderingTable.insert(*m_quickAdvancedFogOverlayQuad, m_quickAdvancedFogSmallestZ - 1);
 

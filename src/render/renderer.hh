@@ -59,7 +59,7 @@ class Renderer final {
 	Camera* m_activeCamera;
 	psyqo::Vec3 m_gteCameraPos = {0, 0, 0};
 
-	psyqo::Fragments::SimpleFragment<psyqo::Prim::GouraudQuad>* m_quickAdvancedFogOverlayQuad = nullptr;
+	psyqo::Fragments::SimpleFragment<psyqo::Prim::Quad>* m_quickAdvancedFogOverlayQuad = nullptr;
 	uint32_t m_quickAdvancedFogSmallestZ = ORDERING_TABLE_SIZE - 1;
 	int16_t m_ovMinX, m_ovMinY, m_ovMaxX, m_ovMaxY;
 	uint32_t m_quickFogT = 0;
