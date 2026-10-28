@@ -387,6 +387,8 @@ void Renderer::RenderGameObjects(uint32_t deltaTime, const psyqo::Matrix33& came
 			m_quickAdvancedFogSmallestZ = ORDERING_TABLE_SIZE - 1;
 
 			m_ovMinX = INT16_MAX, m_ovMinY = INT16_MAX, m_ovMaxX = -INT16_MAX, m_ovMaxY = -INT16_MAX;
+			m_quickFogT = 0;
+			m_quickFogTCount = 0;
 		}
 
 		for (int32_t i = 0; i < mesh->facesCount; i++) {
@@ -410,8 +412,8 @@ void Renderer::RenderGameObjects(uint32_t deltaTime, const psyqo::Matrix33& came
 			m_quickAdvancedFogOverlayQuad->primitive.pointD = psyqo::Vertex{m_ovMaxX, m_ovMaxY};
 
 			auto& fog = m_lighting->GetFogColour();
-			psyqo::Color add = {uint8_t((fog.r * m_quickFogT) >> 12), uint8_t((fog.g * m_quickFogT) >> 12),
-								uint8_t((fog.b * m_quickFogT) >> 12)};
+			auto t = m_quickFogTCount > 0 ? eastl::min<uint32_t>(m_quickFogT / m_quickFogTCount, 4096) : 0;
+			psyqo::Color add = {uint8_t((fog.r * t) >> 12), uint8_t((fog.g * t) >> 12), uint8_t((fog.b * t) >> 12)};
 			m_quickAdvancedFogOverlayQuad->primitive.setColor(add);
 
 			faceData.orderingTable.insert(*m_quickAdvancedFogOverlayQuad, m_quickAdvancedFogSmallestZ - 1);
@@ -985,15 +987,14 @@ void Renderer::ProcessMeshQuad(const RendererQuad& quad, int8_t depth, const Fac
 			} else {
 				for (int i = 0; i < 4; i++) {
 					auto density = 4096 - node.irs[i];
-					ApplyAmbientToColour(&node.colours[i]);
-					node.colours[i] = {uint8_t((node.colours[i].r * density) >> 12),
-									   uint8_t((node.colours[i].g * density) >> 12),
-									   uint8_t((node.colours[i].b * density) >> 12)};
+					ApplyAmbientToColour(&vertexColours[i]);
+					vertexColours[i] = {uint8_t((vertexColours[i].r * density) >> 12),
+										uint8_t((vertexColours[i].g * density) >> 12),
+										uint8_t((vertexColours[i].b * density) >> 12)};
 					m_quickFogT += node.irs[i];
 				}
 
-				// average the quick fog t scale
-				m_quickFogT /= 4;
+				m_quickFogTCount += 4;
 			}
 		}
 
@@ -1246,7 +1247,7 @@ void Renderer::ProcessQuadNode(FaceNode& node, uint8_t subDivsionDepth, const Fa
 				}
 
 				// average the quick fog t scale
-				m_quickFogT /= 4;
+				m_quickFogTCount += 4;
 			}
 		}
 	}
