@@ -372,7 +372,8 @@ void Renderer::RenderGameObjects(uint32_t deltaTime, const psyqo::Matrix33& came
 			offset.pos.y += (texture->height - 1);
 		}
 
-		const auto& quickAdvancedFog = gameObject->HasRenderFlag(RF_QUICK_ADVANCED_FOG);
+		const auto& quickAdvancedFog =
+			m_lighting->IsAdvancedFogEnabled() && gameObject->HasRenderFlag(RF_QUICK_ADVANCED_FOG);
 		const FaceData faceData = {texture,			tpage, offset, allocator, ot, m_lighting->IsAdvancedFogEnabled(),
 								   quickAdvancedFog};
 
@@ -382,11 +383,6 @@ void Renderer::RenderGameObjects(uint32_t deltaTime, const psyqo::Matrix33& came
 
 			// overlay
 			m_quickAdvancedFogOverlayQuad = &faceData.bumpAllocator.allocateFragment<psyqo::Prim::GouraudQuad>();
-
-			m_quickAdvancedFogOverlayQuad->primitive.setColorA(m_lighting->GetFogColour());
-			m_quickAdvancedFogOverlayQuad->primitive.setColorB(m_lighting->GetFogColour());
-			m_quickAdvancedFogOverlayQuad->primitive.setColorC(m_lighting->GetFogColour());
-			m_quickAdvancedFogOverlayQuad->primitive.setColorD(m_lighting->GetFogColour());
 			m_quickAdvancedFogOverlayQuad->primitive.setSemiTrans();
 			m_quickAdvancedFogSmallestZ = ORDERING_TABLE_SIZE - 1;
 
@@ -403,7 +399,7 @@ void Renderer::RenderGameObjects(uint32_t deltaTime, const psyqo::Matrix33& came
 			}
 		}
 
-		if (quickAdvancedFog && m_ovMinX < m_ovMaxX) {
+		if (quickAdvancedFog && m_quickAdvancedFogOverlayQuad && m_ovMinX != INT16_MAX && m_ovMinX < m_ovMaxX) {
 			auto& reset = faceData.bumpAllocator.allocateFragment<psyqo::Prim::MaskControl>();
 			reset.primitive = {psyqo::Prim::MaskControl::FromSource};
 			faceData.orderingTable.insert(reset, m_quickAdvancedFogSmallestZ - 1);
@@ -412,11 +408,21 @@ void Renderer::RenderGameObjects(uint32_t deltaTime, const psyqo::Matrix33& came
 			m_quickAdvancedFogOverlayQuad->primitive.pointB = psyqo::Vertex{m_ovMaxX, m_ovMinY};
 			m_quickAdvancedFogOverlayQuad->primitive.pointC = psyqo::Vertex{m_ovMinX, m_ovMaxY};
 			m_quickAdvancedFogOverlayQuad->primitive.pointD = psyqo::Vertex{m_ovMaxX, m_ovMaxY};
+
+			auto& fog = m_lighting->GetFogColour();
+			psyqo::Color add = {uint8_t((fog.r * m_quickFogT) >> 12), uint8_t((fog.g * m_quickFogT) >> 12),
+								uint8_t((fog.b * m_quickFogT) >> 12)};
+
+			m_quickAdvancedFogOverlayQuad->primitive.setColorA(add);
+			m_quickAdvancedFogOverlayQuad->primitive.setColorB(add);
+			m_quickAdvancedFogOverlayQuad->primitive.setColorC(add);
+			m_quickAdvancedFogOverlayQuad->primitive.setColorD(add);
+
 			faceData.orderingTable.insert(*m_quickAdvancedFogOverlayQuad, m_quickAdvancedFogSmallestZ - 1);
 
 			auto& overlayTpage = faceData.bumpAllocator.allocateFragment<psyqo::Prim::TPage>();
 			overlayTpage.primitive.attr = tpage;
-			overlayTpage.primitive.attr.set(psyqo::Prim::TPageAttr::HalfBackAndHalfFront);
+			overlayTpage.primitive.attr.set(psyqo::Prim::TPageAttr::FullBackAndFullFront);
 			faceData.orderingTable.insert(overlayTpage, m_quickAdvancedFogSmallestZ - 1);
 
 			auto& test = faceData.bumpAllocator.allocateFragment<psyqo::Prim::MaskControl>();
@@ -969,15 +975,25 @@ void Renderer::ProcessMeshQuad(const RendererQuad& quad, int8_t depth, const Fac
 				vertexColours[i] = ApplyFogToColourGTE(vertexColours[i], node.irs[i]);
 			}
 		} else {
-			GTESetFarColour({0, 0, 0});
-			for (int i = 0; i < 4; i++) {
-				ApplyAmbientToColour(&vertexColours[i]);
-				vertexColours[i] = GTEColourLerp(vertexColours[i], node.irs[i]);
-			}
+			if (!faceData.useQuickAdvancedFogPass) {
+				GTESetFarColour({0, 0, 0});
+				for (int i = 0; i < 4; i++) {
+					ApplyAmbientToColour(&vertexColours[i]);
+					vertexColours[i] = GTEColourLerp(vertexColours[i], node.irs[i]);
+				}
 
-			GTESetFarColour(m_lighting->GetFogColour());
-			for (int i = 0; i < 4; i++) {
-				fogColours[i] = GTEColourLerp({0, 0, 0}, node.irs[i]);
+				GTESetFarColour(m_lighting->GetFogColour());
+				for (int i = 0; i < 4; i++) {
+					fogColours[i] = GTEColourLerp({0, 0, 0}, node.irs[i]);
+				}
+			} else {
+				for (int i = 0; i < 4; i++) {
+					m_quickFogT = 4096 - node.irs[i];
+					ApplyAmbientToColour(&vertexColours[i]);
+					vertexColours[i] = {uint8_t((vertexColours[i].r * m_quickFogT) >> 12),
+										uint8_t((vertexColours[i].g * m_quickFogT) >> 12),
+										uint8_t((vertexColours[i].b * m_quickFogT) >> 12)};
+				}
 			}
 		}
 
@@ -1201,22 +1217,33 @@ void Renderer::ProcessQuadNode(FaceNode& node, uint8_t subDivsionDepth, const Fa
 
 	// if its the parent then do colour work that can be propogated
 	if (subDivsionDepth == 0) {
-		// apply fog colours
+		// apply fog colours (skipped if advanced fog is enabled)
 		if (!faceData.isAdvancedFog) {
 			for (int i = 0; i < 4; i++) {
 				ApplyAmbientToColour(&node.colours[i]);
 				node.colours[i] = ApplyFogToColourGTE(node.colours[i], node.irs[i]);
 			}
 		} else {
-			GTESetFarColour({0, 0, 0});
-			for (int i = 0; i < 4; i++) {
-				ApplyAmbientToColour(&node.colours[i]);
-				node.colours[i] = GTEColourLerp(node.colours[i], node.irs[i]);
-			}
+			if (!faceData.useQuickAdvancedFogPass) {
+				GTESetFarColour({0, 0, 0});
+				for (int i = 0; i < 4; i++) {
+					ApplyAmbientToColour(&node.colours[i]);
+					node.colours[i] = GTEColourLerp(node.colours[i], node.irs[i]);
+				}
 
-			GTESetFarColour(m_lighting->GetFogColour());
-			for (int i = 0; i < 4; i++) {
-				node.fogColours[i] = GTEColourLerp({0, 0, 0}, node.irs[i]);
+				GTESetFarColour(m_lighting->GetFogColour());
+				for (int i = 0; i < 4; i++) {
+					node.fogColours[i] = GTEColourLerp({0, 0, 0}, node.irs[i]);
+				}
+			} else {
+
+				for (int i = 0; i < 4; i++) {
+					m_quickFogT = 4096 - node.irs[i];
+					ApplyAmbientToColour(&node.colours[i]);
+					node.colours[i] = {uint8_t((node.colours[i].r * m_quickFogT) >> 12),
+									   uint8_t((node.colours[i].g * m_quickFogT) >> 12),
+									   uint8_t((node.colours[i].b * m_quickFogT) >> 12)};
+				}
 			}
 		}
 	}
@@ -1471,15 +1498,12 @@ void Renderer::ProcessQuadNode(FaceNode& node, uint8_t subDivsionDepth, const Fa
 
 	// update overlay min/max points
 	if (faceData.isAdvancedFog && faceData.useQuickAdvancedFogPass) {
-		auto& prim = m_quickAdvancedFogOverlayQuad->primitive;
-		m_quickAdvancedFogOverlayQuad->primitive.pointA = {eastl::min(node.projected[0].x, prim.pointA.x),
-														   eastl::min(node.projected[0].y, prim.pointA.y)};
-		m_quickAdvancedFogOverlayQuad->primitive.pointB = {eastl::max(node.projected[1].x, prim.pointB.x),
-														   eastl::min(node.projected[1].y, prim.pointB.y)};
-		m_quickAdvancedFogOverlayQuad->primitive.pointC = {eastl::min(node.projected[2].x, prim.pointC.x),
-														   eastl::max(node.projected[2].y, prim.pointC.y)};
-		m_quickAdvancedFogOverlayQuad->primitive.pointD = {eastl::max(node.projected[3].x, prim.pointD.x),
-														   eastl::max(node.projected[3].y, prim.pointD.y)};
+		for (int i = 0; i < 4; i++) {
+			m_ovMinX = eastl::min(m_ovMinX, node.projected[i].x);
+			m_ovMinY = eastl::min(m_ovMinY, node.projected[i].y);
+			m_ovMaxX = eastl::max(m_ovMaxX, node.projected[i].x);
+			m_ovMaxY = eastl::max(m_ovMaxY, node.projected[i].y);
+		}
 		m_quickAdvancedFogSmallestZ = eastl::min(m_quickAdvancedFogSmallestZ, zIndex);
 	}
 
@@ -2422,7 +2446,7 @@ psyqo::Color Renderer::GTEColourLerp(const psyqo::Color& input, uint32_t p) {
 
 // Interpolate from input to FC
 psyqo::Color Renderer::ApplyFogToColourGTE(psyqo::Color input, uint32_t p) {
-	if (!m_lighting->IsSimpleFogEnabled()) {
+	if (m_lighting->IsAdvancedFogEnabled() || !m_lighting->IsSimpleFogEnabled()) {
 		return input;
 	}
 

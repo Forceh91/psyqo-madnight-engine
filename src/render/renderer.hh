@@ -62,6 +62,7 @@ class Renderer final {
 	psyqo::Fragments::SimpleFragment<psyqo::Prim::GouraudQuad>* m_quickAdvancedFogOverlayQuad = nullptr;
 	uint32_t m_quickAdvancedFogSmallestZ = ORDERING_TABLE_SIZE - 1;
 	int16_t m_ovMinX, m_ovMinY, m_ovMaxX, m_ovMaxY;
+	uint32_t m_quickFogT = 0;
 
 	// create 2 ordering tables, one for each frame buffer
 	OT m_orderingTables[2];
