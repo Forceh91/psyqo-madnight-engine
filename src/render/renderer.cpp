@@ -2283,7 +2283,7 @@ void Renderer::ProcessTriNode(FaceNode& node, uint8_t subDivsionDepth, const Fac
 
 	// update overlay min/max points
 	if (faceData.isAdvancedFog && faceData.useQuickAdvancedFogPass) {
-		for (int i = 0; i < 4; i++) {
+		for (int i = 0; i < 3; i++) {
 			m_qafOverlayMinX = eastl::min(m_qafOverlayMinX, node.projected[i].x);
 			m_qafOverlayMinY = eastl::min(m_qafOverlayMinY, node.projected[i].y);
 			m_qafOverlayMaxX = eastl::max(m_qafOverlayMaxX, node.projected[i].x);
