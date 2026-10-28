@@ -1754,19 +1754,45 @@ void Renderer::ProcessMeshTri(const RendererTri& tri, int8_t depth, const FaceDa
 				vertexColours[i] = ApplyFogToColourGTE(vertexColours[i], node.irs[i]);
 			}
 		} else {
-			GTESetFarColour({0, 0, 0});
-			for (int i = 0; i < 3; i++) {
-				ApplyAmbientToColour(&vertexColours[i]);
-				vertexColours[i] = GTEColourLerp(vertexColours[i], node.irs[i]);
-			}
+			if (!faceData.useQuickAdvancedFogPass) {
+				GTESetFarColour({0, 0, 0});
+				for (int i = 0; i < 3; i++) {
+					ApplyAmbientToColour(&vertexColours[i]);
+					vertexColours[i] = GTEColourLerp(vertexColours[i], node.irs[i]);
+				}
 
-			GTESetFarColour(m_lighting->GetFogColour());
-			for (int i = 0; i < 3; i++) {
-				fogColours[i] = GTEColourLerp({0, 0, 0}, node.irs[i]);
+				GTESetFarColour(m_lighting->GetFogColour());
+				for (int i = 0; i < 3; i++) {
+					fogColours[i] = GTEColourLerp({0, 0, 0}, node.irs[i]);
+				}
+			} else {
+				for (int i = 0; i < 3; i++) {
+					auto density = 4096 - node.irs[i];
+					ApplyAmbientToColour(&vertexColours[i]);
+					vertexColours[i] = {uint8_t((vertexColours[i].r * density) >> 12),
+										uint8_t((vertexColours[i].g * density) >> 12),
+										uint8_t((vertexColours[i].b * density) >> 12)};
+					m_quickFogT += node.irs[i];
+				}
+
+				m_quickFogTCount += 3;
 			}
 		}
 
-		bool isAdvancedFog = faceData.isAdvancedFog && (node.irs[0] > 0 || node.irs[1] > 0 || node.irs[2] > 0);
+		bool isAdvancedFog = faceData.isAdvancedFog && (node.irs[0] > 0 || node.irs[1] > 0 || node.irs[2] > 0) &&
+							 !faceData.useQuickAdvancedFogPass;
+
+		// update overlay min/max points
+		if (faceData.isAdvancedFog && faceData.useQuickAdvancedFogPass) {
+			for (int i = 0; i < 3; i++) {
+				m_ovMinX = eastl::min(m_ovMinX, node.projected[i].x);
+				m_ovMinY = eastl::min(m_ovMinY, node.projected[i].y);
+				m_ovMaxX = eastl::max(m_ovMaxX, node.projected[i].x);
+				m_ovMaxY = eastl::max(m_ovMaxY, node.projected[i].y);
+			}
+
+			m_quickAdvancedFogSmallestZ = eastl::min(m_quickAdvancedFogSmallestZ, zIndex);
+		}
 
 		if (faceData.texture != nullptr) {
 			if (!isAdvancedFog || !(faceData.texture->flags & (1 << 0))) {
@@ -1956,15 +1982,29 @@ void Renderer::ProcessTriNode(FaceNode& node, uint8_t subDivsionDepth, const Fac
 				node.colours[i] = ApplyFogToColourGTE(node.colours[i], node.irs[i]);
 			}
 		} else {
-			GTESetFarColour({0, 0, 0});
-			for (int i = 0; i < 3; i++) {
-				ApplyAmbientToColour(&node.colours[i]);
-				node.colours[i] = GTEColourLerp(node.colours[i], node.irs[i]);
-			}
+			if (!faceData.useQuickAdvancedFogPass) {
+				GTESetFarColour({0, 0, 0});
+				for (int i = 0; i < 3; i++) {
+					ApplyAmbientToColour(&node.colours[i]);
+					node.colours[i] = GTEColourLerp(node.colours[i], node.irs[i]);
+				}
 
-			GTESetFarColour(m_lighting->GetFogColour());
-			for (int i = 0; i < 3; i++) {
-				node.fogColours[i] = GTEColourLerp({0, 0, 0}, node.irs[i]);
+				GTESetFarColour(m_lighting->GetFogColour());
+				for (int i = 0; i < 3; i++) {
+					node.fogColours[i] = GTEColourLerp({0, 0, 0}, node.irs[i]);
+				}
+			} else {
+				for (int i = 0; i < 3; i++) {
+					auto density = 4096 - node.irs[i];
+					ApplyAmbientToColour(&node.colours[i]);
+					node.colours[i] = {uint8_t((node.colours[i].r * density) >> 12),
+									   uint8_t((node.colours[i].g * density) >> 12),
+									   uint8_t((node.colours[i].b * density) >> 12)};
+					m_quickFogT += node.irs[i];
+				}
+
+				// average the quick fog t scale
+				m_quickFogTCount += 3;
 			}
 		}
 	}
