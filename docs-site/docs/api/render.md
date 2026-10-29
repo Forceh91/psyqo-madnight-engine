@@ -214,7 +214,7 @@ Renderer::Instance().SetFogColour({20, 20, 30});
 - Textures with holes, loaded with flag 1, use a mask-bit sequence instead, so the fog is drawn on the texels and not on the holes. It costs more prims per face.
 - Untextured faces stay one prim, with the colour already summed as `vertex * (1 - t) + fog * t`.
 - Billboards and particles lerp their colour to the fog colour.
-- A mesh quad or tri whose vertices are all fully fogged (`IR0` at 4096 on every vertex) is skipped, not drawn. The background shows through instead, which only matches if `Clear()` uses the fog colour, as it does by default.
+- A mesh quad or tri whose vertices are all fully fogged (`IR0` at 4096 on every vertex) is skipped entirely. The background shows through instead, which only matches if `Clear()` uses the fog colour, as it does by default.
 
 **`RF_QUICK_ADVANCED_FOG`** on a `GameObject` (for detailed characters) skips the per-face second prim. It darkens the faces by `(1 - t)` and adds `fog * t` with one additive quad over the object's screen rectangle, using the average `t` over its faces. The quad only draws on pixels with the mask bit clear, so:
 
