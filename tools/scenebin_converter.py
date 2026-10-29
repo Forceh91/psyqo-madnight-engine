@@ -9,7 +9,8 @@ Source format (plain text, one entry per line):
 
     # comments and blank lines are ignored
     vag SFX/FCNTNA.VAG
-    texture TEXTURES/LOGO.TIM 320 0 0 240 1
+    texture TEXTURES/LOGO.TIM 320 0 0 240 0
+    texture_extra TEXTURES/SMS.TIM 320 0 0 240 1
     texture UI/CS_UI.TIM 320 129 0 241
     object MODELS/SBSKT.MB
     object MODELS/SCART.MB

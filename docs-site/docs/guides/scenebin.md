@@ -92,10 +92,10 @@ beginning with `#` are comments. Texture lines take four extra placements: `vram
 clutY`. Each is an integer, or `auto` to take that coordinate from the TIM file.
 
 ```
-# scene manifest, SBSKT court scene
+# scene manifest
 vag SFX/FCNTNA.VAG
 texture TEXTURES/LOGO.TIM 320 0 0 240
-texture TEXTURES/SMS.TIM 320 0 0 240 1
+texture_extra TEXTURES/SMS.TIM 320 0 0 240 1
 texture UI/CS_UI.TIM 320 129 0 241
 object MODELS/SBSKT.MB
 object MODELS/SCART.MB
