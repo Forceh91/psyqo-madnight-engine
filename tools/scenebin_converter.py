@@ -92,11 +92,45 @@ def parse_source(path: Path):
 
             entry = {"type": type_name, "name": name, "lineno": lineno}
 
-            if type_name == "texture" or type_name == "texture_extra":
-                if len(extra_fields) < 4:
+            if type_name == "texture":
+                if len(extra_fields) != 4:
                     raise SourceError(
-                        f"line {lineno}: texture and texture_extra require at least 4 extra fields "
-                        f"(vramX vramY clutX clutY[, flag]), got {len(extra_fields)}"
+                        f"line {lineno}: texture requires 4 extra fields "
+                        f"(vramX vramY clutX clutY), got {len(extra_fields)}"
+                    )
+                def placement(v):
+                    if v.lower() == POSITION_FROM_FILE_KEYWORD:
+                        return POSITION_FROM_FILE
+                    return int(v)
+
+                try:
+                    vram_x, vram_y, clut_x, clut_y = (placement(v) for v in extra_fields)
+                except ValueError:
+                    raise SourceError(
+                        f"line {lineno}: texture coordinates must be integers "
+                        f"or '{POSITION_FROM_FILE_KEYWORD}'"
+                    )
+
+                for label, val, limit in (
+                    ("vramX", vram_x, VRAM_WIDTH),
+                    ("clutX", clut_x, VRAM_WIDTH),
+                    ("vramY", vram_y, VRAM_HEIGHT),
+                    ("clutY", clut_y, VRAM_HEIGHT),
+                ):
+                    if val == POSITION_FROM_FILE:
+                        continue
+                    if not (0 <= val < limit):
+                        raise SourceError(
+                            f"line {lineno}: {label}={val} out of range "
+                            f"(expected 0..{limit - 1})"
+                        )
+
+                entry["placement"] = (vram_x, vram_y, clut_x, clut_y)
+            elif type_name == "texture_extra":
+                if len(extra_fields) != 5:
+                    raise SourceError(
+                        f"line {lineno}: texture_extra requires 5 extra fields "
+                        f"(vramX vramY clutX clutY, flag), got {len(extra_fields)}"
                     )
                 def placement(v):
                     if v.lower() == POSITION_FROM_FILE_KEYWORD:
@@ -119,6 +153,7 @@ def parse_source(path: Path):
                     ("clutX", clut_x, VRAM_WIDTH),
                     ("vramY", vram_y, VRAM_HEIGHT),
                     ("clutY", clut_y, VRAM_HEIGHT),
+					("flag", flag, 2)
                 ):
                     if val == POSITION_FROM_FILE:
                         continue
@@ -172,7 +207,7 @@ def pack_binary(entries) -> bytes:
         out += name_bytes
 
         if entry["type"] == "texture":
-            vram_x, vram_y, clut_x, clut_y = entry["placement"][:4]
+            vram_x, vram_y, clut_x, clut_y = entry["placement"]
             out += struct.pack("<HHHH", vram_x, vram_y, clut_x, clut_y)
 
         if entry["type"] == "texture_extra":
