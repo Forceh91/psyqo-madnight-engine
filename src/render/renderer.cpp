@@ -2165,7 +2165,7 @@ void Renderer::ProcessTriNode(FaceNode& node, uint8_t subDivsionDepth, const Fac
 			triB.irs[1] = node.irs[1];
 			triB.irs[2] = node.irs[2];
 
-			if (faceData.isAdvancedFog && faceData.useQuickAdvancedFogPass) {
+			if (faceData.isAdvancedFog && !faceData.useQuickAdvancedFogPass) {
 				psyqo::Color midFogColour01 = midColour(node.fogColours[0], node.fogColours[1]);
 
 				triA.fogColours[0] = node.fogColours[0];
