@@ -16,8 +16,13 @@ class Lighting {
 	}
 
 	const constexpr bool& IsSimpleFogEnabled(void) const { return m_isSimpleFogEnabled; }
+	// NOTE: turning this on at the same time as advanced fog has no effect, advanced fog will overpower it
 	void EnableSimpleFog(void) { m_isSimpleFogEnabled = true; }
 	void DisableSimpleFog(void) { m_isSimpleFogEnabled = false; }
+
+	const constexpr bool& IsAdvancedFogEnabled(void) const { return m_isAdvancedFogEnabled; }
+	void EnableAdvancedFog(void) { m_isAdvancedFogEnabled = true; }
+	void DisableAdvancedFog(void) { m_isAdvancedFogEnabled = false; }
 
 	const constexpr psyqo::Color& GetAmbientColour(void) const { return m_ambient; }
 	void SetAmbientColour(psyqo::Color colour) { m_ambient = colour; }
@@ -29,6 +34,8 @@ class Lighting {
 	Lighting() = default;
 
 	bool m_isSimpleFogEnabled = false;
+	bool m_isAdvancedFogEnabled = false;
+
 	// clear colour IS fog colour
 	psyqo::Color m_fogColour = DEFAULT_CLEAR_COLOR;
 	psyqo::Color m_ambient = {128, 128, 128};

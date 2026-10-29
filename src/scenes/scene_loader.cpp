@@ -63,9 +63,10 @@ psyqo::Coroutine<> SceneLoader::LoadScene(const eastl::string_view& sceneFile, e
 		eastl::fixed_string<char, MAX_ARCHIVE_FILE_NAME_LEN + 1> fileName(reinterpret_cast<char*>(ptr), nameLen);
 		ptr += nameLen;
 
-		// if its a tim then we have extra data like x, y, clutx, cluty
-		if (type == TEXTURE) {
+		// if its a tim then we have extra data like x, y, clutx, cluty, and flags
+		if (type == TEXTURE || type == TEXTURE_EXTRA) {
 			uint16_t vramX = 0, vramY = 0, clutX = 0, clutY = 0;
+			uint32_t flags = 0;
 
 			__builtin_memcpy(&vramX, ptr, sizeof(uint16_t));
 			ptr += sizeof(uint16_t);
@@ -79,8 +80,13 @@ psyqo::Coroutine<> SceneLoader::LoadScene(const eastl::string_view& sceneFile, e
 			__builtin_memcpy(&clutY, ptr, sizeof(uint16_t));
 			ptr += sizeof(uint16_t);
 
+			if (type == TEXTURE_EXTRA) {
+				__builtin_memcpy(&flags, ptr, sizeof(uint32_t));
+				ptr += sizeof(uint32_t);
+			}
+
 			// add this to the out queue
-			queue.push_back({{fileName.data(), fileName.length()}, type, vramX, vramY, clutX, clutY});
+			queue.push_back({{fileName.data(), fileName.length()}, type, vramX, vramY, clutX, clutY, flags});
 		} else { // add this to the out queue
 			queue.push_back({{fileName.data(), fileName.length()}, type});
 		}

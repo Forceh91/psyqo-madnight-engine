@@ -7,6 +7,7 @@
 #include "file_loader.hh"
 #include "animation/animation_manager.hh"
 #include "core/object/gameobject_manager.hh"
+#include "helpers/load_queue.hh"
 #include "madnight.hh"
 #include "mesh/colbin_manager.hh"
 #include "mesh/mesh_manager.hh"
@@ -50,9 +51,11 @@ psyqo::Coroutine<> FileLoader::LoadFiles(eastl::vector<LoadQueue>&& files, bool 
 			break;
 		}
 
-		case TEXTURE: {
+		case TEXTURE:
+		case TEXTURE_EXTRA: {
 			TimFile* out = nullptr;
-			co_await g_madnightEngine.m_textureManager.LoadTIM(file.name, file.x, file.y, file.clutX, file.clutY, &out);
+			co_await g_madnightEngine.m_textureManager.LoadTIM(file.name, file.x, file.y, file.clutX, file.clutY, &out,
+															   file.flags);
 			break;
 		}
 

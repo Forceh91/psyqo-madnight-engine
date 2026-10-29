@@ -1,8 +1,17 @@
+/*
+ * Copyright (C) 2025-2026 Matt Hadden / Madnight Games
+ *
+ * SPDX-License-Identifier: LGPL-2.1-or-later
+ */
+
 #pragma once
 
 #include <EASTL/array.h>
 #include <psyqo/gte-registers.hh>
 #include <psyqo/primitives/common.hh>
+#include <psyqo/primitives/control.hh>
+#include <psyqo/primitives/quads.hh>
+#include <psyqo/primitives/triangles.hh>
 
 struct RendererQuad {
 	psyqo::GTE::PackedVec3 verts[4] = {};
@@ -29,6 +38,7 @@ struct FaceNode {
 	eastl::array<psyqo::Vertex, 4> projected; // actually projected vert positions
 	uint32_t projectedDepths[4];			  // the z value of each projected corner
 	psyqo::Color colours[4];				  // colours
+	psyqo::Color fogColours[4];				  // for advanced fog colours
 	uint32_t irs[4];						  // irs
 	psyqo::PrimPieces::UVCoords uvA = {}, uvB = {};
 	psyqo::PrimPieces::UVCoordsPadded uvC = {}, uvD = {};

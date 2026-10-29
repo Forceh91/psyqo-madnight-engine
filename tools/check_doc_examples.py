@@ -31,7 +31,7 @@ DEFAULT_TARGETS = [
 ]
 
 # Keep in sync with TYPE_MAP in scenebin_converter.py.
-KEYWORDS = {"object", "texture", "mod_file", "animation", "colbin", "vag"}
+KEYWORDS = {"object", "texture", "mod_file", "animation", "colbin", "vag", "texture_extra"}
 
 FENCE = re.compile(r"^```[a-zA-Z]*\n(.*?)^```", re.MULTILINE | re.DOTALL)
 

@@ -31,6 +31,7 @@ struct TimFile {
 	bool hasClut = false;					// does it need/have a clut?
 	uint16_t clutX = 0, clutY = 0;			// clut pos in vram
 	uint16_t clutWidth = 0, clutHeight = 0; // clut width and height (always 1)
+	uint32_t flags = 0;						// bit 1 speecifies if it has holes (transparency)
 };
 
 class TextureManager final {
@@ -42,7 +43,7 @@ class TextureManager final {
 
   public:
 	psyqo::Coroutine<> LoadTIM(const eastl::string_view& textureName, uint16_t x, uint16_t y, uint16_t clutX,
-							   uint16_t clutY, TimFile** timOut);
+							   uint16_t clutY, TimFile** timOut, uint32_t userFlags = 0);
 	psyqo::PrimPieces::TPageAttr GetTPageAttr(const TimFile* tim);
 	psyqo::PrimPieces::TPageAttr GetTPageAttr(const TimFile& tim);
 	psyqo::Rect GetTPageUVForTim(const TimFile& tim);

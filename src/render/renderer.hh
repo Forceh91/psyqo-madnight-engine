@@ -8,6 +8,7 @@
 
 #include "../core/collision_types.hh"
 #include "../textures/texture_manager.hh"
+#include "EASTL/array.h"
 #include "camera.hh"
 #include "lighting.hh"
 #include "psyqo/ordering-table.hh"
@@ -45,6 +46,8 @@ struct FaceData {
 	const psyqo::Rect uvOffset;
 	BA& bumpAllocator;
 	OT& orderingTable;
+	const bool isAdvancedFog;
+	const bool useQuickAdvancedFogPass;
 };
 
 class Renderer final {
@@ -55,6 +58,13 @@ class Renderer final {
 	uint32_t m_lastFrameCounter = 0;
 	Camera* m_activeCamera;
 	psyqo::Vec3 m_gteCameraPos = {0, 0, 0};
+
+	// used when a game object has the `RF_QUICK_ADVANCED_FOG` render flag
+	psyqo::Fragments::SimpleFragment<psyqo::Prim::Quad>* m_quickAdvancedFogOverlayQuad = nullptr;
+	uint32_t m_qafSmallestZ = ORDERING_TABLE_SIZE - 1;
+	int16_t m_qafOverlayMinX, m_qafOverlayMinY, m_qafOverlayMaxX, m_qafOverlayMaxY;
+	uint32_t m_qafIR0 = 0;
+	uint32_t m_qafIROCount = 0;
 
 	// create 2 ordering tables, one for each frame buffer
 	OT m_orderingTables[2];
@@ -102,8 +112,9 @@ class Renderer final {
 	void ApplyAmbientToColours(psyqo::Color* colA, psyqo::Color* colB, psyqo::Color* colC, psyqo::Color* colD);
 	void ApplyFogToColour(psyqo::Color* col, psyqo::FixedPoint<> fogFactor);
 	psyqo::Color ApplyFogToColourGTE(psyqo::Color input, uint32_t p = 0);
+	psyqo::Color GTEColourLerp(const psyqo::Color& input, uint32_t p = 0);
 
-	void SetFarColour(void);
+	void GTESetFarColour(const psyqo::Color& far);
 	void SetFogNearFar(psyqo::FixedPoint<> near, psyqo::FixedPoint<> far);
 
   public:
