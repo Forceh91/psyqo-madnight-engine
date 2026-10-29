@@ -26,7 +26,7 @@ struct TimFile {
 
 class TextureManager final {
 public:
-  psyqo::Coroutine<> LoadTIM(const eastl::string_view &textureName, uint16_t x, uint16_t y, uint16_t clutX, uint16_t clutY, TimFile **timOut);
+  psyqo::Coroutine<> LoadTIM(const eastl::string_view &textureName, uint16_t x, uint16_t y, uint16_t clutX, uint16_t clutY, TimFile **timOut, uint32_t userFlags = 0);
   psyqo::PrimPieces::TPageAttr GetTPageAttr(const TimFile *tim);
   psyqo::PrimPieces::TPageAttr GetTPageAttr(const TimFile &tim);
   psyqo::Rect GetTPageUVForTim(const TimFile &tim);
@@ -45,6 +45,7 @@ Non-`static` member of `MadnightEngine` (`g_madnightEngine.m_textureManager`). `
 
 - `LoadTIM` takes the target VRAM placement (`x`, `y`) and CLUT placement (`clutX`, `clutY`) explicitly, and the engine doesn't do automatic VRAM packing, so placement has to be planned per-texture (this is exactly what the `TEXTURE` entry fields in a [SCENEBIN manifest](../guides/scenebin#texture-placement) carry).
 - `GetTPageAttr`/`GetTPageUVForTim` convert a loaded `TimFile`'s VRAM placement into the texture-page attribute and UV rect a draw primitive needs — used internally by `GameObject`/`Billboard` rendering and `Renderer::RenderSprite`.
+- Unless `userFlags` has bit 0 set, `LoadTIM` sets the STP bit (bit 15) on every non-zero CLUT entry, or on every non-zero pixel of a 16-bit TIM, before uploading. Advanced fog needs this to blend textured faces (see [Render](./render#renderer)). It happens whether or not fog is ever enabled, so a game drawing its own semi-transparent prims from engine-loaded textures will see them blend where they would otherwise draw opaque; load those with bit 0 set. Bit 0 is also what marks a texture with holes, and what `RF_QUICK_ADVANCED_FOG` objects need. `texture_extra` entries in a [SCENEBIN manifest](../guides/scenebin#texture-extra-placement) pass their `flags` here.
 - Up to `MAX_TEXTURES` (32) textures can be resident at once. Past that, `LoadTIM` yields a null `TimFile*` in `*timOut`, so check it.
 
 ### Usage
@@ -54,6 +55,15 @@ TimFile *crateTex;
 co_await g_madnightEngine.m_textureManager.LoadTIM("crate.tim", /*x*/ 320, /*y*/ 0, /*clutX*/ 0, /*clutY*/ 240, &crateTex);
 crateGameObject->SetTexture("crate.tim"); // looks it up by the same name afterwards
 ```
+
+To load a texture with bit 0 set, pass `1` as `userFlags`. Do this for a texture with holes, for one an `RF_QUICK_ADVANCED_FOG` object uses, or for one your own semi-transparent prims draw from:
+
+```cpp
+TimFile *fenceTex;
+co_await g_madnightEngine.m_textureManager.LoadTIM("fence.tim", 384, 0, 0, 241, &fenceTex, /*userFlags*/ 1);
+```
+
+From a [SCENEBIN manifest](../guides/scenebin#texture-extra-placement), use a `texture_extra` line with `flags` set to 1, as in `texture_extra TEXTURES/SMS.TIM 320 0 0 240 1`. A plain `texture` line always loads with flags 0.
 
 ### Internals
 

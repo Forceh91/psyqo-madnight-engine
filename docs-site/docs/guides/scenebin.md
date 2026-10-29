@@ -28,16 +28,16 @@ Then `fileCount` entries, each:
 | type | uint8_t | 1 | A `LoadFileType` value, see below. |
 | nameLen | uint8_t | 1 | Length of `name` in bytes. |
 | name | char[nameLen] | nameLen | Archive-relative path. **Not** null-terminated on the wire. |
-| vramX | uint16_t | 2 | TEXTURE entries only. `0xFFFF` means take it from the TIM. |
-| vramY | uint16_t | 2 | TEXTURE entries only. `0xFFFF` means take it from the TIM. |
-| clutX | uint16_t | 2 | TEXTURE entries only. `0xFFFF` means take it from the TIM. |
-| clutY | uint16_t | 2 | TEXTURE entries only. `0xFFFF` means take it from the TIM. |
-| flags | uint32_t | 4 | TEXTURE_EXTRA entries only. 1 means the texture has transparency/holes in it |
+| vramX | uint16_t | 2 | TEXTURE and TEXTURE_EXTRA entries only. `0xFFFF` means take it from the TIM. |
+| vramY | uint16_t | 2 | TEXTURE and TEXTURE_EXTRA entries only. `0xFFFF` means take it from the TIM. |
+| clutX | uint16_t | 2 | TEXTURE and TEXTURE_EXTRA entries only. `0xFFFF` means take it from the TIM. |
+| clutY | uint16_t | 2 | TEXTURE and TEXTURE_EXTRA entries only. `0xFFFF` means take it from the TIM. |
+| flags | uint32_t | 4 | TEXTURE_EXTRA entries only. Passed to `LoadTIM` as `userFlags`, see below. |
 
 ### Texture placement
 
-The four placement values are present only when `type` is TEXTURE. Every other type ends its
-entry after the name.
+The four placement values are present only when `type` is TEXTURE or TEXTURE_EXTRA. Every other
+type ends its entry after the name.
 
 `vramX`/`vramY` are where the image goes in VRAM, `clutX`/`clutY` where its palette goes.
 They are passed straight through to `TextureManager::LoadTIM`, which does no automatic
@@ -51,21 +51,13 @@ converter encodes it as `0xFFFF`, which VRAM can never hold. See the
 
 ### Texture Extra placement
 
-The five placement values are present only when `type` is TEXTURE_EXTRA. Every other type ends its
-entry after the name.
+A TEXTURE_EXTRA entry carries the same four placement values as TEXTURE, followed by
+`flags`. The converter accepts 0 or 1.
 
-`vramX`/`vramY` are where the image goes in VRAM, `clutX`/`clutY` where its palette goes.
-They are passed straight through to `TextureManager::LoadTIM`, which does no automatic
-packing, so placement has to be planned per texture. Putting it in the manifest is what
-keeps a scene's VRAM layout in one place instead of scattered through game code.
-
-`flag` set to 1 will mark the texture as having transparency (aka holes you can see through)
-and will be needed if you want the transparency to work when using the advanced fog.
-
-All five are used exactly as given, and 0 is a real coordinate. Write `auto` in place of a
-number to mean "use the position stored in the TIM file itself" for that coordinate; the
-converter encodes it as `0xFFFF`, which VRAM can never hold. See the
-[textures page](../api/textures).
+Set `flags` to 1 for a texture with holes (transparent texels you can see through), so advanced
+fog is drawn on the texels and not on the holes. Textures used by an object with
+`RF_QUICK_ADVANCED_FOG` need it too, holes or not; see the [render page](../api/render#renderer)
+for why.
 
 ## Types
 
@@ -80,7 +72,6 @@ converter encodes it as `0xFFFF`, which VRAM can never hold. See the
 | 4 | COLBIN | `colbin` | `.colbin` | `ColbinManager::LoadColbin` |
 | 5 | VAG | `vag` | `.VAG` | `SoundManager::LoadVAGFile` |
 | 6 | TEXTURE_EXTRA | `texture_extra` | `.TIM` | `TextureManager::LoadTIM` |
-
 | 255 | SCENE | not emitted, see below | `.scenebin` | `SceneLoader::LoadScene`, recursively |
 
 "Loaded by" names the method that ultimately handles each type; as of v0.0.1 these are instance methods on `MadnightEngine`'s manager members (e.g. `g_madnightEngine.m_meshManager.LoadMesh`), not static calls — see [Updating the Engine → v0.0.1](../getting-started/updating-the-engine#v001-instance-based-managers).
@@ -88,8 +79,9 @@ converter encodes it as `0xFFFF`, which VRAM can never hold. See the
 ## Source manifest
 
 Plain text, one entry per line, whitespace separated. Blank lines are ignored and lines
-beginning with `#` are comments. Texture lines take four extra placements: `vramX vramY clutX
-clutY`. Each is an integer, or `auto` to take that coordinate from the TIM file.
+beginning with `#` are comments. `texture` lines take exactly four placements: `vramX vramY
+clutX clutY`. Each is an integer, or `auto` to take that coordinate from the TIM file.
+`texture_extra` lines take the same four followed by `flags`.
 
 ```
 # scene manifest
@@ -105,7 +97,7 @@ object MODELS/SCART.MB
 python3 tools/scenebin_converter.py scene.txt scene.scenebin --asset-root assets/
 ```
 
-That example converts to 5 entries and 108 bytes.
+That example converts to 6 entries and 138 bytes.
 
 ## Nested scenes
 
