@@ -529,7 +529,12 @@ void Renderer::RenderBillboards(uint32_t deltaTime, const psyqo::Matrix33& camer
 		// handle colour + fog — all verts share same colour on a billboard
 		auto colour = billboard->colour();
 		ApplyAmbientToColour(&colour);
-		colour = ApplyFogToColourGTE(colour, p);
+		if (m_lighting->IsAdvancedFogEnabled()) {
+			GTESetFarColour(m_lighting->GetFogColour());
+			colour = GTEColourLerp(colour, p);
+		} else {
+			colour = ApplyFogToColourGTE(colour, p);
+		}
 
 		if (!texture) {
 			auto& quad = allocator.allocateFragment<psyqo::Prim::GouraudQuad>();
@@ -677,7 +682,10 @@ void Renderer::RenderParticles(uint32_t deltaTime, const psyqo::Matrix33& camera
 				auto colour = particle.colour();
 				ApplyAmbientToColour(&colour);
 
-				if (m_lighting->IsSimpleFogEnabled()) {
+				if (m_lighting->IsAdvancedFogEnabled()) {
+					GTESetFarColour(m_lighting->GetFogColour());
+					colour = GTEColourLerp(colour, GetFogFactor(sz).integer());
+				} else {
 					ApplyFogToColour(&colour, GetFogFactor(sz));
 				}
 
@@ -732,7 +740,12 @@ void Renderer::RenderParticles(uint32_t deltaTime, const psyqo::Matrix33& camera
 
 				auto colour = particle.colour();
 				ApplyAmbientToColour(&colour);
-				colour = ApplyFogToColourGTE(colour, p);
+				if (m_lighting->IsAdvancedFogEnabled()) {
+					GTESetFarColour(m_lighting->GetFogColour());
+					colour = GTEColourLerp(colour, p);
+				} else {
+					colour = ApplyFogToColourGTE(colour, p);
+				}
 
 				if (!texture) {
 					auto& quad = allocator.allocateFragment<psyqo::Prim::GouraudQuad>();
@@ -2538,7 +2551,7 @@ void Renderer::ApplyAmbientToColours(psyqo::Color* colA, psyqo::Color* colB, psy
 }
 
 void Renderer::ApplyFogToColour(psyqo::Color* col, psyqo::FixedPoint<> fogFactor) {
-	if (!m_lighting->IsSimpleFogEnabled()) {
+	if (m_lighting->IsAdvancedFogEnabled() || !m_lighting->IsSimpleFogEnabled()) {
 		return;
 	}
 
