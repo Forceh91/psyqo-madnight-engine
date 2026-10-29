@@ -56,6 +56,15 @@ co_await g_madnightEngine.m_textureManager.LoadTIM("crate.tim", /*x*/ 320, /*y*/
 crateGameObject->SetTexture("crate.tim"); // looks it up by the same name afterwards
 ```
 
+To load a texture with bit 0 set, pass `1` as `userFlags`. Do this for a texture with holes, for one an `RF_QUICK_ADVANCED_FOG` object uses, or for one your own semi-transparent prims draw from:
+
+```cpp
+TimFile *fenceTex;
+co_await g_madnightEngine.m_textureManager.LoadTIM("fence.tim", 384, 0, 0, 241, &fenceTex, /*userFlags*/ 1);
+```
+
+From a [SCENEBIN manifest](../guides/scenebin#texture-extra-placement), use a `texture_extra` line with `flags` set to 1, as in `texture_extra TEXTURES/SMS.TIM 320 0 0 240 1`. A plain `texture` line always loads with flags 0.
+
 ### Internals
 
 VRAM placement is entirely manual, and getting `x`/`y`/`clutX`/`clutY` right requires understanding the layout (spelled out in a long comment at the top of `texture_manager.cpp`):

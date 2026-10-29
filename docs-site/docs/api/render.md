@@ -198,7 +198,13 @@ Key constants (`src/render/renderer.hh`):
 
 **Typical per-frame flow:** call `Process()` to get `deltaTime`, `Clear()`/`StartScene()`, update and render your game objects/scene, then `Render(deltaTime)` to flush the ordering table to the GPU. `Renderer` draws whatever `GameObjectManager::GetActiveGameObjects` returns each frame (see [Core](./core#gameobjectmanager) on the renderable-objects subset, which currently isn't wired up to anything); visibility is culled per-object against the camera via `IsGameObjectVisible` internally, using each object's bounding volume.
 
-Fog comes in two modes, simple and advanced, both off by default. Advanced wins if both are on. `StartScene()` picks the near/far distances from whichever mode is on at that moment (`SetFogNearFar(0.5_fp, 1.55_fp)` for simple, `SetFogNearFar(0.33_fp, 1.1_fp)` for advanced), so switch modes before calling it.
+Fog comes in two modes, simple and advanced, both off by default. Advanced wins if both are on. `StartScene()` picks the near/far distances from whichever mode is on at that moment (`SetFogNearFar(0.5_fp, 1.55_fp)` for simple, `SetFogNearFar(0.33_fp, 1.1_fp)` for advanced). It reads the mode once, so enable the mode before the scene starts, i.e. before its `start()` calls `StartScene()`:
+
+```cpp
+Lighting::instance().EnableAdvancedFog();
+Renderer::Instance().SetFogColour({20, 20, 30});
+// ...then start the scene, whose start() calls Renderer::Instance().StartScene()
+```
 
 **Simple fog** lerps vertex colours toward the fog colour on the GTE (`ApplyFogToColourGTE`, depth-cueing via `dpcs`), after visibility culling so only visible faces pay for it. Because a textured prim multiplies its texels by the vertex colour, textured faces can only darken toward the fog, never brighten toward it.
 
