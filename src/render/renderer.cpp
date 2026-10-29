@@ -1170,10 +1170,24 @@ void Renderer::ProcessMeshQuad(const RendererQuad& quad, int8_t depth, const Fac
 			quadPrim.primitive.pointC = node.projected[2];
 			quadPrim.primitive.pointD = node.projected[3];
 
-			quadPrim.primitive.setColorA(vertexColours[0]);
-			quadPrim.primitive.setColorB(vertexColours[1]);
-			quadPrim.primitive.setColorC(vertexColours[2]);
-			quadPrim.primitive.setColorD(vertexColours[3]);
+			if (faceData.isAdvancedFog && !faceData.useQuickAdvancedFogPass) {
+				psyqo::Color col[4];
+				for (int i = 0; i < 4; i++) {
+					col[i].r = eastl::min(255, vertexColours[i].r + fogColours[i].r);
+					col[i].g = eastl::min(255, vertexColours[i].g + fogColours[i].g);
+					col[i].b = eastl::min(255, vertexColours[i].b + fogColours[i].b);
+				}
+
+				quadPrim.primitive.setColorA(col[0]);
+				quadPrim.primitive.setColorB(col[1]);
+				quadPrim.primitive.setColorC(col[2]);
+				quadPrim.primitive.setColorD(col[3]);
+			} else {
+				quadPrim.primitive.setColorA(vertexColours[0]);
+				quadPrim.primitive.setColorB(vertexColours[1]);
+				quadPrim.primitive.setColorC(vertexColours[2]);
+				quadPrim.primitive.setColorD(vertexColours[3]);
+			}
 			quadPrim.primitive.setOpaque();
 
 			faceData.orderingTable.insert(quadPrim, zIndex);
@@ -1667,10 +1681,24 @@ void Renderer::ProcessQuadNode(FaceNode& node, uint8_t subDivsionDepth, const Fa
 		quadPrim.primitive.pointC = node.projected[2];
 		quadPrim.primitive.pointD = node.projected[3];
 
-		quadPrim.primitive.setColorA(node.colours[0]);
-		quadPrim.primitive.setColorB(node.colours[1]);
-		quadPrim.primitive.setColorC(node.colours[2]);
-		quadPrim.primitive.setColorD(node.colours[3]);
+		if (faceData.isAdvancedFog && !faceData.useQuickAdvancedFogPass) {
+			psyqo::Color col[4];
+			for (int i = 0; i < 4; i++) {
+				col[i].r = eastl::min(255, node.colours[i].r + node.fogColours[i].r);
+				col[i].g = eastl::min(255, node.colours[i].g + node.fogColours[i].g);
+				col[i].b = eastl::min(255, node.colours[i].b + node.fogColours[i].b);
+			}
+
+			quadPrim.primitive.setColorA(col[0]);
+			quadPrim.primitive.setColorB(col[1]);
+			quadPrim.primitive.setColorC(col[2]);
+			quadPrim.primitive.setColorD(col[3]);
+		} else {
+			quadPrim.primitive.setColorA(node.colours[0]);
+			quadPrim.primitive.setColorB(node.colours[1]);
+			quadPrim.primitive.setColorC(node.colours[2]);
+			quadPrim.primitive.setColorD(node.colours[3]);
+		}
 		quadPrim.primitive.setOpaque();
 
 		faceData.orderingTable.insert(quadPrim, zIndex);
@@ -1931,9 +1959,22 @@ void Renderer::ProcessMeshTri(const RendererTri& tri, int8_t depth, const FaceDa
 			triPrim.primitive.pointB = node.projected[1];
 			triPrim.primitive.pointC = node.projected[2];
 
-			triPrim.primitive.setColorA(vertexColours[0]);
-			triPrim.primitive.setColorB(vertexColours[1]);
-			triPrim.primitive.setColorC(vertexColours[2]);
+			if (faceData.isAdvancedFog && !faceData.useQuickAdvancedFogPass) {
+				psyqo::Color col[3];
+				for (int i = 0; i < 3; i++) {
+					col[i].r = eastl::min(255, vertexColours[i].r + fogColours[i].r);
+					col[i].g = eastl::min(255, vertexColours[i].g + fogColours[i].g);
+					col[i].b = eastl::min(255, vertexColours[i].b + fogColours[i].b);
+				}
+
+				triPrim.primitive.setColorA(col[0]);
+				triPrim.primitive.setColorB(col[1]);
+				triPrim.primitive.setColorC(col[2]);
+			} else {
+				triPrim.primitive.setColorA(vertexColours[0]);
+				triPrim.primitive.setColorB(vertexColours[1]);
+				triPrim.primitive.setColorC(vertexColours[2]);
+			}
 			triPrim.primitive.setOpaque();
 
 			faceData.orderingTable.insert(triPrim, zIndex);
@@ -2427,9 +2468,22 @@ void Renderer::ProcessTriNode(FaceNode& node, uint8_t subDivsionDepth, const Fac
 		triPrim.primitive.pointB = node.projected[1];
 		triPrim.primitive.pointC = node.projected[2];
 
-		triPrim.primitive.setColorA(node.colours[0]);
-		triPrim.primitive.setColorB(node.colours[1]);
-		triPrim.primitive.setColorC(node.colours[2]);
+		if (faceData.isAdvancedFog && !faceData.useQuickAdvancedFogPass) {
+			psyqo::Color col[3];
+			for (int i = 0; i < 3; i++) {
+				col[i].r = eastl::min(255, node.colours[i].r + node.fogColours[i].r);
+				col[i].g = eastl::min(255, node.colours[i].g + node.fogColours[i].g);
+				col[i].b = eastl::min(255, node.colours[i].b + node.fogColours[i].b);
+			}
+
+			triPrim.primitive.setColorA(col[0]);
+			triPrim.primitive.setColorB(col[1]);
+			triPrim.primitive.setColorC(col[2]);
+		} else {
+			triPrim.primitive.setColorA(node.colours[0]);
+			triPrim.primitive.setColorB(node.colours[1]);
+			triPrim.primitive.setColorC(node.colours[2]);
+		}
 		triPrim.primitive.setOpaque();
 
 		faceData.orderingTable.insert(triPrim, zIndex);
