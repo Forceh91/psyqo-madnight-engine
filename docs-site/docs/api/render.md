@@ -198,10 +198,23 @@ Key constants (`src/render/renderer.hh`):
 
 **Typical per-frame flow:** call `Process()` to get `deltaTime`, `Clear()`/`StartScene()`, update and render your game objects/scene, then `Render(deltaTime)` to flush the ordering table to the GPU. `Renderer` draws whatever `GameObjectManager::GetActiveGameObjects` returns each frame (see [Core](./core#gameobjectmanager) on the renderable-objects subset, which currently isn't wired up to anything); visibility is culled per-object against the camera via `IsGameObjectVisible` internally, using each object's bounding volume.
 
-Fog comes in two unrelated forms. Don't tune one expecting it to affect the other:
+Fog comes in two modes, simple and advanced, both off by default. Advanced wins if both are on. `StartScene()` picks the near/far distances from whichever mode is on at that moment (`SetFogNearFar(0.5_fp, 1.55_fp)` for simple, `SetFogNearFar(0.33_fp, 1.1_fp)` for advanced), so switch modes before calling it.
 
-- **Meshes, billboards, and 3D particles** get GTE-accelerated fog: `ApplyFogToColourGTE` uses the GTE's depth-cueing (`dpcs`) and perspective (`rtps`) registers rather than doing the lerp on the CPU per-vertex, and colour work is deferred until after visibility culling so only visible faces pay the cost. The near/far distances it blends over are hardcoded in `SetFarColour` (`SetFogNearFar(0.5_fp, 1.55_fp)`), not the `FULL_FOG_DISTANCE`/`NEAR_FOG_DISTANCE` constants above.
-- **2D sprite particles** go through a separate CPU path (`GetFogFactor`, called only from that code path), which is what `FULL_FOG_DISTANCE`/`NEAR_FOG_DISTANCE` actually feed. It's also gated on `IsSimpleFogEnabled()`, which defaults to `false`.
+**Simple fog** lerps vertex colours toward the fog colour on the GTE (`ApplyFogToColourGTE`, depth-cueing via `dpcs`), after visibility culling so only visible faces pay for it. Because a textured prim multiplies its texels by the vertex colour, textured faces can only darken toward the fog, never brighten toward it.
+
+**Advanced fog** (Silent Hill style) gives a real `texel * (1 - t) + fog * t` on textured faces:
+
+- Textured faces are drawn twice: an opaque untextured quad/tri in `fog * t`, then the textured face semi-transparent on top with its vertex colours scaled by `(1 - t)`. This only blends texels with STP set, which is why `LoadTIM` sets it (see [Textures](./textures)).
+- Textures with holes, loaded with flag 1, use a mask-bit sequence instead, so the fog is drawn on the texels and not on the holes. It costs more prims per face.
+- Untextured faces stay one prim, with the colour already summed as `vertex * (1 - t) + fog * t`.
+- Billboards and particles lerp their colour to the fog colour.
+
+**`RF_QUICK_ADVANCED_FOG`** on a `GameObject` (for detailed characters) skips the per-face second prim. It darkens the faces by `(1 - t)` and adds `fog * t` with one additive quad over the object's screen rectangle, using the average `t` over its faces. The quad only draws on pixels with the mask bit clear, so:
+
+- the object's TIM must be loaded with flag 1, or its texels come out with the mask bit set and get no fog;
+- anything else inside that rectangle with the mask bit clear (the cleared background, other untextured or flag-1 geometry) gets the same add, which shows as a faint box around the object.
+
+2D sprite particles take `t` from a separate CPU path (`GetFogFactor`), which is what `FULL_FOG_DISTANCE`/`NEAR_FOG_DISTANCE` above feed; the mesh paths don't use those constants.
 
 ### Usage
 
@@ -250,6 +263,10 @@ public:
   const bool &IsSimpleFogEnabled(void) const;
   void EnableSimpleFog(void);
   void DisableSimpleFog(void);
+
+  const bool &IsAdvancedFogEnabled(void) const;
+  void EnableAdvancedFog(void);
+  void DisableAdvancedFog(void);
 
   const psyqo::Color &GetAmbientColour(void) const;
   void SetAmbientColour(psyqo::Color colour);
