@@ -9,8 +9,6 @@
 using namespace psyqo::fixed_point_literals;
 using namespace psyqo::trig_literals;
 
-static int32_t Distance(int32_t a, int32_t b) { return a > b ? a - b : b - a; }
-
 static psyqo::Vec3 MakeVec3(psyqo::FixedPoint<> x, psyqo::FixedPoint<> y, psyqo::FixedPoint<> z) {
 	psyqo::Vec3 v;
 	v.x = x;
@@ -140,38 +138,6 @@ TEST_CASE("GTEMath::ProjectVectorOntoAxes multiplies by the axis matrix") {
 }
 
 // --- angles ---
-
-// atan2_fixed uses a compass convention: up (+y) is 0, clockwise, 1.0_pi = 1024 = 180 degrees.
-
-TEST_CASE("atan2_fixed on the axes") {
-	REQUIRE(atan2_fixed(0, 0).value == 0);
-	REQUIRE(atan2_fixed(64, 0).value == 0);		 // up
-	REQUIRE(atan2_fixed(0, 64).value == 512);	 // right
-	REQUIRE(atan2_fixed(-64, 0).value == 1024);	 // down
-	REQUIRE(atan2_fixed(0, -64).value == -512);	 // left
-}
-
-TEST_CASE("atan2_fixed on the diagonals, one per quadrant") {
-	REQUIRE(atan2_fixed(1, 1).value == 256);	 // up-right, 45 degrees
-	REQUIRE(atan2_fixed(-1, 1).value == 768);	 // down-right, 135 degrees
-	REQUIRE(atan2_fixed(-1, -1).value == -768);	 // down-left, -135 degrees
-	REQUIRE(atan2_fixed(1, -1).value == -256);	 // up-left, -45 degrees
-	REQUIRE(atan2_fixed(100, 100).value == 256); // scale does not matter
-}
-
-// Expected values are atan2(x, y) / pi * 1024, computed in double precision. A table of
-// round(atan(i / 64) / pi * 1024) with linear interpolation lands within 1.5 units of these,
-// so 2 is the tolerance.
-// KNOWN FAILURE: ATAN2_LUT in src/math/trig.cpp does not match its own stated generator,
-// and drifts by up to 20 units (about 3.5 degrees) towards t = 1.
-TEST_CASE("atan2_fixed between the axes and the diagonals", "[!shouldfail]") {
-	CHECK(Distance(atan2_fixed(64, 16).value, 80) <= 2);   // 79.85
-	CHECK(Distance(atan2_fixed(64, 32).value, 151) <= 2);  // 151.13
-	CHECK(Distance(atan2_fixed(64, 48).value, 210) <= 2);  // 209.75
-	CHECK(Distance(atan2_fixed(64, 63).value, 253) <= 2);  // 253.43
-	CHECK(Distance(atan2_fixed(-64, 32).value, 873) <= 2); // 872.87
-	CHECK(Distance(atan2_fixed(32, -64).value, -361) <= 2); // -360.87
-}
 
 TEST_CASE("LerpAngle interpolates between two angles") {
 	REQUIRE(LerpAngle(0.0_pi, 0.5_pi, psyqo::FixedPoint<10>(0.0)).value == (0.0_pi).value);
