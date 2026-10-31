@@ -101,12 +101,12 @@ void Menu::ProcessInputs(const psyqo::AdvancedPad::Event& event) {
 	auto& currentMenuItem = m_menuItems[m_currentSelectedMenuItem];
 	if (currentMenuItem.IsEnabled()) {
 		if (event.button == m_keyBindings.menuItemConfirm) {
-			m_menuItems[m_currentSelectedMenuItem].Confirm();
+			currentMenuItem.Confirm();
 		}
 
 		if (eastl::find(m_keyBindings.menuItemCustom.begin(), m_keyBindings.menuItemCustom.end(), event.button) !=
 			m_keyBindings.menuItemCustom.end()) {
-			m_menuItems[m_currentSelectedMenuItem].InputCallback(event.button);
+			currentMenuItem.InputCallback(event.button);
 		}
 	}
 
