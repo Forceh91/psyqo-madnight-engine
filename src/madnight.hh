@@ -18,6 +18,7 @@
 #include "helpers/archive.hh"
 #include "helpers/cdrom.hh"
 #include "helpers/load_queue.hh"
+#include "memory_card/memory_card.hh"
 #include "mesh/colbin_manager.hh"
 #include "mesh/mesh_manager.hh"
 #include "mesh/skeleton/skeleton.hh"
@@ -57,6 +58,7 @@ class MadnightEngine final : public psyqo::Application {
 	ParticleEmitterManager m_particleEmitterManager;
 	FileLoader m_fileLoader;	   // loading screens use this to load a queue of files from an archive
 	ArchiveHelper m_archiveHelper; // used for loading a single file from an archive
+	MemoryCard m_memoryCardHelper;
 
 	// helpers for various things like controller, collisions, etc.
 	ControllerHelper m_controllerHelper;
