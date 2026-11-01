@@ -1,7 +1,7 @@
 #pragma once
 
-#include "EASTL/internal/function.h"
 #include <EASTL/fixed_string.h>
+#include <EASTL/internal/function.h>
 #include <EASTL/string_view.h>
 
 #include <psyqo/memory-card-filesystem.hh>
@@ -10,7 +10,7 @@
 using MC = psyqo::MemoryCard;
 using MCFS = psyqo::MemoryCardFileSystem;
 
-enum CardPort : uint8_t { Port1 = (1 << 0), Port2 = (1 << 1) };
+enum CardPort : uint8_t { Port0 = (1 << 0), Port1 = (1 << 1) };
 
 class MemoryCard final {
   public:
@@ -28,10 +28,10 @@ class MemoryCard final {
 	void SetFileName(const eastl::string_view& name) { m_fileName.assign(name.data(), name.length()); }
 
 	// does a save file with the name provided in `SetFileName` exist?
-	bool DoesSaveFileExist(const MC::Port& port);
+	MC::Error DoesSaveFileExist(const MC::Port& port, bool* outFileExists);
 
 	// does a save file with the provided name exist (will overwrite anything set via `SetFileName`)?
-	bool DoesSaveFileExist(const MC::Port& port, const eastl::string_view& name);
+	MC::Error DoesSaveFileExist(const MC::Port& port, const eastl::string_view& name, bool* outFileExists);
 
 	// how many blocks are free on the card in this port?
 	MC::Error GetFreeBlockCount(const MC::Port& port, uint32_t* outFreeBlocks);
@@ -46,5 +46,5 @@ class MemoryCard final {
 	MCFS m_fs{m_memoryCard};
 	bool m_isPrepared = false;
 
-	eastl::fixed_string<char, 32> m_fileName = "";
+	eastl::fixed_string<char, 20> m_fileName = "";
 };

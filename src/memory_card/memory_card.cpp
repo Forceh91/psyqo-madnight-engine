@@ -11,39 +11,33 @@ void MemoryCard::Prepare(void) {
 uint8_t MemoryCard::GetCardsInPorts(void) {
 	if (!m_isPrepared) {
 		printf("[MEMORY CARD] You must call `MemoryCard::Prepare` first.\n");
-		return false;
+		return 0;
 	}
 
 	uint8_t activePorts = 0;
 	if (IsCardInPort(MC::Port::Port0)) {
-		activePorts |= CardPort::Port1;
+		activePorts |= CardPort::Port0;
 	}
 
 	if (IsCardInPort(MC::Port::Port1)) {
-		activePorts |= CardPort::Port2;
+		activePorts |= CardPort::Port1;
 	}
 
 	return activePorts;
 }
 
-bool MemoryCard::DoesSaveFileExist(const MC::Port& port) {
+MC::Error MemoryCard::DoesSaveFileExist(const MC::Port& port, bool* outFileExists) {
 	if (!m_isPrepared) {
 		printf("[MEMORY CARD] You must call `MemoryCard::Prepare` first.\n");
-		return false;
+		return MC::Error::NoCard;
 	}
 
-	bool doesFileExist = false;
-	auto error = m_fs.fileExistsBlocking(Renderer::Instance().GPU(), port, m_fileName.data(), &doesFileExist);
-	if (error != MC::Error::OK) {
-		return false;
-	}
-
-	return doesFileExist;
+	return m_fs.fileExistsBlocking(Renderer::Instance().GPU(), port, m_fileName.data(), outFileExists);
 }
 
-bool MemoryCard::DoesSaveFileExist(const MC::Port& port, const eastl::string_view& name) {
+MC::Error MemoryCard::DoesSaveFileExist(const MC::Port& port, const eastl::string_view& name, bool* outFileExists) {
 	m_fileName.assign(name.data(), name.length());
-	return DoesSaveFileExist(port);
+	return DoesSaveFileExist(port, outFileExists);
 }
 
 MC::Error MemoryCard::GetFreeBlockCount(const MC::Port& port, uint32_t* outFreeBlocks) {
@@ -63,5 +57,5 @@ void MemoryCard::GetFreeBlockCount(const MC::Port& port, uint32_t* outFreeBlocks
 		return;
 	}
 
-	m_fs.getFreeBlockCount(port, outFreeBlocks, [callback](auto error) { callback(error); });
+	m_fs.getFreeBlockCount(port, outFreeBlocks, eastl::move(callback));
 }
