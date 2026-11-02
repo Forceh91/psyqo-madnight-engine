@@ -46,5 +46,5 @@ class MemoryCard final {
 	MCFS m_fs{m_memoryCard};
 	bool m_isPrepared = false;
 
-	eastl::fixed_string<char, 20> m_fileName = "";
+	eastl::fixed_string<char, 21> m_fileName = "";
 };
