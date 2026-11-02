@@ -105,8 +105,8 @@ Quaternion Slerp(const Quaternion& q1, const Quaternion& q2, psyqo::FixedPoint<>
 	// lerp if almost identical
 	auto q1Factor = psyqo::FixedPoint<>(1.0_fp - factor);
 	auto q2Factor = psyqo::FixedPoint<>(factor);
-	Quaternion slerpedQ = {q1Factor * q1.w + q2.w * q2Factor, q1Factor * q1.x + q2.x * q2Factor,
-						   q1Factor * q1.y + q2.y * q2Factor, q1Factor * q1.z + q2.z * q2Factor};
+	Quaternion slerpedQ = {q1Factor * q1.w + q2Actual.w * q2Factor, q1Factor * q1.x + q2Actual.x * q2Factor,
+						   q1Factor * q1.y + q2Actual.y * q2Factor, q1Factor * q1.z + q2Actual.z * q2Factor};
 
 	// give back a normalized lerp
 	slerpedQ.Normalize();
