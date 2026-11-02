@@ -364,7 +364,7 @@ public:
 
 Non-`static` member of `MadnightEngine` (`g_madnightEngine.m_particleEmitterManager`).
 
-:::note Only 3 emitters at once
+:::note[Only 3 emitters at once]
 `MAX_PARTICLE_EMITTERS` is 3 — noticeably smaller than the 200/250-entry pools for billboards and game objects. Budget emitters carefully (e.g. one for the player, one or two for the current room's environmental effects) rather than one per particle-emitting object in a scene.
 :::
 

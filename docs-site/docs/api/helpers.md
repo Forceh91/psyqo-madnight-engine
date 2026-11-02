@@ -42,7 +42,7 @@ Non-`static` member of `MadnightEngine` (`g_madnightEngine.m_archiveHelper`). `M
 
 A lower-level loader that reads directly off an ISO9660 filesystem instead of a packed archive.
 
-:::caution Deprecated
+:::caution[Deprecated]
 As of v0.0.1, `CDRomHelper` is marked `[[deprecated]]` in favour of `ArchiveHelper`, and its instance (`m_cdromHelper`) is now a *private* member of `MadnightEngine` — game code can no longer reach it directly. It's documented here for reference/upstream reading, not for new use.
 :::
 

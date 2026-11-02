@@ -248,11 +248,11 @@ void GameplayScene::frame() {
 - `Render()` walks game objects, then billboards, then particles, all against the _same_ per-frame ordering table — draw order between those three categories is fixed, not something you control per-call.
 - `RenderSprite` draws a single 2D sprite, a region of a `TimFile` given by `uv` and placed at `rect`, straight to the screen, outside the ordering table. Up to 40 `RenderSprite` calls are supported per frame: `m_tpages`/`m_sprites` are fixed 40-entry arrays, indexed by `m_currentSpriteFragment`, which resets once per frame inside `Process()`.
 
-:::caution Bump allocator exhaustion is unguarded outside the subdivision path
+:::caution[Bump allocator exhaustion is unguarded outside the subdivision path]
 `OrderingTable::insert` clamps silently to a valid bucket in its default `Safe` mode. `BumpAllocator::allocateFragment`, used for the per-frame 125,000-byte arena, behaves the opposite way in its default `Safe` mode: it calls `Kernel::assert` and hard-crashes once the arena is exhausted. `SubdivideTexturedQuad`/`SubdivideTexturedTriangle` check `remaining()` first and fall back to inserting the polygon unsubdivided when there isn't room; the plain per-object, per-billboard, and per-particle fragment allocations elsewhere in `RenderGameObjects`/`RenderBillboards`/`RenderParticles` don't, so a scene that overflows the arena outside the subdivision path will assert.
 :::
 
-:::note Removed
+:::note[Removed]
 `RenderLoadingScreen` is gone — the built-in loading scene now just calls `Clear()` and prints its own percentage text via `SystemFont()->chainprintf(...)` directly, rather than the renderer owning a dedicated loading-screen draw call. See [Helpers → FileLoader](./helpers#fileloader) for the loading flow this feeds into.
 :::
 
@@ -288,7 +288,7 @@ Lighting::instance().SetAmbientColour({80, 80, 100}); // dim, slightly blue ambi
 Renderer::Instance().SetFogColour({20, 20, 30});       // also updates the GTE's far-colour registers
 ```
 
-:::note Renamed
+:::note[Renamed]
 `SetAmbient` was renamed to `SetAmbientColour`, and `m_ambient`/`m_fogColour`/`m_isSimpleFogEnabled` are now private — use the getters above instead of reaching for the fields directly.
 :::
 
