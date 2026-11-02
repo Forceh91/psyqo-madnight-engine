@@ -5,161 +5,107 @@ sidebar_position: 5
 
 # Physics & Collision
 
-`src/core/collision.hh`, `src/core/raycast.hh`, and `src/mesh/colbin_manager.hh` — AABB/SAT collision tests, raycasting, and loading baked `.COLBIN` collision meshes (see the [COLBIN format spec](../guides/colbin)).
+`src/core/collision.hh`, `src/core/raycast.hh` and `src/mesh/colbin_manager.hh` give you overlap tests, raycasting and loading baked `.COLBIN` level collision (see the [COLBIN format spec](../guides/colbin)).
+
+:::caution[The engine provides the tests, not the response]
+Nothing in the engine calls `IsAABBCollision`, `IsSATCollision` or `RaycastScene` for you, and nothing reads the floor and grid data a `.COLBIN` loads. Pushing the player out of walls, ground detection and "what am I looking at" prompts are yours to write using these calls.
+:::
 
 ## Collision
 
-`src/core/collision.hh`
+`src/core/collision.hh`, reached as `g_madnightEngine.m_collisionHelper`.
+
+### Box overlap with IsAABBCollision
+
+`IsAABBCollision` is the cheap test. It checks whether two axis-aligned boxes overlap, and ignores rotation. Use it for a quick yes or no on objects that do not rotate.
 
 ```cpp
-struct CollisionTest {
-  psyqo::Vec3 mtv;              // minimum translation vector to resolve the overlap
-  psyqo::Vec3 normal;
-  psyqo::FixedPoint<> penetration;
-};
-
-class Collision {
-public:
-  void GenerateAABBForMesh(const GameObject *object, AABBCollision *collisionBoxOut);
-  bool IsAABBCollision(const AABBCollision &collisionA, const AABBCollision &collisionB);
-  bool IsSATCollision(const OBB &collisionA, const OBB &collisionB, CollisionTest *resultOut);
-};
+// both boxes must be in the same (world) space
+AABBCollision boxA = {pickupPos - halfSize, pickupPos + halfSize};
+AABBCollision boxB = {playerPos - halfSize, playerPos + halfSize};
+auto &collision = g_madnightEngine.m_collisionHelper;
+if (collision.IsAABBCollision(boxA, boxB)) {
+  // overlapping
+}
 ```
 
-Non-`static` member of `MadnightEngine` (`g_madnightEngine.m_collisionHelper`).
+You build the boxes yourself, in the same space. For objects that rotate, use `IsSATCollision`, which takes the `obb()` an object keeps up to date for you.
 
-- **`IsAABBCollision`** is a cheap axis-aligned overlap test, provided for the game to call.
-- **`IsSATCollision`** runs the Separating Axis Theorem against two oriented boxes and, on overlap, fills `CollisionTest` with the minimum translation vector needed to push them apart. Provided for push-out collision response against `.COLBIN` wall `OBB`s (see [COLBIN](../guides/colbin#wall-obbs)).
+### Oriented boxes with IsSATCollision
 
-:::caution
-Neither function is currently used by the engine. `IsSATCollision`'s only reference outside its own definition is a commented-out line in `GameplayScene::frame`, and `IsAABBCollision` has no callers at all. Both are here for the game to call.
-:::
+`IsSATCollision` tests two oriented boxes (`obb()` on a [`GameObject`](./core#gameobject), or a wall from a `.COLBIN`) and takes rotation into account. When they overlap it returns `true` and fills in a `CollisionTest`:
 
-`OBB` and `AABBCollision` themselves are defined in `src/core/collision_types.hh` — see [Core → Collision types](./core#collision-types).
+| Field | Meaning |
+| --- | --- |
+| `mtv` | The smallest move that separates the two boxes. |
+| `normal` | The direction of that move. |
+| `penetration` | How far they overlap along it. |
 
-### Usage
-
-Push-out collision response between two game objects, the standard pattern (also shown, commented out, in the engine's own `GameplayScene`):
+To push the first box out of the second, add `mtv` to its position:
 
 ```cpp
 CollisionTest result;
-if (g_madnightEngine.m_collisionHelper.IsSATCollision(player->obb(), wall->obb(), &result))
-    player->SetPosition(player->pos() + result.mtv);
+if (g_madnightEngine.m_collisionHelper.IsSATCollision(player->obb(), wall->obb(), &result)) {
+  player->SetPosition(player->pos() + result.mtv);
+}
 ```
 
-### Internals
+The first argument is the box that gets pushed. Swap the arguments and `mtv` points the other way. The `CollisionTest` is only meaningful when the call returns `true`.
 
-- `IsSATCollision` checks 15 axes total (each box's 3 face normals, plus the 9 pairwise cross products between them) and tracks whichever axis has the *smallest* overlap — that's what ends up as the resolution `mtv`.
-- `GenerateAABBForMesh` is marked `[[deprecated]]` in-source ("should be done offline, DO NOT USE") — collision boxes are meant to be baked into the mesh at export time, not computed at runtime.
+It tests 15 axes: each box's three face directions and the nine cross products between them. The axis with the smallest overlap becomes the push-out direction.
+
+`GenerateAABBForMesh` is marked deprecated in the source ("should be done offline, DO NOT USE"). Boxes are baked into the mesh at export time, so use `collisionBox` instead.
+
+`OBB` and `AABBCollision` are described in [Core](./core#collision-types).
 
 ## Raycast
 
-`src/core/raycast.hh`
+`src/core/raycast.hh`, reached as `g_madnightEngine.m_raycast`.
 
-```cpp
-static constexpr psyqo::FixedPoint<> maxRayDistance = ONE_METRE * 10; // 10m
-
-struct Ray {
-  psyqo::Vec3 origin;
-  psyqo::Vec3 direction;            // normalized
-  psyqo::FixedPoint<> maxDistance;  // metres — keep small, 128px = 1m
-};
-
-struct RayHit {
-  bool hit;
-  psyqo::FixedPoint<> distance;
-  psyqo::Vec3 hitPos;   // world-space hit position
-  GameObject *object;
-};
-
-class Raycast {
-public:
-  bool RaycastScene(const Ray &ray, GameObjectTag targetTag, RayHit *hitOut);
-};
-```
-
-Non-`static` member of `MadnightEngine` (`g_madnightEngine.m_raycast`).
-
-`RaycastScene` only tests against game objects carrying the given `GameObjectTag` (see [Core → GameObjectTag](./core#gameobjecttag)) — pass a specific tag to avoid testing against everything in the world, e.g. `INTERACTABLE` for a "what am I looking at" prompt. Internally it tests the ray against each candidate object's AABB.
-
-:::caution
-`RaycastScene` is not currently used by the engine. Its only reference outside its own definition is a commented-out line in `GameplayScene::frame`, same as `IsSATCollision` above. It's here for the game to call.
-:::
-
-### Usage
+`RaycastScene` fires a ray and reports the first object with a given [tag](./core#gameobjecttag) that it hits. Filtering by tag keeps it cheap and is how you ask something like "what interactable is in front of me".
 
 ```cpp
 Ray ray = {.origin = camera->pos(), .direction = camera->forwardVector(), .maxDistance = 2.0_ws};
 RayHit hit = {0};
-if (g_madnightEngine.m_raycast.RaycastScene(ray, GameObjectTag::INTERACTABLE, &hit))
-    ShowInteractPrompt(hit.object);
+if (g_madnightEngine.m_raycast.RaycastScene(ray, GameObjectTag::INTERACTABLE, &hit)) {
+  ShowInteractPrompt(hit.object);
+}
 ```
 
-### Internals
+On a hit, `hit.object` is the object, `hit.distance` is how far away it was and `hit.hitPos` is the point in world space. `hit.hit` is also set to `true`.
 
-- Returns the **first** object hit while iterating the tagged list, not the closest one — if two interactables overlap along the ray, which one you get depends on iteration order, not distance.
-- The header itself notes this is inaccurate for rotated objects — it's a straight AABB test, no OBB/SAT version yet.
+Limits to know about:
+
+- `maxDistance` must be greater than zero and no more than `10 * ONE_METRE` (`maxRayDistance`). Anything outside that returns `false` without testing anything.
+- The test is against an axis-aligned box, so it is inaccurate for rotated objects (the source says so too). An object with a mesh is tested against the mesh's baked box as stored, without the object's position added. A mesh-less object, such as a trigger, uses its oriented box's extents instead.
+- It returns the first object found, not the closest. If two tagged objects line up along the ray, which one you get depends on the order they are stored in.
+- It does not hit an object the ray starts inside.
+- `direction` should be a normalised vector. The distance is worked out from a normalised copy, but `hitPos` is computed from the vector you passed in.
 
 ## ColbinManager
 
-`src/mesh/colbin_manager.hh`
+`src/mesh/colbin_manager.hh`, reached as `g_madnightEngine.m_colbinManager`.
 
-Loads a single `.COLBIN` collision mesh (floor triangles, wall `OBB`s, and a spatial grid bucketing the walls) and makes it available via `Colbin()`/`walls()`. See the [COLBIN format spec](../guides/colbin) for the full binary layout.
-
-:::caution
-Loading is all `ColbinManager` does. `ColBin::floors` and the grid (`gridCells`) are parsed and stored but nothing in the engine reads them, and `walls()`/`Colbin()` have no callers either. Ground detection against floor triangles, SAT-based wall collision, and any grid-based broad-phase culling are the game's to write against this loaded data, not something the engine currently does for you.
-:::
-
-```cpp
-struct FloorTri {
-  psyqo::Vec3 v0, v1, v2; // scaled by 128
-  int16_t n[3];           // face normal, FP12 (scaled by 4096)
-};
-
-struct GridHeader {
-  int32_t originX, originZ;
-  uint32_t cellSize;
-  uint16_t gridWidth, gridHeight;
-};
-
-struct GridCell {
-  uint16_t count;
-  uint16_t *indices; // into ColBin::walls
-};
-
-struct ColBin {
-  Header header;
-  GridHeader gridHeader;
-  GridCell *gridCells;
-  FloorTri *floors;
-  OBB *walls;
-};
-
-class ColbinManager {
-public:
-  psyqo::Coroutine<> LoadColbin(const eastl::fixed_string<char, MAX_ARCHIVE_FILE_NAME_LEN> &name, ColBin **colbinOut);
-  ColBin *Colbin(void);
-  void Dump(void);
-  eastl::span<OBB> walls(void);
-};
-```
-
-Non-`static` member of `MadnightEngine` (`g_madnightEngine.m_colbinManager`). Unlike `MeshManager`/`TextureManager`, `ColbinManager` holds a single collision mesh at a time (`m_colbin` is a lone member, not a pool) — one `.COLBIN` per loaded scene/level.
-
-### Usage
+Loads one `.COLBIN` collision file for the current level: floor triangles, wall boxes and a grid bucketing the walls. The usual place to load it is in your load queue (see [Loading Assets](../getting-started/loading-assets)). To load it by hand:
 
 ```cpp
 ColBin *level;
 co_await g_madnightEngine.m_colbinManager.LoadColbin("level01.colbin", &level);
+```
 
+`walls()` gives you the wall boxes as a span, ready to feed to `IsSATCollision`:
+
+```cpp
 for (auto &wall : g_madnightEngine.m_colbinManager.walls()) {
-    CollisionTest result;
-    if (g_madnightEngine.m_collisionHelper.IsSATCollision(player->obb(), wall, &result))
-        player->SetPosition(player->pos() + result.mtv);
+  CollisionTest result;
+  if (g_madnightEngine.m_collisionHelper.IsSATCollision(player->obb(), wall, &result)) {
+    player->SetPosition(player->pos() + result.mtv);
+  }
 }
 ```
 
-### Internals
+Things to know:
 
-- Loading a new `.COLBIN` fully overwrites `m_colbin` — there's no unload/reload-alongside step, so swap it out only when you're actually changing levels/rooms.
-- The spatial grid (`gridCells`) buckets wall indices per cell, but the engine has no grid lookup: nothing outside `ColbinManager` reads `gridCells`, `gridWidth`, `gridHeight`, `cellSize`, `originX`, or `originZ`. See the [COLBIN format spec](../guides/colbin) for the cell-index mapping the exporter uses, if you want to implement the lookup yourself.
+- It holds a single collision mesh. Loading another replaces the first, so load a new one only when you change level.
+- Loaded data is freed by `Dump()`. The file loader calls it for you when it starts a loading screen that clears pools.
+- The floor triangles (`floors`) and the wall grid (`gridCells`) are parsed and stored, but the engine never reads them. Ground detection and grid lookups are yours to write; the [COLBIN spec](../guides/colbin) describes the layout and the exporter's cell numbering if you want to.

@@ -5,103 +5,81 @@ sidebar_position: 2
 
 # Core
 
-`src/core/` — game objects, billboards, particles, and in-engine debug tooling.
+`src/core/` has the things you place in the world (game objects, billboards, particle emitters), the pool that backs them, and the in-engine debug tools.
+
+All the managers on this page are members of `g_madnightEngine`, not static classes. See [Updating the Engine](../getting-started/updating-the-engine#v001-instance-based-managers) if you are coming from an older version.
 
 ## GameObject
 
 `src/core/object/gameobject.hh`
 
-The engine's fundamental "thing in the world" — a positioned, rotated entity with an optional mesh, texture, and collision volume. Game objects are always owned and created by [`GameObjectManager`](#gameobjectmanager), never constructed directly in game code.
+A `GameObject` is a thing in the world: a position, a rotation, and optionally a mesh, a texture and a collision box. You never construct one yourself. Ask [`GameObjectManager`](#gameobjectmanager) for one and it hands you a pointer into its pool.
+
+### Creating and setting up an object
+
+Create the object, then give it a mesh and texture. `SetMesh` and `SetTexture` look the asset up by the name you loaded it under, so the asset has to be loaded already (see [Loading Assets](../getting-started/loading-assets)). The names are the archive paths.
 
 ```cpp
-class GameObject final {
-  friend class GameObjectManager;
-
-  // constructor is private — GameObjectManager is the only thing allowed to build one
-  GameObject(const eastl::string_view &name, const uint64_t &nameHash, const psyqo::Vec3 &pos,
-             const GameObjectRotation &rotation, const GameObjectTag &tag, const uint8_t &id);
-
-public:
-  GameObject() = default;
-
-  void Destroy(void);
-
-  uint64_t nameHash();
-  const eastl::fixed_string<char, MAX_GAMEOBJECT_NAME_LENGTH> &name() const;
-  const uint8_t &id() const;
-  const psyqo::Vec3 &pos() const;
-  const psyqo::Vec3 *posPtr() const;
-  psyqo::Vec3 *posPtr();
-  const GameObjectRotation &rotation() const;
-  const psyqo::Matrix33 &rotationMatrix() const;
-  const MeshBin *mesh() const;
-  const TimFile *texture() const;
-  const GameObjectTag &tag() const;
-  const GameObjectQuadType &quadType() const;
-  const OBB &obb() const;
-
-  void SetPosition(const psyqo::Vec3 &pos);
-  void SetPosition(psyqo::FixedPoint<12> x, psyqo::FixedPoint<12> y, psyqo::FixedPoint<12> z);
-  void SetRotation(const GameObjectRotation &rotation);
-  void SetRotation(psyqo::Angle x, psyqo::Angle y, psyqo::Angle z);
-  void SetMesh(const eastl::string_view &meshName);
-  void SetTexture(const eastl::string_view &textureName);
-  void SetQuadType(const GameObjectQuadType quadType); // not implemented yet
-  void SetAsTrigger(const psyqo::Vec3 &size);
-
-  bool HasRenderFlag(const RenderFlags &rf);
-  void SetRenderFlag(const RenderFlags &rf);
-  void ClearRenderFlag(const RenderFlags &rf);
-  void ClearRenderFlags(void);
-
-  // generic, game-defined flags -- separate bitfield from RenderFlags, no engine meaning of its own
-  bool HasFlag(const uint32_t &flag);
-  void SetFlag(const uint32_t &flag);
-  void ClearFlag(const uint32_t &flag);
-  void ClearFlags(void);
-};
+auto *street = g_madnightEngine.m_gameObjectManager.CreateGameObject(
+    "STREET", {0, 0, 0}, {0, 0, 0}, GameObjectTag::ENVIRONMENT);
+if (street != nullptr) {
+  street->SetMesh("MODELS/STREET.MB");
+  street->SetTexture("TEXTURES/STREET.TIM");
+}
 ```
 
-- The constructor is `private` with `GameObjectManager` as a `friend` — game code can't construct a `GameObject` directly, only via `GameObjectManager::CreateGameObject`. `mesh()` also lost its non-`const` overload — it's read-only from `GameObject`'s side now.
-- **`SetMesh`/`SetTexture`** look the asset up by name via `MeshManager`/`TextureManager` — the asset must already be loaded. Both now take an `eastl::string_view` rather than `const char *`.
-- **`SetAsTrigger`** sets the object's `CollisionType` to `TRIGGER` and its half-extents to the given size, and that's all it does today. `Collision::IsAABBCollision`/`IsSATCollision` take raw OBB/AABB data and never branch on collision type, so there's no built-in overlap-only response distinguishing a trigger from a `SOLID` object. The only reader of `m_collisionType` is `GameObject::UpdateOBB`, which decides whether to derive the OBB centre from the mesh's collision box. Any actual trigger behaviour (skip physical response, fire an event on overlap) is on the game to implement.
-- **`RenderFlags::RF_DISTANCE_CHECK`** is currently unused. `HasRenderFlag`/`SetRenderFlag`/`ClearRenderFlag` don't appear anywhere outside `gameobject.hh`, and `Renderer::RenderGameObjects` never consults them: it gates visibility solely on `IsGameObjectVisible`.
-- **`HasFlag`/`SetFlag`/`ClearFlag`** work on a separate, generic `uint32_t` bitfield with no engine-defined meaning — it's yours to use for game-specific per-object state (e.g. "already collected", "triggered this run") without needing a new field on every object.
-- The object's OBB (`obb()`) and rotation matrix are (re)computed internally when position/rotation change — you don't need to update them yourself.
+This is the pattern `src/game.cpp` uses. `CreateGameObject` returns `nullptr` when all 250 slots are taken, so check the result. An object with no mesh is skipped by the renderer, so it is invisible but still exists for lookups and collision.
 
-### Usage
+Move and turn it with `SetPosition` and `SetRotation`. Both keep the object's collision box in step for you.
 
 ```cpp
-#include "core/object/gameobject_manager.hh"
-
-// spawn a static prop
-GameObject *crate = g_madnightEngine.m_gameObjectManager.CreateGameObject(
-    "crate_01",
-    psyqo::Vec3{2.0_ws, 0.0_ws, 5.0_ws},
-    GameObjectRotation{0, 0, 0},
-    GameObjectTag::ENVIRONMENT);
-
-crate->SetMesh("crate");      // must already be loaded via MeshManager::LoadMesh
-crate->SetTexture("crate");   // must already be loaded via TextureManager::LoadTIM
-
-// later, e.g. on level unload
-g_madnightEngine.m_gameObjectManager.DestroyGameObject(crate);
+street->SetPosition({0.05_fp, 0, 0.5_fp});
+street->SetRotation(0, 1.0_pi, 0.25_pi);
 ```
 
-To mark the same object as a trigger instead of solid geometry (see above: it only changes what `UpdateOBB` derives the centre from; overlap handling is on you):
+`pos()`, `rotation()`, `mesh()`, `texture()`, `tag()`, `name()`, `nameHash()` and `id()` read the current state back. `posPtr()` gives you a pointer to the position, which is what [`Camera::SetFollow`](./render#camera) wants.
+
+### Triggers
+
+`SetAsTrigger(size)` marks an object as a trigger volume of the given size. A trigger needs no mesh.
 
 ```cpp
-GameObject *doorTrigger = g_madnightEngine.m_gameObjectManager.CreateGameObject(
+auto *door = g_madnightEngine.m_gameObjectManager.CreateGameObject(
     "door_trigger", doorPos, {0, 0, 0}, GameObjectTag::INTERACTABLE);
-doorTrigger->SetAsTrigger(psyqo::Vec3{1.0_ws, 2.0_ws, 1.0_ws}); // no mesh needed
+door->SetAsTrigger({1.0_ws, 2.0_ws, 1.0_ws});
 ```
 
-### Internals
+That is all it does. The engine has no overlap-only response, so testing whether the player is inside the volume is up to you, with `door->obb()` and [`Collision::IsSATCollision`](./physics-and-collision#collision). [`Raycast`](./physics-and-collision#raycast) also works on triggers.
 
-- `SetPosition`/`SetRotation` both recompute the OBB on every call — no dirty-flag batching, so setting both in one frame means two recomputations.
-- A `SOLID` object's half-extents come from the mesh's baked collision box, set at asset-export time — not derived at runtime.
-- `UpdateOBB` no longer bails out for a `SOLID` object with no mesh yet — it now falls through with a `{0,0,0}` local centre in that case, same as a `TRIGGER`, rather than skipping the update entirely.
-- Worth double-checking if you rely on OBB centring: the current local-centre calculation for a solid mesh is `collisionBox.min + collisionBox.max / 2`, without parentheses around `min + max` — that's not the same value as the midpoint formula `(min + max) / 2` unless `min` is zero.
+### Flags
+
+There are two separate sets of per-object flags, and both take a bit number, not a mask. `SetFlag(3)` sets bit 3, it does not set the value 3.
+
+`HasFlag`, `SetFlag`, `ClearFlag` and `ClearFlags` are yours. The engine never reads them, so use them for state like "already collected".
+
+```cpp
+constexpr uint32_t FLAG_COLLECTED = 0;
+if (!coin->HasFlag(FLAG_COLLECTED)) {
+  coin->SetFlag(FLAG_COLLECTED);
+}
+```
+
+`HasRenderFlag`, `SetRenderFlag`, `ClearRenderFlag` and `ClearRenderFlags` take a `RenderFlags` value, and the renderer does read one of them:
+
+| Flag | Effect |
+| --- | --- |
+| `RF_QUICK_ADVANCED_FOG` | When [advanced fog](./render#advanced-fog) is on, fog this object with one quad instead of drawing every face twice. See [Quick advanced fog](./render#quick-advanced-fog). |
+| `RF_DISTANCE_CHECK` | Not used by anything yet. |
+
+The renderer checks `RF_QUICK_ADVANCED_FOG` for each object when it draws it, and only while advanced fog is enabled. `RF_DISTANCE_CHECK` is never looked at, whether set or not. Whether an object is drawn at all depends only on whether its bounding sphere is on screen.
+
+```cpp
+hero->SetRenderFlag(RF_QUICK_ADVANCED_FOG);
+```
+
+:::caution[Flags are not cleared when an object is destroyed]
+`DestroyGameObject` resets the position, mesh, texture, tag and collision state, but not the flags or render flags. When a slot is reused, the new object can inherit the old one's flags, so call `ClearFlags()` and `ClearRenderFlags()` right after creating an object if you rely on them.
+:::
 
 ### GameObjectTag
 
@@ -109,324 +87,183 @@ doorTrigger->SetAsTrigger(psyqo::Vec3{1.0_ws, 2.0_ws, 1.0_ws}); // no mesh neede
 enum GameObjectTag { NONE, ENVIRONMENT, INTERACTABLE, PORTAL, PORTAL_ENTRANCE, PORTAL_EXIT };
 ```
 
-Used to filter/query objects (see `GameObjectManager::GetGameObjectsWithTag` and [`Raycast::RaycastScene`](./physics-and-collision#raycast), which raycasts only against objects with a specific tag).
+The tag is what you filter on with `GetGameObjectsWithTag`, and what [`Raycast::RaycastScene`](./physics-and-collision#raycast) tests against. Pass it as the last argument of `CreateGameObject`; it defaults to `NONE`.
+
+### Collision box
+
+`obb()` returns the object's oriented bounding box, which is what you hand to `IsSATCollision`. For a normal object the box size comes from the collision box baked into the mesh at export time, and the box follows the object when you call `SetPosition` or `SetRotation`. You do not update it yourself. If you set the mesh after the object is created, the box is built from that mesh at that point.
 
 ## GameObjectManager
 
 `src/core/object/gameobject_manager.hh`
 
-Owns a fixed pool of up to `MAX_GAME_OBJECTS` (250) `GameObject`s and hands out slots from it.
+Owns a fixed pool of 250 `GameObject`s (`MAX_GAME_OBJECTS`) and is the only way to create or destroy one.
+
+### Finding objects
 
 ```cpp
-class GameObjectManager final {
-public:
-  GameObject *CreateGameObject(const eastl::string_view &name, const uint64_t &nameHash, const psyqo::Vec3 &pos,
-                                const GameObjectRotation &rotation, const GameObjectTag &tag = GameObjectTag::NONE);
-  // convenience overload — hashes `name` for you via `HashName()`
-  GameObject *CreateGameObject(const eastl::string_view &name, const psyqo::Vec3 &pos,
-                                const GameObjectRotation &rotation, const GameObjectTag &tag = GameObjectTag::NONE);
-  void DestroyGameObject(GameObject *gameObject);
-  const eastl::fixed_vector<GameObject *, MAX_GAME_OBJECTS> &GetActiveGameObjects(void);
-  void ClearRenderableGameObjects(void);
-  void SetRenderableGameObjects(const eastl::span<GameObject*> renderList);
-  const eastl::fixed_vector<GameObject *, MAX_GAME_OBJECTS> &GetGameObjectsWithTag(GameObjectTag tag);
-  const eastl::array<GameObject, MAX_GAME_OBJECTS> &GetGameObjects(void);
-  GameObject *GetGameObjectByName(const eastl::string_view &name);
-  GameObject *GetGameObjectByName(uint64_t nameHash);
-  void Dump(void);
-};
-```
+auto &objects = g_madnightEngine.m_gameObjectManager;
 
-`GameObjectManager` is a non-`static` member of `MadnightEngine` (`g_madnightEngine.m_gameObjectManager`), not a static class — see [Updating the Engine → v0.0.1](../getting-started/updating-the-engine#v001-instance-based-managers).
-
-- **Active vs. renderable:** "active" objects are all objects currently alive in the world; "renderable" is meant to be a separate, explicitly-set subset (`SetRenderableGameObjects`), useful for e.g. only rendering objects in the current room/cell. The mechanism exists but nothing in the engine calls `SetRenderableGameObjects` today, so `GetActiveGameObjects` always falls through to a full scan of all 250 slots every frame.
-- **`Dump`** frees every game object at once — intended for scene teardown (see `MadnightEngine::HardLoadingScreen`), not for per-object cleanup. The manager's pool is reset so all slots become available again.
-
-### Usage
-
-```cpp
-// query everything tagged as environment geometry, e.g. to feed collision checks
-auto walls = g_madnightEngine.m_gameObjectManager.GetGameObjectsWithTag(GameObjectTag::ENVIRONMENT);
+GameObject *player = objects.GetGameObjectByName("player");   // nullptr if there is none
+const auto &walls = objects.GetGameObjectsWithTag(GameObjectTag::ENVIRONMENT);
 for (auto *wall : walls) {
-    CollisionTest result;
-    if (g_madnightEngine.m_collisionHelper.IsSATCollision(player->obb(), wall->obb(), &result))
-        player->SetPosition(player->pos() + result.mtv);
+  CollisionTest result;
+  if (g_madnightEngine.m_collisionHelper.IsSATCollision(player->obb(), wall->obb(), &result)) {
+    player->SetPosition(player->pos() + result.mtv);
+  }
 }
-
-// restrict rendering to just the objects in the current room
-eastl::fixed_vector<GameObject*, 32> roomObjects = /* ...gathered elsewhere... */;
-g_madnightEngine.m_gameObjectManager.SetRenderableGameObjects(roomObjects);
-// later, e.g. leaving the room:
-g_madnightEngine.m_gameObjectManager.ClearRenderableGameObjects(); // falls back to all active objects
 ```
 
-### Internals
+Names are hashed, so lookup compares a 64-bit hash and returns the first match. Keep names unique. Both `GetGameObjectByName` and `GetGameObjectsWithTag` walk the whole pool, so look an object up once and keep the pointer rather than searching every frame.
 
-- If the pool is full, `CreateGameObject` returns `null` (`Pool::Acquire()` returns `INVALID_POOL_ID`).
-- `GameObject::id()` is the `int16_t` pool slot used to allocate and free the object. A free/uninitialised object has `id() == INVALID_POOL_ID`.
-- `GetActiveGameObjects()` silently returns the renderable list instead if one's been set via `SetRenderableGameObjects` — call `ClearRenderableGameObjects()` to go back to "all active objects".
-- `GetGameObjectsWithTag` and `GetActiveGameObjects` share the same internal scratch buffer — don't hold a reference from one across a call to the other.
+:::caution[One shared result list]
+`GetGameObjectsWithTag` and `GetActiveGameObjects` fill the same internal list. Do not keep the reference from one across a call to the other, and note that `RaycastScene` calls `GetGameObjectsWithTag` internally.
+:::
+
+### Removing objects
+
+```cpp
+g_madnightEngine.m_gameObjectManager.DestroyGameObject(crate);
+```
+
+This frees the slot and wipes the object. Do not use the pointer afterwards. `Dump()` destroys every object at once. You rarely call it yourself, because the file loader dumps game objects, meshes, textures, collision data and sounds for you when it starts a loading screen. It does not touch billboards or particle emitters, so destroy those yourself when you change scene.
+
+### Rendering only some objects
+
+By default the renderer draws every live object. If you only want the ones in the current room, hand the manager a list:
+
+```cpp
+eastl::fixed_vector<GameObject *, 32> inRoom;
+// ...fill it with the room's objects...
+g_madnightEngine.m_gameObjectManager.SetRenderableGameObjects(
+    eastl::span<GameObject *>(inRoom.data(), inRoom.size()));
+
+// leaving the room: go back to rendering everything
+g_madnightEngine.m_gameObjectManager.ClearRenderableGameObjects();
+```
+
+While a list is set, `GetActiveGameObjects()` returns that list instead of all live objects. Nothing in the engine sets one for you.
 
 ## Billboard
 
 `src/core/billboard/billboard.hh`
 
-A camera-facing textured quad — position, size, colour, texture, and UVs, with no mesh required. Base class for [`Particle`](#particle).
+A camera-facing quad with a position, a size, a colour and an optional texture. It needs no mesh, which makes it good for glows, light flares and simple sprites in 3D space. Create one with [`BillboardManager`](#billboardmanager).
 
 ```cpp
-class Billboard {
-protected:
-  friend class BillboardManager;
-
-  // constructor is protected — BillboardManager is the only thing allowed to build one
-  Billboard(uint64_t nameHash, psyqo::Vec3 pos, psyqo::Vec2 size, uint8_t id);
-
-public:
-  Billboard() = default;
-
-  void Destroy(void);
-
-  uint64_t nameHash();
-  const uint8_t &id() const;
-  const psyqo::Vec3 &pos() const;
-  const psyqo::Vec3 *pPos() const;
-  void SetPosition(const psyqo::Vec3 pos);
-  const psyqo::Vec2 &size() const;
-  const psyqo::Vec2 *pSize() const;
-  void setSize(const psyqo::Vec2 size);
-  const psyqo::Color &colour() const;
-  const psyqo::Color *pColour() const;
-  void SetColour(const psyqo::Color colour);
-  const TimFile *pTexture() const;
-  void SetTexture(const eastl::string_view &textureName, const eastl::array<psyqo::PrimPieces::UVCoords, 4> &uv);
-  void SetTexture(TimFile *texture, const eastl::array<psyqo::PrimPieces::UVCoords, 4> &uv);
-  const eastl::array<psyqo::Vec3, 4> &corners() const;
-  const eastl::array<psyqo::PrimPieces::UVCoords, 4> &uv() const;
-  void SetUVCoords(const eastl::array<psyqo::PrimPieces::UVCoords, 4> &uv);
-};
+auto *glow = g_madnightEngine.m_billboardManager.CreateBillboard("torch_glow", torchPos, {1.0_ws, 1.0_ws});
+if (glow != nullptr) {
+  glow->SetColour({255, 200, 120});
+}
 ```
 
-### Usage
+With no texture it draws as a flat coloured quad. To texture it, pass the texture name and four UV corners:
 
 ```cpp
-Billboard *glow = g_madnightEngine.m_billboardManager.CreateBillboard("torch_glow", torchPos, {1.0_ws, 1.0_ws});
-glow->SetColour({255, 200, 120});
-// no SetTexture call -> renders as a flat Gouraud-shaded quad instead of a textured one
+glow->SetTexture("TEXTURES/GLOW.TIM", uv); // uv is an eastl::array<psyqo::PrimPieces::UVCoords, 4>
 ```
 
-### Internals
+`SetPosition`, `setSize` (note the lower-case `s`), `SetColour` and `SetUVCoords` change the rest. Set the colour yourself after creating a billboard rather than relying on the default.
 
-- Corners are stored flat, centered on the origin — camera-facing happens entirely on the render side (`Renderer::RenderBillboards`), not in `Billboard` itself.
-- `Billboard::id()` is the `int16_t` index assigned by the billboard pool; destroying a billboard returns that slot to the pool.
-- Skipping `SetTexture` is a valid, supported state — it just renders as a flat coloured quad instead of a textured one.
-- `Billboard` no longer stores its name as a string, only as `nameHash()` — if you need the name back for display/debugging, hold onto it yourself at creation time.
+Only the hash of the name is stored, so `Billboard` has no `name()`. Hold on to the name yourself if you need to display it.
 
 ## BillboardManager
 
 `src/core/billboard/billboard_manager.hh`
 
-Fixed pool of up to `MAX_BILLBOARDS` (200) billboards, same create/destroy/lookup pattern as `GameObjectManager`. Non-`static` member of `MadnightEngine` (`g_madnightEngine.m_billboardManager`).
+A pool of 200 billboards (`MAX_BILLBOARDS`), created, destroyed and looked up the same way as game objects.
 
 ```cpp
-class BillboardManager final {
-public:
-  Billboard* CreateBillboard(const eastl::string_view &name, psyqo::Vec3 pos, psyqo::Vec2 size);
-  void DestroyBillboard(Billboard* billboard);
-  const eastl::fixed_vector<Billboard*, MAX_BILLBOARDS> &GetActiveBillboards(void);
-  const eastl::array<Billboard, MAX_BILLBOARDS> &GetBillboards(void);
-  Billboard* GetBillboardByName(const eastl::string_view &name);
-  Billboard* GetBillboardByName(uint64_t nameHash);
-};
+auto &billboards = g_madnightEngine.m_billboardManager;
+Billboard *glow = billboards.GetBillboardByName("torch_glow");
+billboards.DestroyBillboard(glow);
 ```
 
-Same create/destroy/slot-reuse pattern as [`GameObjectManager`](#gameobjectmanager), just over a 200-entry pool. Billboard IDs are `int16_t` pool indexes, with `INVALID_POOL_ID` used for an unused entry. 
-`CreateBillboard`'s constructor is now `private`/`friend`-only, same as `GameObject`.
-
-## Particle
-
-`src/core/particles/particle.hh`
-
-A `Billboard` subclass that interpolates size, colour, and velocity from a start to an end value over its lifetime, then reports itself dead. You don't normally create these directly — [`ParticleEmitter`](#particleemitter) spawns and owns them.
-
-```cpp
-class Particle final : public Billboard {
-public:
-  Particle() = default;
-
-  void Process(const uint32_t &deltaTime);
-  const bool IsDead(void) const;
-
-private:
-  friend class ParticleEmitter;
-
-  // both constructors are private — ParticleEmitter is the only thing allowed to build one
-  Particle(const psyqo::Vec3 pos, const psyqo::Vec2 size, const psyqo::Color colour, const psyqo::Vec3 velocity, const uint8_t lifetime = 1);
-  Particle(const psyqo::Vec3 pos, const psyqo::Vec2 startSize, const psyqo::Vec2 endSize,
-           const psyqo::Color startColour, const psyqo::Color endColour,
-           const psyqo::Vec3 startVelocity, const psyqo::Vec3 endVelocity, const uint8_t lifetime = 1);
-};
-```
-
-`lifetime` is in whole seconds; `Process` advances the particle's age and interpolates its visual/velocity state accordingly. `deltaTime`, here and everywhere else it shows up in the engine, is the GPU vsync frame count elapsed since the last call (whatever `Renderer::Process` returned), not milliseconds or microseconds.
-
-### Internals
-
-- `Process` lerps colour, size, and velocity together based on age/lifetime, then applies velocity as a straight per-frame displacement (not an accumulated integration).
+`CreateBillboard` returns `nullptr` when the pool is full. `GetActiveBillboards()` lists the live ones.
 
 ## ParticleEmitter
 
 `src/core/particles/particle_emitter.hh`
 
-Spawns `Particle`s at a configurable rate from a spherical volume, with shared start/end size, colour, velocity, and optional 2D-only motion. Not constructed directly — see [`ParticleEmitterManager`](#particleemittermanager).
+An emitter spawns short-lived particles around a point and moves them for you. A particle is a [`Billboard`](#billboard) that changes size, colour and velocity from a start value to an end value over its life. You never build particles yourself.
+
+### Setting up an emitter
 
 ```cpp
-class ParticleEmitter final {
-public:
-  ParticleEmitter() = default;
-
-  uint64_t nameHash() const;
-  const uint8_t &id() const;
-
-  void Start(void);
-  void Stop(void);
-  void Destroy(void);
-  void Process(const uint32_t &deltaTime);
-  const eastl::vector<Particle> &particles() const;
-
-  void SetRotation(const EmitterRotation &rotation);
-  void SetParticles2D(const bool &is2D);
-  void SetParticleVelocity(const psyqo::Vec3 &particleVelocity);
-  void SetParticleVelocity(const psyqo::Vec3 &particleVelocity, const psyqo::Vec3 &particleEndVelocity);
-  void SetParticleSize(const psyqo::Vec2 &particleSize);
-  void SetParticleSize(const psyqo::Vec2 &particleSize, const psyqo::Vec2 &particleEndSize);
-  void SetParticleColour(const psyqo::Color &particleColour);
-  void SetParticleColour(const psyqo::Color &particleColour, const psyqo::Color &particleEndColour);
-  void SetParticleTexture(const eastl::string_view &textureName, const eastl::array<psyqo::PrimPieces::UVCoords, 4> &uv);
-  void SetParticleUVCoords(const eastl::array<psyqo::PrimPieces::UVCoords, 4> &uv);
-
-  const TimFile *pParticleTexture() const;
-  const bool &AreParticles2D() const;
-
-private:
-  friend class ParticleEmitterManager;
-
-  // constructor is private — ParticleEmitterManager is the only thing allowed to build one
-  ParticleEmitter(uint64_t nameHash, const uint8_t &id, const psyqo::Vec3 &pos, const psyqo::FixedPoint<> radius,
-                  const uint8_t &particlesPerSecond, const uint8_t &particleLifeTimeSecs);
-};
+auto *sparks = g_madnightEngine.m_particleEmitterManager.CreateParticleEmitter(
+    "torch_sparks", torchPos, /*radius*/ 0.1_ws, /*per second*/ 8, /*lifetime secs*/ 2);
+if (sparks != nullptr) {
+  sparks->SetRotation({0, 0, 0});
+  sparks->SetParticleTexture("TEXTURES/SPARK.TIM", uv);
+  sparks->SetParticleSize({0.1_ws, 0.1_ws}, {0.02_ws, 0.02_ws});         // shrink over life
+  sparks->SetParticleColour({255, 180, 60}, {80, 20, 20});               // orange to dark red
+  sparks->SetParticleVelocity({0.0_ws, 0.5_ws, 0.0_ws}, {0.0_ws, 0.1_ws, 0.0_ws}); // rise, then slow
+  sparks->Start();
+}
 ```
 
-`name()` is gone — `ParticleEmitter` stores only `nameHash()` now, same as `Billboard`.
+The `Set*` calls with one value use it for both the start and the end. The two-value versions give the start and end values the particle blends between. The maximum number of live particles is `particlesPerSecond * lifetimeSecs`, so the example above never has more than 16.
 
-- Constructed with a name, id, position, spawn radius, particles-per-second, and per-particle lifetime in seconds — `maxParticles` and `spawnRate` are derived from those automatically.
-- `ParticleEmitter::id()` is the `int16_t` pool slot assigned by `ParticleEmitterManager`; destroying an emitter returns that slot to the pool.
-- The single-value `Set*` overloads set both the start and end value to the same thing (no interpolation over lifetime); the two-value overloads set distinct start/end values for the particle to lerp between.
-- `SetRotation` applies an emitter-space rotation matrix so particles are emitted in a consistent cone/spread direction, then rotated into world space.
+Particles are 2D sprites by default, drawn at a size that scales with distance. A 2D particle uses only the first of the four UV corners you pass. `SetParticles2D(false)` switches to full 3D quads, which cost more.
 
-### Usage
+### Updating
+
+Nothing in the engine calls `Process` on an emitter, so call it once per frame from your scene. The renderer only draws the particles an emitter currently has.
 
 ```cpp
-ParticleEmitter *sparks = g_madnightEngine.m_particleEmitterManager.CreateParticleEmitter(
-    "torch_sparks", torchPos, /*radius*/ 0.1_ws, /*particlesPerSecond*/ 8, /*lifetimeSecs*/ 2);
+void GameplayScene::frame() {
+  uint32_t deltaTime = Renderer::Instance().Process();
+  if (deltaTime == 0) return;
 
-sparks->SetParticleSize({0.1_ws, 0.1_ws}, {0.02_ws, 0.02_ws});       // shrink over life
-sparks->SetParticleColour({255, 180, 60}, {80, 20, 20});             // orange -> dark red
-sparks->SetParticleVelocity({0.0_ws, 0.5_ws, 0.0_ws}, {0.0_ws, 0.1_ws, 0.0_ws}); // rise, then slow
-sparks->Start();
-
-// per-frame, wherever your emitters get updated:
-sparks->Process(deltaTime);
+  sparks->Process(deltaTime);
+  Renderer::Instance().Render();
+}
 ```
 
-### Internals
+`Stop()` stops new particles but the ones already alive finish their lifetime. `Start()` resumes spawning.
 
-- `Process` advances elapsed time using the `deltaTime` you pass in: spawn timing and particle ageing both track whatever value you feed it each frame.
-- Even while stopped (`Stop()`), `Process` still advances and prunes existing particles — only _new_ spawns are gated on `Start()`/`Stop()`.
-- Spawn points land on the circumference of a ring around the emitter, not scattered through a sphere's volume — despite the "spherical volume" framing in the header.
+:::note[The deltaTime argument is not used]
+`ParticleEmitter::Process` measures elapsed time from the GPU clock itself and ignores the `deltaTime` you pass. You still have to call it every frame, but passing a different value changes nothing.
+:::
+
+:::caution[Call SetRotation before you expect particles to move]
+`SetRotation` is what builds the emitter's rotation matrix. A pooled emitter does not get one from `CreateParticleEmitter`, so until you call `SetRotation` (even with zero angles, as above) the particle velocities are rotated by an empty matrix and every particle stays where it spawned.
+:::
+
+Particles are spawned at a random point on a flat circle of the emitter's radius (in the X/Z plane), not inside a sphere. `SetRotation` tilts the emitter so the circle and the particle velocities rotate with it.
 
 ## ParticleEmitterManager
 
 `src/core/particles/particle_manager.hh`
 
-Fixed pool of up to `MAX_PARTICLE_EMITTERS` (3) emitters. Slots are managed by the shared `Pool` allocator and are reused after an emitter is destroyed.
-
 ```cpp
-class ParticleEmitterManager final {
-public:
-  ParticleEmitter* CreateParticleEmitter(const eastl::string_view &name, const psyqo::Vec3 &pos, const psyqo::FixedPoint<> &radius, const uint8_t &particlesPerSecond, const uint8_t &particleLifeTimeSecs);
-  void DestroyParticleEmitter(ParticleEmitter* emitter);
-  const eastl::fixed_vector<ParticleEmitter*, MAX_PARTICLE_EMITTERS> &GetActiveEmitters(void);
-  const eastl::array<ParticleEmitter, MAX_PARTICLE_EMITTERS> &GetEmitters(void);
-  ParticleEmitter* GetEmitterByName(const eastl::string_view &name);
-  ParticleEmitter* GetEmitterByName(uint64_t nameHash);
-};
+auto &emitters = g_madnightEngine.m_particleEmitterManager;
+ParticleEmitter *sparks = emitters.GetEmitterByName("torch_sparks");
+emitters.DestroyParticleEmitter(sparks);
 ```
 
-Non-`static` member of `MadnightEngine` (`g_madnightEngine.m_particleEmitterManager`).
-
 :::note[Only 3 emitters at once]
-`MAX_PARTICLE_EMITTERS` is 3 — noticeably smaller than the 200/250-entry pools for billboards and game objects. Budget emitters carefully (e.g. one for the player, one or two for the current room's environmental effects) rather than one per particle-emitting object in a scene.
+`MAX_PARTICLE_EMITTERS` is 3, much smaller than the 200 and 250 slot pools for billboards and game objects. `CreateParticleEmitter` returns `nullptr` when all three are in use. Budget them, for example one for the player and one or two for the current room, rather than one per object that emits something.
 :::
 
 ## Pool
 
 `src/pool/pool.hh`
 
-The managers use a small reusable fixed-size pool to manage their object slots. The pool stores a
-contiguous array of entries plus a free-index list, so finding a free slot no longer requires
-scanning the whole object array.
+The managers share one small fixed-size pool type to hand out slots. You do not use it directly, but it explains a few behaviours:
 
-```cpp
-static constexpr int16_t INVALID_POOL_ID = 0xFFFF;
+- Creating something when every slot is taken returns `nullptr` (the pool reports `INVALID_POOL_ID`).
+- An object's `id()` is its slot number. A free slot has `id() == INVALID_POOL_ID`.
+- Freeing a slot makes its ID available again straight away, so an ID from a destroyed object can later belong to a new one.
+- The pool does not clean up the object in a freed slot. Each manager's `Destroy*` function does that.
 
-template <class T, int16_t N = 1>
-class Pool {
-public:
-  Pool() { Dump(); }
-
-  int16_t Acquire(void);
-  void Free(int16_t ix);
-  constexpr T* Get(int16_t ix);
-  const constexpr T* Entries(void) const;
-  void Dump(void);
-  constexpr int16_t size(void);
-};
-```
-
-### Pool behaviour
-
-- `Acquire()` returns the index of the next free slot and immediately marks that slot as used.
-- When every slot is occupied, `Acquire()` returns `INVALID_POOL_ID`.
-- `Free()` returns an index to the free list. It does **not** clean up or reset the object in that
-  slot; the owning manager is responsible for object cleanup.
-- `Get()` returns a pointer to the pool entry at an index, or `nullptr` if the index is outside
-  the pool.
-- `Entries()` returns a pointer to the pool's internal contiguous entry array.
-- `Dump()` marks every slot as free and resets the next allocation to index `0`. It does **not**
-  clear the objects stored in the entries.
-- `size()` returns the compile-time pool capacity `N`.
-
-The pool is used by the game object, billboard, particle emitter, mesh, texture, and sound
-managers. Object IDs are pool indexes, so destroying an object makes its ID available for reuse.
+The game object, billboard, particle emitter, mesh, texture and sound managers all use it.
 
 ## PerfMonitor
 
 `src/core/debug/perf_monitor.hh`
 
-A small on-screen HUD reporting FPS, heap usage, and rendered-vs-total game object counts, built on the engine's own [`GameplayHUD`](./ui#gameplayhud). Intended to be called last in your render loop.
-
-```cpp
-class PerfMonitor final {
-public:
-  // this should be called last in your render loop
-  void Render(uint32_t deltaTime);
-  void SetRenderedGameObjects(uint8_t renderedObjects, uint8_t totalObjects);
-};
-```
-
-Non-`static` member of `MadnightEngine` (`g_madnightEngine.m_perfMonitor`).
-
-### Usage
+A small on-screen readout of the heap size, the frame rate and how many game objects were drawn out of the total (for example `FPS: 60 (12/40 GO)`). Call `Render(deltaTime)` last in your frame so it draws on top.
 
 ```cpp
 void GameplayScene::frame() {
@@ -435,58 +272,41 @@ void GameplayScene::frame() {
   if (deltaTime == 0) return;
 
   renderInstance.Render();
-  g_madnightEngine.m_perfMonitor.Render(deltaTime); // last, after everything else has drawn
+  g_madnightEngine.m_perfMonitor.Render(deltaTime);
 }
 ```
 
-### Internals
-
-- No `Init()` call needed — it lazily sets itself up the first time `Render` runs.
-- The FPS shown is a 30-frame rolling average, not an instantaneous per-frame value, so it updates a couple of times a second rather than every frame.
+It sets itself up the first time `Render` runs. The frame rate is averaged over 30 frames, so it updates a couple of times a second. The renderer fills in the game object counts for you.
 
 ## DebugMenu
 
 `src/core/debug/debug_menu.hh`
 
-An in-engine debug overlay. It's toggled by holding L1 + L2 + R1 + R2 together (all four within a 30-frame window); Triangle closes it while it's open. Exposes a raycast-distance setting used by the gameplay scene, and a toggle for whether `PerfMonitor` renders.
+An in-engine overlay for changing debug settings while the game runs. Press L1, L2, R1 and R2 all within 30 frames to open it (it watches for the buttons being released), and press Triangle to close it. Up and Down move between options, Left and Right change the selected one.
+
+It has two options: a raycast distance from 1 to 10 (default 3), and a toggle for whether the performance readout shows. The engine initialises and draws the menu itself. Your game only reads the settings:
 
 ```cpp
-class DebugMenu final {
-public:
-  void Init(void);
-  void Process(void);
-  void Draw(psyqo::GPU &gpu);
-  bool IsEnabled();
-  uint8_t RaycastDistance();
-  bool DisplayDebugHUD();
-};
+auto &menu = g_madnightEngine.m_debugMenu;
+Ray ray = {.origin = camera->pos(), .direction = camera->forwardVector(),
+           .maxDistance = menu.RaycastDistance() * ONE_METRE};
+
+if (menu.DisplayDebugHUD() && !menu.IsEnabled()) {
+  g_madnightEngine.m_perfMonitor.Render(deltaTime);
+}
 ```
 
-Non-`static` member of `MadnightEngine` (`g_madnightEngine.m_debugMenu`).
-
-`DisplayDebugHUD()` gates whether [`PerfMonitor`](#perfmonitor) renders at all: `src/scenes/gameplay.cpp` only calls `g_madnightEngine.m_perfMonitor.Render` when it's true.
-
-Both Up and Down cycle through the menu's options, wrapping at each end.
+`GameplayScene::frame` does exactly this: it skips the performance readout while the menu is open.
 
 ## Collision types
 
-`src/core/collision_types.hh` — shared by [Physics & Collision](./physics-and-collision), `GameObject`, and `MeshBin`.
+`src/core/collision_types.hh`
 
 ```cpp
 enum CollisionType { SOLID, TRIGGER };
-
-struct OBB {
-  psyqo::Vec3 center;
-  psyqo::Vec3 axes[3];
-  psyqo::Vec3 halfExtents;
-  uint32_t flags = 0; // reserved
-};
-
-struct AABBCollision {
-  psyqo::Vec3 min;
-  psyqo::Vec3 max;
-};
 ```
+
+The three shapes the collision code works with are `OBB` (a centre, three axes and half-extents), `AABBCollision` (a min and a max corner) and the `CollisionType` above. [Physics & Collision](./physics-and-collision) shows how to use them.
 
 ## World units
 
@@ -496,4 +316,4 @@ struct AABBCollision {
 static constexpr psyqo::FixedPoint<> ONE_METRE = 0.03125_fp; // 128 units = 1m
 ```
 
-The engine's world scale: 128 engine units per metre, matching the scale baked into exported `.MESHBIN`/`.COLBIN` assets (see the [Asset Pipeline Guides](../guides/overview)). See also the `_ws`/`_ws10` literals in [Helpers](./helpers#world-space-literals) for converting Blender units directly.
+Use `ONE_METRE` when you need a distance in metres, for example a ray length. To place things using the numbers Blender shows you, use the `_ws` literal from [Helpers](./helpers#world-space-literals). See the [Asset Pipeline Guides](../guides/overview) for how exported assets are scaled.
