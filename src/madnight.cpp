@@ -56,6 +56,9 @@ void MadnightEngine::prepare() {
 		// our application inits
 		m_debugMenu.Init();
 
+		// memory card
+		m_memoryCardHelper.Prepare();
+
 		// hook into the game code
 		m_initialLoadRoutine = InitialLoad();
 		m_initialLoadRoutine.resume();
