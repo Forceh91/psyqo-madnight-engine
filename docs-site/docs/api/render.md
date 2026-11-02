@@ -259,10 +259,6 @@ lighting.SetAmbientColour({96, 96, 128}); // night: darker, with a blue cast
 lighting.SetAmbientColour({128, 128, 128});
 ```
 
-:::caution[Values above 128 can wrap]
-Channels above 128 brighten, but the result isn't clamped. If a vertex colour channel times the ambient channel, divided by 128, comes out above 255, it wraps round to a dark value instead of saturating: a channel of 200 under an ambient of 192 comes out as 44, not 255. Stay at or below 128 unless you know your vertex colours leave room.
-:::
-
 The cost is a multiply and a shift per colour channel on the CPU, for every vertex colour drawn. It's applied whether fog is on or not.
 
 ### Clear colour
