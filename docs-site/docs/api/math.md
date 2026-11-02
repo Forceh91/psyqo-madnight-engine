@@ -63,7 +63,7 @@ psyqo::Angle LerpAngle(const psyqo::Angle &a, const psyqo::Angle &b, const psyqo
 ```
 
 - `atan2_fixed` uses a compass convention, not standard math atan2: `0.0_pi` = up, `0.5_pi` = right, rotating clockwise — matches how the engine's angles are used elsewhere (e.g. `GameObjectRotation`), but don't assume the usual "0 = right, counter-clockwise" convention here.
-- `LerpAngle` is a plain linear lerp of the two angle values — it does **not** take the shortest path around the wrap point, so interpolating e.g. from `0.9_pi` to `-0.9_pi` will swing the long way round through `0` rather than the short way through `±π`.
+- `LerpAngle` takes the shortest path around the wrap point, so interpolating e.g. from `0.9_pi` to `-0.9_pi` goes the short way through `±π` rather than the long way round through `0`. The result is not re-wrapped, so it can land just outside `±1.0_pi`.
 
 ## Rand
 
