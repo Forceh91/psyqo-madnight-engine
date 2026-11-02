@@ -1,5 +1,6 @@
 #include "memory_card.hh"
 #include "../render/renderer.hh"
+#include "EASTL/string_view.h"
 
 #include <psyqo/xprintf.h>
 
@@ -58,4 +59,50 @@ void MemoryCard::GetFreeBlockCount(const MC::Port& port, uint32_t* outFreeBlocks
 	}
 
 	m_fs.getFreeBlockCount(port, outFreeBlocks, eastl::move(callback));
+}
+
+MC::Error MemoryCard::ReadFile(const MC::Port& port, void* buffer, uint32_t bufferSize, uint32_t* outLength) {
+	return m_fs.readFileBlocking(Renderer::Instance().GPU(), port, m_fileName.data(), buffer, bufferSize, outLength);
+}
+
+MC::Error MemoryCard::ReadFile(const MC::Port& port, const eastl::string_view& fileName, void* buffer,
+							   uint32_t bufferSize, uint32_t* outLength) {
+	m_fileName.assign(fileName.data(), fileName.length());
+	return ReadFile(port, buffer, bufferSize, outLength);
+}
+
+void MemoryCard::ReadFile(const MC::Port& port, void* buffer, uint32_t bufferSize, uint32_t* outLength,
+						  eastl::function<void(MC::Error)>&& callback) {
+	m_fs.readFile(port, m_fileName.data(), buffer, bufferSize, outLength, eastl::move(callback));
+}
+
+void MemoryCard::ReadFile(const MC::Port& port, const eastl::string_view& fileName, void* buffer, uint32_t bufferSize,
+						  uint32_t* outLength, eastl::function<void(MC::Error)>&& callback) {
+	m_fileName.assign(fileName.data(), fileName.length());
+	ReadFile(port, buffer, bufferSize, outLength, eastl::move(callback));
+}
+
+MC::Error MemoryCard::WriteFile(const MC::Port& port, const eastl::string_view& title, const MCFS::Icon& icon,
+								void* data, uint32_t dataSize) {
+	return m_fs.writeFileBlocking(Renderer::Instance().GPU(), port, m_fileName.data(), title.data(), icon, data,
+								  dataSize);
+}
+
+MC::Error MemoryCard::WriteFile(const MC::Port& port, const eastl::string_view& fileName,
+								const eastl::string_view& title, const MCFS::Icon& icon, void* data,
+								uint32_t dataSize) {
+	m_fileName.assign(fileName.data(), fileName.length());
+	return WriteFile(port, title, icon, data, dataSize);
+}
+
+void MemoryCard::WriteFile(const MC::Port& port, const eastl::string_view& title, const MCFS::Icon& icon, void* data,
+						   uint32_t dataSize, eastl::function<void(MC::Error)>&& callback) {
+	m_fs.writeFile(port, m_fileName.data(), title.data(), icon, data, dataSize, eastl::move(callback));
+}
+
+void MemoryCard::WriteFile(const MC::Port& port, const eastl::string_view& fileName, const eastl::string_view& title,
+						   const MCFS::Icon& icon, void* data, uint32_t dataSize,
+						   eastl::function<void(MC::Error)>&& callback) {
+	m_fileName.assign(fileName.data(), fileName.length());
+	WriteFile(port, title, icon, data, dataSize, eastl::move(callback));
 }

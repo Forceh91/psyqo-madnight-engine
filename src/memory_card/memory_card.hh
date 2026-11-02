@@ -4,6 +4,7 @@
 #include <EASTL/internal/function.h>
 #include <EASTL/string_view.h>
 
+#include <cstdint>
 #include <psyqo/memory-card-filesystem.hh>
 #include <psyqo/memory-card.hh>
 
@@ -38,6 +39,37 @@ class MemoryCard final {
 
 	// (non-blocking) how many blocks are free on the card in this port?
 	void GetFreeBlockCount(const MC::Port& port, uint32_t* outFreeBlocks, eastl::function<void(MC::Error)>&& callback);
+
+	// (blocking) call to read the specified file name (set with `SetFileName`)
+	MC::Error ReadFile(const MC::Port& port, void* buffer, uint32_t bufferSize, uint32_t* outLength);
+
+	// (blocking) call to read the specified file name
+	MC::Error ReadFile(const MC::Port& port, const eastl::string_view& fileName, void* buffer, uint32_t bufferSize,
+					   uint32_t* outLength);
+
+	// (non-blocking) call to read the specified file name (set with `SetFileName`)
+	void ReadFile(const MC::Port& port, void* buffer, uint32_t bufferSize, uint32_t* outLength,
+				  eastl::function<void(MC::Error)>&& callback);
+
+	// (non-blocking) call to read the specified file name
+	void ReadFile(const MC::Port& port, const eastl::string_view& fileName, void* buffer, uint32_t bufferSize,
+				  uint32_t* outLength, eastl::function<void(MC::Error)>&& callback);
+
+	// (blocking) call to write the specified file name (set with `SetFileName`)
+	MC::Error WriteFile(const MC::Port& port, const eastl::string_view& title, const MCFS::Icon& icon, void* data,
+						uint32_t dataSize);
+
+	// (blocking) call to write the specified file name
+	MC::Error WriteFile(const MC::Port& port, const eastl::string_view& fileName, const eastl::string_view& title,
+						const MCFS::Icon& icon, void* data, uint32_t dataSize);
+
+	// (non-blocking) call to write the specified file name (set with `SetFileName`)
+	void WriteFile(const MC::Port& port, const eastl::string_view& title, const MCFS::Icon& icon, void* data,
+				   uint32_t dataSize, eastl::function<void(MC::Error)>&& callback);
+
+	// (non-blocking) call to write the specified file name
+	void WriteFile(const MC::Port& port, const eastl::string_view& fileName, const eastl::string_view& title,
+				   const MCFS::Icon& icon, void* data, uint32_t dataSize, eastl::function<void(MC::Error)>&& callback);
 
 	constexpr MCFS* FileSystem(void) { return &m_fs; }
 
