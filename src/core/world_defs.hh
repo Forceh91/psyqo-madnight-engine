@@ -5,8 +5,9 @@
  */
 
 #pragma once
-#include "psyqo/fixed-point.hh"
+#include "../helpers/world_space.hh"
+#include <psyqo/fixed-point.hh>
 
 using namespace psyqo::fixed_point_literals;
 
-static constexpr psyqo::FixedPoint<> ONE_METRE = 0.03125_fp; // 128 units = 1m
+static constexpr psyqo::FixedPoint<> ONE_METRE = 0.5_ws; // 0.015625_fp; // 64 units = 1m
