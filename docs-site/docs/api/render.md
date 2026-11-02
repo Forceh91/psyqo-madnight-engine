@@ -191,37 +191,14 @@ Key constants (`src/render/renderer.hh`):
 | Constant               | Value   | Purpose                                                                                                                                                                        |
 | ---------------------- | ------- | ------------------------------------------------------------------------------------------------------------------------------------------------------------------------------ |
 | `ORDERING_TABLE_SIZE`  | 10,000  | Depth buckets in each frame's ordering table                                                                                                                                   |
-| `FULL_FOG_DISTANCE`    | 3,500   | Screen-space Z past which fog is fully opaque, 2D sprite particles only (see below)                                                                                            |
-| `NEAR_FOG_DISTANCE`    | 2,000   | Screen-space Z where fog starts blending in, 2D sprite particles only (see below)                                                                                              |
+| `FULL_FOG_DISTANCE`    | 3,500   | Screen-space Z past which fog is fully opaque, 2D sprite particles only (see [Fog on billboards and particles](#fog-on-billboards-and-particles))                              |
+| `NEAR_FOG_DISTANCE`    | 2,000   | Screen-space Z where fog starts blending in, 2D sprite particles only (see [Fog on billboards and particles](#fog-on-billboards-and-particles))                                |
 | `BUMP_ALLOCATOR_BYTES` | 125,000 | Per-frame draw-command arena (×2 for double buffering)                                                                                                                         |
 | `SUBDIVISION_DISTANCE` | 750     | View-space distance closer than which large textured quads/tris get subdivided to reduce perspective warping (`renderer.cpp` subdivides when `zIndex <= SUBDIVISION_DISTANCE`) |
 
-**Typical per-frame flow:** call `Process()` to get `deltaTime`, `Clear()`/`StartScene()`, update and render your game objects/scene, then `Render(deltaTime)` to flush the ordering table to the GPU. `Renderer` draws whatever `GameObjectManager::GetActiveGameObjects` returns each frame (see [Core](./core#gameobjectmanager) on the renderable-objects subset, which currently isn't wired up to anything); visibility is culled per-object against the camera via `IsGameObjectVisible` internally, using each object's bounding volume.
+**Typical per-frame flow:** call `StartScene()` once from your scene's `start()`, then each frame call `Process()` to get `deltaTime`, update your game objects/scene, then `Render(deltaTime)` to flush the ordering table to the GPU. `Render()` clears the screen itself (see [Clear colour](#clear-colour)), so `Clear()` is only needed in frames that draw without it. `Renderer` draws whatever `GameObjectManager::GetActiveGameObjects` returns each frame (see [Core](./core#gameobjectmanager) on the renderable-objects subset, which currently isn't wired up to anything); visibility is culled per-object against the camera via `IsGameObjectVisible` internally, using each object's bounding volume.
 
-Fog comes in two modes, simple and advanced, both off by default. Advanced wins if both are on. `StartScene()` picks the near/far distances from whichever mode is on at that moment (`SetFogNearFar(0.5_fp, 1.55_fp)` for simple, `SetFogNearFar(0.33_fp, 1.1_fp)` for advanced). It reads the mode once, so enable the mode before the scene starts, i.e. before its `start()` calls `StartScene()`:
-
-```cpp
-Lighting::instance().EnableAdvancedFog();
-Renderer::Instance().SetFogColour({20, 20, 30});
-// ...then start the scene, whose start() calls Renderer::Instance().StartScene()
-```
-
-**Simple fog** lerps vertex colours toward the fog colour on the GTE (`ApplyFogToColourGTE`, depth-cueing via `dpcs`), after visibility culling so only visible faces pay for it. Because a textured prim multiplies its texels by the vertex colour, textured faces can only darken toward the fog, never brighten toward it.
-
-**Advanced fog** (Silent Hill style) gives a real `texel * (1 - t) + fog * t` on textured faces:
-
-- Textured faces are drawn twice: an opaque untextured quad/tri in `fog * t`, then the textured face semi-transparent on top with its vertex colours scaled by `(1 - t)`. This only blends texels with STP set, which is why `LoadTIM` sets it (see [Textures](./textures)).
-- Textures with holes, loaded with flag 1, use a mask-bit sequence instead, so the fog is drawn on the texels and not on the holes. It costs more prims per face.
-- Untextured faces stay one prim, with the colour already summed as `vertex * (1 - t) + fog * t`.
-- Billboards and particles lerp their colour to the fog colour.
-- A mesh quad or tri whose vertices are all fully fogged (`IR0` at 4096 on every vertex) is skipped entirely. The background shows through instead, which only matches if `Clear()` uses the fog colour, as it does by default.
-
-**`RF_QUICK_ADVANCED_FOG`** on a `GameObject` (for detailed characters) skips the per-face second prim. It darkens the faces by `(1 - t)` and adds `fog * t` with one additive quad over the object's screen rectangle, using the average `t` over its faces. The quad only draws on pixels with the mask bit clear, so:
-
-- the object's TIM must be loaded with flag 1, or its texels come out with the mask bit set and get no fog;
-- anything else inside that rectangle with the mask bit clear (the cleared background, other untextured or flag-1 geometry) gets the same add, which shows as a faint box around the object.
-
-2D sprite particles take `t` from a separate CPU path (`GetFogFactor`), which is what `FULL_FOG_DISTANCE`/`NEAR_FOG_DISTANCE` above feed; the mesh paths don't use those constants.
+Ambient colour, the clear colour and fog are all applied by the renderer but configured through `Lighting`; see [Lighting](#lighting) and [Fog](#fog) below.
 
 ### Usage
 
@@ -260,7 +237,52 @@ void GameplayScene::frame() {
 
 `src/render/lighting.hh`
 
-Singleton holding the current scene's ambient colour and fog state. The two are configured differently: fog colour goes through `Renderer::SetFogColour` (which also pushes the GTE far-colour registers), while ambient colour has no `Renderer` wrapper and is set directly on `Lighting::instance()`.
+`Lighting` is a singleton, reached through `Lighting::instance()`, that holds the settings the renderer reads while it draws: the ambient colour, the fog colour (which is also the colour the screen is cleared to), and which fog mode is on. None of it belongs to a scene, so whatever you set stays set across scene switches until you change it.
+
+### Ambient colour
+
+The ambient colour scales the colour of everything the renderer draws: every vertex colour on a mesh face, and the colour of every billboard and particle, is multiplied by it before it reaches the GPU. Each channel works as a scale where 128 means "leave it alone", so:
+
+- the default, `{128, 128, 128}`, draws everything exactly as authored;
+- `{64, 64, 64}` draws everything at half brightness;
+- `{96, 96, 128}` darkens red and green but keeps blue, for a cool night-time cast.
+
+It is a flat scale, not a light. There's no direction and no per-object setting, so every face in the scene is scaled by the same amount. Use it to set the mood of a level (a dark cave, a red alarm state) or to fade a scene in or out.
+
+The renderer reads it every time it draws, so you can change it whenever you like, including in the middle of a scene, and the change shows up on the next frame. There's no `Renderer` wrapper for it; set it on `Lighting` directly:
+
+```cpp
+auto &lighting = Lighting::instance();
+lighting.SetAmbientColour({96, 96, 128}); // night: darker, with a blue cast
+
+// later, back to the colours as authored
+lighting.SetAmbientColour({128, 128, 128});
+```
+
+:::caution[Values above 128 can wrap]
+Channels above 128 brighten, but the result isn't clamped. If a vertex colour channel times the ambient channel, divided by 128, comes out above 255, it wraps round to a dark value instead of saturating: a channel of 200 under an ambient of 192 comes out as 44, not 255. Stay at or below 128 unless you know your vertex colours leave room.
+:::
+
+The cost is a multiply and a shift per colour channel on the CPU, for every vertex colour drawn. It's applied whether fog is on or not.
+
+### Clear colour
+
+There is no separate background colour. At the start of every `Render()` the screen is cleared to the fog colour, whether fog is turned on or not, so with fog off the fog colour is simply your background colour. It starts out black.
+
+To change it, set the fog colour:
+
+```cpp
+Renderer::Instance().SetFogColour({40, 60, 120}); // a blue sky behind everything, no fog involved
+```
+
+`Render()` does its own clearing, so a frame that calls it never needs `Clear()`, and a colour passed to `Clear()` in the same frame won't show, because `Render()` reuses the same clear command with the fog colour. `Clear()` is for frames that draw without `Render()`, the way the built-in loading scene clears the screen and then prints its progress text. With no argument it clears to the fog colour; pass a colour to use a different one for that frame:
+
+```cpp
+Renderer::Instance().Clear();          // fog colour
+Renderer::Instance().Clear({0, 0, 0}); // black, this frame only
+```
+
+### Reference
 
 ```cpp
 class Lighting {
@@ -283,14 +305,129 @@ public:
 };
 ```
 
-```cpp
-Lighting::instance().SetAmbientColour({80, 80, 100}); // dim, slightly blue ambient
-Renderer::Instance().SetFogColour({20, 20, 30});       // also updates the GTE's far-colour registers
-```
+`Renderer` also has `SetFogColour` and `IsSimpleFogEnabled`. Prefer `Renderer::Instance().SetFogColour` over `Lighting::instance().SetFogColour`; see [Changing the fog colour](#changing-the-fog-colour) for why.
 
 :::note[Renamed]
-`SetAmbient` was renamed to `SetAmbientColour`, and `m_ambient`/`m_fogColour`/`m_isSimpleFogEnabled` are now private — use the getters above instead of reaching for the fields directly.
+`SetAmbient` was renamed to `SetAmbientColour`, and `m_ambient`/`m_fogColour`/`m_isSimpleFogEnabled` are now private. Use the getters above instead of reaching for the fields directly.
 :::
+
+## Fog
+
+Fog blends geometry toward the fog colour the further it is from the camera. Because the screen is also cleared to the fog colour, distant geometry fades into the background rather than ending at a hard edge.
+
+There are two modes, and both are off by default:
+
+|                           | Simple fog                                       | Advanced fog                                                       |
+| ------------------------- | ------------------------------------------------ | ------------------------------------------------------------------ |
+| Textured faces            | Tinted toward the fog colour, never fully faded  | Fade all the way into the fog colour                               |
+| Good for                  | Dark fog colours, keeping the draw cost down     | Light fog colours, heavily textured scenes                         |
+| Extra GPU commands        | None                                             | One more per partly fogged textured face, more for textures with holes |
+| Where it starts           | Further from the camera                          | Closer to the camera                                               |
+| Needs from your textures  | Nothing                                          | The STP bit, which `LoadTIM` sets by default                       |
+
+If both are turned on, advanced fog wins and simple fog does nothing.
+
+### Turning fog on
+
+`StartScene()` looks at which mode is on and writes that mode's fog distances to the GTE. It does that once, when it's called, so turn the mode on before `StartScene()` runs: at the top of your scene's `start()`, or before you switch to the scene.
+
+```cpp
+void GameplayScene::start(StartReason reason) {
+  Lighting::instance().EnableAdvancedFog();
+  Renderer::Instance().SetFogColour({20, 20, 30});
+  Renderer::Instance().StartScene(); // picks up the fog mode set above
+  // ...
+}
+```
+
+Or from game code, before the scene starts:
+
+```cpp
+Lighting::instance().EnableSimpleFog();
+Renderer::Instance().SetFogColour({20, 20, 30});
+g_madnightEngine.SwitchScene(&gameplayScene); // gameplayScene's start() calls StartScene()
+```
+
+Things to know:
+
+- The on/off state is checked every frame, so `DisableSimpleFog()` and `DisableAdvancedFog()` take effect straight away. Turning a mode on, or switching from one mode to the other, after `StartScene()` draws with whatever fog distances the GTE was last given, if any, rather than that mode's own. Call `StartScene()` again or set the mode before the scene starts.
+- The fog distances are fixed per mode. `Renderer::SetFogNearFar` is private, so a game can't move them. Advanced fog starts closer to the camera and reaches full fog sooner than simple fog.
+
+### Changing the fog colour
+
+Use `Renderer::Instance().SetFogColour`. It stores the colour on `Lighting` and also writes it into the GTE, which is where simple fog reads it from. You can call it at any time, including mid-scene.
+
+`Lighting::instance().SetFogColour` only stores the colour. The background and advanced fog pick it up on the next frame, but simple fog on meshes, billboards and 3D particles keeps using the old colour until the next `StartScene()`.
+
+```cpp
+// a storm rolling in: switch to a darker fog mid-scene
+Renderer::Instance().SetFogColour({60, 60, 70});
+```
+
+### Simple fog
+
+Simple fog blends each vertex colour toward the fog colour based on its depth, using the GTE. It runs after faces have been culled and clipped, so only faces that actually get drawn pay for it, and it adds no extra GPU commands.
+
+On a textured face the vertex colour tints the texture rather than replacing it, so simple fog tints textured faces toward the fog colour without ever fully fading them out. Dark parts of a texture stay dark however far away they are. That suits a dark fog colour such as night-time black or deep blue, where the result looks like the scene fading into darkness. With a pale fog colour, textured faces won't fade into the background; use [advanced fog](#advanced-fog) for that.
+
+```cpp
+void GameplayScene::start(StartReason reason) {
+  Lighting::instance().EnableSimpleFog();
+  Renderer::Instance().SetFogColour({8, 8, 16}); // dark fog, where simple fog looks right
+  Renderer::Instance().StartScene();
+}
+```
+
+The cost is one GTE depth-cue operation per vertex of each drawn face.
+
+### Advanced fog
+
+Advanced fog (Silent Hill style) gives textured faces a real blend, `texel * (1 - t) + fog * t` where `t` is the fog amount at that vertex, so textured geometry fades fully into any fog colour, light or dark.
+
+```cpp
+void GameplayScene::start(StartReason reason) {
+  Lighting::instance().EnableAdvancedFog();
+  Renderer::Instance().SetFogColour({160, 160, 170}); // pale grey fog
+  Renderer::Instance().StartScene();
+}
+```
+
+How it draws, and what that means for you:
+
+- A textured face with any fogged vertex is drawn twice: first an opaque untextured face in the fog colour scaled by `t`, then the textured face semi-transparent on top, with its vertex colours scaled by `(1 - t)`. Only texels with the STP bit set take part in the blend, which is why [`LoadTIM`](./textures) sets that bit unless the texture is loaded with flag 1.
+- A face with no fogged vertices is drawn once, as normal.
+- A face whose vertices are all fully fogged is skipped. The background shows through instead, and since `Render()` clears to the fog colour, it looks the same.
+- An untextured face is always a single primitive, with its colour already blended as `vertex * (1 - t) + fog * t`.
+- A texture with holes (transparent texels) has to be loaded with flag 1, so the fog is drawn on its texels and not over the holes. Each partly fogged face using it costs eight GPU commands, three of them polygons, instead of two. See [Textures](./textures) for how to load with flag 1, and the [SCENEBIN guide](../guides/scenebin#texture-extra-placement) for doing it from a manifest.
+
+The extra commands come out of the same 125,000-byte per-frame arena as everything else, so a scene that fits without fog may not fit with it (see the bump allocator note under [Renderer](#renderer)). For detailed models, [quick advanced fog](#quick-advanced-fog) trades some accuracy for a much lower cost.
+
+### Quick advanced fog
+
+Setting the `RF_QUICK_ADVANCED_FOG` render flag on a `GameObject` swaps the second primitive per face for one primitive for the whole object. Each face is darkened by `(1 - t)`, then a single additive quad covering the object's screen rectangle adds the fog colour scaled by the object's average `t` across all its vertices. The flag does nothing unless advanced fog is on.
+
+Use it for detailed models with lots of faces, such as characters, where drawing every face twice gets expensive. Because the whole object gets one fog amount, it suits compact objects; a long object stretching away from the camera gets the same fog along its whole length.
+
+```cpp
+// hero.tim must be loaded with flag 1 (see below)
+GameObject *hero = g_madnightEngine.m_gameObjectManager.GetGameObjectByName("hero");
+if (hero) {
+  hero->SetRenderFlag(RF_QUICK_ADVANCED_FOG);
+}
+```
+
+The quad only draws on pixels with the mask bit clear, so:
+
+- the object's texture must be loaded with flag 1, or its texels come out with the mask bit set and get no fog;
+- anything else inside that rectangle with the mask bit clear (the cleared background, other untextured or flag-1 geometry) gets the same add, which shows as a faint box around the object.
+
+The cost is four extra GPU commands per object (the quad plus three state changes), however many faces it has.
+
+### Fog on billboards and particles
+
+Billboards and particles use one colour for all their corners. It's scaled by the ambient colour, then blended toward the fog colour using the depth of a single corner. That's a plain colour blend in both modes, without advanced fog's second primitive, so a textured billboard or particle is tinted toward the fog colour the way [simple fog](#simple-fog) tints textured faces.
+
+Particles from a 2D emitter (`AreParticles2D()`) are drawn as sprites and take their fog amount from the CPU instead of the GTE: none up to a screen depth of `NEAR_FOG_DISTANCE` (2,000), full at `FULL_FOG_DISTANCE` (3,500), and a straight line between the two. Those two constants only affect 2D particles, so they won't line up exactly with the fog on meshes and billboards.
 
 ## Colour constants
 
