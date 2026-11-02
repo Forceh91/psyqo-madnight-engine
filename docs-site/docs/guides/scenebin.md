@@ -56,7 +56,7 @@ A TEXTURE_EXTRA entry carries the same four placement values as TEXTURE, followe
 
 Set `flags` to 1 for a texture with holes (transparent texels you can see through), so advanced
 fog is drawn on the texels and not on the holes. Textures used by an object with
-`RF_QUICK_ADVANCED_FOG` need it too, holes or not; see the [render page](../api/render#renderer)
+`RF_QUICK_ADVANCED_FOG` need it too, holes or not; see [quick advanced fog](../api/render#quick-advanced-fog)
 for why.
 
 ## Types
