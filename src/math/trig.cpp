@@ -132,5 +132,14 @@ psyqo::Angle atan2_fixed(int16_t y, int16_t x) {
 }
 
 psyqo::Angle LerpAngle(const psyqo::Angle& a, const psyqo::Angle& b, const psyqo::FixedPoint<10>& t) {
-	return a * (1.0_pi - t) + b * t;
+	// wrap the difference so we go the short way round
+	psyqo::Angle delta = b - a;
+	while (delta > 1.0_pi) {
+		delta -= 2.0_pi;
+	}
+	while (delta < -1.0_pi) {
+		delta += 2.0_pi;
+	}
+
+	return a + delta * t;
 }

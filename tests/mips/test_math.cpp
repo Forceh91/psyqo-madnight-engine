@@ -147,9 +147,8 @@ TEST_CASE("LerpAngle interpolates between two angles") {
 }
 
 // From 162 degrees to -162 degrees the short way round is 36 degrees through 180, so the
-// midpoint is +-1.0_pi. KNOWN FAILURE: LerpAngle interpolates the raw value and goes the long
-// way, through 0.
-TEST_CASE("LerpAngle takes the shortest way across the +-180 degree seam", "[!shouldfail]") {
+// midpoint is +-1.0_pi.
+TEST_CASE("LerpAngle takes the shortest way across the +-180 degree seam") {
 	auto mid = LerpAngle(0.9_pi, -0.9_pi, psyqo::FixedPoint<10>(0.5));
 	CHECK((mid.value == 1024 || mid.value == -1024));
 }

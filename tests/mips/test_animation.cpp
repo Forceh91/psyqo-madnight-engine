@@ -72,9 +72,7 @@ TEST_CASE("Slerp halfway between identity and 90 degrees is 45 degrees") {
 }
 
 // -q is the same rotation as q, so halfway from identity to -RotZ90 is still 45 degrees about z.
-// KNOWN FAILURE: Slerp negates q2 into q2Actual when the dot product is negative, then
-// interpolates with q2, so the short-way flip never takes effect.
-TEST_CASE("Slerp takes the short way when the quaternions are in opposite hemispheres", "[!shouldfail]") {
+TEST_CASE("Slerp takes the short way when the quaternions are in opposite hemispheres") {
 	auto q = RotZ90();
 	Quaternion negated{-q.w, -q.x, -q.y, -q.z};
 	CHECK(QuatNear(Slerp(Identity(), negated, 0.5_fp), ROT_Z45_W, 0, 0, ROT_Z45_Z));
@@ -156,10 +154,7 @@ TEST_CASE("PlayAnimation does nothing without a skeleton or an animation") {
 }
 
 // Frame 5 is halfway from the key at 0 to the key at 10, so the bone should be at 45 degrees.
-// KNOWN FAILURE: PlayAnimation computes the factor as an integer division,
-// (currentFrame - prev->frame) / frameDiff, which is 0 for every frame strictly between two keys,
-// so the bone snaps to the earlier key instead of interpolating.
-TEST_CASE("PlayAnimation interpolates between keys", "[!shouldfail]") {
+TEST_CASE("PlayAnimation interpolates between keys") {
 	SetUpAnimation(true);
 	SkeletonController controller;
 	controller.SetAnimation(&s_skeleton, &s_animation);

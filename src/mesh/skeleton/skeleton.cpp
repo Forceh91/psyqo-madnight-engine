@@ -189,7 +189,7 @@ void SkeletonController::PlayAnimation(Skeleton* skeleton, uint32_t deltaTime) {
 
 		// need to slerp
 		auto frameDiff = next->frame - prev->frame;
-		auto slerpFactor = frameDiff > 0 ? ((skeleton->animationCurrentFrame - prev->frame) / frameDiff * 1.0_fp) : 0;
+		auto slerpFactor = frameDiff > 0 ? ((skeleton->animationCurrentFrame - prev->frame) * 1.0_fp / frameDiff) : 0;
 
 		auto& bone = skeleton->bones[track.jointId];
 		if (next->keyType == KeyType::ROTATION) {
