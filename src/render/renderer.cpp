@@ -2544,7 +2544,7 @@ void Renderer::ApplyAmbientToColours(psyqo::Color* colA, psyqo::Color* colB, psy
 	colB->b = eastl::min(255, (colB->b * ambient.b) >> 7);
 	colC->r = eastl::min(255, (colC->r * ambient.r) >> 7);
 	colC->g = eastl::min(255, (colC->g * ambient.g) >> 7);
-	colC->b = (colC->b * ambient.b) >> 7;
+	colC->b = eastl::min(255, (colC->b * ambient.b) >> 7);
 }
 
 void Renderer::ApplyAmbientToColours(psyqo::Color* colA, psyqo::Color* colB, psyqo::Color* colC, psyqo::Color* colD) {
