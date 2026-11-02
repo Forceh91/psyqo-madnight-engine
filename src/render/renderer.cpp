@@ -2529,38 +2529,38 @@ psyqo::FixedPoint<> Renderer::GetFogFactor(uint32_t z) {
 
 void Renderer::ApplyAmbientToColour(psyqo::Color* colA) {
 	auto& ambient = m_lighting->GetAmbientColour();
-	colA->r = (colA->r * ambient.r) >> 7;
-	colA->g = (colA->g * ambient.g) >> 7;
-	colA->b = (colA->b * ambient.b) >> 7;
+	colA->r = eastl::min(255, (colA->r * ambient.r) >> 7);
+	colA->g = eastl::min(255, (colA->g * ambient.g) >> 7);
+	colA->b = eastl::min(255, (colA->b * ambient.b) >> 7);
 }
 
 void Renderer::ApplyAmbientToColours(psyqo::Color* colA, psyqo::Color* colB, psyqo::Color* colC) {
 	auto& ambient = m_lighting->GetAmbientColour();
-	colA->r = (colA->r * ambient.r) >> 7;
-	colA->g = (colA->g * ambient.g) >> 7;
-	colA->b = (colA->b * ambient.b) >> 7;
-	colB->r = (colB->r * ambient.r) >> 7;
-	colB->g = (colB->g * ambient.g) >> 7;
-	colB->b = (colB->b * ambient.b) >> 7;
-	colC->r = (colC->r * ambient.r) >> 7;
-	colC->g = (colC->g * ambient.g) >> 7;
-	colC->b = (colC->b * ambient.b) >> 7;
+	colA->r = eastl::min(255, (colA->r * ambient.r) >> 7);
+	colA->g = eastl::min(255, (colA->g * ambient.g) >> 7);
+	colA->b = eastl::min(255, (colA->b * ambient.b) >> 7);
+	colB->r = eastl::min(255, (colB->r * ambient.r) >> 7);
+	colB->g = eastl::min(255, (colB->g * ambient.g) >> 7);
+	colB->b = eastl::min(255, (colB->b * ambient.b) >> 7);
+	colC->r = eastl::min(255, (colC->r * ambient.r) >> 7);
+	colC->g = eastl::min(255, (colC->g * ambient.g) >> 7);
+	colC->b = eastl::min(255, (colC->b * ambient.b) >> 7);
 }
 
 void Renderer::ApplyAmbientToColours(psyqo::Color* colA, psyqo::Color* colB, psyqo::Color* colC, psyqo::Color* colD) {
 	auto& ambient = m_lighting->GetAmbientColour();
-	colA->r = (colA->r * ambient.r) >> 7;
-	colA->g = (colA->g * ambient.g) >> 7;
-	colA->b = (colA->b * ambient.b) >> 7;
-	colB->r = (colB->r * ambient.r) >> 7;
-	colB->g = (colB->g * ambient.g) >> 7;
-	colB->b = (colB->b * ambient.b) >> 7;
-	colC->r = (colC->r * ambient.r) >> 7;
-	colC->g = (colC->g * ambient.g) >> 7;
-	colC->b = (colC->b * ambient.b) >> 7;
-	colD->r = (colD->r * ambient.r) >> 7;
-	colD->g = (colD->g * ambient.g) >> 7;
-	colD->b = (colD->b * ambient.b) >> 7;
+	colA->r = eastl::min(255, (colA->r * ambient.r) >> 7);
+	colA->g = eastl::min(255, (colA->g * ambient.g) >> 7);
+	colA->b = eastl::min(255, (colA->b * ambient.b) >> 7);
+	colB->r = eastl::min(255, (colB->r * ambient.r) >> 7);
+	colB->g = eastl::min(255, (colB->g * ambient.g) >> 7);
+	colB->b = eastl::min(255, (colB->b * ambient.b) >> 7);
+	colC->r = eastl::min(255, (colC->r * ambient.r) >> 7);
+	colC->g = eastl::min(255, (colC->g * ambient.g) >> 7);
+	colC->b = eastl::min(255, (colC->b * ambient.b) >> 7);
+	colD->r = eastl::min(255, (colD->r * ambient.r) >> 7);
+	colD->g = eastl::min(255, (colD->g * ambient.g) >> 7);
+	colD->b = eastl::min(255, (colD->b * ambient.b) >> 7);
 }
 
 void Renderer::ApplyFogToColour(psyqo::Color* col, psyqo::FixedPoint<> fogFactor) {
