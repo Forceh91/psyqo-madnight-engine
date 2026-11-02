@@ -58,11 +58,11 @@ psyqo::FixedPoint<> inverseLerp(uint32_t a, uint32_t b, uint32_t value);
 `src/math/trig.hh`
 
 ```cpp
-psyqo::Angle atan2_fixed(int16_t y, int16_t x);
+[[deprecated]] psyqo::Angle atan2_fixed(int16_t y, int16_t x);
 psyqo::Angle LerpAngle(const psyqo::Angle &a, const psyqo::Angle &b, const psyqo::FixedPoint<10> &t);
 ```
 
-- `atan2_fixed` uses a compass convention, not standard math atan2: `0.0_pi` = up, `0.5_pi` = right, rotating clockwise — matches how the engine's angles are used elsewhere (e.g. `GameObjectRotation`), but don't assume the usual "0 = right, counter-clockwise" convention here.
+- `atan2_fixed` is deprecated and will be removed in the next major release; use `psyqo::atan2` instead. The deprecation notice says it is not reliable: it drifts from the expected values (by ~3.5 degrees) or takes the long path instead of the short one.
 - `LerpAngle` takes the shortest path around the wrap point, so interpolating e.g. from `0.9_pi` to `-0.9_pi` goes the short way through `±π` rather than the long way round through `0`. The result is not re-wrapped, so it can land just outside `±1.0_pi`.
 
 ## Rand
