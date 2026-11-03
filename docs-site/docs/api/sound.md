@@ -5,123 +5,153 @@ sidebar_position: 8
 
 # Sound
 
-`src/sound/` — two independent systems: `SoundManager` for one-shot/looping VAG samples over the SPU's 24 channels, and `ModSoundManager` for MOD-tracker background music.
+`src/sound/` has two separate players. `SoundManager` plays `.VAG` samples, which is what you want for sound effects and short loops. `ModSoundManager` plays one `.MOD` tracker file as background music.
+
+Both are members of `g_madnightEngine`: `m_soundManager` and `m_modSoundManager`.
+
+:::caution[VAG samples and MOD music overwrite each other]
+Both players upload their samples to the same place in SPU RAM. Loading a MOD file overwrites any VAG samples already uploaded, and VAG samples loaded after a hard load overwrite the MOD's instruments. Use one or the other in a scene, not both.
+:::
 
 ## SoundManager
 
 `src/sound/sound_manager.hh`
 
-Loads `.VAG` samples into SPU RAM and plays them back on any of the SPU's channels (`MAX_VAG_FILE_COUNT` = 24, matching hardware channel count).
+### Loading a sound effect
+
+Put the `.VAG` file in a load queue and the loader uploads it to the SPU for you.
 
 ```cpp
-static constexpr uint8_t MAX_VAG_FILE_COUNT = 24;
-static constexpr uint32_t SPU_NOMINAL_PITCH = 4096;
-static constexpr uint32_t SPU_MEMORY_SIZE = 0x80000;
-static constexpr uint32_t SPU_ADR_INSTANT_ATTACK_NO_DECAY = 0x80000000;
-static constexpr uint8_t SPU_MAX_CHANNEL_ID = 23;
-
-struct VagEntry {
-  int16_t id = INVALID_POOL_ID; // pool index
-  uint64_t nameHash; // hash of the name supplied for the CD-ROM load, not the header's
-  uint32_t spuAddr; // where it lives in SPU RAM
-  uint32_t pitch;   // precomputed from sample rate
-  uint32_t size;    // SPU RAM footprint
+eastl::vector<LoadQueue> files = {
+    {.name = "SFX/JUMP.VAG", .type = LoadFileType::VAG},
 };
-
-class SoundManager final {
-public:
-  void Init(void); // called automatically by the engine
-
-  void Dump(void); // resets the SPU alloc pointer, doesn't clear SPU contents
-  psyqo::Coroutine<> LoadVAGFile(const eastl::string_view& fileName, VagEntry** out);
-  VagEntry* IsVAGLoaded(const eastl::string_view& fileName);
-  VagEntry* IsVAGLoaded(uint64_t nameHash);
-  VagEntry* IsVAGLoaded(const int16_t& id);
-  void SilenceChannels(const uint32_t channels);
-
-  void PlayVAGFile(const VagEntry* vag, uint8_t channelId, const psyqo::SPU::ChannelPlaybackConfig &config, bool hardCut = false);
-  void PlayVAGFile(const eastl::string_view& fileName, uint8_t channelId, const psyqo::SPU::ChannelPlaybackConfig &config, bool hardCut = false);
-  void PlayVAGFile(const int16_t& vagID, uint8_t channelId, const psyqo::SPU::ChannelPlaybackConfig &config, bool hardCut = false);
-
-  psyqo::SPU::ChannelPlaybackConfig CreatePlaybackConfig(const VagEntry* vag, uint16_t volume, uint32_t adsr = SPU_ADR_INSTANT_ATTACK_NO_DECAY);
-  psyqo::SPU::ChannelPlaybackConfig CreatePlaybackConfig(const VagEntry* vag, uint16_t volumeL, uint16_t volumeR, uint32_t adsr = SPU_ADR_INSTANT_ATTACK_NO_DECAY);
-};
+co_await g_madnightEngine.HardLoadingScreen(eastl::move(files), &gameplayScene);
 ```
 
-Non-`static` member of `MadnightEngine` (`g_madnightEngine.m_soundManager`). `VagEntry` now stores a hashed `nameHash` instead of the full name string, and `IsVAGLoaded` gained a `uint64_t nameHash` overload alongside the existing by-name and by-id ones — precompute the hash with `HashName()` if you're checking the same name repeatedly.
+In a manifest the line is `vag SFX/JUMP.VAG` (see [SCENEBIN](../guides/scenebin#types)).
 
-Typical flow: `LoadVAGFile` once at load time, `CreatePlaybackConfig` to build a channel config for it (mono or stereo volume), then `PlayVAGFile` on whichever channel you want it to occupy. `hardCut = true` cuts the sample off immediately rather than releasing it naturally — useful when you need a channel back right away.
-
-### Usage
+To load one yourself from a coroutine:
 
 ```cpp
-VagEntry *jumpSfx;
-co_await g_madnightEngine.m_soundManager.LoadVAGFile("jump.vag", &jumpSfx);
-
-auto config = g_madnightEngine.m_soundManager.CreatePlaybackConfig(jumpSfx, /*volume*/ 0x3FFF);
-g_madnightEngine.m_soundManager.PlayVAGFile(jumpSfx, /*channelId*/ 0, config);
-```
-
-Checking whether a looping music/ambience sample is already loaded (e.g. preloaded during a level's asset manifest) before playing it, then silencing everything before switching scenes:
-
-```cpp
-auto vag = g_madnightEngine.m_soundManager.IsVAGLoaded("SFX/FCNTNA.VAG"); // nullptr if not loaded
-if (vag) {
-    auto volume = saveData->GetMusicVolumeSPU();
-    auto &soundManager = g_madnightEngine.m_soundManager;
-    soundManager.PlayVAGFile(vag, SPU_MAX_CHANNEL_ID, soundManager.CreatePlaybackConfig(vag, volume));
+VagEntry *jump = nullptr;
+co_await g_madnightEngine.m_soundManager.LoadVAGFile("SFX/JUMP.VAG", &jump);
+if (jump == nullptr) {
+  // missing, not a valid VAG, out of SPU RAM, or all 24 slots are taken
 }
-
-// later, e.g. right before switching scenes:
-g_madnightEngine.m_soundManager.SilenceChannels(1 << SPU_MAX_CHANNEL_ID); // bitmask, one bit per channel
 ```
 
-### Internals
+Loading a name that is already loaded hands back the existing entry without reading the file again.
 
-- SPU memory allocation is a simple bump pointer (`m_spuAllocPtr`) that only ever grows. `Dump()` resets the pointer and clears the loaded-file list, but doesn't erase the sample bytes already written to SPU RAM. It also calls `psyqo::SPU::silenceChannels(0xffffffff)` first, stopping whatever is currently playing on every channel.
-- `channelId` is silently clamped to `SPU_MAX_CHANNEL_ID` (23), so passing an out-of-range channel doesn't crash, it just reuses the last channel.
-- Loaded samples live in a `Pool<VagEntry, MAX_VAG_FILE_COUNT>`, so there are at most 24 at once. Once the pool is full, `LoadVAGFile` returns without loading anything and without writing to `out`, so initialise the pointer you pass in (e.g. to `nullptr`) if you need to detect that.
+Later, look a sample up by the name you loaded it under. `IsVAGLoaded` returns `nullptr` if it is not loaded.
+
+```cpp
+VagEntry *jump = g_madnightEngine.m_soundManager.IsVAGLoaded("SFX/JUMP.VAG");
+```
+
+It also takes a `HashName` result, which saves hashing the name each time:
+
+```cpp
+constexpr uint64_t jumpHash = HashName("SFX/JUMP.VAG");
+VagEntry *jump = g_madnightEngine.m_soundManager.IsVAGLoaded(jumpHash);
+```
+
+Limits:
+
+- Up to 24 samples at once (`MAX_VAG_FILE_COUNT`). Past that, `LoadVAGFile` loads nothing and leaves your pointer as `nullptr`.
+- All samples share the SPU's 512 KB of sound RAM. A sample that does not fit is not loaded.
+- Samples are never freed one by one. A hard load (`HardLoadingScreen`) silences every channel and drops all of them at once.
+
+:::caution[Load samples after the first hard load]
+The SPU upload position is only set up by a hard load. A sample loaded before the first `HardLoadingScreen` (for example with `SoftLoadingScreen` or `LoadVAGFile` straight from `InitialLoad`) is uploaded to the wrong place in SPU RAM and `PlayVAGFile` will silently refuse to play it.
+:::
+
+### Playing a sound effect
+
+Build a playback config for the sample, then play it on a channel.
+
+```cpp
+auto &sound = g_madnightEngine.m_soundManager;
+VagEntry *jump = sound.IsVAGLoaded("SFX/JUMP.VAG");
+sound.PlayVAGFile(jump, /*channelId*/ 4, sound.CreatePlaybackConfig(jump, 0x3FFF));
+```
+
+`CreatePlaybackConfig` fills in the sample's pitch for you from its sample rate. Pass one volume for both speakers, or a left and a right volume:
+
+```cpp
+auto pannedLeft = sound.CreatePlaybackConfig(jump, 0x3FFF, 0x1000);
+```
+
+0x3FFF is full volume. An optional last argument sets the ADSR envelope; it defaults to `SPU_ADR_INSTANT_ATTACK_NO_DECAY`.
+
+`PlayVAGFile` also accepts the file name instead of the entry. It looks the sample up by name and does nothing if it is not loaded.
+
+```cpp
+sound.PlayVAGFile("SFX/JUMP.VAG", 4, config);
+```
+
+You choose the channel yourself, 0 to 23. There is no automatic channel picking, and playing on a busy channel replaces what was there. Channel numbers above 23 are treated as 23. Pass `true` as the last argument (`hardCut`) to key the channel off before the new sound starts, which is what you want when retriggering the same sound quickly.
+
+Playing a `nullptr` entry, or one that failed to load, does nothing.
+
+### Silencing channels
+
+`SilenceChannels` takes a bit mask, one bit per channel.
+
+```cpp
+g_madnightEngine.m_soundManager.SilenceChannels(1 << 4);         // channel 4
+g_madnightEngine.m_soundManager.SilenceChannels(0xffffffff);     // every channel
+```
+
+Use it before switching scenes if you have a looping sample playing, since a soft load does not stop anything.
 
 ## ModSoundManager
 
 `src/sound/mod_sound_manager.hh`
 
-Plays `.MOD`-format tracker music. The underlying `modplayer` only holds **one** MOD file in the SPU at a time: loading a new one replaces it, but not literally everything. Music volume persists across the swap: `MOD_SetMusicVolume` is documented as surviving a subsequent `MOD_Load`, and `LoadMODSound` never touches `m_musicVolume`.
+### Loading and playing music
+
+`ModSoundManager` plays one `.MOD` file at a time. Load it with a `MOD_FILE` queue entry (`mod_file` in a manifest), or yourself:
 
 ```cpp
-static constexpr uint16_t MAX_MUSIC_VOLUME = 65535;
-static constexpr uint16_t DEFAULT_MUSIC_VOLUME = 16384;
-
-struct ModSoundFile {
-  eastl::fixed_string<char, MAX_ARCHIVE_FILE_NAME_LEN> name;
-  uint32_t size;
-  bool isLoaded;
-};
-
-class ModSoundManager final {
-public:
-  // Finds a .MOD file on the CD-ROM (dir/name.ext) and loads it directly into the SPU.
-  // The SPU only has 512K, so it's on you to manage memory sensibly.
-  psyqo::Coroutine<> LoadMODSound(const eastl::string_view &modSoundFileName, ModSoundFile **modSoundFileOut);
-  const ModSoundFile *CurrentMODSoundFile(void);
-
-  void PlaySoundEffect(uint32_t channel, uint32_t sampleID, int32_t pitch, uint32_t volume);
-  void PlayNote(uint32_t voiceID, uint32_t sampleID, uint32_t note, int16_t volume);
-
-  void PlayMusic(void);              // resumes at the last-set volume
-  void PlayMusic(uint16_t volume);   // plays and sets volume in one call
-  void PauseMusic(void);
-  void StopMusic(void);              // stops completely
-  void SetMusicVolume(uint16_t volume);
-};
+ModSoundFile *track = nullptr;
+co_await g_madnightEngine.m_modSoundManager.LoadMODSound("MUSIC/LEVEL01.MOD", &track);
+if (track != nullptr) {
+  g_madnightEngine.m_modSoundManager.PlayMusic(DEFAULT_MUSIC_VOLUME);
+}
 ```
 
-Non-`static` member of `MadnightEngine` (`g_madnightEngine.m_modSoundManager`). To switch tracks, just call `LoadMODSound` again with the new file — no explicit unload step is needed.
+Always pass a real pointer as the second argument. It is set to `nullptr` if loading fails. `CurrentMODSoundFile()` returns the last file that loaded.
 
-### Usage
+Loading another MOD replaces the current one; there is no unload call. A hard load does not unload music.
+
+### Controlling playback
 
 ```cpp
-ModSoundFile *track;
-co_await g_madnightEngine.m_modSoundManager.LoadMODSound("level01.mod", &track);
-g_madnightEngine.m_modSoundManager.PlayMusic(20000);
+auto &music = g_madnightEngine.m_modSoundManager;
+music.PauseMusic();             // stop the timer and mute
+music.PlayMusic();              // carry on at the last volume you set
+music.SetMusicVolume(8192);     // change volume while playing
+music.StopMusic();              // cut every voice off
 ```
+
+Volume runs from 0 to `MAX_MUSIC_VOLUME` (65535). `DEFAULT_MUSIC_VOLUME` is 16384.
+
+All of these do nothing until a MOD file has loaded, including `SetMusicVolume`, so you cannot set the volume ahead of loading.
+
+Limits:
+
+- Call `PlayMusic` once to start. Calling it again while the music is already playing starts a second update timer, the track plays too fast, and `PauseMusic` and `StopMusic` only cancel the newer timer. Use `SetMusicVolume` to change volume, and `PauseMusic` before calling `PlayMusic` again.
+- `PlayMusic()` with no argument uses the last volume you set, which starts at 0. Pass a volume the first time.
+- Neither `PauseMusic` nor `StopMusic` rewinds the track. To start a track from the top, load it again.
+- The music uses the low SPU channels, one per MOD channel (0 to 3 for a 4-channel MOD). Keep your own channel choices clear of them.
+
+### Playing the MOD's instruments as effects
+
+`PlaySoundEffect` and `PlayNote` play one of the loaded MOD's own samples on a channel.
+
+```cpp
+// channel 3, instrument 5, note 12, volume 63
+g_madnightEngine.m_modSoundManager.PlaySoundEffect(3, 5, 12, 63);
+```
+
+The third argument is a note number from 0 to 35 (three octaves of 12), even though `PlaySoundEffect` names it `pitch`. Volume is 0 to 63. `PlaySoundEffect` ignores the music volume; `PlayNote` is scaled by it.
