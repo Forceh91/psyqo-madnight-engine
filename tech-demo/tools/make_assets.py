@@ -296,16 +296,18 @@ def box(o, mins, maxs, bone, cells):
 
 def hero_mesh():
     o = Obj(64)
-    # the character faces -Z, so its front is the z0 side of every box
-    box(o, (-0.15, -0.78, -0.08), (0.15, -0.43, 0.08), ROOT, {"default": "shirt", "back": "shirt_back"})
-    box(o, (-0.09, -0.94, -0.09), (0.09, -0.78, 0.09), ROOT,
-        {"default": "skin", "front": "face", "top": "hair", "back": "hair"})
+    # The character faces +Z, so its front is the z1 side of every box ("back" in box()).
+    # The root's boxes go last: the renderer projects a skinned mesh with the matrix of the
+    # last vertex it skinned (issue #110), and the root's is the identity.
     for bone, xc in ((LEG_L, 0.075), (LEG_R, -0.075)):
         box(o, (xc - 0.055, -0.45, -0.055), (xc + 0.055, -0.06, 0.055), bone, {"default": "trousers"})
-        box(o, (xc - 0.06, -0.06, -0.09), (xc + 0.06, 0.0, 0.06), bone, {"default": "boots"})
+        box(o, (xc - 0.06, -0.06, -0.06), (xc + 0.06, 0.0, 0.09), bone, {"default": "boots"})
     for bone, xc in ((ARM_L, 0.2), (ARM_R, -0.2)):
         box(o, (xc - 0.04, -0.76, -0.045), (xc + 0.04, -0.5, 0.045), bone, {"default": "shirt"})
         box(o, (xc - 0.035, -0.5, -0.04), (xc + 0.035, -0.42, 0.04), bone, {"default": "skin"})
+    box(o, (-0.15, -0.78, -0.08), (0.15, -0.43, 0.08), ROOT, {"default": "shirt", "front": "shirt_back"})
+    box(o, (-0.09, -0.94, -0.09), (0.09, -0.78, 0.09), ROOT,
+        {"default": "skin", "back": "face", "top": "hair", "front": "hair"})
 
     header = ["skel %d" % len(BONES)]
     for i, (name, parent, pos, rest) in enumerate(BONES):
@@ -328,6 +330,7 @@ def walk_animbin():
     def angles(frame):
         s = math.sin(2 * math.pi * frame / WALK_FRAMES)
         return {
+            ROOT: 0,
             LEG_L: LIMB_REST_DEGREES + 30 * s,
             LEG_R: LIMB_REST_DEGREES - 30 * s,
             ARM_L: LIMB_REST_DEGREES - 24 * s,
@@ -338,8 +341,10 @@ def walk_animbin():
     out = bytearray(b"ANIMBIN")
     out += struct.pack("<BB", 1, 1)  # version, one animation
     name = b"walk".ljust(32, b"\0")
-    out += name + struct.pack("<IHHH", 1, WALK_FRAMES, 4, 0)  # looping
-    for bone in (LEG_L, LEG_R, ARM_L, ARM_R):
+    # the root gets a constant identity track so it is re-skinned every frame (see hero_mesh)
+    bones = (LEG_L, LEG_R, ARM_L, ARM_R, ROOT)
+    out += name + struct.pack("<IHHH", 1, WALK_FRAMES, len(bones), 0)  # looping
+    for bone in bones:
         out += struct.pack("<BBH", 0, bone, len(frames))
         for frame in frames:
             q = quat_x(angles(frame)[bone])

@@ -97,7 +97,7 @@ void HallScene::CreateWorld(void) {
 
 	m_heroZ = HERO_START_Z * 128 * 16;
 	m_hero = objects.CreateGameObject("hero", {0, 0, psyqo::FixedPoint<>(HERO_START_Z * 128, psyqo::FixedPoint<>::RAW)},
-									  {0, 1.0_pi, 0}, GameObjectTag::INTERACTABLE);
+									  {0, 0, 0}, GameObjectTag::INTERACTABLE);
 	if (m_hero) {
 		// a reused pool slot keeps the old object's flags (#93)
 		m_hero->ClearFlags();
@@ -206,8 +206,8 @@ void HallScene::UpdateHero(uint32_t deltaTime) {
 	CollisionTest result;
 	if (end && g_madnightEngine.m_collisionHelper.IsSATCollision(m_hero->obb(), end->obb(), &result)) {
 		m_heroDirection = -m_heroDirection;
-		// the mesh faces -Z, so walking +Z means turning it half way round
-		m_hero->SetRotation(0, m_heroDirection > 0 ? 1.0_pi : 0.0_pi, 0);
+		// the mesh faces +Z. a skinned mesh ignores its rotation until #110 is fixed
+		m_hero->SetRotation(0, m_heroDirection > 0 ? 0.0_pi : 1.0_pi, 0);
 	}
 }
 
@@ -259,7 +259,7 @@ void HallScene::EndLap(void) {
 	m_heroZ = HERO_START_Z * 128 * 16;
 	m_heroDirection = 1;
 	if (m_hero) {
-		m_hero->SetRotation(0, 1.0_pi, 0);
+		m_hero->SetRotation(0, 0, 0);
 	}
 
 #ifdef TECHDEMO_BENCH
