@@ -25,6 +25,9 @@ void GameObject::Destroy(void) {
 	m_obb = {{0, 0, 0}, {{0, 0, 0}, {0, 0, 0}, {0, 0, 0}}, {0, 0, 0}, 0};
 	m_collisionType = CollisionType::SOLID;
 	m_id = INVALID_POOL_ID;
+	m_flags = 0;
+	m_renderFlags = 0;
+	m_quadType = GameObjectQuadType::Quad;
 }
 
 void GameObject::SetMesh(const eastl::string_view& meshName) {
