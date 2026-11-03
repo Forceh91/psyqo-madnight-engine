@@ -12,7 +12,6 @@
 #include "render/renderer.hh"
 
 #include <EASTL/fixed_string.h>
-#include <psyqo/atan2.hh>
 #include <psyqo/xprintf.h>
 
 using namespace psyqo::fixed_point_literals;
@@ -48,19 +47,6 @@ psyqo::Vec3 Lerp(const psyqo::Vec3& a, const psyqo::Vec3& b, uint32_t t, uint32_
 	out.y.value = a.y.value + (b.y.value - a.y.value) * int32_t(t) / int32_t(length);
 	out.z.value = a.z.value + (b.z.value - a.z.value) * int32_t(t) / int32_t(length);
 	return out;
-}
-
-uint32_t ISqrt(uint32_t v) {
-	uint32_t r = 0;
-	for (uint32_t bit = 1u << 30; bit; bit >>= 2) {
-		if (v >= r + bit) {
-			v -= r + bit;
-			r = (r >> 1) + bit;
-		} else {
-			r >>= 1;
-		}
-	}
-	return r;
 }
 
 } // namespace
@@ -177,7 +163,7 @@ void HallScene::CreateWorld(void) {
 	if (m_dust) {
 		m_dust->SetRotation({0, 0, 0});
 		m_dust->SetParticles2D(true);
-		m_dust->SetParticleSize({0.12_ws, 0.12_ws});
+		m_dust->SetParticleSize({0.25_ws, 0.25_ws});
 		m_dust->SetParticleColour({230, 190, 120}, {140, 100, 60});
 		m_dust->SetParticleVelocity({0, 0.15_ws, 0});
 		m_dust->Start();
@@ -242,7 +228,7 @@ void HallScene::UpdateHero(uint32_t deltaTime) {
 	CollisionTest result;
 	if (end && g_madnightEngine.m_collisionHelper.IsSATCollision(m_hero->obb(), end->obb(), &result)) {
 		m_heroDirection = -m_heroDirection;
-		// the mesh faces +Z. a skinned mesh ignores its rotation until #110 is fixed
+		// the mesh faces +Z
 		m_hero->SetRotation(0, m_heroDirection > 0 ? 0.0_pi : 1.0_pi, 0);
 	}
 }
@@ -263,14 +249,7 @@ void HallScene::UpdateCamera(void) {
 	psyqo::Vec3 target = m_hero ? m_hero->pos() : psyqo::Vec3{0, 0, 4.0_ws};
 	target.y = -0.6_ws;
 
-	// aim from the real position with angles. Camera::LookAt builds its right axis from
-	// UP x forward and so draws the hall mirrored left to right next to SetAngle.
-	// a negative pitch looks down, and +Y is down
-	int32_t dx = (target.x - camPos.x).value;
-	int32_t dy = (target.y - camPos.y).value;
-	int32_t dz = (target.z - camPos.z).value;
-	int32_t flat = ISqrt(dx * dx + dz * dz);
-	m_camera.SetAngle(-psyqo::atan2(dy, flat), psyqo::atan2(dx, dz), 0);
+	m_camera.LookAt(&target);
 }
 
 void HallScene::EndLap(void) {
