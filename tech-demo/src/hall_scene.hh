@@ -47,6 +47,8 @@ class HallScene final : public psyqo::Scene {
 	void UpdateCamera(void);
 	void EndLap(void);
 	void SaveStats(void);
+	void StartSound(void);
+	void UpdateSound(uint32_t deltaTime);
 
 	Camera m_camera;
 	GameObject* m_hall = nullptr;
@@ -61,6 +63,7 @@ class HallScene final : public psyqo::Scene {
 	int8_t m_heroDirection = 1;
 
 	uint32_t m_lapTime = 0; // vsyncs into the current lap
+	uint32_t m_creakTimer = 0; // vsyncs since the last ambient creak
 	LapStats m_lap = {};	// the lap being run
 	LapStats m_lastLap = {};
 	bool m_quickFog = true;

@@ -30,6 +30,11 @@ constexpr uint32_t SAVE_MAGIC = 0x4f4d4454; // "TDMO"
 // one lap of the camera path, in vsyncs
 constexpr uint32_t LAP_LENGTH = 2400;
 
+// SPU channels, and how often the creak plays (vsyncs)
+constexpr uint8_t MUSIC_CHANNEL = 0;
+constexpr uint8_t CREAK_CHANNEL = 1;
+constexpr uint32_t CREAK_INTERVAL = 600;
+
 // the hall runs along +Z from 0 to 24 units (48 m), see tools/make_assets.py
 constexpr int32_t HERO_START_Z = 2;
 constexpr int32_t HERO_SPEED = 24; // 1/16ths of a raw unit per vsync, about 1.4 m/s
@@ -80,10 +85,38 @@ void HallScene::start(StartReason reason) {
 		g_madnightEngine.m_rand.seed(0x7ec4de30);
 		CreateWorld();
 		CreateMenu();
+		StartSound();
 	}
 }
 
-void HallScene::teardown(TearDownReason reason) { g_madnightEngine.m_input.setOnEvent(nullptr); }
+void HallScene::teardown(TearDownReason reason) {
+	g_madnightEngine.m_input.setOnEvent(nullptr);
+	g_madnightEngine.m_soundManager.SilenceChannels((1 << MUSIC_CHANNEL) | (1 << CREAK_CHANNEL));
+}
+
+void HallScene::StartSound(void) {
+	auto& sound = g_madnightEngine.m_soundManager;
+	VagEntry* music = sound.IsVAGLoaded("SFX/FCNTNA.VAG");
+	VagEntry* creak = sound.IsVAGLoaded("SFX/AMBIENT_CREAK.VAG");
+	printf("TECHDEMO vag music=%s creak=%s\n", music ? "ok" : "missing", creak ? "ok" : "missing");
+	// FCNTNA.VAG carries its own loop flags, so the SPU repeats it without help
+	if (music) {
+		sound.PlayVAGFile(music, MUSIC_CHANNEL, sound.CreatePlaybackConfig(music, 0x1800));
+	}
+}
+
+void HallScene::UpdateSound(uint32_t deltaTime) {
+	m_creakTimer += deltaTime;
+	if (m_creakTimer < CREAK_INTERVAL) {
+		return;
+	}
+	m_creakTimer -= CREAK_INTERVAL;
+	auto& sound = g_madnightEngine.m_soundManager;
+	VagEntry* creak = sound.IsVAGLoaded("SFX/AMBIENT_CREAK.VAG");
+	if (creak) {
+		sound.PlayVAGFile(creak, CREAK_CHANNEL, sound.CreatePlaybackConfig(creak, 0x2800), true);
+	}
+}
 
 void HallScene::CreateWorld(void) {
 	auto& objects = g_madnightEngine.m_gameObjectManager;
@@ -332,6 +365,7 @@ void HallScene::frame() {
 
 	UpdateHero(deltaTime);
 	UpdateCamera();
+	UpdateSound(deltaTime);
 	m_camera.Process(deltaTime);
 	if (m_embers) {
 		m_embers->Process(deltaTime);
