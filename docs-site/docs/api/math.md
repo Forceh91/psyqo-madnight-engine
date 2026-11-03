@@ -5,87 +5,83 @@ sidebar_position: 7
 
 # Math
 
-`src/math/` and `src/rand.hh` — GTE-accelerated matrix/vector helpers, lerp, trig, and a lightweight RNG. All free functions or static-only classes; there's no state to manage beyond `Rand`, which you own an instance of yourself.
-
-## GTEMath
-
-`src/math/gte-math.hh`
-
-```cpp
-class GTEMath final {
-public:
-  static psyqo::Vec3 ProjectVectorOntoAxes(const psyqo::Matrix33 &axisMatrix, const psyqo::Vec3 &normalizedVec);
-};
-```
-
-A GTE-register-backed equivalent of vector-onto-axes projection — used wherever the engine needs that specific operation in a hot path (camera, skeleton posing, collision). As of v0.0.1, `GTEMath` lost `MultiplyMatrix33`/`MultiplyMatrixVec3` — hot-path matrix/vector multiplication elsewhere in the engine (camera, particle emitters, matrix helpers) now calls `psyqo::GteMath` directly instead of going through this wrapper.
-
-## Matrix
-
-`src/math/matrix.hh`
-
-```cpp
-psyqo::Matrix33 TransposeMatrix33(const psyqo::Matrix33 &rotationMatrix);
-psyqo::Matrix33 InverseMatrix33(const psyqo::Matrix33 &rotationMatrix);
-```
-
-For an orthonormal rotation matrix, the transpose *is* the inverse, and it's the cheaper way to get there: `TransposeMatrix33` is exact and free, while `InverseMatrix33` pays for a determinant and a fixed-point division to land on the same result. `Camera::inverseRotationMatrix` calls `InverseMatrix33` on exactly such a matrix (built from three normalized, orthogonal basis vectors), and would be cheaper calling `TransposeMatrix33` instead, the way `SkeletonController::UpdateSkeletonBoneMatrices` already does for bind-pose inversion. Treat `InverseMatrix33` as the fallback for a genuinely non-orthonormal matrix, not the clearer-sounding default. If the matrix is near-degenerate (determinant close to zero), it returns the input matrix unchanged rather than dividing by a tiny number.
+`src/math/` and `src/rand.hh` have the small helpers the engine uses for vectors, matrices, interpolation, angles and random numbers. They are free functions, apart from `GTEMath` (static) and `Rand` (an instance you seed).
 
 ## Vector
 
 `src/math/vector.hh`
 
+`DotProduct` returns the dot product of two `psyqo::Vec3`. `IsVector3Zero` tells you whether a vector is exactly zero, which is worth checking before you normalise anything. `Lerp` blends two `Vec2` or two `Vec3`.
+
 ```cpp
-psyqo::FixedPoint<> DotProduct(const psyqo::Vec3 &a, const psyqo::Vec3 &b);
-psyqo::Vec2 Lerp(const psyqo::Vec2 &a, const psyqo::Vec2 &b, const psyqo::FixedPoint<> &t);
-psyqo::Vec3 Lerp(const psyqo::Vec3 &a, const psyqo::Vec3 &b, const psyqo::FixedPoint<> &t);
-bool IsVector3Zero(const psyqo::Vec3 &v);
+if (!IsVector3Zero(velocity)) {
+  auto along = DotProduct(velocity, forward);
+}
+auto mid = Lerp(startPos, endPos, 0.5_fp); // halfway between two points
 ```
+
+`t` is a `FixedPoint<>` where `0` gives `a` and `1.0_fp` gives `b`. It is not clamped, so a value outside that range extrapolates.
 
 ## Lerp
 
 `src/math/lerp.hh`
 
+`Lerp` blends two `FixedPoint<>` numbers the same way. `inverseLerp` goes the other way: given a value between `a` and `b`, it returns how far along that range it is, as a fraction from `0` to `1.0_fp`.
+
 ```cpp
-psyqo::FixedPoint<> Lerp(const psyqo::FixedPoint<>& a, const psyqo::FixedPoint<>& b, const psyqo::FixedPoint<>& t);
-psyqo::FixedPoint<> inverseLerp(uint32_t a, uint32_t b, uint32_t value);
+// how far through a 120..240 frame window are we?
+auto progress = inverseLerp(120, 240, frame);
+auto brightness = Lerp(0.2_fp, 1.0_fp, progress);
 ```
 
-`inverseLerp` is the reverse operation — given a `value` between `a` and `b`, returns how far along that range it is as a `0..1` fixed-point fraction.
+`inverseLerp` takes plain integers and does not clamp. A value outside `a..b` gives a fraction outside `0..1`, and `a == b` divides by zero.
 
 ## Trig
 
 `src/math/trig.hh`
 
+`LerpAngle` blends two `psyqo::Angle` values the short way round. Going from `0.9_pi` to `-0.9_pi` passes through `±1.0_pi` instead of swinging back through `0`. Use it for turning an object towards a target.
+
 ```cpp
-[[deprecated]] psyqo::Angle atan2_fixed(int16_t y, int16_t x);
-psyqo::Angle LerpAngle(const psyqo::Angle &a, const psyqo::Angle &b, const psyqo::FixedPoint<10> &t);
+psyqo::FixedPoint<10> t = 0.1;
+auto yaw = LerpAngle(object->rotation().y, targetYaw, t);
 ```
 
-- `atan2_fixed` is deprecated and will be removed in the next major release; use `psyqo::atan2` instead. The deprecation notice says it is not reliable: it drifts from the expected values (by ~3.5 degrees) or takes the long path instead of the short one.
-- `LerpAngle` takes the shortest path around the wrap point, so interpolating e.g. from `0.9_pi` to `-0.9_pi` goes the short way through `±π` rather than the long way round through `0`. The result is not re-wrapped, so it can land just outside `±1.0_pi`.
+`t` is a `FixedPoint<10>` (10 fractional bits), not the usual `FixedPoint<>`. The result is not re-wrapped, so it can land just outside `±1.0_pi`.
+
+:::caution[atan2_fixed is deprecated]
+`atan2_fixed` will be removed in the next major release; use `psyqo::atan2` instead. The deprecation notice says it is not reliable: it drifts from the expected values (by about 3.5 degrees) or takes the long path instead of the short one.
+:::
+
+## Matrix
+
+`src/math/matrix.hh`
+
+`TransposeMatrix33` and `InverseMatrix33` both return a new `psyqo::Matrix33`. For a rotation matrix the transpose is the inverse, so use `TransposeMatrix33`. It is exact and cheap.
+
+```cpp
+auto toLocal = TransposeMatrix33(object->rotationMatrix()); // undo the object's rotation
+```
+
+`InverseMatrix33` is for a matrix that is not a pure rotation. It works out the determinant and divides, which costs more. If the determinant is close to zero it gives you the input matrix back unchanged, so the result is not an inverse in that case.
+
+## GTEMath
+
+`src/math/gte-math.hh`
+
+`GTEMath::ProjectVectorOntoAxes(axisMatrix, normalizedVec)` projects a vector onto the three axes of a matrix, using the GTE. The collision code calls it for its overlap tests. You are unlikely to need it directly. For matrix and vector multiplication, call `psyqo::GteMath` yourself.
 
 ## Rand
 
-`src/rand.hh`
+`src/rand.hh`, reached as `g_madnightEngine.m_rand`.
 
-A simple, **not** cryptographically secure PRNG (adapted from the pcsx-redux examples). You own your own instance — `MadnightEngine` exposes one at `g_madnightEngine.m_rand` for convenience.
-
-```cpp
-class Rand {
-public:
-  uint32_t rand();                       // 32-bit random number, never 0
-  template <uint32_t RANGE> uint32_t rand();   // [0, RANGE)
-  uint32_t rand(uint32_t max);           // [0, max)
-  uint32_t rand(uint32_t min, uint32_t max); // [min, max)
-
-  // seed == 0 breaks the generator — avoid it. Recommended: seed from
-  // GPU::now() so you don't get the same sequence every run.
-  void seed(uint32_t seed);
-};
-```
+A small random number generator. It is not secure, and `seed(0)` breaks it. Seed it once at start-up, or you get the same sequence every run.
 
 ```cpp
 g_madnightEngine.m_rand.seed(Renderer::Instance().GPU().now());
-auto roll = g_madnightEngine.m_rand.rand(1, 6); // 1..5 -- rand(min, max) is exclusive of max
+
+auto roll = g_madnightEngine.m_rand.rand(1, 7); // 1 to 6
+auto pick = g_madnightEngine.m_rand.rand<4>();  // 0 to 3
 ```
+
+`rand(max)` and `rand<RANGE>()` give `0` up to but not including the limit. `rand(min, max)` also leaves out `max`, and needs `max` greater than `min`. `rand()` with no arguments gives a full 32-bit number and never returns 0.

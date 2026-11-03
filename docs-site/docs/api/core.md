@@ -78,7 +78,7 @@ hero->SetRenderFlag(RF_QUICK_ADVANCED_FOG);
 ```
 
 :::caution[Flags are not cleared when an object is destroyed]
-`DestroyGameObject` resets the position, mesh, texture, tag and collision state, but not the flags or render flags. When a slot is reused, the new object can inherit the old one's flags, so call `ClearFlags()` and `ClearRenderFlags()` right after creating an object if you rely on them.
+`DestroyGameObject` resets the position, mesh, texture, tag and collision state, but not the flags or render flags. When a slot is reused, the new object can inherit the old one's flags, so call `ClearFlags()` and `ClearRenderFlags()` right after creating an object if you rely on them. Tracked in [#93](https://github.com/Forceh91/psyqo-madnight-engine/issues/93).
 :::
 
 ### GameObjectTag
@@ -227,7 +227,7 @@ void GameplayScene::frame() {
 :::
 
 :::caution[Call SetRotation before you expect particles to move]
-`SetRotation` is what builds the emitter's rotation matrix. A pooled emitter does not get one from `CreateParticleEmitter`, so until you call `SetRotation` (even with zero angles, as above) the particle velocities are rotated by an empty matrix and every particle stays where it spawned.
+`SetRotation` is what builds the emitter's rotation matrix. A pooled emitter does not get one from `CreateParticleEmitter`, so until you call `SetRotation` (even with zero angles, as above) the particle velocities are rotated by an empty matrix and every particle stays where it spawned. Tracked in [#94](https://github.com/Forceh91/psyqo-madnight-engine/issues/94).
 :::
 
 Particles are spawned at a random point on a flat circle of the emitter's radius (in the X/Z plane), not inside a sphere. `SetRotation` tilts the emitter so the circle and the particle velocities rotate with it.
@@ -313,7 +313,7 @@ The three shapes the collision code works with are `OBB` (a centre, three axes a
 `src/core/world_defs.hh`
 
 ```cpp
-static constexpr psyqo::FixedPoint<> ONE_METRE = 0.03125_fp; // 128 units = 1m
+static constexpr psyqo::FixedPoint<> ONE_METRE = 0.5_ws;
 ```
 
-Use `ONE_METRE` when you need a distance in metres, for example a ray length. To place things using the numbers Blender shows you, use the `_ws` literal from [Helpers](./helpers#world-space-literals). See the [Asset Pipeline Guides](../guides/overview) for how exported assets are scaled.
+One Blender unit is 2 m, so `1.0_ws` is 2 m and `ONE_METRE` is `0.5_ws`. Use `ONE_METRE` when you need a distance in metres, for example a ray length; `5.0_ws` is 10 m. To place things using the numbers Blender shows you, use the `_ws` literal from [Helpers](./helpers#world-space-literals), which also explains the scale convention. See the [Asset Pipeline Guides](../guides/overview) for how exported assets are scaled.
