@@ -51,6 +51,10 @@ bool Raycast::DoesRaycastInterceptAABB(const Ray& ray, const GameObject* object,
 		if (aabbBox.min.x == UINT16_MAX) {
 			return false;
 		}
+
+		// add on object pos so the box is in world space and not local space
+		aabbBox.min += object->pos();
+		aabbBox.min += object->pos();
 	} else {
 		// mesh-less object (e.g. a trigger) - derive an AABB from its OBB
 		OBB obb = object->obb();
