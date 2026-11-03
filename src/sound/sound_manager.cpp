@@ -18,6 +18,7 @@ using namespace psyqo::fixed_point_literals;
 void SoundManager::Init(void) {
 	psyqo::SPU::initialize();
 	m_isInitialized = true;
+	m_spuAllocPtr = psyqo::SPU::BASE_ALLOC_ADDR;
 }
 
 psyqo::Coroutine<> SoundManager::LoadVAGFile(const eastl::string_view& fileName, VagEntry** out) {

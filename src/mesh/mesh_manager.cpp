@@ -399,6 +399,7 @@ psyqo::Coroutine<> MeshManager::LoadMesh(const eastl::string_view& meshName, Mes
 		// individual bone data
 		for (int32_t i = 0; i < loadedMesh->mesh.numBones; i++) {
 			loadedMesh->mesh.skeleton->bones[i].id = i;
+			tempVal = 0;
 
 			// parent bone
 			__builtin_memcpy(&loadedMesh->mesh.skeleton->bones[i].parent, ptr++, sizeof(int8_t)); // 1 byte
@@ -414,20 +415,20 @@ psyqo::Coroutine<> MeshManager::LoadMesh(const eastl::string_view& meshName, Mes
 			ptr += sizeof(int32_t);
 
 			// local rotation
-			__builtin_memcpy(&loadedMesh->mesh.skeleton->bones[i].localRotation.w.value, ptr,
-							 sizeof(int16_t)); // 2 bytes
+			__builtin_memcpy(&tempVal, ptr, sizeof(int16_t));
+			loadedMesh->mesh.skeleton->bones[i].localRotation.w.value = tempVal;
 			ptr += sizeof(int16_t);
 
-			__builtin_memcpy(&loadedMesh->mesh.skeleton->bones[i].localRotation.x.value, ptr,
-							 sizeof(int16_t)); // 2 bytes
+			__builtin_memcpy(&tempVal, ptr, sizeof(int16_t));
+			loadedMesh->mesh.skeleton->bones[i].localRotation.x.value = tempVal;
 			ptr += sizeof(int16_t);
 
-			__builtin_memcpy(&loadedMesh->mesh.skeleton->bones[i].localRotation.y.value, ptr,
-							 sizeof(int16_t)); // 2 bytes
+			__builtin_memcpy(&tempVal, ptr, sizeof(int16_t));
+			loadedMesh->mesh.skeleton->bones[i].localRotation.y.value = tempVal;
 			ptr += sizeof(int16_t);
 
-			__builtin_memcpy(&loadedMesh->mesh.skeleton->bones[i].localRotation.z.value, ptr,
-							 sizeof(int16_t)); // 2 bytes
+			__builtin_memcpy(&tempVal, ptr, sizeof(int16_t));
+			loadedMesh->mesh.skeleton->bones[i].localRotation.z.value = tempVal;
 			ptr += sizeof(int16_t);
 
 			// mark as dirty initially

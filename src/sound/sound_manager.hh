@@ -56,5 +56,5 @@ class SoundManager final {
   private:
 	Pool<VagEntry, MAX_VAG_FILE_COUNT> m_pool;
 	bool m_isInitialized = false;
-	uint32_t m_spuAllocPtr = 0;
+	uint32_t m_spuAllocPtr = psyqo::SPU::BASE_ALLOC_ADDR;
 };
