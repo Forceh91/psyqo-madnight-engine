@@ -86,6 +86,7 @@ void HallScene::start(StartReason reason) {
 		CreateWorld();
 		CreateMenu();
 		StartSound();
+		LoadStats();
 	}
 }
 
@@ -301,6 +302,31 @@ void HallScene::EndLap(void) {
 #endif
 }
 
+void HallScene::LoadStats(void) {
+	auto& card = g_madnightEngine.m_memoryCardHelper;
+	if (!(card.GetCardsInPorts() & CardPort::Port0)) {
+		printf("TECHDEMO load=none laps=0\n");
+		return;
+	}
+
+	m_loaded = {};
+	card.ReadFile(psyqo::MemoryCard::Port::Port0, SAVE_NAME, &m_loaded, sizeof(m_loaded), &m_loadedLen,
+				  [this](auto error) {
+					  bool found = error == psyqo::MemoryCard::Error::OK && m_loadedLen >= sizeof(m_loaded) &&
+								   m_loaded.magic == SAVE_MAGIC;
+					  if (!found) {
+						  printf("TECHDEMO load=none laps=0\n");
+						  return;
+					  }
+					  printf("TECHDEMO load=found laps=%u\n", m_loaded.laps);
+					  uint32_t avg = m_loaded.frames ? m_loaded.vsyncs * 100 / m_loaded.frames : 0;
+					  eastl::fixed_string<char, 48> text;
+					  text.sprintf("card: lap %u, %u.%02u vsyncs/frame, worst %u", m_loaded.laps, avg / 100, avg % 100,
+								   m_loaded.worstFrame);
+					  m_cardText->SetDisplayText(text);
+				  });
+}
+
 void HallScene::SaveStats(void) {
 	if (!m_saveRequested || m_saveInFlight) {
 		return;
@@ -320,9 +346,8 @@ void HallScene::SaveStats(void) {
 	m_saveInFlight = true;
 	m_saveBuffer = m_lastLap;
 	m_cardText->SetDisplayText("saving...");
-	auto* fs = card.FileSystem();
-	fs->writeFile(psyqo::MemoryCard::Port::Port0, SAVE_NAME, "MADNIGHT TECH DEMO", m_icon, &m_saveBuffer,
-				  sizeof(m_saveBuffer), [this, fs](auto error) {
+	card.WriteFile(psyqo::MemoryCard::Port::Port0, SAVE_NAME, "MADNIGHT TECH DEMO", m_icon, &m_saveBuffer,
+				   sizeof(m_saveBuffer), [this, &card](auto error) {
 					  if (error != psyqo::MemoryCard::Error::OK) {
 						  m_saveInFlight = false;
 						  m_cardText->SetDisplayText("save failed");
@@ -334,8 +359,8 @@ void HallScene::SaveStats(void) {
 					  }
 					  // read it back, so the save is checked and not just sent
 					  m_readBack = {};
-					  fs->readFile(psyqo::MemoryCard::Port::Port0, SAVE_NAME, &m_readBack, sizeof(m_readBack),
-								   &m_readBackLen, [this](auto error) {
+					  card.ReadFile(psyqo::MemoryCard::Port::Port0, SAVE_NAME, &m_readBack, sizeof(m_readBack),
+									&m_readBackLen, [this](auto error) {
 									   m_saveInFlight = false;
 									   bool match = error == psyqo::MemoryCard::Error::OK &&
 													m_readBackLen >= sizeof(m_readBack) &&

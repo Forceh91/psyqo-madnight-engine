@@ -46,6 +46,7 @@ class HallScene final : public psyqo::Scene {
 	void UpdateHero(uint32_t deltaTime);
 	void UpdateCamera(void);
 	void EndLap(void);
+	void LoadStats(void);
 	void SaveStats(void);
 	void StartSound(void);
 	void UpdateSound(uint32_t deltaTime);
@@ -82,6 +83,8 @@ class HallScene final : public psyqo::Scene {
 	bool m_saveInFlight = false;
 	LapStats m_saveBuffer = {};
 	LapStats m_readBack = {};
+	LapStats m_loaded = {}; // what the card held when the scene started
+	uint32_t m_loadedLen = 0;
 	uint32_t m_readBackLen = 0;
 	psyqo::MemoryCardFileSystem::Icon m_icon = {};
 };

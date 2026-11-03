@@ -2,6 +2,8 @@
 
 One scene that uses most of the engine at once, so it doubles as a regression and performance check: a long stone hall under advanced fog, a skinned character walking into the fog and back with quick advanced fog, two particle emitters, trigger volumes that turn the character round, a pause menu (Start) and a memory card save of the last lap's numbers.
 
+Sound: `FCNTNA.VAG` loops as background music and `AMBIENT_CREAK.VAG` plays every 600 vsyncs. Both come from Supermarket Sweep and are used with its owner's permission. On start the scene reads the last save from slot 1, if there is one, and shows it at the bottom of the screen.
+
 The camera follows a fixed path keyed to elapsed vsyncs, so every lap draws the same frames. The bottom of the screen shows how many vsyncs the last frame took and, after each lap, the lap's average and worst.
 
 ## Building
