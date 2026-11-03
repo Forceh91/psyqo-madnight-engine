@@ -33,25 +33,25 @@ The member names, all public on `MadnightEngine` unless noted:
 
 | Manager | Member |
 | --- | --- |
-| `TextureManager` | `m_textureManager` |
-| `MeshManager` | `m_meshManager` |
-| `GameObjectManager` | `m_gameObjectManager` |
-| `ColbinManager` | `m_colbinManager` |
-| `SoundManager` | `m_soundManager` |
-| `ModSoundManager` | `m_modSoundManager` |
-| `AnimationManager` | `m_animationManager` |
-| `BillboardManager` | `m_billboardManager` |
-| `ParticleEmitterManager` | `m_particleEmitterManager` |
-| `FileLoader` | `m_fileLoader` |
-| `ArchiveHelper` | `m_archiveHelper` |
-| `ControllerHelper` | `m_controllerHelper` |
-| `Collision` | `m_collisionHelper` |
-| `Raycast` | `m_raycast` |
-| `SkeletonController` | `m_skeletonController` |
-| `DebugMenu` | `m_debugMenu` |
-| `PerfMonitor` | `m_perfMonitor` |
+| [`TextureManager`](../api/textures) | `m_textureManager` |
+| [`MeshManager`](../api/mesh-and-animation#meshmanager) | `m_meshManager` |
+| [`GameObjectManager`](../api/core#gameobjectmanager) | `m_gameObjectManager` |
+| [`ColbinManager`](../api/physics-and-collision#colbinmanager) | `m_colbinManager` |
+| [`SoundManager`](../api/sound#soundmanager) | `m_soundManager` |
+| [`ModSoundManager`](../api/sound#modsoundmanager) | `m_modSoundManager` |
+| [`AnimationManager`](../api/mesh-and-animation#animationmanager) | `m_animationManager` |
+| [`BillboardManager`](../api/core#billboardmanager) | `m_billboardManager` |
+| [`ParticleEmitterManager`](../api/core#particleemittermanager) | `m_particleEmitterManager` |
+| [`FileLoader`](../api/helpers#fileloader) | `m_fileLoader` |
+| [`ArchiveHelper`](../api/helpers#archivehelper) | `m_archiveHelper` |
+| [`ControllerHelper`](../api/controller) | `m_controllerHelper` |
+| [`Collision`](../api/physics-and-collision#collision) | `m_collisionHelper` |
+| [`Raycast`](../api/physics-and-collision#raycast) | `m_raycast` |
+| [`SkeletonController`](../api/mesh-and-animation#skeleton--skeletoncontroller) | `m_skeletonController` |
+| [`DebugMenu`](../api/core#debugmenu) | `m_debugMenu` |
+| [`PerfMonitor`](../api/core#perfmonitor) | `m_perfMonitor` |
 
-`Renderer` (`Renderer::Instance()`) and `Lighting` (`Lighting::instance()`) are unaffected — they're still classic singletons.
+[`Renderer`](../api/render#renderer) (`Renderer::Instance()`) and [`Lighting`](../api/render#lighting) (`Lighting::instance()`) are unaffected — they're still classic singletons.
 
 `CDRomHelper` is now `[[deprecated]]` in favour of `ArchiveHelper`, and its instance (`m_cdromHelper`) is a *private* member of `MadnightEngine` — game code shouldn't reach for it directly.
 

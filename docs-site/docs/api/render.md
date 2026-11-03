@@ -81,14 +81,16 @@ public:
 };
 ```
 
+### Switching modes
+
 - **`FOLLOW` mode + orbit:** set a tracked position with `SetFollow`, then feed player input into `UpdateOrbitAngles` each frame to let the player orbit the camera around that position — this is the standard third-person setup.
 - **`FREE_LOOK` mode:** feed input into `UpdateAngles`; you still need to call `SetPosition` yourself as the tracked entity (e.g. the player) moves, since the camera doesn't follow anything automatically in this mode.
 - The `deltaTime`-suffixed overloads of `UpdateAngles`/`UpdateOrbitAngles` scale the rotation delta by frame time; the non-`deltaTime` overloads expect an already-scaled delta.
 - `SetFixed`/`SetFreeLook`/`SetFollow` are mutually exclusive — switching modes updates `m_cameraMode`, and `ClearFixed` restores whichever mode was active before the most recent `SetFixed` call.
 
-### Usage
+### Third-person orbit camera
 
-Third-person orbit camera, driven by the right stick:
+An orbit camera driven by the right stick:
 
 ```cpp
 Camera camera;
@@ -102,7 +104,9 @@ camera.UpdateOrbitAngles(ry * ORBIT_SPEED, rx * ORBIT_SPEED, deltaTime);
 camera.Process(deltaTime); // recalculates orbit position + LookAt
 ```
 
-First-person free-look, driven by the same stick input, with you owning position updates:
+### First-person free-look
+
+Driven by the same stick input, with you owning position updates:
 
 ```cpp
 camera.SetFreeLook(player->pos());
@@ -110,7 +114,9 @@ camera.UpdateAngles(ry * LOOK_SPEED, rx * LOOK_SPEED, 0, deltaTime);
 camera.SetPosition(player->pos()); // camera doesn't follow on its own in this mode
 ```
 
-A static camera — `FIXED` is the default mode, so a menu/cutscene camera that never moves needs nothing beyond construction and an angle:
+### A static camera
+
+`FIXED` is the default mode, so a menu/cutscene camera that never moves needs nothing beyond construction and an angle:
 
 ```cpp
 m_camera = new Camera(psyqo::Vec3{22.5_ws, -1.75_ws, -2.5_ws});
@@ -118,7 +124,9 @@ m_camera->SetAngle({0, 1.0_pi, 0}); // face back along Z
 instance.SetActiveCamera(m_camera);
 ```
 
-A third pattern seen in shipped game code: a `FIXED` camera that tracks a target's X/Z position every frame while you drive rotation manually — a lighter-weight alternative to `FOLLOW`/`FREE_LOOK` when you don't need true orbiting, just a camera that stays behind the player and lets them look around:
+### A fixed camera that tracks the player
+
+A pattern seen in shipped game code: a `FIXED` camera that tracks a target's X/Z position every frame while you drive rotation manually — a lighter-weight alternative to `FOLLOW`/`FREE_LOOK` when you don't need true orbiting, just a camera that stays behind the player and lets them look around:
 
 ```cpp
 m_camera->SetFixed({0, -1.0_ws, 0}, {0, 0, 0});
@@ -146,7 +154,7 @@ auto pitch = angle->x + (rotationX >> 5) * 0.005_pi * deltaTime;
 m_camera->SetAngle(eastl::clamp(pitch, -0.3_pi, 0.3_pi), angle->y + (rotationY >> 5) * 0.005_pi * deltaTime, angle->z);
 ```
 
-### Internals
+### How follow mode orbits
 
 - `FOLLOW` mode recomputes position via `CalculateOrbitPosition()` every `Process()` call — it derives forward/right/up from `m_orbitAngle` and steps back from the tracked point by `distance`, so orbiting is really just "point the camera, then back up".
 - Orbit pitch is clamped tighter than yaw (`±0.21π` vs full `±π`) to stop the camera flipping over the top/bottom of whatever it's orbiting.
@@ -196,11 +204,13 @@ Key constants (`src/render/renderer.hh`):
 | `BUMP_ALLOCATOR_BYTES` | 125,000 | Per-frame draw-command arena (×2 for double buffering)                                                                                                                         |
 | `SUBDIVISION_DISTANCE` | 750     | View-space distance closer than which large textured quads/tris get subdivided to reduce perspective warping (`renderer.cpp` subdivides when `zIndex <= SUBDIVISION_DISTANCE`) |
 
-**Typical per-frame flow:** call `StartScene()` once from your scene's `start()`, then each frame call `Process()` to get `deltaTime`, update your game objects/scene, then `Render(deltaTime)` to flush the ordering table to the GPU. `Render()` clears the screen itself (see [Clear colour](#clear-colour)), so `Clear()` is only needed in frames that draw without it. `Renderer` draws whatever `GameObjectManager::GetActiveGameObjects` returns each frame (see [Core](./core#gameobjectmanager) on the renderable-objects subset, which currently isn't wired up to anything); visibility is culled per-object against the camera via `IsGameObjectVisible` internally, using each object's bounding volume.
+### The per-frame flow
+
+Call `StartScene()` once from your scene's `start()`, then each frame call `Process()` to get `deltaTime`, update your game objects/scene, then `Render(deltaTime)` to flush the ordering table to the GPU. `Render()` clears the screen itself (see [Clear colour](#clear-colour)), so `Clear()` is only needed in frames that draw without it. `Renderer` draws whatever `GameObjectManager::GetActiveGameObjects` returns each frame (see [Core](./core#gameobjectmanager) on the renderable-objects subset, which currently isn't wired up to anything); visibility is culled per-object against the camera via `IsGameObjectVisible` internally, using each object's bounding volume.
 
 Ambient colour, the clear colour and fog are all applied by the renderer but configured through `Lighting`; see [Lighting](#lighting) and [Fog](#fog) below.
 
-### Usage
+A minimal scene loop:
 
 ```cpp
 void GameplayScene::start(StartReason reason) {
@@ -219,7 +229,7 @@ void GameplayScene::frame() {
 }
 ```
 
-### Internals
+### Frame timing, draw order and sprites
 
 - `Process()` diffs `m_gpu.getFrameCount()` against the last call and returns 0 if nothing's changed yet — that's the "early return on 0" the header comment recommends, and it's how the engine avoids doing GTE/render work more than once per actual display refresh.
 - `Render()` walks game objects, then billboards, then particles, all against the _same_ per-frame ordering table — draw order between those three categories is fixed, not something you control per-call.
