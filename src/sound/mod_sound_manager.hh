@@ -7,8 +7,10 @@
 #pragma once
 
 #include "mod_sound.hh"
-#include "psyqo/coroutine.hh"
+#include "psyqo/buffer.hh"
 #include <EASTL/array.h>
+
+#include <psyqo/coroutine.hh>
 
 static constexpr uint16_t MAX_MUSIC_VOLUME = 65535;
 static constexpr uint16_t DEFAULT_MUSIC_VOLUME = 16384;
@@ -17,6 +19,7 @@ class ModSoundManager final {
 	ModSoundFile m_currentSoundFile = {};
 	unsigned m_musicTimer = 0;
 	uint16_t m_musicVolume = 0;
+	psyqo::Buffer<uint8_t> m_modData = {};
 
   public:
 	// this will find a .MOD format file on the CD ROM, given the dir/name.ext format, and load it directly into the SPU

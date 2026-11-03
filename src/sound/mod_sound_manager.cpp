@@ -8,11 +8,15 @@
 #include "../helpers/archive.hh"
 #include "../madnight.hh"
 #include "../render/renderer.hh"
+#include "EASTL/internal/move_help.h"
 #include <psyqo/xprintf.h>
 
 psyqo::Coroutine<> ModSoundManager::LoadMODSound(const eastl::string_view& modSoundFileName,
 												 ModSoundFile** modSoundFileOut) {
 	*modSoundFileOut = nullptr;
+
+	// make sure nothing is already playing
+	StopMusic();
 
 	// ok checks passed, get it off the CD
 	auto buffer = co_await g_madnightEngine.m_archiveHelper.LoadFile(modSoundFileName);
@@ -40,8 +44,8 @@ psyqo::Coroutine<> ModSoundManager::LoadMODSound(const eastl::string_view& modSo
 	m_currentSoundFile = soundFile;
 	*modSoundFileOut = &m_currentSoundFile;
 
-	// done with the data, clear it
-	buffer.clear();
+	// give the buffer data to the manager since `Mod_Load` is a pointer to `buffer`
+	m_modData = eastl::move(buffer);
 
 	printf("SOUND: Successfully loaded MOD file of %d bytes into SPU.\n", size);
 }
