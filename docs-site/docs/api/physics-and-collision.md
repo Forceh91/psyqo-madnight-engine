@@ -76,8 +76,8 @@ On a hit, `hit.object` is the object, `hit.distance` is how far away it was and 
 
 Limits to know about:
 
-- `maxDistance` must be greater than zero and no more than `10 * ONE_METRE` (`maxRayDistance`). Anything outside that returns `false` without testing anything.
-- The test is against an axis-aligned box, so it is inaccurate for rotated objects (the source says so too). An object with a mesh is tested against the mesh's baked box as stored, without the object's position added. A mesh-less object, such as a trigger, uses its oriented box's extents instead.
+- `maxDistance` must be greater than zero and no more than `maxRayDistance`, which is `ONE_METRE * 10` (`5.0_ws`, 10 m). Anything outside that returns `false` without testing anything.
+- The test is against an axis-aligned box, so it is inaccurate for rotated objects (the source says so too). An object with a mesh is tested against the mesh's baked box as stored, without the object's position added (tracked in [#95](https://github.com/Forceh91/psyqo-madnight-engine/issues/95)). A mesh-less object, such as a trigger, uses its oriented box's extents instead.
 - It returns the first object found, not the closest. If two tagged objects line up along the ray, which one you get depends on the order they are stored in.
 - It does not hit an object the ray starts inside.
 - `direction` should be a normalised vector. The distance is worked out from a normalised copy, but `hitPos` is computed from the vector you passed in.

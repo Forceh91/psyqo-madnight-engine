@@ -5,74 +5,69 @@ sidebar_position: 9
 
 # Textures
 
-`src/textures/texture_manager.hh` — loads and manages `.TIM` textures in VRAM. See the [Asset Pipeline Guides](../guides/overview#textures) for how to author a `.TIM` from a source PNG.
+`src/textures/texture_manager.hh` loads `.TIM` textures into VRAM. See the [Asset Pipeline Guides](../guides/overview#textures) for how to make a `.TIM` from a PNG. The manager is `g_madnightEngine.m_textureManager`.
 
-```cpp
-static constexpr uint16_t texturePageWidth = 64;
-static constexpr uint16_t texturePageHeight = 256;
-static constexpr uint8_t texturePageColumns = 16;
-static constexpr uint8_t MAX_TEXTURES = 32;
+## Loading a texture
 
-struct TimFile {
-  uint64_t nameHash;
-  bool isLoaded; // is this slot actually holding a texture?
-  uint16_t x, y, width, height;
-  psyqo::Prim::TPageAttr::ColorMode colourMode; // bits per pixel: 4, 8, or 16
-
-  bool hasClut;
-  uint16_t clutX, clutY;
-  uint16_t clutWidth, clutHeight; // clutHeight is always 1
-};
-
-class TextureManager final {
-public:
-  psyqo::Coroutine<> LoadTIM(const eastl::string_view &textureName, uint16_t x, uint16_t y, uint16_t clutX, uint16_t clutY, TimFile **timOut, uint32_t userFlags = 0);
-  psyqo::PrimPieces::TPageAttr GetTPageAttr(const TimFile *tim);
-  psyqo::PrimPieces::TPageAttr GetTPageAttr(const TimFile &tim);
-  psyqo::Rect GetTPageUVForTim(const TimFile &tim);
-  psyqo::Rect GetTPageUVForTim(const TimFile *tim);
-
-  void GetTextureFromName(const eastl::string_view &textureName, TimFile **timOut);
-
-  // dump all textures in memory and start fresh. Used when switching to a
-  // loading screen. Dangerous — doesn't check what's in use, and doesn't
-  // clear VRAM itself.
-  void Dump(void);
-};
-```
-
-Non-`static` member of `MadnightEngine` (`g_madnightEngine.m_textureManager`). `TimFile` now stores a hashed `nameHash` instead of the full name string, same as `VagEntry` ([Sound](./sound#soundmanager)) and `Billboard` ([Core](./core#billboard)).
-
-- `LoadTIM` takes the target VRAM placement (`x`, `y`) and CLUT placement (`clutX`, `clutY`) explicitly, and the engine doesn't do automatic VRAM packing, so placement has to be planned per-texture (this is exactly what the `TEXTURE` entry fields in a [SCENEBIN manifest](../guides/scenebin#texture-placement) carry).
-- `GetTPageAttr`/`GetTPageUVForTim` convert a loaded `TimFile`'s VRAM placement into the texture-page attribute and UV rect a draw primitive needs — used internally by `GameObject`/`Billboard` rendering and `Renderer::RenderSprite`.
-- Unless `userFlags` has bit 0 set, `LoadTIM` sets the STP bit (bit 15) on every non-zero CLUT entry, or on every non-zero pixel of a 16-bit TIM, before uploading. Advanced fog needs this to blend textured faces (see [Advanced fog](./render#advanced-fog)). It happens whether or not fog is ever enabled, so a game drawing its own semi-transparent prims from engine-loaded textures will see them blend where they would otherwise draw opaque; load those with bit 0 set. Bit 0 is also what marks a texture with holes, and what `RF_QUICK_ADVANCED_FOG` objects need. `texture_extra` entries in a [SCENEBIN manifest](../guides/scenebin#texture-extra-placement) pass their `flags` here.
-- Up to `MAX_TEXTURES` (32) textures can be resident at once. Past that, `LoadTIM` yields a null `TimFile*` in `*timOut`, so check it.
-
-### Usage
+Most of the time you do not call `LoadTIM` yourself. A `TEXTURE` entry in a [load queue](./helpers#loadqueue) or a [SCENEBIN manifest](../guides/scenebin#texture-placement) loads it for you with the placement you give. To do it by hand:
 
 ```cpp
 TimFile *crateTex;
-co_await g_madnightEngine.m_textureManager.LoadTIM("crate.tim", /*x*/ 320, /*y*/ 0, /*clutX*/ 0, /*clutY*/ 240, &crateTex);
-crateGameObject->SetTexture("crate.tim"); // looks it up by the same name afterwards
+co_await g_madnightEngine.m_textureManager.LoadTIM(
+    "TEXTURES/CRATE.TIM", /*x*/ 320, /*y*/ 0, /*clutX*/ 0, /*clutY*/ 240, &crateTex);
+crate->SetTexture("TEXTURES/CRATE.TIM"); // looked up by the same name
 ```
 
-To load a texture with bit 0 set, pass `1` as `userFlags`. Do this for a texture with holes, for one an `RF_QUICK_ADVANCED_FOG` object uses, or for one your own semi-transparent prims draw from:
+Objects find a texture by name through `SetTexture`, so the name you load it under is the name you use afterwards.
+
+Limits to know about:
+
+- Loading a name that is already in VRAM returns the existing texture and ignores the placement you passed.
+- Up to `MAX_TEXTURES` (32) can be loaded at once. Past that, or if the file is missing, `*timOut` is `nullptr`, so check it.
+- `TimFile` stores a hash of the name (`nameHash`), not the string. You can look a loaded texture up with `GetTextureFromName("TEXTURES/CRATE.TIM", &tim)`, which gives `nullptr` if it is not loaded.
+
+## Placing textures in VRAM
+
+The engine does not pack VRAM for you. You choose `x`, `y`, `clutX` and `clutY` for every texture, and getting them wrong does not crash, the textures just overlap or clip. The rules:
+
+- The frame buffers take VRAM `0-319, 0-479`, so the first free texture page starts at `x=320`.
+- A page is `64x256` px, and a texture needs 1, 2 or 4 contiguous pages depending on colour depth: 4-bit textures take a quarter of the width in VRAM, 8-bit half, 16-bit the full width.
+- Do not mix colour depths in one page.
+- Safe places for CLUTs are rows `y=240-255` and `y=496-511`, with `x` a multiple of 16. That is why the example above uses `clutY` 240.
+
+All four values are used exactly as given, and `0` is a real position. To take a coordinate from the TIM file instead, pass `TIM_POSITION_FROM_FILE` (`0xFFFF`). In a scene manifest that is written `auto`.
+
+```cpp
+co_await g_madnightEngine.m_textureManager.LoadTIM(
+    "TEXTURES/CRATE.TIM", TIM_POSITION_FROM_FILE, TIM_POSITION_FROM_FILE,
+    TIM_POSITION_FROM_FILE, TIM_POSITION_FROM_FILE, &crateTex);
+```
+
+The [SCENEBIN format](../guides/scenebin#texture-placement) is the way to keep placement in one place per scene rather than scattering coordinates through code.
+
+## Transparency and the STP bit
+
+By default `LoadTIM` sets the STP bit (bit 15) on every non-zero CLUT entry, or every non-zero pixel of a 16-bit TIM, before uploading. [Advanced fog](./render#advanced-fog) needs this to blend textured faces.
+
+That happens whether or not fog is ever turned on, so if you draw your own semi-transparent primitives from an engine-loaded texture, they will blend where you expected them to be opaque. Pass `1` as `userFlags` to skip it. Do the same for a texture with holes (a fence, say), or one used by an `RF_QUICK_ADVANCED_FOG` object.
 
 ```cpp
 TimFile *fenceTex;
-co_await g_madnightEngine.m_textureManager.LoadTIM("fence.tim", 384, 0, 0, 241, &fenceTex, /*userFlags*/ 1);
+co_await g_madnightEngine.m_textureManager.LoadTIM(
+    "TEXTURES/FENCE.TIM", 384, 0, 0, 241, &fenceTex, /*userFlags*/ 1);
 ```
 
-From a [SCENEBIN manifest](../guides/scenebin#texture-extra-placement), use a `texture_extra` line with `flags` set to 1, as in `texture_extra TEXTURES/SMS.TIM 320 0 0 240 1`. A plain `texture` line always loads with flags 0.
+From a manifest, use a `texture_extra` line with `flags` set to 1, as in `texture_extra TEXTURES/SMS.TIM 320 0 0 240 1`. A plain `texture` line always loads with flags 0. See [texture_extra](../guides/scenebin#texture-extra-placement).
 
-### Internals
+## Using a texture in your own drawing
 
-VRAM placement is entirely manual, and getting `x`/`y`/`clutX`/`clutY` right requires understanding the layout (spelled out in a long comment at the top of `texture_manager.cpp`):
+`GetTPageAttr` and `GetTPageUVForTim` turn a loaded `TimFile` into the texture-page attribute and the UV offset a primitive needs. Both take a reference or a pointer. The engine uses them for objects, billboards and `Renderer::RenderSprite`, so you only need them when you build primitives yourself.
 
-- The frame buffers occupy VRAM `0-319, 0-479`, so the first free texture page starts at `x=320`.
-- Pages are `64×256` px each, so a texture must fit within 1, 2, or 4 *contiguous* pages depending on colour depth — 4-bit textures are squeezed to 1/4 width in VRAM, 8-bit to 1/2 width, 16-bit at full width.
-- You can't mix colour depths within one page.
-- CLUTs have known-safe rows at `y=240-255` and `y=496-511` (X must be a multiple of 16), which is why the usage example above places the CLUT at `y=240`.
-- All four placement coordinates are used exactly as given, including 0, which is a real VRAM position. Pass `TIM_POSITION_FROM_FILE` (`0xFFFF`, a value VRAM cannot hold) for any of them to take that coordinate from the TIM file instead. In a scene manifest the same thing is spelled `auto`.
+```cpp
+auto tpage = g_madnightEngine.m_textureManager.GetTPageAttr(crateTex);
+auto uv = g_madnightEngine.m_textureManager.GetTPageUVForTim(crateTex);
+```
 
-Getting this wrong doesn't crash: textures can silently overlap or clip in VRAM. The [SCENEBIN format](../guides/scenebin#texture-placement) is the intended way to keep placement authoritative and consistent per-scene rather than hardcoding coordinates per texture.
+## Dumping textures
+
+`Dump()` forgets every loaded texture. The file loader calls it when a [hard loading screen](./helpers#loading-screens) clears pools. It does not check whether anything still uses them, and it does not clear VRAM, so objects pointing at a dumped texture are left with nothing valid.

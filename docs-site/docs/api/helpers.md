@@ -5,152 +5,142 @@ sidebar_position: 11
 
 # Helpers
 
-`src/helpers/` — CD-ROM/archive file loading, the asset load queue and loader that consumes it, and world-space unit literals.
-
-## ArchiveHelper
-
-`src/helpers/archive.hh`
-
-The engine's default file loader — reads files out of a `psyqo::paths::ArchiveManager`-backed archive (the format produced by pcsx-redux's authoring tool, see [Loading Assets](../getting-started/loading-assets)). Every asset manager (`TextureManager`, `MeshManager`, `ColbinManager`, `AnimationManager`, `SoundManager`, `ModSoundManager`) loads its raw file data through this.
-
-```cpp
-constexpr uint8_t MAX_ARCHIVE_FILE_NAME_LEN = 255;
-
-// hashes a name the same way psyqo-paths hashes its own archive index, so pool entries can store
-// and compare names as a uint64_t instead of a full string. Runtime-string overload:
-uint64_t HashName(eastl::string_view name);
-// compile-time overload for string literals, folds to a constant:
-template <unsigned S> constexpr uint64_t HashName(const char (&name)[S]);
-
-class ArchiveHelper final {
-public:
-  void init(eastl::function<void()> cb);
-  psyqo::Coroutine<psyqo::Buffer<uint8_t>> LoadFile(const eastl::string_view& fileName);
-};
-```
-
-Non-`static` member of `MadnightEngine` (`g_madnightEngine.m_archiveHelper`). `MAX_ARCHIVE_FILE_NAME_LEN` is the shared name-length constant used throughout the engine for fixed-capacity asset name strings (mesh names, texture names, VAG names, and so on). `HashName` (also declared here) is the hashing helper used throughout the engine to turn a name into the `uint64_t` several managers now store/compare instead of a full string (see [Updating the Engine → v0.0.1](../getting-started/updating-the-engine#v001-instance-based-managers)) — precompute a hash with it if you're going to look the same name up repeatedly.
-
-### Internals
-
-- `init()` is asynchronous (callback-based, sets up the archive's decompressor and initializes against the CD-ROM device) — calling `LoadFile` before that callback has fired just logs a warning and returns an empty buffer, it doesn't queue or wait.
-- `LoadFile` loads a file from the archive by name.
-
-## CDRomHelper
-
-`src/helpers/cdrom.hh`
-
-A lower-level loader that reads directly off an ISO9660 filesystem instead of a packed archive.
-
-:::caution[Deprecated]
-As of v0.0.1, `CDRomHelper` is marked `[[deprecated]]` in favour of `ArchiveHelper`, and its instance (`m_cdromHelper`) is now a *private* member of `MadnightEngine` — game code can no longer reach it directly. It's documented here for reference/upstream reading, not for new use.
-:::
-
-```cpp
-class CDRomHelper final {
-public:
-  void init(eastl::function<void()> cb);
-  psyqo::Coroutine<psyqo::Buffer<uint8_t>> LoadFile(const eastl::string_view& fileName);
-#ifndef PCDRV
-  psyqo::CDRomDevice& CDRomDevice();
-#endif
-};
-```
-
-`CDRomHelper::LoadFile` has no callers; `ArchiveHelper::LoadFile` runs all asset loads instead, in both `PCDRV` and non-`PCDRV` builds, borrowing `CDRomHelper::CDRomDevice()` as its underlying device in the latter case.
-
-## LoadQueue
-
-`src/helpers/load_queue.hh`
-
-The runtime entry type produced by parsing a [SCENEBIN manifest](../guides/scenebin) — a list of these is what you hand to [`FileLoader::LoadFiles`](#fileloader) (directly, or via `MadnightEngine::HardLoadingScreen`/`SoftLoadingScreen`) to bulk-load everything a scene needs.
-
-```cpp
-enum LoadFileType { OBJECT, TEXTURE, MOD_FILE, ANIMATION, COLBIN, VAG, SCENE = 255 };
-
-struct LoadQueue {
-  eastl::fixed_string<char, MAX_ARCHIVE_FILE_NAME_LEN> name;
-  LoadFileType type;
-  union {
-    struct { uint16_t x, y, clutX, clutY; }; // used when type == TEXTURE
-  };
-};
-```
-
-See [SCENEBIN → Types](../guides/scenebin#types) for the full type table and the on-disk manifest format this is parsed from.
-
-## FileLoader
-
-`src/file_loader.hh`
-
-Consumes a `LoadQueue` list and loads every entry through the matching manager (`MeshManager`, `TextureManager`, `ModSoundManager`, `AnimationManager`, `ColbinManager`, `SoundManager`) in order, one file at a time. This is the actual loading engine — `MadnightEngine::HardLoadingScreen`/`SoftLoadingScreen` (below) are the higher-level entry points most game code should call instead of using `FileLoader` directly, but it's useful to understand since it owns the queue, progress counters, and load order.
-
-```cpp
-enum LOAD_STATE : uint8_t { UNKNOWN, LOADING, COMPLETE };
-
-class FileLoader final {
-public:
-  // clearPools dumps all existing game objects, textures, meshes, colbins, and sfx first —
-  // it does not check whether anything is still in use before doing so.
-  psyqo::Coroutine<> LoadFiles(eastl::vector<LoadQueue> &&files, bool clearPools = true);
-  uint16_t TotalFiles(void);  // increases as SCENE entries are encountered
-  uint16_t LoadedFiles(void);
-  LOAD_STATE LoadState(void);
-};
-```
-
-Non-`static` member of `MadnightEngine` (`g_madnightEngine.m_fileLoader`). It owns a `SceneLoader` internally (`src/scenes/scene_loader.hh`) to resolve `SCENE`-type queue entries — `SceneLoader` isn't exposed on `MadnightEngine` directly, only reached through `FileLoader`.
-
-### Usage
-
-Most game code goes through `MadnightEngine` rather than calling `FileLoader` directly — it wraps `FileLoader::LoadFiles` with scene push/pop around the built-in (or your own) loading screen:
-
-```cpp
-// a SCENE-type entry gets expanded into more entries internally, via FileLoader's own
-// SceneLoader -- SceneLoader itself isn't reachable from game code directly as of v0.0.1
-eastl::vector<LoadQueue> files = {{.name = "level01.scenebin", .type = LoadFileType::SCENE}};
-
-// pops the current scene, shows the loading screen, loads everything, then switches to postLoadScene
-co_await g_madnightEngine.HardLoadingScreen(eastl::move(files), &gameplayScene);
-```
-
-Two lighter variants exist alongside `HardLoadingScreen`:
-
-```cpp
-// keeps the current scene on the stack instead of unloading it, and doesn't dump existing
-// pools -- useful for streaming in extra assets without a full scene transition. Uses the
-// engine's own built-in loading scene.
-co_await g_madnightEngine.SoftLoadingScreen(eastl::move(files));
-
-// either HardLoadingScreen or SoftLoadingScreen can take your own loading scene instead
-// of the engine's default one
-co_await g_madnightEngine.HardLoadingScreen(eastl::move(files), myLoadingScene, &gameplayScene);
-```
-
-The one-argument `SoftLoadingScreen(files)` forwards to the two-argument overload with the engine's built-in default loading scene; pass your own `psyqo::Scene` as a second argument if you want a custom one instead.
-
-Calling `FileLoader::LoadFiles` directly only makes sense if you're building your own loading-screen flow rather than using `MadnightEngine`'s.
-
-### Internals
-
-- `LoadFiles` empties and releases the queue's capacity (`m_queue.set_capacity(0)`) once loading finishes — it doesn't just sit there holding memory between loads.
-- A `SCENE`-type entry can append more entries onto the queue mid-load (via `SceneLoader::LoadScene`), which is why `TotalFiles()` can grow while loading is in progress — don't treat it as a fixed count up front.
-- `clearPools` (default `true`) dumps game objects, meshes, textures, colbins, and sound all at once before loading starts — pass `false` (as `SoftLoadingScreen` does) if you want to add to what's already loaded instead of replacing it.
+`src/helpers/` has the world-space unit literals, the archive reader every asset manager loads through, and the load queue that tells the engine what to load. `src/file_loader.hh` is the loader that consumes the queue.
 
 ## World-space literals
 
 `src/helpers/world_space.hh`
 
-User-defined literals for converting Blender-exported units directly into engine world-space fixed-point values, matching the 128-units-per-metre scale described in [Core → World units](../api/core#world-units).
+`_ws` turns a number from Blender into an engine world-space value. Use it for any position, size, speed or distance you write in code.
 
 ```cpp
-using namespace psyqo::fixed_point_literals;
-
-// 1m, 0.5 Blender units = 0.5_ws
-// 2m, 1 Blender unit = 1.0_ws
-// if Blender says X is 50m, you want 25.0_ws; if 1m, you want 0.5_ws
-consteval psyqo::FixedPoint<> operator"" _ws(long double blenderUnits);
-consteval psyqo::FixedPoint<10> operator"" _ws10(long double blenderUnits);
+auto *door = g_madnightEngine.m_gameObjectManager.CreateGameObject(
+    "door_trigger", {10.0_ws, 0, 3.0_ws}, {0, 0, 0}, GameObjectTag::INTERACTABLE);
+door->SetAsTrigger({1.0_ws, 2.0_ws, 1.0_ws});
 ```
 
-`_ws10` is the same conversion targeting a `FixedPoint<10>` (10 fractional bits) rather than the engine's default fixed-point precision — used wherever a call site specifically needs that precision (e.g. angle-adjacent lerps).
+### The world scale: 1 Blender unit = 2 m
+
+The engine's convention is that one Blender unit is 2 metres.
+
+| In code | Blender units | Metres |
+| --- | --- | --- |
+| `1.0_ws` | 1 | 2 m |
+| `0.5_ws` | 0.5 | 1 m (`ONE_METRE`) |
+| `5.0_ws` | 5 | 10 m (`maxRayDistance`) |
+
+If Blender's grid says a wall is 25 units long, write `25.0_ws`. Blender itself will call that 25 m, though the engine treats it as 50 m. To make Blender's displayed metres match the engine, set the scene's Unit Scale to 2.0, or model everything at half size.
+
+`ONE_METRE` (`src/core/world_defs.hh`) is defined as `0.5_ws`. Multiply it when you want real metres, for example `3 * ONE_METRE` for a 3 m ray.
+
+### _ws10
+
+`_ws10` is the same conversion, but gives you a `psyqo::FixedPoint<10>` instead of the engine's default `FixedPoint<>`. You will only need it where a call asks for that type.
+
+Both literals are `consteval`, so they only accept numbers written in the source. For a value that changes at runtime, multiply `ONE_METRE` by an integer instead.
+
+## LoadQueue
+
+`src/helpers/load_queue.hh`
+
+A `LoadQueue` entry is one file for the loader to read: a name, a type, and for textures a VRAM position. You build a list of them and hand it to a loading screen.
+
+```cpp
+eastl::vector<LoadQueue> queue = {
+    {.name = "TEXTURES/STREET.TIM", .type = LoadFileType::TEXTURE, .x = 320, .y = 0, .clutX = 0, .clutY = 240},
+    {.name = "MODELS/STREET.MB", .type = LoadFileType::OBJECT},
+};
+```
+
+This is how `src/game.cpp` does it. The type is one of `OBJECT`, `TEXTURE`, `MOD_FILE`, `ANIMATION`, `COLBIN`, `VAG`, `TEXTURE_EXTRA` or `SCENE`. `x`, `y`, `clutX` and `clutY` only matter for textures, and `flags` only for `TEXTURE_EXTRA` (it is passed on as the texture's user flags).
+
+An entry with type `SCENE` names a [SCENEBIN manifest](../guides/scenebin), which expands into more entries when it is reached. That is the usual way to load a whole level with one line:
+
+```cpp
+eastl::vector<LoadQueue> files = {{.name = "level01.scenebin", .type = LoadFileType::SCENE}};
+```
+
+The [SCENEBIN guide](../guides/scenebin#types) has the type table and the on-disk format.
+
+## Loading screens
+
+`src/madnight.hh`
+
+You rarely call the file loader yourself. `MadnightEngine` wraps it with a loading scene, and these are the calls to use.
+
+`HardLoadingScreen` is for changing level. It pops the current scene, shows the loading scene, clears the game object, mesh, texture, colbin and sound pools, loads the queue, then switches to the scene you pass.
+
+```cpp
+co_await g_madnightEngine.HardLoadingScreen(eastl::move(files), &gameplayScene);
+```
+
+Pass your own loading scene as the second argument to replace the built-in one:
+
+```cpp
+co_await g_madnightEngine.HardLoadingScreen(eastl::move(files), &myLoadingScene, &gameplayScene);
+```
+
+`SoftLoadingScreen` is for streaming extra assets in. It pushes the loading scene on top of the current one, loads without clearing anything, then pops back to where you were. It also has a version that takes your own loading scene.
+
+```cpp
+co_await g_madnightEngine.SoftLoadingScreen(eastl::move(files));
+```
+
+:::caution[A hard load clears everything]
+`HardLoadingScreen` dumps every game object, mesh, texture, colbin and sound before it loads. It does not check whether anything is still in use, so any pointer you hold from before the call is gone afterwards. Because the current scene is replaced, it also restarts the new scene fresh (`Start`, not `Resume`), so do not repeat set-up work that already ran.
+:::
+
+Both are coroutines. Call them with `co_await` from a coroutine such as `InitialLoad`.
+
+## FileLoader
+
+`src/file_loader.hh`, reached as `g_madnightEngine.m_fileLoader`.
+
+This is what the loading screens call. It loads each entry in order through the matching manager, one file at a time. Call `LoadFiles` yourself only if you are writing your own loading flow.
+
+```cpp
+co_await g_madnightEngine.m_fileLoader.LoadFiles(eastl::move(files), /*clearPools*/ false);
+```
+
+While it runs, a loading scene can show progress:
+
+```cpp
+uint32_t percent = loader.LoadedFiles() * 100 / loader.TotalFiles();
+```
+
+`LoadState()` returns `UNKNOWN` before anything was queued, `LOADING` while files remain, and `COMPLETE` when they are all loaded.
+
+`TotalFiles()` is not fixed up front. Each `SCENE` entry adds its contents to the queue as it is reached, so the total grows during loading and a progress bar can step backwards. An empty queue returns straight away without loading anything (after clearing pools, if you asked it to).
+
+## ArchiveHelper
+
+`src/helpers/archive.hh`, reached as `g_madnightEngine.m_archiveHelper`.
+
+Reads one file out of the archive by name. The asset managers all load through it, and the engine initialises it at start-up, so you will normally not touch it.
+
+```cpp
+auto buffer = co_await g_madnightEngine.m_archiveHelper.LoadFile("DATA/LEVEL.BIN");
+if (buffer.empty()) {
+  // not found, or the archive was not ready
+}
+```
+
+Calling it before the archive has finished initialising does not wait. It prints a warning and returns an empty buffer. A missing file also gives an empty buffer.
+
+### HashName
+
+`HashName` turns a name into the `uint64_t` the managers store and compare instead of a full string. Pass a string literal and the hash is worked out at compile time. If you look the same name up often, hash it once and keep the number.
+
+```cpp
+constexpr uint64_t streetHash = HashName("MODELS/STREET.MB");
+```
+
+`MAX_ARCHIVE_FILE_NAME_LEN` (255) is the longest name a `LoadQueue` entry can hold.
+
+## CDRomHelper
+
+`src/helpers/cdrom.hh`
+
+:::caution[Deprecated]
+`CDRomHelper` is marked `[[deprecated]]` in favour of `ArchiveHelper`, and its instance is a private member of `MadnightEngine`. Game code cannot reach it and should not need to. It only exists because the archive reader borrows its CD-ROM device on real hardware builds.
+:::
