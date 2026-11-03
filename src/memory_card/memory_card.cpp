@@ -82,14 +82,14 @@ void MemoryCard::ReadFile(const MC::Port& port, const eastl::string_view& fileNa
 }
 
 MC::Error MemoryCard::WriteFile(const MC::Port& port, const eastl::string_view& title, const MCFS::Icon& icon,
-								void* data, uint32_t dataSize) {
+								const void* data, uint32_t dataSize) {
 	m_title.assign(title.data(), title.length());
 	return m_fs.writeFileBlocking(Renderer::Instance().GPU(), port, m_fileName.data(), m_title.data(), icon, data,
 								  dataSize);
 }
 
 MC::Error MemoryCard::WriteFile(const MC::Port& port, const eastl::string_view& fileName,
-								const eastl::string_view& title, const MCFS::Icon& icon, void* data,
+								const eastl::string_view& title, const MCFS::Icon& icon, const void* data,
 								uint32_t dataSize) {
 	m_fileName.assign(fileName.data(), fileName.length());
 	return WriteFile(port, title, icon, data, dataSize);

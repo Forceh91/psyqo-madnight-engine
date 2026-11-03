@@ -58,22 +58,22 @@ class MemoryCard final {
 				  uint32_t* outLength, eastl::function<void(MC::Error)>&& callback);
 
 	// (blocking) call to write the specified file name (set with `SetFileName`)
-	MC::Error WriteFile(const MC::Port& port, const eastl::string_view& title, const MCFS::Icon& icon, void* data,
+	MC::Error WriteFile(const MC::Port& port, const eastl::string_view& title, const MCFS::Icon& icon, const void* data,
 						uint32_t dataSize);
 
 	// (blocking) call to write the specified file name
 	MC::Error WriteFile(const MC::Port& port, const eastl::string_view& fileName, const eastl::string_view& title,
-						const MCFS::Icon& icon, void* data, uint32_t dataSize);
+						const MCFS::Icon& icon, const void* data, uint32_t dataSize);
 
 	// (non-blocking) call to write the specified file name (set with `SetFileName`).
-	// be mindful that re-calling this OR `SetFile` whilst waiting for another `WriteFile` callback will override the
-	// name of the in-flight request
+	// be mindful that re-calling this OR `SetFileName` whilst waiting for another `WriteFile` callback will override
+	// the name of the in-flight request
 	void WriteFile(const MC::Port& port, const eastl::string_view& title, const MCFS::Icon& icon, const void* data,
 				   uint32_t dataSize, eastl::function<void(MC::Error)>&& callback);
 
 	// (non-blocking) call to write the specified file name.
-	// be mindful that re-calling this OR `SetFile` whilst waiting for another `WriteFile` callback will override the
-	// name of the in-flight request
+	// be mindful that re-calling this OR `SetFileName` whilst waiting for another `WriteFile` callback will override
+	// the name of the in-flight request
 	void WriteFile(const MC::Port& port, const eastl::string_view& fileName, const eastl::string_view& title,
 				   const MCFS::Icon& icon, const void* data, uint32_t dataSize,
 				   eastl::function<void(MC::Error)>&& callback);
