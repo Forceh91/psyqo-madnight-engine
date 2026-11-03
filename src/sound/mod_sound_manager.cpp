@@ -84,6 +84,12 @@ void ModSoundManager::PlayMusic(uint16_t volume) {
 
 	// this will start playing the music in the mod file that was put into the SPU
 	auto& gpu = Renderer::Instance().GPU();
+
+	// cancel the timer if we're already playing something
+	if (m_musicTimer != 0) {
+		gpu.cancelTimer(m_musicTimer);
+	}
+
 	m_musicTimer = gpu.armPeriodicTimer(MOD_hblanks * psyqo::GPU::US_PER_HBLANK, [&](uint32_t) {
 		MOD_Poll();
 
@@ -100,6 +106,7 @@ void ModSoundManager::PauseMusic(void) {
 
 	auto& gpu = Renderer::Instance().GPU();
 	gpu.cancelTimer(m_musicTimer);
+	m_musicTimer = 0;
 	MOD_SetMusicVolume(0);
 }
 
@@ -110,6 +117,7 @@ void ModSoundManager::StopMusic(void) {
 
 	auto& gpu = Renderer::Instance().GPU();
 	gpu.cancelTimer(m_musicTimer);
+	m_musicTimer = 0;
 	MOD_Silence();
 }
 
