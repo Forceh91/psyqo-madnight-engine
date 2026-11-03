@@ -106,6 +106,7 @@ void ModSoundManager::PauseMusic(void) {
 
 	auto& gpu = Renderer::Instance().GPU();
 	gpu.cancelTimer(m_musicTimer);
+	m_musicTimer = 0;
 	MOD_SetMusicVolume(0);
 }
 
