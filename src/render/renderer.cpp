@@ -195,8 +195,6 @@ psyqo::Vec3 Renderer::TransformObjectToViewSpace(const psyqo::Vec3& pos, const p
 	psyqo::GTE::writeSafe<psyqo::GTE::PseudoRegister::Translation>(psyqo::Vec3{0, 0, 0});
 
 	// calculate delta pos of the object compared to the camera
-	// hacky fix to get follow camera working: add on a delta offset before doing the final object delta pos
-	// deltaOffset will return {0, 0, 0} when not in follow mode
 	auto objDeltaPos = (pos - m_activeCamera->pos());
 	psyqo::GTE::writeSafe<psyqo::GTE::PseudoRegister::V0>(objDeltaPos);
 	psyqo::GTE::Kernels::rt();
