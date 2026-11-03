@@ -27,6 +27,7 @@
 #include <psyqo/primitives/common.hh>
 #include <psyqo/primitives/control.hh>
 #include <psyqo/primitives/quads.hh>
+#include <psyqo/primitives/rectangles.hh>
 #include <psyqo/primitives/sprites.hh>
 #include <psyqo/primitives/triangles.hh>
 #include <psyqo/vector.hh>
@@ -619,10 +620,7 @@ void Renderer::RenderParticles(uint32_t deltaTime, const psyqo::Matrix33& camera
 		// send tpage info to gpu
 		auto texture = emitter->pParticleTexture();
 		if (texture) {
-			auto tpageAttr = g_madnightEngine.m_textureManager.GetTPageAttr(texture);
-			auto& tpage = allocator.allocateFragment<psyqo::Prim::TPage>();
-			tpage.primitive.attr = tpageAttr;
-			m_gpu.chain(tpage);
+			tpage = g_madnightEngine.m_textureManager.GetTPageAttr(texture);
 		}
 
 		for (auto const& particle : particles) {
@@ -668,20 +666,7 @@ void Renderer::RenderParticles(uint32_t deltaTime, const psyqo::Matrix33& camera
 					continue;
 				}
 
-				auto& sprite = allocator.allocateFragment<psyqo::Prim::Sprite>();
-				if (texture) {
-					// update sprite with clut/uv data
-					sprite.primitive.texInfo.clut = psyqo::PrimPieces::ClutIndex(texture->clutX, texture->clutY);
-
-					// as particles can be quads they have 4 lots of uv data, so just take the first one
-					sprite.primitive.texInfo.u = particle.uv()[0].u;
-					sprite.primitive.texInfo.v = particle.uv()[0].v;
-				}
-
-				sprite.primitive.position = pos;
-				sprite.primitive.size = scaledSize;
-
-				// handle fog
+				// handle fog, this doesn't change if its Sprite or Rectangle
 				auto colour = particle.colour();
 				ApplyAmbientToColour(&colour);
 
@@ -692,13 +677,41 @@ void Renderer::RenderParticles(uint32_t deltaTime, const psyqo::Matrix33& camera
 					ApplyFogToColour(&colour, GetFogFactor(sz));
 				}
 
-				// set colour
-				sprite.primitive.setColor(colour);
+				// if its textured use a sprite
+				if (texture) {
+					auto& sprite = allocator.allocateFragment<psyqo::Prim::Sprite>();
+					// update sprite with clut/uv data
+					sprite.primitive.texInfo.clut = psyqo::PrimPieces::ClutIndex(texture->clutX, texture->clutY);
 
-				ot.insert(sprite, zIndex);
+					// as particles can be quads they have 4 lots of uv data, so just take the first one
+					sprite.primitive.texInfo.u = particle.uv()[0].u;
+					sprite.primitive.texInfo.v = particle.uv()[0].v;
+
+					sprite.primitive.position = pos;
+					sprite.primitive.size = scaledSize;
+
+					// set colour
+					sprite.primitive.setColor(colour);
+
+					auto& spriteTPage = allocator.allocateFragment<psyqo::Prim::TPage>();
+					spriteTPage.primitive.attr = tpage;
+
+					ot.insert(sprite, zIndex);
+					ot.insert(spriteTPage, zIndex);
+				} else {
+					// otherwise use a rectangle
+					auto& rectangle = allocator.allocateFragment<psyqo::Prim::Rectangle>();
+
+					rectangle.primitive.position = pos;
+					rectangle.primitive.size = scaledSize;
+
+					// set colour
+					rectangle.primitive.setColor(colour);
+
+					ot.insert(rectangle, zIndex);
+				}
 			} else {
 				if (texture) {
-					tpage = g_madnightEngine.m_textureManager.GetTPageAttr(texture);
 					offset = g_madnightEngine.m_textureManager.GetTPageUVForTim(texture);
 					offset.pos.y += (texture->height - 1);
 				}
