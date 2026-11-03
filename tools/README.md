@@ -40,6 +40,4 @@ Load an unskinned animation into Blender, and use the [./blender_animbin.py] scr
 
 The engine's convention is that 1 Blender unit is 2 m. So `1.0_ws` is 2 m, `0.5_ws` is 1 m, and `ONE_METRE` (`src/core/world_defs.hh`) is defined as `0.5_ws`.
 
-The converters multiply every Blender unit by 128 (`ONE_ENGINE_METRE` in `obj-to-meshbin.py`, and the default scale of `blender_colbin.py`), and the `_ws` literal in `src/helpers/world_space.hh` does the same, so exported assets and values you write in code line up.
-
 Blender will show a 25 unit wall as 25 m, while the engine treats it as 50 m. To make Blender's displayed metres match, set the scene's Unit Scale to 2.0, or model at half size.

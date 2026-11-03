@@ -29,9 +29,7 @@ The engine's convention is that one Blender unit is 2 metres.
 | `0.5_ws` | 0.5 | 1 m (`ONE_METRE`) |
 | `5.0_ws` | 5 | 10 m (`maxRayDistance`) |
 
-`_ws` multiplies the Blender number by 128 and stores the result as the raw fixed-point value. The converters use the same 128 per Blender unit (`ONE_ENGINE_METRE` in `tools/obj-to-meshbin.py`, and a default scale of 128 in `tools/blender_colbin.py`), so a mesh exported from Blender and a `_ws` literal line up.
-
-So if Blender's grid says a wall is 25 units long, write `25.0_ws`. Blender itself will call that 25 m, though the engine treats it as 50 m. To make Blender's displayed metres match the engine, set the scene's Unit Scale to 2.0, or model everything at half size.
+If Blender's grid says a wall is 25 units long, write `25.0_ws`. Blender itself will call that 25 m, though the engine treats it as 50 m. To make Blender's displayed metres match the engine, set the scene's Unit Scale to 2.0, or model everything at half size.
 
 `ONE_METRE` (`src/core/world_defs.hh`) is defined as `0.5_ws`. Multiply it when you want real metres, for example `3 * ONE_METRE` for a 3 m ray.
 
