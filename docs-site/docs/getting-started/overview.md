@@ -15,4 +15,4 @@ This section walks through that flow end to end:
 4. [Load assets dynamically](./loading-assets) (optional, once hardcoded headers stop cutting it)
 5. [Keep the engine up to date](./updating-the-engine)
 
-If you get through all of that and want to go deeper, the best next stop is the [API Reference](../api/overview) — particularly `src/scenes`, `src/core`, and `src/render`, which is where scenes, game objects, and the camera all connect.
+If you get through all of that and want to go deeper, the best next stop is the [API Reference](../api/overview). The pages most games need first are [game objects](../api/core#gameobject), the [camera](../api/render#camera), the [per-frame render loop](../api/render#the-per-frame-flow), and [fog](../api/render#fog) and [lighting](../api/render#lighting).
