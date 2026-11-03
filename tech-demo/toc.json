@@ -1,0 +1,20 @@
+{
+    "executable": "tech-demo.ps-exe",
+    "pvd": {
+        "system_id": "PLAYSTATION",
+        "volume_id": "MADNIGHT_TECH_DEMO",
+        "volume_set_id": "MADNIGHT_TECH_DEMO",
+        "publisher": "MADNIGHT GAMES",
+        "preparer": "MADNIGHT GAMES",
+        "application_id": "PLAYSTATION"
+    },
+
+    "files": [
+        { "path": "assets/DEMO.SCN", "name": "DEMO.SCN" },
+        { "path": "assets/TEXTURES/HALL.TIM", "name": "TEXTURES/HALL.TIM" },
+        { "path": "assets/TEXTURES/HERO.TIM", "name": "TEXTURES/HERO.TIM" },
+        { "path": "assets/MODELS/HALL.MB", "name": "MODELS/HALL.MB" },
+        { "path": "assets/MODELS/HERO.MB", "name": "MODELS/HERO.MB" },
+        { "path": "assets/ANIMS/HERO.AB", "name": "ANIMS/HERO.AB" }
+    ]
+}
