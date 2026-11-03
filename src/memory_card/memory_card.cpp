@@ -1,6 +1,5 @@
 #include "memory_card.hh"
 #include "../render/renderer.hh"
-#include "EASTL/string_view.h"
 
 #include <psyqo/xprintf.h>
 
