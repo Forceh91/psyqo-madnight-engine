@@ -32,7 +32,6 @@ public:
   Camera(psyqo::FixedPoint<12> x, psyqo::FixedPoint<12> y, psyqo::FixedPoint<12> z);
 
   const psyqo::Vec3 pos(void) const;
-  const psyqo::Vec3 deltaOffset(void) const; // zero unless in FOLLOW mode
   const psyqo::Vec3 *posPtr(void) const;
   const CameraAngle *angle(void) const;
   const psyqo::Vec3 forwardVector(void) const;

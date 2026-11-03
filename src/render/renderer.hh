@@ -57,7 +57,6 @@ class Renderer final {
 	psyqo::GPU& m_gpu;
 	uint32_t m_lastFrameCounter = 0;
 	Camera* m_activeCamera;
-	psyqo::Vec3 m_gteCameraPos = {0, 0, 0};
 
 	// used when a game object has the `RF_QUICK_ADVANCED_FOG` render flag
 	psyqo::Fragments::SimpleFragment<psyqo::Prim::Quad>* m_quickAdvancedFogOverlayQuad = nullptr;
@@ -87,7 +86,6 @@ class Renderer final {
 	Renderer(psyqo::GPU& gpuInstance) : m_gpu(gpuInstance) {};
 	~Renderer() {};
 
-	psyqo::Vec3 SetupCamera(const psyqo::Matrix33& camRotationMatrix, const psyqo::Vec3& negativeCamPos);
 	psyqo::Vec3 TransformObjectToViewSpace(const psyqo::Vec3& pos, const psyqo::Matrix33& cameraRotationMatrix,
 										   const psyqo::Matrix33& finalCameraMatrix);
 

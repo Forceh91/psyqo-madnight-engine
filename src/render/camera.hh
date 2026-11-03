@@ -69,9 +69,6 @@ class Camera final {
 	~Camera() {};
 
 	const constexpr psyqo::Vec3 pos(void) const { return m_pos; };
-	const constexpr psyqo::Vec3 deltaOffset(void) const {
-		return m_cameraMode != CameraMode::FOLLOW ? psyqo::Vec3{0, 0, 0} : m_pos;
-	}
 	const constexpr psyqo::Vec3* posPtr(void) const { return &m_pos; }
 	const constexpr CameraAngle* angle(void) const { return &m_angle; }
 	constexpr psyqo::Vec3 forwardVector(void) {
