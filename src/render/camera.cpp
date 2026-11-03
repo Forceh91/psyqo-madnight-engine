@@ -168,7 +168,7 @@ void Camera::LookAt(const psyqo::Vec3* target) {
 	// calculate right axis direction
 	auto up = psyqo::Vec3::UP();
 	psyqo::Vec3 crossProduct = {0};
-	psyqo::GteMath::crossProductVec3(forwardVectorNormal, up, &crossProduct);
+	psyqo::GteMath::crossProductVec3(up, forwardVectorNormal, &crossProduct);
 	if (IsVector3Zero(crossProduct)) {
 		return;
 	}
@@ -182,7 +182,7 @@ void Camera::LookAt(const psyqo::Vec3* target) {
 
 	// calculate up axis direction
 	psyqo::Vec3 rightForwardCrossProduct = {0};
-	psyqo::GteMath::crossProductVec3(rightVectorNormal, forwardVectorNormal, &rightForwardCrossProduct);
+	psyqo::GteMath::crossProductVec3(forwardVectorNormal, rightVectorNormal, &rightForwardCrossProduct);
 
 	if (IsVector3Zero(rightForwardCrossProduct)) {
 		return;
