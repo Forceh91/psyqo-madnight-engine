@@ -38,6 +38,7 @@ class ParticleEmitter final {
 		m_maxParticles = m_particlesPerSecond * m_particleLifeTime;
 		m_spawnRate = MICROSECONDS_IN_A_SECOND / m_particlesPerSecond;
 		m_spawnedParticles.reserve(m_maxParticles);
+		GenerateRotationMatrix();
 	}
 
 	uint64_t nameHash() const { return m_nameHash; }
