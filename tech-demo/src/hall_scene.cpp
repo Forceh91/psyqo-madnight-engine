@@ -161,14 +161,11 @@ void HallScene::CreateWorld(void) {
 
 	auto& emitters = g_madnightEngine.m_particleEmitterManager;
 
-	// 3D particles: a 2D particle with no texture is drawn as a textured sprite and picks up
-	// whatever texture page the GPU was left on, which flickers (#111)
-
-	// embers off a brazier by the left wall
+	// embers rising off the floor by the left wall
 	m_embers = emitters.CreateParticleEmitter("embers", {-1.0_ws, -0.1_ws, 6.0_ws}, 0.12_ws, 12, 2);
 	if (m_embers) {
 		m_embers->SetRotation({0, 0, 0}); // builds the rotation matrix a pooled emitter is missing (#94)
-		m_embers->SetParticles2D(false);
+		m_embers->SetParticles2D(true);
 		m_embers->SetParticleSize({0.16_ws, 0.16_ws}, {0.05_ws, 0.05_ws});
 		m_embers->SetParticleColour({255, 170, 60}, {120, 30, 16});
 		m_embers->SetParticleVelocity({0, -0.35_ws, 0}, {0.05_ws, -0.1_ws, 0});
@@ -179,7 +176,7 @@ void HallScene::CreateWorld(void) {
 	m_dust = emitters.CreateParticleEmitter("dust", {0, -1.4_ws, 9.0_ws}, 1.0_ws, 10, 3);
 	if (m_dust) {
 		m_dust->SetRotation({0, 0, 0});
-		m_dust->SetParticles2D(false);
+		m_dust->SetParticles2D(true);
 		m_dust->SetParticleSize({0.12_ws, 0.12_ws});
 		m_dust->SetParticleColour({230, 190, 120}, {140, 100, 60});
 		m_dust->SetParticleVelocity({0, 0.15_ws, 0});
