@@ -364,24 +364,6 @@ animation ANIMS/HERO.AB
 """
 
 
-# MeshManager::LoadMesh does not step over the bounding sphere radius, so it reads the bones
-# of a skinned version 3 mesh 4 bytes early (issue #108). Until that is fixed the radius is
-# left out of HERO.MB, which lines the bones up again and leaves the reader taking the
-# root bone's first 4 bytes as a (generous) radius. Set this to False once #108 is fixed.
-WORK_AROUND_108 = True
-
-
-def drop_bsphere_radius(path):
-    with open(path, "rb") as f:
-        data = bytearray(f.read())
-    assert data[:7] == b"MESHBIN" and data[7] == 3 and data[0x1D] == 1, "expected a skinned version 3 mesh"
-    vertices, indices, _, normals, uvs = struct.unpack_from("<5I", data, 9)
-    radius = 0x1F + 15 * vertices + 24 * indices + 6 * normals + 2 * uvs + 12 + 6
-    del data[radius:radius + 4]
-    with open(path, "wb") as f:
-        f.write(data)
-
-
 def run(*args):
     subprocess.run([sys.executable, "-I", *args], check=True, stdout=subprocess.DEVNULL)
 
@@ -398,8 +380,6 @@ def main():
             os.path.join(OUT, "MODELS", "HALL.MB"), "128")
         run(os.path.join(ENGINE_TOOLS, "obj-to-meshbin.py"), os.path.join(tmp, "hero.obj"),
             os.path.join(OUT, "MODELS", "HERO.MB"), "64")
-        if WORK_AROUND_108:
-            drop_bsphere_radius(os.path.join(OUT, "MODELS", "HERO.MB"))
 
         hall_texture().save(os.path.join(tmp, "hall.png"))
         hero_texture().save(os.path.join(tmp, "hero.png"))
