@@ -18,7 +18,7 @@ static constexpr uint16_t DEFAULT_MUSIC_VOLUME = 16384;
 class ModSoundManager final {
 	ModSoundFile m_currentSoundFile = {};
 	unsigned m_musicTimer = 0;
-	uint16_t m_musicVolume = 0;
+	uint16_t m_musicVolume = DEFAULT_MUSIC_VOLUME;
 	psyqo::Buffer<uint8_t> m_modData = {};
 
   public:
