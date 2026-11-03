@@ -95,13 +95,14 @@ MC::Error MemoryCard::WriteFile(const MC::Port& port, const eastl::string_view& 
 	return WriteFile(port, title, icon, data, dataSize);
 }
 
-void MemoryCard::WriteFile(const MC::Port& port, const eastl::string_view& title, const MCFS::Icon& icon, void* data,
-						   uint32_t dataSize, eastl::function<void(MC::Error)>&& callback) {
-	m_fs.writeFile(port, m_fileName.data(), title.data(), icon, data, dataSize, eastl::move(callback));
+void MemoryCard::WriteFile(const MC::Port& port, const eastl::string_view& title, const MCFS::Icon& icon,
+						   const void* data, uint32_t dataSize, eastl::function<void(MC::Error)>&& callback) {
+	m_title.assign(title.data(), title.length());
+	m_fs.writeFile(port, m_fileName.data(), m_title.data(), icon, data, dataSize, eastl::move(callback));
 }
 
 void MemoryCard::WriteFile(const MC::Port& port, const eastl::string_view& fileName, const eastl::string_view& title,
-						   const MCFS::Icon& icon, void* data, uint32_t dataSize,
+						   const MCFS::Icon& icon, const void* data, uint32_t dataSize,
 						   eastl::function<void(MC::Error)>&& callback) {
 	m_fileName.assign(fileName.data(), fileName.length());
 	WriteFile(port, title, icon, data, dataSize, eastl::move(callback));
