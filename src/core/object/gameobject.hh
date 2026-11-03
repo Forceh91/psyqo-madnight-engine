@@ -60,12 +60,14 @@ class GameObject final {
 
 	void Init(const eastl::string_view& name, const uint64_t& nameHash, const psyqo::Vec3& pos,
 			  const GameObjectRotation& rotation, const GameObjectTag& tag, const uint8_t& id) {
-		m_nameHash = HashName(name);
+		m_nameHash = nameHash;
 		m_name.assign(name.data(), name.length());
 		m_pos = pos;
 		m_rotation = rotation;
 		m_tag = tag;
 		m_id = id;
+		m_flags = 0;
+		m_renderFlags = 0;
 
 		GenerateRotationMatrix();
 	};
