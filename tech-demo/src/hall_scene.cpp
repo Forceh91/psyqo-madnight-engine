@@ -227,17 +227,13 @@ void HallScene::UpdateCamera(void) {
 	if (m_lapTime >= half) {
 		camPos = Lerp(standPos, dollyEnd, m_lapTime - half, half);
 	}
-	// the renderer applies the camera position twice (#106), so hand it half of where it should be
-	psyqo::Vec3 halfPos;
-	halfPos.x.value = camPos.x.value / 2;
-	halfPos.y.value = camPos.y.value / 2;
-	halfPos.z.value = camPos.z.value / 2;
-	m_camera.SetPosition(halfPos);
+	m_camera.SetPosition(camPos);
 
 	psyqo::Vec3 target = m_hero ? m_hero->pos() : psyqo::Vec3{0, 0, 4.0_ws};
 	target.y = -0.6_ws;
 
-	// aim from the real position with angles; Camera::LookAt would aim from the halved one.
+	// aim from the real position with angles. Camera::LookAt builds its right axis from
+	// UP x forward and so draws the hall mirrored left to right next to SetAngle.
 	// a negative pitch looks down, and +Y is down
 	int32_t dx = (target.x - camPos.x).value;
 	int32_t dy = (target.y - camPos.y).value;
