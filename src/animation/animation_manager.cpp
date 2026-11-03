@@ -108,6 +108,7 @@ psyqo::Coroutine<> AnimationManager::LoadAnimation(const eastl::string_view& ani
 
 			for (int32_t k = 0; k < track->numKeys; k++) {
 				auto* key = &track->keys[k];
+				int16_t tempVal = 0;
 
 				// frame number
 				__builtin_memcpy(&key->frame, ptr, sizeof(uint16_t));
@@ -119,16 +120,20 @@ psyqo::Coroutine<> AnimationManager::LoadAnimation(const eastl::string_view& ani
 				// keytype data
 				if (key->keyType == KeyType::ROTATION) {
 					// rotation data
-					__builtin_memcpy(&key->rotation.w.value, ptr, sizeof(int16_t)); // 2 bytes
+					__builtin_memcpy(&tempVal, ptr, sizeof(int16_t));
+					key->rotation.w.value = tempVal;
 					ptr += sizeof(int16_t);
 
-					__builtin_memcpy(&key->rotation.x.value, ptr, sizeof(int16_t)); // 2 bytes
+					__builtin_memcpy(&tempVal, ptr, sizeof(int16_t));
+					key->rotation.x.value = tempVal;
 					ptr += sizeof(int16_t);
 
-					__builtin_memcpy(&key->rotation.y.value, ptr, sizeof(int16_t)); // 2 bytes
+					__builtin_memcpy(&tempVal, ptr, sizeof(int16_t));
+					key->rotation.y.value = tempVal;
 					ptr += sizeof(int16_t);
 
-					__builtin_memcpy(&key->rotation.z.value, ptr, sizeof(int16_t)); // 2 bytes
+					__builtin_memcpy(&tempVal, ptr, sizeof(int16_t));
+					key->rotation.z.value = tempVal;
 					ptr += sizeof(int16_t);
 				} else if (key->keyType == KeyType::TRANSLATION) {
 					// translation data
