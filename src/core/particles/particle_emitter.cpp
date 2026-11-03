@@ -25,6 +25,7 @@ void ParticleEmitter::Destroy(void) {
 	m_id = INVALID_POOL_ID;
 	m_isEnabled = false;
 	m_spawnedParticles.clear();
+	m_rotation = {};
 }
 
 psyqo::Vec2 ParticleEmitter::GenerateRandomPointOnCircumfrence(void) {
