@@ -5,230 +5,130 @@ sidebar_position: 4
 
 # Mesh & Animation
 
-`src/mesh/`, `src/animation/`, and `src/quaternion.hh` — loading `.MESHBIN` files (see the [MESHBIN format spec](../guides/meshbin)), skeletal posing, and `.ANIMBIN` playback.
+`src/mesh/` loads `.MESHBIN` models and holds their skeletons. `src/animation/` loads `.ANIMBIN` clips to play on those skeletons. `src/quaternion.hh` is the rotation type they share.
+
+All three managers here are members of `g_madnightEngine`: `m_meshManager`, `m_animationManager` and `m_skeletonController`.
 
 ## MeshManager
 
 `src/mesh/mesh_manager.hh`
 
-Loads and caches up to `MAX_LOADED_MESHES` (250) meshes by name, each with up to `MAX_FACES_PER_MESH` (1000) faces.
+Loads `.MESHBIN` files (see the [MESHBIN guide](../guides/meshbin)) and keeps them by name. You normally load meshes with an `OBJECT` entry in a load queue, then attach one to a game object by the same name:
 
 ```cpp
-class MeshManager {
-public:
-  psyqo::Coroutine<> LoadMesh(const eastl::string_view &meshName, MeshBin **meshOut);
-  void GetMeshFromName(const eastl::string_view &meshName, MeshBin **meshOut);
-  void UnloadMesh(const eastl::string_view &mesh_name);
-
-  // dump all meshes in memory and start fresh. Used when switching to a loading screen.
-  // dangerous — doesn't check if anything is still in use.
-  void Dump(void);
+eastl::vector<LoadQueue> files = {
+    {.name = "MODELS/STREET.MB", .type = LoadFileType::OBJECT},
 };
+co_await g_madnightEngine.HardLoadingScreen(eastl::move(files), &gameplayScene);
+
+street->SetMesh("MODELS/STREET.MB");
 ```
 
-Non-`static` member of `MadnightEngine` (`g_madnightEngine.m_meshManager`).
+This is the pattern `src/game.cpp` uses. Every game object that uses the same name shares one copy of the mesh.
 
-### MeshBin
-
-The in-memory representation of a loaded `.MESHBIN` file (see the [file format spec](../guides/meshbin) for the on-disk layout):
+To load one yourself from a coroutine:
 
 ```cpp
-struct MeshBin {
-  uint8_t type; // 1 = quads, 2 = tris (unused)
-
-  // sub header
-  uint32_t vertexCount, indicesCount, facesCount, normalsCount, uvCount;
-  uint8_t hasSkeleton;
-  uint8_t numBones;
-
-  RendererFace *facesData;
-
-  // skeleton info
-  Skeleton *skeleton;
-  uint8_t *boneForVertex;          // vertex index -> bone index
-
-  // basic min/max collision box
-  AABBCollision collisionBox;
-  BoundingSphere bsphere;
-
-  // for easier sub-division
-  RendererQuad *quads;
-  RendererTri *tris;
-};
+MeshBin *crate = nullptr;
+co_await g_madnightEngine.m_meshManager.LoadMesh("MODELS/CRATE.MB", &crate);
+if (crate == nullptr) {
+  // missing, invalid, too big, or all 250 slots are taken
+}
 ```
 
-The loader does not keep the raw vertex, normal or UV arrays or their index lists. It bakes them into per-face `RendererQuad` / `RendererTri` entries (positions, vertex indices, colours, normal, UVs) and frees the raw arrays once loading finishes. `facesData` holds one `RendererFace` per face in file order (`isQuad` plus `rendererFaceIx`, the face's index into `quads` or `tris`).
+Loading a name that is already loaded hands back the existing mesh without reading the file again. Always pass a real pointer as the second argument.
 
-`GameObject::mesh()` returns a pointer into a manager-owned `MeshBin` — meshes are shared across every `GameObject` that references the same name, not duplicated per-instance.
-
-### Usage
+`GetMeshFromName` looks up a loaded mesh and sets the pointer to `nullptr` if there is none:
 
 ```cpp
-MeshBin *crateMesh;
-co_await g_madnightEngine.m_meshManager.LoadMesh("crate", &crateMesh); // must be co_awaited inside a coroutine
-
-crateGameObject->SetMesh("crate"); // looks it up by name once loaded
+MeshBin *street = nullptr;
+g_madnightEngine.m_meshManager.GetMeshFromName("MODELS/STREET.MB", &street);
 ```
 
-### Internals
+The fields you are likely to read are `collisionBox` (the mesh's min/max box), `bsphere` (the bounding sphere the renderer culls with), `hasSkeleton` and `skeleton`.
 
-- `LoadMesh` checks `IsMeshLoaded` first, so calling it again with an already-loaded name is cheap — it just hands back the cached pointer instead of re-reading the file.
+Limits:
 
-## Skeleton & SkeletonController
+- Up to 250 meshes loaded at once (`MAX_LOADED_MESHES`).
+- A mesh must have fewer than 1000 faces (`MAX_FACES_PER_MESH`). A mesh with 1000 or more is rejected.
+- A skinned mesh can have up to 15 bones (`MAX_BONES`). More than that and the mesh is rejected.
 
-`src/mesh/skeleton/skeleton.hh`
+### Unloading
 
-A fixed-size (`MAX_BONES` = 15) bone hierarchy embedded in a skinned `MeshBin`, posed via quaternion rotations.
+`UnloadMesh` frees one mesh by name. A hard load (`HardLoadingScreen`) frees all of them.
 
 ```cpp
-struct SkeletonBoneMatrix {
-  psyqo::Matrix33 rotationMatrix;
-  psyqo::Vec3 translation;
-};
-
-struct SkeletonBone {
-  int8_t id;
-  int8_t parent;                    // -1 = root
-  psyqo::Vec3 localPos;             // relative to parent
-  Quaternion localRotation;         // relative to parent
-  Quaternion initialLocalRotation;
-  SkeletonBoneMatrix localMatrix;   // computed by GameObject::GenerateRotationMatrix
-  SkeletonBoneMatrix worldMatrix;   // computed from parent, likewise
-  SkeletonBoneMatrix bindPose;      // pose when the skeleton was loaded in
-  SkeletonBoneMatrix bindPoseInverse;
-  bool isDirty = true;              // set by the animation system when it needs recomputing
-  bool hasDoneBindPose = false;
-};
-
-struct Skeleton {
-  uint8_t numBones;
-  SkeletonBone bones[MAX_BONES];
-  Animation *animation;
-  uint16_t animationCurrentFrame = 0;
-};
-
-class SkeletonController {
-public:
-  void UpdateSkeletonBoneMatrices(Skeleton *skeleton);
-  void MarkBonesClean(Skeleton *skeleton);
-  void SetAnimation(Skeleton *skeleton, Animation *animation);
-  void PlayAnimation(Skeleton *skeleton, uint32_t deltaTime);
-};
+g_madnightEngine.m_meshManager.UnloadMesh("MODELS/CRATE.MB");
 ```
 
-Non-`static` member of `MadnightEngine` (`g_madnightEngine.m_skeletonController`).
-
-- `PlayAnimation` advances `animationCurrentFrame` and marks affected bones dirty; `UpdateSkeletonBoneMatrices` then recomputes each dirty bone's local/world matrices (parent-relative, walking up the hierarchy via `parent`).
-- `bindPose`/`bindPoseInverse` are captured once when the skeleton is first loaded and used to skin vertices back into their animated position each frame.
-
-### Usage
-
-```cpp
-Animation *walkAnim = g_madnightEngine.m_animationManager.GetAnimationFromName("walk");
-g_madnightEngine.m_skeletonController.SetAnimation(mesh->skeleton, walkAnim);
-
-// per-frame:
-g_madnightEngine.m_skeletonController.PlayAnimation(mesh->skeleton, deltaTime);
-g_madnightEngine.m_skeletonController.UpdateSkeletonBoneMatrices(mesh->skeleton);
-g_madnightEngine.m_skeletonController.MarkBonesClean(mesh->skeleton); // once you're done reading this frame's matrices
-```
-
-### Internals
-
-- `SetAnimation` just overwrites the current animation and resets to frame 0 — there's no blending between the old and new animation.
-- Only `ROTATION` keys are actually applied — `TRANSLATION` tracks are read but not yet wired up (marked `TODO` in-source).
-- Dirty state propagates down the hierarchy: a bone is recomputed if it changed *or* its parent did, so posing the hips also quietly re-dirties everything below it.
-- `PlayAnimation`'s `deltaTime` is GPU vsync ticks, not a fixed rate or milliseconds, with no refresh-rate normalization: the same clip plays about 20% faster on NTSC than on PAL. See the [ANIMBIN format spec](../guides/animbin#time-base) for the full breakdown.
+`UnloadMesh` does not check whether a game object is still using the mesh. Destroy or re-mesh those objects first.
 
 ## AnimationManager
 
 `src/animation/animation_manager.hh`
 
-```cpp
-class AnimationManager final {
-public:
-  psyqo::Coroutine<> LoadAnimation(const eastl::string_view &animationsFile);
-  Animation *GetAnimationFromName(const eastl::fixed_string<char, MAX_ANIMATION_NAME_LENGTH> &animationName);
-};
-```
-
-Non-`static` member of `MadnightEngine` (`g_madnightEngine.m_animationManager`).
-
-Loads a whole `.ANIMBIN` file (see the [file format spec](../guides/animbin)) at once — a single `.ANIMBIN` can contain up to `MAX_ANIMATIONS` (5) named animations, retrieved individually afterwards by name.
-
-Like [`ColbinManager`](./physics-and-collision#colbinmanager), this holds one loaded `.ANIMBIN` at a time (a lone `AnimationBin` member, not a pool) — loading a new file replaces whatever was loaded before.
-
-### Animation data types
-
-`src/animation/animation.hh`
+Loads an `.ANIMBIN` file (see the [ANIMBIN guide](../guides/animbin)), which holds up to 5 named clips. Load it with an `ANIMATION` queue entry, then fetch a clip by name:
 
 ```cpp
-enum KeyType : uint8_t { ROTATION, TRANSLATION };
-
-struct Key {
-  union { Quaternion rotation; psyqo::Vec3 translation; };
-  uint16_t frame;
-  KeyType keyType;
+eastl::vector<LoadQueue> files = {
+    {.name = "MODELS/HERO.MB", .type = LoadFileType::OBJECT},
+    {.name = "ANIMS/HERO.ANIMBIN", .type = LoadFileType::ANIMATION},
 };
+co_await g_madnightEngine.HardLoadingScreen(eastl::move(files), &gameplayScene);
 
-struct Track {           // "for this bone, do this"
-  uint8_t type;
-  uint8_t jointId;
-  uint16_t numKeys;
-  Key keys[MAX_KEYS];    // MAX_KEYS = 30
-};
-
-struct Marker {           // e.g. "play a footstep sound at this frame"
-  eastl::fixed_string<char, MAX_MARKER_NAME_LENGTH> name;
-  uint16_t frame;
-};
-
-struct Animation {
-  eastl::fixed_string<char, MAX_ANIMATION_NAME_LENGTH> name;
-  uint32_t flags;        // bitfield — looped = 1
-  uint16_t length;       // frame count
-  uint16_t numTracks;
-  Track tracks[MAX_TRACKS];   // MAX_TRACKS = 50
-  uint16_t numMarkers;
-  Marker markers[MAX_MARKERS]; // MAX_MARKERS = 5
-};
-
-struct AnimationBin {
-  uint8_t numAnimations;
-  Animation animations[MAX_ANIMATIONS]; // MAX_ANIMATIONS = 5
-};
+Animation *walk = g_madnightEngine.m_animationManager.GetAnimationFromName("walk");
 ```
+
+`GetAnimationFromName` returns `nullptr` if no clip has that name. The name is the clip name inside the file, not the file name.
+
+Limits:
+
+- Only one `.ANIMBIN` is held at a time. Loading another replaces every clip from the first, and an `Animation *` you kept from before now points at the new file's data. Put every clip you need at the same time in one file.
+- A file that is found but rejected leaves no clips loaded. A file that is missing leaves the old ones in place.
+- A hard load does not clear animations.
+- Per clip: up to 50 tracks, 30 keys per track and 5 markers. A file over any of these is rejected. The [ANIMBIN guide](../guides/animbin#capacity-limits) has the details.
+
+## Skeleton & SkeletonController
+
+`src/mesh/skeleton/skeleton.hh`
+
+A skinned mesh carries a `Skeleton`, reached through the mesh. To play a clip on it, give the clip to `SetAnimation`:
+
+```cpp
+auto *hero = g_madnightEngine.m_gameObjectManager.GetGameObjectByName("hero");
+Animation *walk = g_madnightEngine.m_animationManager.GetAnimationFromName("walk");
+g_madnightEngine.m_skeletonController.SetAnimation(hero->mesh()->skeleton, walk);
+```
+
+That is all you need to do. The renderer advances the clip, poses the bones and moves the vertices every frame for each skinned object it draws, so you do not call `PlayAnimation`, `UpdateSkeletonBoneMatrices` or `MarkBonesClean` yourself.
+
+`SetAnimation` starts the new clip from frame 0 straight away. There is no blending between clips. `SetAnimation` with a `nullptr` skeleton or clip does nothing, so it is safe to call before checking the lookup.
+
+To see where a clip is, read `skeleton->animationCurrentFrame`. `skeleton->animation` is the clip that is playing.
+
+Limits:
+
+- Clips advance by display refreshes, so the same clip plays about 20% faster on NTSC than on PAL. See [Time base](../guides/animbin#time-base).
+- A looping clip (flag bit 0 set) wraps to the start. Any other clip stops on its last frame.
+- Only rotation keys move bones. Translation keys are loaded but not applied.
+- The skeleton belongs to the mesh, not the game object. Every object using the same skinned mesh shows the same pose and shares one current clip, and each visible one advances it, so two visible copies play twice as fast.
+- An object that is off screen is not drawn, so its clip does not advance while it is off screen.
 
 ## Quaternion
 
 `src/quaternion.hh`
 
-Quaternion type used throughout skeletal animation. As of v0.0.1, its components are full `psyqo::FixedPoint<>` ("full fat int32_t") rather than `psyqo::GTE::Short` — more precision headroom at the cost of some memory per component.
+The rotation type used for bone rotations and animation keys. Its `w`, `x`, `y` and `z` are `psyqo::FixedPoint<>`, and a default `Quaternion` is the identity rotation.
 
 ```cpp
-struct Quaternion {
-  psyqo::FixedPoint<> w{1.0}, x{0.0}, y{0.0}, z{0.0};
-
-  auto operator<=>(const Quaternion &) const = default;
-
-  psyqo::Matrix33 ToRotationMatrix() const;
-  void Normalize();
-};
-
-Quaternion operator*(const Quaternion &q1, const Quaternion &q2);
-Quaternion operator-(const Quaternion &q);
-
-psyqo::FixedPoint<> DotProduct(const Quaternion &a, const Quaternion &b);
-
-// Small-rotation only for now — fine for animation interpolation.
-Quaternion Slerp(const Quaternion &q1, const Quaternion &q2, psyqo::FixedPoint<> factor);
-
-Quaternion FromEulerAngles(psyqo::Angle pitch, psyqo::Angle yaw, const psyqo::Trig<> &trig);
-Quaternion FromEulerAngles(psyqo::Angle pitch, psyqo::Angle yaw, psyqo::Angle roll, const psyqo::Trig<> &trig);
+Quaternion turn = FromEulerAngles(0.0_pi, 0.5_pi, 0.0_pi, g_madnightEngine.m_trig);
+psyqo::Matrix33 m = turn.ToRotationMatrix();
 ```
 
-:::caution
-`Slerp` isn't slerp. The implementation is a component-wise linear blend of the two quaternions followed by a normalize, with no `acos`/`sin` anywhere in it: it's nlerp. The in-source comment calling it "small rotations only" is describing the accuracy limits of that nlerp approximation, not a spherical interpolation with a reduced range. It's fine for interpolating between adjacent animation keyframes and not fine for arbitrary large-angle rotation blending.
-:::
+`FromEulerAngles` takes pitch, yaw and optionally roll. Multiply two quaternions with `*` to combine rotations, and use `Normalize()` to keep one unit length after a lot of maths. `DotProduct` and unary `-` are also there.
 
-`FromEulerAngles` builds a quaternion from the given pitch/yaw (or pitch/yaw/roll) angles. `FindRotationQuat` — the rotation quaternion that takes one vector to another — is commented out in-source as of v0.0.1 and isn't currently available; don't rely on it.
+`Slerp(a, b, t)` blends from `a` to `b` as `t` goes from 0 to 1.
+
+:::caution[`Slerp` is a normalised linear blend]
+Despite the name it does not do a spherical interpolation. It is accurate for the small steps between neighbouring animation keys and drifts for large angles.
+:::
