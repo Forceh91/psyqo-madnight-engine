@@ -61,6 +61,20 @@ jobs:
           cat engine-tests.log
           [ $status -eq 0 ] && grep -q '^All tests passed!' engine-tests.log
 
+      - name: Tech demo
+        # One bench lap from a PCDRV image: it renders the scene, saves the lap to the
+        # memory card, reads it back and exits, non-zero if anything along the way failed.
+        run: |
+          make -C tech-demo clean
+          make -C tech-demo -j2 DEFINES=PCDRV BENCH=1
+          make -C tech-demo image
+          status=0
+          timeout 180 xvfb-run squashfs-root/AppRun -no-ui -testmode -run -stdout \
+            -pcdrv -pcdrvbase tech-demo/build -memcard1 tech-demo-card.mcd \
+            -loadexe tech-demo/tech-demo.ps-exe > tech-demo.log 2>&1 || status=$?
+          cat tech-demo.log
+          [ $status -eq 0 ] && grep -q '^TECHDEMO card=ok' tech-demo.log
+
       - uses: actions/upload-artifact@v4
         with:
           name: madnight-engine-game.ps-exe
