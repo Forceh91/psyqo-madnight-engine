@@ -356,6 +356,7 @@ psyqo::Coroutine<> MeshManager::LoadMesh(const eastl::string_view& meshName, Mes
 
 		__builtin_memcpy(&loadedMesh->mesh.bsphere.radius, ptr, sizeof(int32_t));
 		loadedMesh->mesh.bsphere.radius += 6 * 128; // add a bit of leeway to the sphere
+		ptr += sizeof(int32_t);						// actually step past this so we don't corrupt the bones
 	}
 
 	// if we didn't get bounding radius from the MB file, figure a rough one out
