@@ -355,6 +355,9 @@ void Renderer::RenderGameObjects(uint32_t deltaTime, const psyqo::Matrix33& came
 
 			// mark all bones as clean
 			g_madnightEngine.m_skeletonController.MarkBonesClean(mesh->skeleton);
+
+			// give it its rotation data back since we just clobbered it doing math
+			psyqo::GTE::writeSafe<psyqo::GTE::PseudoRegister::Rotation>(finalCameraMatrix);
 		}
 
 		meshStart = m_gpu.now();
