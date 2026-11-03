@@ -7,9 +7,9 @@
 #pragma once
 
 #include "mod_sound.hh"
-#include "psyqo/buffer.hh"
 #include <EASTL/array.h>
 
+#include <psyqo/buffer.hh>
 #include <psyqo/coroutine.hh>
 
 static constexpr uint16_t MAX_MUSIC_VOLUME = 65535;

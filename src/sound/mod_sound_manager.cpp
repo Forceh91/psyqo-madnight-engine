@@ -8,7 +8,9 @@
 #include "../helpers/archive.hh"
 #include "../madnight.hh"
 #include "../render/renderer.hh"
-#include "EASTL/internal/move_help.h"
+
+#include <EASTL/utility.h>
+
 #include <psyqo/xprintf.h>
 
 psyqo::Coroutine<> ModSoundManager::LoadMODSound(const eastl::string_view& modSoundFileName,
