@@ -188,31 +188,16 @@ uint32_t Renderer::Process(void) {
 	return deltaTime;
 }
 
-psyqo::Vec3 Renderer::SetupCamera(const psyqo::Matrix33& camRotationMatrix, const psyqo::Vec3& negativeCamPos) {
-	// clear TRX/Y/Z safely
-	psyqo::GTE::clear<psyqo::GTE::Register::TRX, psyqo::GTE::Safe>();
-	psyqo::GTE::clear<psyqo::GTE::Register::TRY, psyqo::GTE::Safe>();
-	psyqo::GTE::clear<psyqo::GTE::Register::TRZ, psyqo::GTE::Safe>();
-
-	// rotate camera translation vector by the camera rotation (matrix)
-	psyqo::GTE::writeSafe<psyqo::GTE::PseudoRegister::Rotation>(camRotationMatrix);
-	psyqo::GTE::writeSafe<psyqo::GTE::PseudoRegister::V0>(negativeCamPos);
-
-	// multiply vector by matrix and add vector
-	psyqo::GTE::Kernels::mvmva<psyqo::GTE::Kernels::MX::RT, psyqo::GTE::Kernels::MV::V0, psyqo::GTE::Kernels::TV::TR>();
-	return psyqo::GTE::readSafe<psyqo::GTE::PseudoRegister::SV>();
-}
-
 psyqo::Vec3 Renderer::TransformObjectToViewSpace(const psyqo::Vec3& pos, const psyqo::Matrix33& cameraRotationMatrix,
 												 const psyqo::Matrix33& finalCameraMatrix) {
 	// restore camera rotation for delta transform
 	psyqo::GTE::writeSafe<psyqo::GTE::PseudoRegister::Rotation>(cameraRotationMatrix);
-	psyqo::GTE::writeSafe<psyqo::GTE::PseudoRegister::Translation>(m_gteCameraPos);
+	psyqo::GTE::writeSafe<psyqo::GTE::PseudoRegister::Translation>(psyqo::Vec3{0, 0, 0});
 
 	// calculate delta pos of the object compared to the camera
 	// hacky fix to get follow camera working: add on a delta offset before doing the final object delta pos
 	// deltaOffset will return {0, 0, 0} when not in follow mode
-	auto objDeltaPos = m_activeCamera->deltaOffset() + (pos - m_activeCamera->pos());
+	auto objDeltaPos = (pos - m_activeCamera->pos());
 	psyqo::GTE::writeSafe<psyqo::GTE::PseudoRegister::V0>(objDeltaPos);
 	psyqo::GTE::Kernels::rt();
 
@@ -251,7 +236,6 @@ void Renderer::Render(uint32_t deltaTime) {
 	psyqo::Matrix33 cameraRotationMatrix = {{0, 0, 0}};
 	if (m_activeCamera != nullptr) {
 		cameraRotationMatrix = m_activeCamera->rotationMatrix();
-		m_gteCameraPos = SetupCamera(cameraRotationMatrix, -m_activeCamera->pos());
 	}
 
 	RenderGameObjects(deltaTime, cameraRotationMatrix);
