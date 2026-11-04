@@ -102,7 +102,7 @@ class ParticleEmitter final {
 	uint16_t m_maxParticles = 0;
 	uint8_t m_particlesPerSecond = 0;
 	eastl::vector<Particle> m_spawnedParticles;
-	uint16_t m_spawnRate = 0;
+	uint32_t m_spawnRate = 0;
 	uint32_t m_timeSinceLastParticleSpawn = 0;
 	uint32_t m_timeOfLastProcess = 0;
 
