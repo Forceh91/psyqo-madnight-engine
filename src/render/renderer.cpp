@@ -641,10 +641,11 @@ void Renderer::RenderParticles(uint32_t deltaTime, const psyqo::Matrix33& camera
 				scaledSize = {eastl::clamp<int16_t>(scaledSize.x, 1, scaledSize.x),
 							  eastl::clamp<int16_t>(scaledSize.y, 1, scaledSize.y)};
 
-				// make sure pos is sane
+				// make sure pos is sane, and the scaled size isnt gonna full the screen
 				auto pos = psyqo::Vertex{static_cast<int16_t>(vertex.x - scaledSize.x / 2),
 										 static_cast<int16_t>(vertex.y - scaledSize.y / 2)};
-				if (pos.x < 0 || pos.x >= SCREEN_SPACE.size.x || pos.y < 0 || pos.y >= SCREEN_SPACE.size.y) {
+				if (pos.x < 0 || pos.x >= SCREEN_SPACE.size.x || pos.y < 0 || pos.y >= SCREEN_SPACE.size.y ||
+					scaledSize.y >= SCREEN_SPACE.size.y) {
 					continue;
 				}
 

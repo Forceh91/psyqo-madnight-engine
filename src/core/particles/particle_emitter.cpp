@@ -19,13 +19,35 @@ void ParticleEmitter::Start(void) { m_isEnabled = true; }
 void ParticleEmitter::Stop(void) { m_isEnabled = false; }
 
 void ParticleEmitter::Destroy(void) {
-	m_nameHash = 0;
-	m_pos = {0, 0, 0};
-	m_radius = 0;
-	m_id = INVALID_POOL_ID;
 	m_isEnabled = false;
+	m_nameHash = 0;
+	m_id = INVALID_POOL_ID;
+	m_pos = {0, 0, 0};
+	m_rotatedPos = {0, 0, 0};
+	m_rotation = {0, 0, 0};
+	m_rotationMatrix = {0};
+	m_radius = 0;
+	m_maxParticles = 0;
+	m_particlesPerSecond = 0;
 	m_spawnedParticles.clear();
-	m_rotation = {};
+	m_spawnRate = 0;
+	m_timeSinceLastParticleSpawn = 0;
+	m_timeOfLastProcess = 0;
+
+	m_particleStartColour = {0, 0, 0};
+	m_particleEndColour = {0, 0, 0};
+	m_particleStartSize = {0, 0};
+	m_particleEndSize = {0, 0};
+	m_particleStartVelocity = {0, 0, 0};
+	m_particleRotatedStartVelocity = {0, 0, 0};
+	m_particleEndVelocity = {0, 0, 0};
+	m_particleRotatedEndVelocity = {0, 0, 0};
+	m_particleVelocitySpread = {0, 0, 0};
+	m_particleLifeTime = 0;
+	m_particleUVCoords = {};
+	m_particleTexture = nullptr;
+	m_particleIs2D = true;
+	m_spawnInsideRadius = false;
 }
 
 psyqo::Vec2 ParticleEmitter::GenerateRandomPointOnCircumfrence(void) {
@@ -33,6 +55,21 @@ psyqo::Vec2 ParticleEmitter::GenerateRandomPointOnCircumfrence(void) {
 	return {
 		g_madnightEngine.m_trig.cos(angle) * m_radius,
 		g_madnightEngine.m_trig.sin(angle) * m_radius,
+	};
+}
+
+psyqo::Vec2 ParticleEmitter::GenerateRandomPointWithinRadius(void) {
+	auto& rand = g_madnightEngine.m_rand;
+	psyqo::FixedPoint<> radiusScale = 0;
+	radiusScale.value = eastl::max(rand.rand<4096>(), rand.rand<4096>());
+	auto radius = m_radius * radiusScale;
+
+	psyqo::Angle angle = 0;
+	angle.value = rand.rand<2048>();
+
+	return {
+		g_madnightEngine.m_trig.cos(angle) * radius,
+		g_madnightEngine.m_trig.sin(angle) * radius,
 	};
 }
 
@@ -69,11 +106,43 @@ void ParticleEmitter::Process(const uint32_t& deltaTime) {
 	}
 
 	// generate a particle at a random point on the circumfrence
-	auto pos = GenerateRandomPointOnCircumfrence();
+	psyqo::Vec2 pos = {0, 0};
+	if (m_spawnInsideRadius) {
+		pos = GenerateRandomPointWithinRadius();
+	} else {
+		pos = GenerateRandomPointOnCircumfrence();
+	}
+
 	auto spawnPos = m_rotatedPos + psyqo::Vec3{pos.x, 0, pos.y};
-	auto particle =
-		Particle(spawnPos, m_particleStartSize, m_particleEndSize, m_particleStartColour, m_particleEndColour,
-				 m_particleRotatedStartVelocity, m_particleRotatedEndVelocity, m_particleLifeTime);
+	auto spreadStartVelocity = m_particleRotatedStartVelocity, spreadEndVelocity = m_particleRotatedEndVelocity;
+
+	// apply a random spread if we want
+	auto startSpreadX =
+		g_madnightEngine.m_rand.randInc(-m_particleVelocitySpread.x.value, m_particleVelocitySpread.x.value);
+	spreadStartVelocity.x += psyqo::FixedPoint<>(startSpreadX, psyqo::FixedPoint<>::RAW);
+
+	auto startSpreadY =
+		g_madnightEngine.m_rand.randInc(-m_particleVelocitySpread.y.value, m_particleVelocitySpread.y.value);
+	spreadStartVelocity.y += psyqo::FixedPoint<>(startSpreadY, psyqo::FixedPoint<>::RAW);
+
+	auto startSpreadZ =
+		g_madnightEngine.m_rand.randInc(-m_particleVelocitySpread.z.value, m_particleVelocitySpread.z.value);
+	spreadStartVelocity.z += psyqo::FixedPoint<>(startSpreadZ, psyqo::FixedPoint<>::RAW);
+
+	auto endSpreadX =
+		g_madnightEngine.m_rand.randInc(-m_particleVelocitySpread.x.value, m_particleVelocitySpread.x.value);
+	spreadEndVelocity.x += psyqo::FixedPoint<>(endSpreadX, psyqo::FixedPoint<>::RAW);
+
+	auto endSpreadY =
+		g_madnightEngine.m_rand.randInc(-m_particleVelocitySpread.y.value, m_particleVelocitySpread.y.value);
+	spreadEndVelocity.y += psyqo::FixedPoint<>(endSpreadY, psyqo::FixedPoint<>::RAW);
+
+	auto endSpreadZ =
+		g_madnightEngine.m_rand.randInc(-m_particleVelocitySpread.z.value, m_particleVelocitySpread.z.value);
+	spreadEndVelocity.z += psyqo::FixedPoint<>(endSpreadZ, psyqo::FixedPoint<>::RAW);
+
+	auto particle = Particle(spawnPos, m_particleStartSize, m_particleEndSize, m_particleStartColour,
+							 m_particleEndColour, spreadStartVelocity, spreadEndVelocity, m_particleLifeTime);
 
 	if (m_particleTexture) {
 		particle.SetUVCoords(m_particleUVCoords);
@@ -93,6 +162,8 @@ void ParticleEmitter::SetParticleVelocity(const psyqo::Vec3& particleVelocity, c
 
 	GenerateRotatedVelocity();
 }
+
+void ParticleEmitter::SetParticleVelocitySpread(const psyqo::Vec3& spread) { m_particleVelocitySpread = spread; }
 
 void ParticleEmitter::SetParticleSize(const psyqo::Vec2& particleSize) { SetParticleSize(particleSize, particleSize); }
 
@@ -121,6 +192,8 @@ void ParticleEmitter::SetParticleUVCoords(const eastl::array<psyqo::PrimPieces::
 }
 
 void ParticleEmitter::SetParticles2D(const bool& is2D) { m_particleIs2D = is2D; }
+
+void ParticleEmitter::SetSpawnInsideRadius(const bool& withinRadius) { m_spawnInsideRadius = withinRadius; }
 
 void ParticleEmitter::SetRotation(const EmitterRotation& rotation) {
 	m_rotation = rotation;
