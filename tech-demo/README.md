@@ -18,8 +18,10 @@ make -C tech-demo image
 `make image` writes `build/techdemo.bin`, which a PCDRV build reads from the host:
 
 ```
-pcsx-redux -pcdrv -pcdrvbase tech-demo/build -run -loadexe tech-demo/tech-demo.ps-exe
+pcsx-redux -pcdrv -pcdrvbase "$PWD/tech-demo/build" -run -loadexe "$PWD/tech-demo/tech-demo.ps-exe"
 ```
+
+The paths are absolute because the emulator resolves them against its own working directory, which on macOS `open -a PCSX-Redux --args ...` sets to `/`.
 
 For a real disc, build without `DEFINES=PCDRV` and run pcsx-redux's [authoring tool](https://github.com/grumpycoders/pcsx-redux/tree/main/tools/authoring) on `toc.json` from this directory: `authoring -o techdemo.bin toc.json`.
 
