@@ -163,9 +163,9 @@ void HallScene::CreateWorld(void) {
 	if (m_dust) {
 		m_dust->SetRotation({0, 0, 0});
 		m_dust->SetParticles2D(true);
-		m_dust->SetParticleSize({0.25_ws, 0.25_ws});
+		m_dust->SetParticleSize({0.1_ws, 0.1_ws});
 		m_dust->SetParticleColour({230, 190, 120}, {140, 100, 60});
-		m_dust->SetParticleVelocity({0, 0.15_ws, 0});
+		m_dust->SetParticleVelocity({0, 0.55_ws, 0});
 		m_dust->Start();
 	}
 
