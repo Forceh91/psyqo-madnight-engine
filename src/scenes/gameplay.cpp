@@ -5,17 +5,12 @@
  */
 
 #include "gameplay.hh"
-#include "../core/collision.hh"
 #include "../core/debug//perf_monitor.hh"
 #include "../core/debug/debug_menu.hh"
-#include "../core/object/gameobject_manager.hh"
 #include "../core/raycast.hh"
+#include "../core/world_defs.hh"
 #include "../madnight.hh"
-#include "../render/colour.hh"
 #include "../render/renderer.hh"
-#include "../sound/sound_manager.hh"
-#include "psyqo/alloc.h"
-#include "psyqo/xprintf.h"
 
 void GameplayScene::start(StartReason reason) {
 	Renderer::Instance().StartScene();
