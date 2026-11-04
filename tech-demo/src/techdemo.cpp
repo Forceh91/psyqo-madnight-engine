@@ -21,9 +21,11 @@ class TechDemo final : public MadnightEngineGame {
 
 TechDemo g_techDemo;
 MadnightEngineGame& g_madnightEngineGame = g_techDemo;
-static HallScene hallScene;
 
 psyqo::Coroutine<> TechDemo::InitialLoad(void) {
+	// built here, not as a global: Camera's constructor runs GTE maths and reads
+	// g_madnightEngine.m_trig, neither of which is ready during static initialisation
+	static HallScene hallScene;
 	printf("TECHDEMO loading\n");
 	// one manifest pulls in every texture, mesh and animation the scene uses
 	eastl::vector<LoadQueue> files = {{.name = "DEMO.SCN", .type = LoadFileType::SCENE}};
