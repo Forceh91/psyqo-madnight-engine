@@ -146,12 +146,14 @@ void HallScene::CreateWorld(void) {
 	}
 
 	// warm dust drifting down through the middle of the hall, where the hero walks
-	m_dust = emitters.CreateParticleEmitter("dust", {0, -1.4_ws, 9.0_ws}, 1.0_ws, 10, 3);
+	m_dust = emitters.CreateParticleEmitter("dust", {0, -1.4_ws, 9.0_ws}, 1.0_ws, 20, 3);
 	if (m_dust) {
 		m_dust->SetParticles2D(true);
 		m_dust->SetParticleSize({0.1_ws, 0.1_ws});
 		m_dust->SetParticleColour({230, 190, 120}, {140, 100, 60});
 		m_dust->SetParticleVelocity({0, 0.55_ws, 0});
+		m_dust->SetSpawnInsideRadius(true);
+		m_dust->SetParticleVelocitySpread({0.15_ws, 0.1_ws, 0.15_ws});
 		m_dust->Start();
 	}
 
