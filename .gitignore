@@ -4,6 +4,7 @@ build
 *.o
 *.a
 .sentry*
+.DS_Store
 
 #tests
 compile_commands.json
