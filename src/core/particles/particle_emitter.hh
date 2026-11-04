@@ -54,9 +54,11 @@ class ParticleEmitter final {
 	void SetRotation(const EmitterRotation& rotation);
 
 	void SetParticles2D(const bool& is2D);
+	void SetSpawnInsideRadius(const bool& withinRadius);
 
 	void SetParticleVelocity(const psyqo::Vec3& particleVelocity);
 	void SetParticleVelocity(const psyqo::Vec3& particleVelocity, const psyqo::Vec3& particleEndVelocity);
+	void SetParticleVelocitySpread(const psyqo::Vec3& spread);
 
 	void SetParticleSize(const psyqo::Vec2& particleSize);
 	void SetParticleSize(const psyqo::Vec2& particleSize, const psyqo::Vec2& particleEndSize);
@@ -101,7 +103,7 @@ class ParticleEmitter final {
 	psyqo::FixedPoint<> m_radius = 0;
 	uint16_t m_maxParticles = 0;
 	uint8_t m_particlesPerSecond = 0;
-	eastl::vector<Particle> m_spawnedParticles;
+	eastl::vector<Particle> m_spawnedParticles = {};
 	uint32_t m_spawnRate = 0;
 	uint32_t m_timeSinceLastParticleSpawn = 0;
 	uint32_t m_timeOfLastProcess = 0;
@@ -114,12 +116,15 @@ class ParticleEmitter final {
 	psyqo::Vec3 m_particleRotatedStartVelocity = {0, 0, 0};
 	psyqo::Vec3 m_particleEndVelocity = {0, 0, 0};
 	psyqo::Vec3 m_particleRotatedEndVelocity = {0, 0, 0};
+	psyqo::Vec3 m_particleVelocitySpread = {0, 0, 0};
 	uint8_t m_particleLifeTime = 0;
-	eastl::array<psyqo::PrimPieces::UVCoords, 4> m_particleUVCoords;
+	eastl::array<psyqo::PrimPieces::UVCoords, 4> m_particleUVCoords = {};
 	TimFile* m_particleTexture = nullptr;
 	bool m_particleIs2D = true;
+	bool m_spawnInsideRadius = false;
 
 	psyqo::Vec2 GenerateRandomPointOnCircumfrence(void);
+	psyqo::Vec2 GenerateRandomPointWithinRadius(void);
 	void GenerateRotationMatrix(void);
 	void GenerateRotatedVelocity(void);
 };

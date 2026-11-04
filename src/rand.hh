@@ -44,6 +44,9 @@ class Rand {
 	// Gets a random number between min and max, exclusive.
 	uint32_t rand(uint32_t min, uint32_t max) { return min + rand() % (max - min); }
 
+	// Gets a random number between min and max, inclusive.
+	int32_t randInc(int32_t min, int32_t max) { return min + rand() % (max - min + 1); }
+
 	// Initializes the random number generator. Optional, but
 	// recommended to avoid the same sequence every time. Use
 	// for example the `now` function of the `GPU` class to
