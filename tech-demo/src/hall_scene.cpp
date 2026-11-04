@@ -8,6 +8,7 @@
 
 #include "common/hardware/pcsxhw.h"
 #include "helpers/world_space.hh"
+#include "math/vector.hh"
 #include "madnight.hh"
 #include "render/renderer.hh"
 
@@ -40,14 +41,6 @@ constexpr int32_t HERO_SPEED = 24; // 1/16ths of a raw unit per vsync, about 1.4
 
 constexpr psyqo::Color FOG_COLOUR = {.r = 92, .g = 96, .b = 100};
 constexpr psyqo::Color AMBIENT = {.r = 100, .g = 96, .b = 92};
-
-psyqo::Vec3 Lerp(const psyqo::Vec3& a, const psyqo::Vec3& b, uint32_t t, uint32_t length) {
-	psyqo::Vec3 out;
-	out.x.value = a.x.value + (b.x.value - a.x.value) * int32_t(t) / int32_t(length);
-	out.y.value = a.y.value + (b.y.value - a.y.value) * int32_t(t) / int32_t(length);
-	out.z.value = a.z.value + (b.z.value - a.z.value) * int32_t(t) / int32_t(length);
-	return out;
-}
 
 } // namespace
 
@@ -110,7 +103,6 @@ void HallScene::CreateWorld(void) {
 
 	m_hall = objects.CreateGameObject("hall", {0, 0, 0}, {0, 0, 0}, GameObjectTag::ENVIRONMENT);
 	if (m_hall) {
-		m_hall->SetQuadType(GameObjectQuadType::GouraudTextureQuad);
 		m_hall->SetMesh(HALL_MESH);
 		m_hall->SetTexture(HALL_TEXTURE);
 	}
@@ -119,10 +111,6 @@ void HallScene::CreateWorld(void) {
 	m_hero = objects.CreateGameObject("hero", {0, 0, psyqo::FixedPoint<>(HERO_START_Z * 128, psyqo::FixedPoint<>::RAW)},
 									  {0, 0, 0}, GameObjectTag::INTERACTABLE);
 	if (m_hero) {
-		// a reused pool slot keeps the old object's flags (#93)
-		m_hero->ClearFlags();
-		m_hero->ClearRenderFlags();
-		m_hero->SetQuadType(GameObjectQuadType::GouraudTextureQuad);
 		m_hero->SetMesh(HERO_MESH);
 		m_hero->SetTexture(HERO_TEXTURE);
 		m_hero->SetRenderFlag(RF_QUICK_ADVANCED_FOG);
@@ -150,7 +138,6 @@ void HallScene::CreateWorld(void) {
 	// embers rising off the floor by the left wall
 	m_embers = emitters.CreateParticleEmitter("embers", {-1.0_ws, -0.1_ws, 6.0_ws}, 0.12_ws, 12, 2);
 	if (m_embers) {
-		m_embers->SetRotation({0, 0, 0}); // builds the rotation matrix a pooled emitter is missing (#94)
 		m_embers->SetParticles2D(true);
 		m_embers->SetParticleSize({0.16_ws, 0.16_ws}, {0.05_ws, 0.05_ws});
 		m_embers->SetParticleColour({255, 170, 60}, {120, 30, 16});
@@ -161,7 +148,6 @@ void HallScene::CreateWorld(void) {
 	// warm dust drifting down through the middle of the hall, where the hero walks
 	m_dust = emitters.CreateParticleEmitter("dust", {0, -1.4_ws, 9.0_ws}, 1.0_ws, 10, 3);
 	if (m_dust) {
-		m_dust->SetRotation({0, 0, 0});
 		m_dust->SetParticles2D(true);
 		m_dust->SetParticleSize({0.1_ws, 0.1_ws});
 		m_dust->SetParticleColour({230, 190, 120}, {140, 100, 60});
@@ -242,7 +228,7 @@ void HallScene::UpdateCamera(void) {
 
 	psyqo::Vec3 camPos = standPos;
 	if (m_lapTime >= half) {
-		camPos = Lerp(standPos, dollyEnd, m_lapTime - half, half);
+		camPos = Lerp(standPos, dollyEnd, psyqo::FixedPoint<>(int32_t(((m_lapTime - half) << 12) / half), psyqo::FixedPoint<>::RAW));
 	}
 	m_camera.SetPosition(camPos);
 
