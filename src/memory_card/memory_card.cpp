@@ -1,6 +1,5 @@
 #include "memory_card.hh"
 #include "../render/renderer.hh"
-
 #include <psyqo/xprintf.h>
 
 void MemoryCard::Prepare(void) {
@@ -24,6 +23,14 @@ uint8_t MemoryCard::GetCardsInPorts(void) {
 	}
 
 	return activePorts;
+}
+
+MC::Error MemoryCard::GetCardState(const MC::Port& port) {
+	return m_fs.getCardStateBlocking(Renderer::Instance().GPU(), port);
+}
+
+void MemoryCard::GetCardState(const MC::Port& port, eastl::function<void(MC::Error)>&& callback) {
+	m_fs.getCardState(port, eastl::move(callback));
 }
 
 MC::Error MemoryCard::DoesSaveFileExist(const MC::Port& port, bool* outFileExists) {

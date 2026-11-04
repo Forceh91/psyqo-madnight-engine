@@ -25,6 +25,12 @@ class MemoryCard final {
 	// to check if a card was present in a port simply check that the return value `& CardPort::PortX` isn't 0
 	uint8_t GetCardsInPorts(void);
 
+	// (blocking) gets the state of the card in the specified port, see `psyqo::MemoryCard::Error`
+	MC::Error GetCardState(const MC::Port& port);
+
+	// (non-blocking) gets the state of the card in the specified port, see `psyqo::MemoryCard::Error`
+	void GetCardState(const MC::Port& port, eastl::function<void(MC::Error)>&& callback);
+
 	// make sure you set this before doing a file read or write command
 	// be mindful that changing this whilst waiting for a `WriteFile` or `ReadFile` callback will override the name of
 	// an in-flight request
