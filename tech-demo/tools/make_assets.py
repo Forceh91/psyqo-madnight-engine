@@ -34,6 +34,8 @@ HALL_HEIGHT = 1.5  # 3 m
 HALL_LENGTH = 24  # 48 m, in whole units so the floor tiles line up
 PILLAR_EVERY = 4
 PILLAR_SIZE = 0.3
+EMBER_GLOW_POS = (-1.0, -0.1, 6.0)  # keep in step with the "embers" emitter
+EMBER_GLOW_RADIUS = 1.6
 
 WALK_FRAMES = 40
 LIMB_REST_DEGREES = 90
@@ -199,11 +201,13 @@ def hall_mesh():
     top = -HALL_HEIGHT
     FLOOR, WALL, CEIL, PILLAR = (0, 0, 64, 64), (64, 0, 64, 64), (0, 64, 64, 64), (64, 64, 64, 64)
 
-    def shade(z, y):
+    def shade(c):
         # darker towards the far end and towards the ceiling, so the hall reads as dim
         # even before the fog takes over
-        level = 112 - int(z * 1.5) + int(y * 16)
-        return grey(max(56, level))
+        level = max(56, 112 - int(c[2] * 1.5) + int(c[1] * 16))
+        # warm glow baked around the ember emitter in hall_scene.cpp
+        f = max(0.0, 1.0 - math.dist(c, EMBER_GLOW_POS) / EMBER_GLOW_RADIUS) ** 2
+        return (min(255, level + int(120 * f)), min(255, level + int(50 * f)), max(0, level - int(10 * f)))
 
     # floor and ceiling, one quad per 1x1 unit so every tile gets its own texture
     for zi in range(HALL_LENGTH):
@@ -211,17 +215,17 @@ def hall_mesh():
         for xi in range(int(HALL_WIDTH)):
             x0, x1 = -half + xi, -half + xi + 1
             floor = [(x0, 0, z0), (x1, 0, z0), (x1, 0, z1), (x0, 0, z1)]
-            o.quad(floor, (0, -1, 0), FLOOR, [shade(c[2], c[1]) for c in floor])
+            o.quad(floor, (0, -1, 0), FLOOR, [shade(c) for c in floor])
             ceil = [(x0, top, z1), (x1, top, z1), (x1, top, z0), (x0, top, z0)]
-            o.quad(ceil, (0, 1, 0), CEIL, [shade(c[2], c[1]) for c in ceil])
+            o.quad(ceil, (0, 1, 0), CEIL, [shade(c) for c in ceil])
 
         # side walls, two rows of brick per unit of length
         for row in range(2):
             y0, y1 = top * row / 2, top * (row + 1) / 2
             left = [(-half, y1, z0), (-half, y1, z1), (-half, y0, z1), (-half, y0, z0)]
-            o.quad(left, (1, 0, 0), WALL, [shade(c[2], c[1]) for c in left])
+            o.quad(left, (1, 0, 0), WALL, [shade(c) for c in left])
             right = [(half, y1, z1), (half, y1, z0), (half, y0, z0), (half, y0, z1)]
-            o.quad(right, (-1, 0, 0), WALL, [shade(c[2], c[1]) for c in right])
+            o.quad(right, (-1, 0, 0), WALL, [shade(c) for c in right])
 
     # end walls
     for z, normal in ((0.0, (0, 0, 1)), (float(HALL_LENGTH), (0, 0, -1))):
@@ -233,7 +237,7 @@ def hall_mesh():
                     corners = [(x1, y1, z), (x0, y1, z), (x0, y0, z), (x1, y0, z)]
                 else:
                     corners = [(x0, y1, z), (x1, y1, z), (x1, y0, z), (x0, y0, z)]
-                o.quad(corners, normal, WALL, [shade(c[2], c[1]) for c in corners])
+                o.quad(corners, normal, WALL, [shade(c) for c in corners])
 
     # square pillars against both walls
     p = PILLAR_SIZE
@@ -253,7 +257,7 @@ def hall_mesh():
             else:
                 faces.append(([(x0, top, z1), (x0, top, z0), (x0, 0, z0), (x0, 0, z1)], (-1, 0, 0)))
             for corners, normal in faces:
-                o.quad(corners, normal, PILLAR, [shade(c[2], c[1]) for c in corners])
+                o.quad(corners, normal, PILLAR, [shade(c) for c in corners])
     return o
 
 
