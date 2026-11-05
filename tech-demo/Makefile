@@ -18,6 +18,9 @@ SRCS := $(call rwildcard,src/,*.cpp)
 
 CXXFLAGS = -std=c++20
 
+# nugget's word-at-a-time memcpy and memset (common/crt0/memory-s.s)
+LDFLAGS += -Wl,-wrap,memcpy -Wl,-wrap,memset
+
 include $(ENGINE)/madnight-engine.mk
 
 # The asset image a PCDRV build loads (techdemo.bin, see tools/make_image.py).
