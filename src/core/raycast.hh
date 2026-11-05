@@ -6,12 +6,12 @@
 
 #pragma once
 
+#include "../helpers/world_space.hh"
 #include "object/gameobject.hh"
-#include "world_defs.hh"
 
-#include "psyqo/vector.hh"
+#include <psyqo/vector.hh>
 
-static constexpr psyqo::FixedPoint<> maxRayDistance = ONE_METRE * 10; // 10m
+static constexpr psyqo::FixedPoint<> maxRayDistance = 10.0_ws; // 20m
 
 typedef struct _RAY {
 	psyqo::Vec3 origin = {0, 0, 0};

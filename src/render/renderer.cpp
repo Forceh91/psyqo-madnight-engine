@@ -298,6 +298,25 @@ void Renderer::RenderGameObjects(uint32_t deltaTime, const psyqo::Matrix33& came
 			// update the bone/rotation matrices
 			g_madnightEngine.m_skeletonController.UpdateSkeletonBoneMatrices(mesh->skeleton);
 
+			// compute the bone rotation/translation offsets once per bone
+			psyqo::Matrix33 boneRotationOffsets[MAX_BONES];
+			psyqo::Vec3 boneTranslationOffsets[MAX_BONES];
+
+			for (int i = 0; i < mesh->skeleton->numBones; i++) {
+				auto& bone = mesh->skeleton->bones[i];
+				if (!bone.isDirty) {
+					continue;
+				}
+
+				psyqo::GteMath::multiplyMatrix33(bone.worldMatrix.rotationMatrix, bone.bindPoseInverse.rotationMatrix,
+												 &boneRotationOffsets[i]);
+
+				// translation offset = world_T + (R_world * bindPoseInverse.translation)
+				psyqo::GteMath::matrixVecMul3(bone.worldMatrix.rotationMatrix, bone.bindPoseInverse.translation,
+											  &boneTranslationOffsets[i]);
+				boneTranslationOffsets[i] += bone.worldMatrix.translation;
+			}
+
 			// adjust pos of verts that are attached to bones
 			for (int32_t i = 0; i < mesh->facesCount; i++) {
 				auto& face = mesh->facesData[i];
@@ -313,18 +332,11 @@ void Renderer::RenderGameObjects(uint32_t deltaTime, const psyqo::Matrix33& came
 						continue;
 					}
 
-					psyqo::Matrix33 rotationOffset;
-					psyqo::GteMath::multiplyMatrix33(bone.worldMatrix.rotationMatrix,
-													 bone.bindPoseInverse.rotationMatrix, &rotationOffset);
-
-					// translation offset = world_T + (R_world * bindPoseInverse.translation)
-					psyqo::Vec3 translationOffset;
-					psyqo::GteMath::matrixVecMul3(bone.worldMatrix.rotationMatrix, bone.bindPoseInverse.translation,
-												  &translationOffset);
-					translationOffset += bone.worldMatrix.translation;
+					auto& rotationOffset = boneRotationOffsets[bone.id];
+					auto& translationOffset = boneTranslationOffsets[bone.id];
 
 					// final position
-					psyqo::Vec3 rotatedVert;
+					psyqo::Vec3 rotatedVert = {0, 0, 0};
 					psyqo::GteMath::matrixVecMul3(rotationOffset, vert, &rotatedVert);
 					auto packedBonePos = psyqo::GTE::PackedVec3(rotatedVert + translationOffset);
 
@@ -597,7 +609,7 @@ void Renderer::RenderParticles(uint32_t deltaTime, const psyqo::Matrix33& camera
 	finalCameraMatrix = identityMatrix;
 
 	for (auto const& emitter : emitters) {
-		auto const particles = emitter->particles();
+		auto const& particles = emitter->particles();
 
 		// send tpage info to gpu
 		auto texture = emitter->pParticleTexture();
@@ -634,12 +646,10 @@ void Renderer::RenderParticles(uint32_t deltaTime, const psyqo::Matrix33& camera
 				psyqo::Vertex vertex;
 				psyqo::GTE::read<psyqo::GTE::Register::SXY2>(&vertex.packed);
 
-				// calculate scaled size and make sure it doesnt go below 1
-				auto projectedSize = particle.size() * (1.0_fp * PROJECTION_DISTANCE) / finalParticlePos.z;
-				auto scaledSize = psyqo::Vertex{static_cast<int16_t>(projectedSize.x.integer()),
-												static_cast<int16_t>(projectedSize.y.integer())};
-				scaledSize = {eastl::clamp<int16_t>(scaledSize.x, 1, scaledSize.x),
-							  eastl::clamp<int16_t>(scaledSize.y, 1, scaledSize.y)};
+				// calculate size and make sure its at least one pixel
+				auto w = (particle.size().x.value * PROJECTION_DISTANCE) / finalParticlePos.z.value;
+				auto h = (particle.size().y.value * PROJECTION_DISTANCE) / finalParticlePos.z.value;
+				auto scaledSize = psyqo::Vertex{eastl::clamp<int16_t>(w, 1, w), eastl::clamp<int16_t>(h, 1, h)};
 
 				// make sure pos is sane, and the scaled size isnt gonna full the screen
 				auto pos = psyqo::Vertex{static_cast<int16_t>(vertex.x - scaledSize.x / 2),
@@ -1281,8 +1291,24 @@ void Renderer::ProcessQuadNode(FaceNode& node, uint8_t subDivsionDepth, const Fa
 		}
 	}
 
-	// sub divide if we have depth and we're close enough
-	if (subDivsionDepth <= SUBDIVISION_MAX_DEPTH) {
+	// sub divide if we have depth and we're close enough, and the node is still big on screen
+	auto bigOnScreen = [&node]() -> bool {
+		if constexpr (SUBDIVISION_SCREEN_CUTOFF == 0) {
+			return true;
+		} else {
+			// the same edge pairs as the 3d width/height below, measured on screen
+			auto screenEdgeLength = [](const psyqo::Vertex a, const psyqo::Vertex b) -> int32_t {
+				int32_t dx = a.x - b.x, dy = a.y - b.y;
+				return (dx < 0 ? -dx : dx) + (dy < 0 ? -dy : dy);
+			};
+			auto width = screenEdgeLength(node.projected[0], node.projected[1]) +
+						 screenEdgeLength(node.projected[2], node.projected[3]);
+			auto height = screenEdgeLength(node.projected[0], node.projected[2]) +
+						  screenEdgeLength(node.projected[1], node.projected[3]);
+			return eastl::max(width, height) >= 2 * SUBDIVISION_SCREEN_CUTOFF;
+		}
+	};
+	if (subDivsionDepth <= SUBDIVISION_MAX_DEPTH && bigOnScreen()) {
 		auto abs = [](int32_t v) -> int32_t { return v < 0 ? -v : v; };
 		auto edgeLength = [&abs](const psyqo::GTE::PackedVec3 a, const psyqo::GTE::PackedVec3 b) -> auto {
 			return abs(a.x.value - b.x.value) + abs(a.y.value - b.y.value) + abs(a.z.value - b.z.value);
