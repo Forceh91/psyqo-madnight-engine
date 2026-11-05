@@ -33,6 +33,9 @@ static constexpr uint8_t SUBDIVISION_MIN_DISTANCE =
 	1; // after view space transformation. stuff behind the camera is clamped to 0 so this tries to prevent us sub
 	   // dividing stuff we can't see
 static constexpr uint16_t SUBDIVISION_MAX_DISTANCE = 750; // after view space transformation
+// a node whose projected screen bounding box has its longer side below this many pixels is not
+// split further (0 = off)
+static constexpr uint16_t SUBDIVISION_SCREEN_CUTOFF = 32;
 static constexpr uint8_t SUBDIVISION_MAX_DEPTH = 2;		  // how deep to go when doing sub-division
 static constexpr uint8_t MAX_SPRITE_FRAGMENTS = 40;		  // per frame, shared by every RenderSprite caller
 static constexpr psyqo::Color c_loadingBackgroundColour = {.r = 0, .g = 0, .b = 0};

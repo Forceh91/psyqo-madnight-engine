@@ -1281,8 +1281,24 @@ void Renderer::ProcessQuadNode(FaceNode& node, uint8_t subDivsionDepth, const Fa
 		}
 	}
 
-	// sub divide if we have depth and we're close enough
-	if (subDivsionDepth <= SUBDIVISION_MAX_DEPTH) {
+	// sub divide if we have depth and we're close enough, and the node is still big on screen
+	auto bigOnScreen = [&node]() -> bool {
+		if constexpr (SUBDIVISION_SCREEN_CUTOFF == 0) {
+			return true;
+		} else {
+			// the same edge pairs as the 3d width/height below, measured on screen
+			auto screenEdgeLength = [](const psyqo::Vertex a, const psyqo::Vertex b) -> int32_t {
+				int32_t dx = a.x - b.x, dy = a.y - b.y;
+				return (dx < 0 ? -dx : dx) + (dy < 0 ? -dy : dy);
+			};
+			auto width = screenEdgeLength(node.projected[0], node.projected[1]) +
+						 screenEdgeLength(node.projected[2], node.projected[3]);
+			auto height = screenEdgeLength(node.projected[0], node.projected[2]) +
+						  screenEdgeLength(node.projected[1], node.projected[3]);
+			return eastl::max(width, height) >= 2 * SUBDIVISION_SCREEN_CUTOFF;
+		}
+	};
+	if (subDivsionDepth <= SUBDIVISION_MAX_DEPTH && bigOnScreen()) {
 		auto abs = [](int32_t v) -> int32_t { return v < 0 ? -v : v; };
 		auto edgeLength = [&abs](const psyqo::GTE::PackedVec3 a, const psyqo::GTE::PackedVec3 b) -> auto {
 			return abs(a.x.value - b.x.value) + abs(a.y.value - b.y.value) + abs(a.z.value - b.z.value);
