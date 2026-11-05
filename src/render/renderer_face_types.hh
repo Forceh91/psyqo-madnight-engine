@@ -40,6 +40,5 @@ struct FaceNode {
 	psyqo::Color colours[4];				  // colours
 	psyqo::Color fogColours[4];				  // for advanced fog colours
 	uint32_t irs[4];						  // irs
-	psyqo::PrimPieces::UVCoords uvA = {}, uvB = {};
-	psyqo::PrimPieces::UVCoordsPadded uvC = {}, uvD = {};
+	psyqo::PrimPieces::UVCoords uv[4];
 };
