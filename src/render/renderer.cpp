@@ -1281,8 +1281,22 @@ void Renderer::ProcessQuadNode(FaceNode& node, uint8_t subDivsionDepth, const Fa
 		}
 	}
 
-	// sub divide if we have depth and we're close enough
-	if (subDivsionDepth <= SUBDIVISION_MAX_DEPTH) {
+	// sub divide if we have depth and we're close enough, and the node is still big on screen
+	auto bigOnScreen = [&node]() -> bool {
+		if constexpr (SUBDIVISION_SCREEN_CUTOFF == 0) {
+			return true;
+		} else {
+			int16_t minX = node.projected[0].x, maxX = minX, minY = node.projected[0].y, maxY = minY;
+			for (int i = 1; i < 4; i++) {
+				minX = eastl::min(minX, node.projected[i].x);
+				maxX = eastl::max(maxX, node.projected[i].x);
+				minY = eastl::min(minY, node.projected[i].y);
+				maxY = eastl::max(maxY, node.projected[i].y);
+			}
+			return eastl::max(maxX - minX, maxY - minY) >= SUBDIVISION_SCREEN_CUTOFF;
+		}
+	};
+	if (subDivsionDepth <= SUBDIVISION_MAX_DEPTH && bigOnScreen()) {
 		auto abs = [](int32_t v) -> int32_t { return v < 0 ? -v : v; };
 		auto edgeLength = [&abs](const psyqo::GTE::PackedVec3 a, const psyqo::GTE::PackedVec3 b) -> auto {
 			return abs(a.x.value - b.x.value) + abs(a.y.value - b.y.value) + abs(a.z.value - b.z.value);
