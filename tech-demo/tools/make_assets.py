@@ -36,6 +36,9 @@ PILLAR_EVERY = 4
 PILLAR_SIZE = 0.3
 EMBER_GLOW_POS = (-1.0, -0.1, 6.0)  # keep in step with the "embers" emitter
 EMBER_GLOW_RADIUS = 1.6
+EMBER_GLOW_STEP = 0.75  # faces the glow reaches are split this fine, in units, so it still shows
+HALL_SEGMENT = 2  # floor, ceiling and side wall faces are this many units long
+HALL_FLOOR_ACROSS = 3  # floor and ceiling faces across the width of the hall
 
 WALK_FRAMES = 40
 LIMB_REST_DEGREES = 0
@@ -209,23 +212,46 @@ def hall_mesh():
         f = max(0.0, 1.0 - math.dist(c, EMBER_GLOW_POS) / EMBER_GLOW_RADIUS) ** 2
         return (min(255, level + int(120 * f)), min(255, level + int(50 * f)), max(0, level - int(10 * f)))
 
-    # floor and ceiling, one quad per 1x1 unit so every tile gets its own texture
-    for zi in range(HALL_LENGTH):
-        z0, z1 = float(zi), float(zi + 1)
-        for xi in range(int(HALL_WIDTH)):
-            x0, x1 = -half + xi, -half + xi + 1
-            floor = [(x0, 0, z0), (x1, 0, z0), (x1, 0, z1), (x0, 0, z1)]
-            o.quad(floor, (0, -1, 0), FLOOR, [shade(c) for c in floor])
-            ceil = [(x0, top, z1), (x1, top, z1), (x1, top, z0), (x0, top, z0)]
-            o.quad(ceil, (0, 1, 0), CEIL, [shade(c) for c in ceil])
+    def face(corners, normal, cell):
+        # one quad, unless the ember glow reaches it: per-vertex colour needs vertices under
+        # the glow, so split it into a grid there, each piece taking its share of the cell so
+        # the texture still runs unbroken across the whole face
+        lo = [min(c[i] for c in corners) for i in range(3)]
+        hi = [max(c[i] for c in corners) for i in range(3)]
+        nearest = [min(max(EMBER_GLOW_POS[i], lo[i]), hi[i]) for i in range(3)]
+        n_u = n_v = 1
+        # (past three quarters of the radius the glow is a couple of colour steps, not worth it)
+        if math.dist(nearest, EMBER_GLOW_POS) < EMBER_GLOW_RADIUS * 0.75:
+            n_u = max(1, round(math.dist(corners[0], corners[1]) / EMBER_GLOW_STEP))
+            n_v = max(1, round(math.dist(corners[0], corners[3]) / EMBER_GLOW_STEP))
+        c0, c1, c3 = corners[0], corners[1], corners[3]
+        x, y, w, h = cell
 
-        # side walls, two rows of brick per unit of length
-        for row in range(2):
-            y0, y1 = top * row / 2, top * (row + 1) / 2
-            left = [(-half, y1, z0), (-half, y1, z1), (-half, y0, z1), (-half, y0, z0)]
-            o.quad(left, (1, 0, 0), WALL, [shade(c) for c in left])
-            right = [(half, y1, z1), (half, y1, z0), (half, y0, z0), (half, y0, z1)]
-            o.quad(right, (-1, 0, 0), WALL, [shade(c) for c in right])
+        def at(u, v):
+            return tuple(c0[i] + u * (c1[i] - c0[i]) + v * (c3[i] - c0[i]) for i in range(3))
+
+        for j in range(n_v):
+            for i in range(n_u):
+                u0, u1, v0, v1 = i / n_u, (i + 1) / n_u, j / n_v, (j + 1) / n_v
+                piece = [at(u0, v0), at(u1, v0), at(u1, v1), at(u0, v1)]
+                tx0, tx1 = x + round(w * u0), x + round(w * u1)
+                ty0, ty1 = y + round(h * v0), y + round(h * v1)
+                o.quad(piece, normal, (tx0, ty0, tx1 - tx0, ty1 - ty0), [shade(c) for c in piece])
+
+    # floor, ceiling and side walls in faces HALL_SEGMENT units long: the engine subdivides
+    # big quads near the camera, so the hall does not need small faces. A cell can't repeat
+    # inside a quad (it is a corner of the atlas), so the texture stretches over the face
+    for zi in range(0, HALL_LENGTH, HALL_SEGMENT):
+        z0, z1 = float(zi), float(min(zi + HALL_SEGMENT, HALL_LENGTH))
+        for xi in range(HALL_FLOOR_ACROSS):
+            x0 = -half + HALL_WIDTH * xi / HALL_FLOOR_ACROSS
+            x1 = -half + HALL_WIDTH * (xi + 1) / HALL_FLOOR_ACROSS
+            face([(x0, 0, z0), (x1, 0, z0), (x1, 0, z1), (x0, 0, z1)], (0, -1, 0), FLOOR)
+            face([(x0, top, z1), (x1, top, z1), (x1, top, z0), (x0, top, z0)], (0, 1, 0), CEIL)
+
+        # side walls, one row of brick per face
+        face([(-half, top, z0), (-half, top, z1), (-half, 0, z1), (-half, 0, z0)], (1, 0, 0), WALL)
+        face([(half, top, z1), (half, top, z0), (half, 0, z0), (half, 0, z1)], (-1, 0, 0), WALL)
 
     # end walls
     for z, normal in ((0.0, (0, 0, 1)), (float(HALL_LENGTH), (0, 0, -1))):
