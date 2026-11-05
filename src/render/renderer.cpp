@@ -1218,6 +1218,16 @@ void Renderer::ProcessMeshQuad(const RendererQuad& quad, int8_t depth, const Fac
 	}
 }
 
+static inline void swapSlots12(FaceNode& n) {
+	eastl::swap(n.verts[1], n.verts[2]);
+	eastl::swap(n.projected[1], n.projected[2]);
+	eastl::swap(n.projectedDepths[1], n.projectedDepths[2]);
+	eastl::swap(n.irs[1], n.irs[2]);
+	eastl::swap(n.colours[1], n.colours[2]);
+	eastl::swap(n.fogColours[1], n.fogColours[2]);
+	eastl::swap(n.uv[1], n.uv[2]);
+}
+
 void Renderer::ProcessQuadNode(FaceNode& node, uint8_t subDivsionDepth, const FaceData& faceData) {
 	// depth == 0 is handled by `ProcessMeshQuad`
 	if (subDivsionDepth > 0) {
@@ -1334,15 +1344,17 @@ void Renderer::ProcessQuadNode(FaceNode& node, uint8_t subDivsionDepth, const Fa
 
 		auto midIR = [](const uint32_t& a, const uint32_t& b) -> auto { return (a + b) >> 1; };
 
-		static constexpr uint8_t kSplitLR[4] = {0, 1, 2, 3};
-		static constexpr uint8_t kSplitTB[4] = {0, 2, 1, 3};
-		const uint8_t* e = (width >= height) ? kSplitLR : kSplitTB;
+		// swap around vert ordering if we're gonna do height
+		const bool tb = width < height;
+		if (tb) {
+			swapSlots12(node);
+		}
 
 		FaceNode quadA, quadB;
 
 		// split left right, mid points of TL (v0), TR (v1)
-		psyqo::GTE::PackedVec3 midVert01 = midVert(node.verts[e[0]], node.verts[e[1]]),
-							   midVert23 = midVert(node.verts[e[2]], node.verts[e[3]]);
+		psyqo::GTE::PackedVec3 midVert01 = midVert(node.verts[0], node.verts[1]),
+							   midVert23 = midVert(node.verts[2], node.verts[3]);
 
 		psyqo::Vertex midProjectedVert01 = {}, midProjectedVert23 = {};
 		uint32_t midIR01 = 0, midIR23 = 0;
@@ -1361,311 +1373,94 @@ void Renderer::ProcessQuadNode(FaceNode& node, uint8_t subDivsionDepth, const Fa
 		psyqo::GTE::read<psyqo::GTE::Register::SZ3>(&midZ23);
 
 		psyqo::PrimPieces::UVCoords midUV01, midUV23;
-		midUV01.u = (node.uv[e[0]].u + node.uv[e[1]].u) >> 1;
-		midUV01.v = (node.uv[e[0]].v + node.uv[e[1]].v) >> 1;
-		midUV23.u = (node.uv[e[2]].u + node.uv[e[2]].u) >> 1;
-		midUV23.v = (node.uv[e[2]].v + node.uv[e[3]].v) >> 1;
+		midUV01.u = (node.uv[0].u + node.uv[1].u) >> 1;
+		midUV01.v = (node.uv[0].v + node.uv[1].v) >> 1;
+		midUV23.u = (node.uv[2].u + node.uv[3].u) >> 1;
+		midUV23.v = (node.uv[2].v + node.uv[3].v) >> 1;
 
-		psyqo::Color midColour01 = midColour(node.colours[e[0]], node.colours[e[1]]),
-					 midColour23 = midColour(node.colours[e[2]], node.colours[e[3]]);
+		psyqo::Color midColour01 = midColour(node.colours[0], node.colours[1]),
+					 midColour23 = midColour(node.colours[2], node.colours[3]);
 
-		// verts
-		for (int i = 0; i < 4; i++) {
-			const bool keepA = (i == 0 || i == 2);
-			if (keepA) {
-				quadA.verts[e[i]] = node.verts[e[i]];
-			} else {
-				quadA.verts[e[i]] = i == 1 ? midVert01 : midVert23;
-			}
-		}
+		quadA.verts[0] = node.verts[0];
+		quadA.verts[1] = midVert01;
+		quadA.verts[2] = node.verts[2];
+		quadA.verts[3] = midVert23;
 
-		quadA.projected[e[0]] = node.projected[e[0]];
-		quadA.projected[e[1]] = midProjectedVert01;
-		quadA.projected[e[2]] = node.projected[e[2]];
-		quadA.projected[e[3]] = midProjectedVert23;
+		quadA.projected[0] = node.projected[0];
+		quadA.projected[1] = midProjectedVert01;
+		quadA.projected[2] = node.projected[2];
+		quadA.projected[3] = midProjectedVert23;
 
-		quadA.projectedDepths[e[0]] = node.projectedDepths[e[0]];
-		quadA.projectedDepths[e[1]] = midZ01;
-		quadA.projectedDepths[e[2]] = node.projectedDepths[e[2]];
-		quadA.projectedDepths[e[3]] = midZ23;
+		quadA.projectedDepths[0] = node.projectedDepths[0];
+		quadA.projectedDepths[1] = midZ01;
+		quadA.projectedDepths[2] = node.projectedDepths[2];
+		quadA.projectedDepths[3] = midZ23;
 
-		quadA.uv[e[0]] = node.uv[e[0]];
-		quadA.uv[e[1]] = midUV01;
-		quadA.uv[e[2]] = node.uv[e[2]];
-		quadA.uv[e[3]] = midUV23;
+		quadA.uv[0] = node.uv[0];
+		quadA.uv[1] = midUV01;
+		quadA.uv[2] = node.uv[2];
+		quadA.uv[3] = midUV23;
 
-		quadA.colours[e[0]] = node.colours[e[0]];
-		quadA.colours[e[1]] = midColour01;
-		quadA.colours[e[2]] = node.colours[e[2]];
-		quadA.colours[e[3]] = midColour23;
+		quadA.colours[0] = node.colours[0];
+		quadA.colours[1] = midColour01;
+		quadA.colours[2] = node.colours[2];
+		quadA.colours[3] = midColour23;
 
-		quadA.irs[e[0]] = node.irs[e[0]];
-		quadA.irs[e[1]] = midIR01;
-		quadA.irs[e[2]] = node.irs[2];
-		quadA.irs[e[3]] = midIR23;
+		quadA.irs[0] = node.irs[0];
+		quadA.irs[1] = midIR01;
+		quadA.irs[2] = node.irs[2];
+		quadA.irs[3] = midIR23;
 
 		// quadB
-		quadB.verts[e[0]] = midVert01;
-		quadB.verts[e[1]] = node.verts[e[1]];
-		quadB.verts[e[2]] = midVert23;
-		quadB.verts[e[3]] = node.verts[e[3]];
+		quadB.verts[0] = midVert01;
+		quadB.verts[1] = node.verts[1];
+		quadB.verts[2] = midVert23;
+		quadB.verts[3] = node.verts[3];
 
-		quadB.projected[e[0]] = midProjectedVert01;
-		quadB.projected[e[1]] = node.projected[e[1]];
-		quadB.projected[e[2]] = midProjectedVert23;
-		quadB.projected[e[3]] = node.projected[e[3]];
+		quadB.projected[0] = midProjectedVert01;
+		quadB.projected[1] = node.projected[1];
+		quadB.projected[2] = midProjectedVert23;
+		quadB.projected[3] = node.projected[3];
 
-		quadB.projectedDepths[e[0]] = midZ01;
-		quadB.projectedDepths[e[1]] = node.projectedDepths[e[1]];
-		quadB.projectedDepths[e[2]] = midZ23;
-		quadB.projectedDepths[e[3]] = node.projectedDepths[e[3]];
+		quadB.projectedDepths[0] = midZ01;
+		quadB.projectedDepths[1] = node.projectedDepths[1];
+		quadB.projectedDepths[2] = midZ23;
+		quadB.projectedDepths[3] = node.projectedDepths[3];
 
-		quadB.uv[e[0]] = midUV01;
-		quadB.uv[e[1]] = node.uv[e[1]];
-		quadB.uv[e[2]] = midUV23;
-		quadB.uv[e[3]] = node.uv[e[3]];
+		quadB.uv[0] = midUV01;
+		quadB.uv[1] = node.uv[1];
+		quadB.uv[2] = midUV23;
+		quadB.uv[3] = node.uv[3];
 
-		quadB.colours[e[0]] = midColour01;
-		quadB.colours[e[1]] = node.colours[e[1]];
-		quadB.colours[e[2]] = midColour23;
-		quadB.colours[e[3]] = node.colours[e[3]];
+		quadB.colours[0] = midColour01;
+		quadB.colours[1] = node.colours[1];
+		quadB.colours[2] = midColour23;
+		quadB.colours[3] = node.colours[3];
 
-		quadB.irs[e[0]] = midIR01;
-		quadB.irs[e[1]] = node.irs[e[1]];
-		quadB.irs[e[2]] = midIR23;
-		quadB.irs[e[3]] = node.irs[e[3]];
+		quadB.irs[0] = midIR01;
+		quadB.irs[1] = node.irs[1];
+		quadB.irs[2] = midIR23;
+		quadB.irs[3] = node.irs[3];
 
 		if (faceData.isAdvancedFog && !faceData.useQuickAdvancedFogPass) {
-			psyqo::Color midFogColour01 = midColour(node.fogColours[e[0]], node.fogColours[e[1]]),
-						 midFogColour23 = midColour(node.fogColours[e[2]], node.fogColours[e[3]]);
+			psyqo::Color midFogColour01 = midColour(node.fogColours[0], node.fogColours[1]),
+						 midFogColour23 = midColour(node.fogColours[2], node.fogColours[3]);
 
-			quadA.fogColours[e[0]] = node.fogColours[e[0]];
-			quadA.fogColours[e[1]] = midFogColour01;
-			quadA.fogColours[e[2]] = node.fogColours[e[2]];
-			quadA.fogColours[e[3]] = midFogColour23;
+			quadA.fogColours[0] = node.fogColours[0];
+			quadA.fogColours[1] = midFogColour01;
+			quadA.fogColours[2] = node.fogColours[2];
+			quadA.fogColours[3] = midFogColour23;
 
-			quadB.fogColours[e[0]] = midFogColour01;
-			quadB.fogColours[e[1]] = node.fogColours[e[1]];
-			quadB.fogColours[e[2]] = midFogColour23;
-			quadB.fogColours[e[3]] = node.fogColours[e[3]];
+			quadB.fogColours[0] = midFogColour01;
+			quadB.fogColours[1] = node.fogColours[1];
+			quadB.fogColours[2] = midFogColour23;
+			quadB.fogColours[3] = node.fogColours[3];
 		}
-		// end quadB
 
-		// if (width >= height) {
-		// 	// split left right, mid points of TL (v0), TR (v1)
-		// 	psyqo::GTE::PackedVec3 midVert01 = midVert(node.verts[0], node.verts[1]),
-		// 						   midVert23 = midVert(node.verts[2], node.verts[3]);
-
-		// 	psyqo::Vertex midProjectedVert01 = {}, midProjectedVert23 = {};
-		// 	uint32_t midIR01 = 0, midIR23 = 0;
-		// 	uint32_t midZ01 = 0, midZ23 = 0;
-
-		// 	psyqo::GTE::writeSafe<psyqo::GTE::PseudoRegister::V0>(midVert01);
-		// 	psyqo::GTE::Kernels::rtps();
-		// 	midIR01 = psyqo::GTE::readRaw<psyqo::GTE::Register::IR0>();
-		// 	psyqo::GTE::read<psyqo::GTE::Register::SXY2>(&midProjectedVert01.packed);
-		// 	psyqo::GTE::read<psyqo::GTE::Register::SZ3>(&midZ01);
-
-		// 	psyqo::GTE::writeSafe<psyqo::GTE::PseudoRegister::V0>(midVert23);
-		// 	psyqo::GTE::Kernels::rtps();
-		// 	midIR23 = psyqo::GTE::readRaw<psyqo::GTE::Register::IR0>();
-		// 	psyqo::GTE::read<psyqo::GTE::Register::SXY2>(&midProjectedVert23.packed);
-		// 	psyqo::GTE::read<psyqo::GTE::Register::SZ3>(&midZ23);
-
-		// 	psyqo::PrimPieces::UVCoords midUV01, midUV23;
-		// 	midUV01.u = (node.uvA.u + node.uvB.u) >> 1;
-		// 	midUV01.v = (node.uvA.v + node.uvB.v) >> 1;
-		// 	midUV23.u = (node.uvC.u + node.uvD.u) >> 1;
-		// 	midUV23.v = (node.uvC.v + node.uvD.v) >> 1;
-
-		// 	psyqo::Color midColour01 = midColour(node.colours[0], node.colours[1]),
-		// 				 midColour23 = midColour(node.colours[2], node.colours[3]);
-
-		// 	// quad A
-		// 	quadA.verts[0] = node.verts[0];
-		// 	quadA.verts[1] = midVert01;
-		// 	quadA.verts[2] = node.verts[2];
-		// 	quadA.verts[3] = midVert23;
-
-		// 	quadA.projected[0] = node.projected[0];
-		// 	quadA.projected[1] = midProjectedVert01;
-		// 	quadA.projected[2] = node.projected[2];
-		// 	quadA.projected[3] = midProjectedVert23;
-
-		// 	quadA.projectedDepths[0] = node.projectedDepths[0];
-		// 	quadA.projectedDepths[1] = midZ01;
-		// 	quadA.projectedDepths[2] = node.projectedDepths[2];
-		// 	quadA.projectedDepths[3] = midZ23;
-
-		// 	quadA.uvA = node.uvA;
-		// 	quadA.uvB = midUV01;
-		// 	quadA.uvC = node.uvC;
-		// 	quadA.uvD = {midUV23.u, midUV23.v, 0};
-
-		// 	quadA.colours[0] = node.colours[0];
-		// 	quadA.colours[1] = midColour01;
-		// 	quadA.colours[2] = node.colours[2];
-		// 	quadA.colours[3] = midColour23;
-
-		// 	quadA.irs[0] = node.irs[0];
-		// 	quadA.irs[1] = midIR01;
-		// 	quadA.irs[2] = node.irs[2];
-		// 	quadA.irs[3] = midIR23;
-
-		// 	// quadB
-		// 	quadB.verts[0] = midVert01;
-		// 	quadB.verts[1] = node.verts[1];
-		// 	quadB.verts[2] = midVert23;
-		// 	quadB.verts[3] = node.verts[3];
-
-		// 	quadB.projected[0] = midProjectedVert01;
-		// 	quadB.projected[1] = node.projected[1];
-		// 	quadB.projected[2] = midProjectedVert23;
-		// 	quadB.projected[3] = node.projected[3];
-
-		// 	quadB.projectedDepths[0] = midZ01;
-		// 	quadB.projectedDepths[1] = node.projectedDepths[1];
-		// 	quadB.projectedDepths[2] = midZ23;
-		// 	quadB.projectedDepths[3] = node.projectedDepths[3];
-
-		// 	quadB.uvA = midUV01;
-		// 	quadB.uvB = node.uvB;
-		// 	quadB.uvC = {midUV23.u, midUV23.v, 0};
-		// 	quadB.uvD = node.uvD;
-
-		// 	quadB.colours[0] = midColour01;
-		// 	quadB.colours[1] = node.colours[1];
-		// 	quadB.colours[2] = midColour23;
-		// 	quadB.colours[3] = node.colours[3];
-
-		// 	quadB.irs[0] = midIR01;
-		// 	quadB.irs[1] = node.irs[1];
-		// 	quadB.irs[2] = midIR23;
-		// 	quadB.irs[3] = node.irs[3];
-
-		// 	if (faceData.isAdvancedFog && !faceData.useQuickAdvancedFogPass) {
-		// 		psyqo::Color midFogColour01 = midColour(node.fogColours[0], node.fogColours[1]),
-		// 					 midFogColour23 = midColour(node.fogColours[2], node.fogColours[3]);
-
-		// 		quadA.fogColours[0] = node.fogColours[0];
-		// 		quadA.fogColours[1] = midFogColour01;
-		// 		quadA.fogColours[2] = node.fogColours[2];
-		// 		quadA.fogColours[3] = midFogColour23;
-
-		// 		quadB.fogColours[0] = midFogColour01;
-		// 		quadB.fogColours[1] = node.fogColours[1];
-		// 		quadB.fogColours[2] = midFogColour23;
-		// 		quadB.fogColours[3] = node.fogColours[3];
-		// 	}
-		// 	// end quadB
-		/*} else {
-			// split top/bottom, mid points of TL (v0), BL (v2)
-			psyqo::GTE::PackedVec3 midVert02 = midVert(node.verts[0], node.verts[2]),
-								   midVert13 = midVert(node.verts[1], node.verts[3]);
-
-			psyqo::Vertex midProjectedVert02 = {}, midProjectedVert13 = {};
-			uint32_t midIR02 = 0, midIR13 = 0;
-			uint32_t midZ02 = 0, midZ13 = 0;
-
-			psyqo::GTE::writeSafe<psyqo::GTE::PseudoRegister::V0>(midVert02);
-			psyqo::GTE::Kernels::rtps();
-			midIR02 = psyqo::GTE::readRaw<psyqo::GTE::Register::IR0>();
-			psyqo::GTE::read<psyqo::GTE::Register::SXY2>(&midProjectedVert02.packed);
-			psyqo::GTE::read<psyqo::GTE::Register::SZ3>(&midZ02);
-
-			psyqo::GTE::writeSafe<psyqo::GTE::PseudoRegister::V0>(midVert13);
-			psyqo::GTE::Kernels::rtps();
-			midIR13 = psyqo::GTE::readRaw<psyqo::GTE::Register::IR0>();
-			psyqo::GTE::read<psyqo::GTE::Register::SXY2>(&midProjectedVert13.packed);
-			psyqo::GTE::read<psyqo::GTE::Register::SZ3>(&midZ13);
-
-			psyqo::PrimPieces::UVCoords midUVAC, midUVBD;
-			midUVAC.u = (node.uvA.u + node.uvC.u) >> 1;
-			midUVAC.v = (node.uvA.v + node.uvC.v) >> 1;
-			midUVBD.u = (node.uvB.u + node.uvD.u) >> 1;
-			midUVBD.v = (node.uvB.v + node.uvD.v) >> 1;
-
-			psyqo::Color midColour02 = midColour(node.colours[0], node.colours[2]),
-						 midColour13 = midColour(node.colours[1], node.colours[3]);
-
-			// quadA
-			quadA.verts[0] = node.verts[0];
-			quadA.verts[1] = node.verts[1];
-			quadA.verts[2] = midVert02;
-			quadA.verts[3] = midVert13;
-
-			quadA.projected[0] = node.projected[0];
-			quadA.projected[1] = node.projected[1];
-			quadA.projected[2] = midProjectedVert02;
-			quadA.projected[3] = midProjectedVert13;
-
-			quadA.projectedDepths[0] = node.projectedDepths[0];
-			quadA.projectedDepths[1] = node.projectedDepths[1];
-			quadA.projectedDepths[2] = midZ02;
-			quadA.projectedDepths[3] = midZ13;
-
-			quadA.uvA = node.uvA;
-			quadA.uvB = node.uvB;
-			quadA.uvC = {midUVAC.u, midUVAC.v, 0};
-			quadA.uvD = {midUVBD.u, midUVBD.v, 0};
-
-			quadA.colours[0] = node.colours[0];
-			quadA.colours[1] = node.colours[1];
-			quadA.colours[2] = midColour02;
-			quadA.colours[3] = midColour13;
-
-			quadA.irs[0] = node.irs[0];
-			quadA.irs[1] = node.irs[1];
-			quadA.irs[2] = midIR02;
-			quadA.irs[3] = midIR13;
-
-			// quadB
-			quadB.verts[0] = midVert02;
-			quadB.verts[1] = midVert13;
-			quadB.verts[2] = node.verts[2];
-			quadB.verts[3] = node.verts[3];
-
-			quadB.projected[0] = midProjectedVert02;
-			quadB.projected[1] = midProjectedVert13;
-			quadB.projected[2] = node.projected[2];
-			quadB.projected[3] = node.projected[3];
-
-			quadB.projectedDepths[0] = midZ02;
-			quadB.projectedDepths[1] = midZ13;
-			quadB.projectedDepths[2] = node.projectedDepths[2];
-			quadB.projectedDepths[3] = node.projectedDepths[3];
-
-			quadB.uvA = midUVAC;
-			quadB.uvB = midUVBD;
-			quadB.uvC = node.uvC;
-			quadB.uvD = node.uvD;
-
-			quadB.colours[0] = midColour02;
-			quadB.colours[1] = midColour13;
-			quadB.colours[2] = node.colours[2];
-			quadB.colours[3] = node.colours[3];
-
-			quadB.irs[0] = midIR02;
-			quadB.irs[1] = midIR13;
-			quadB.irs[2] = node.irs[2];
-			quadB.irs[3] = node.irs[3];
-			// end quadB
-
-			if (faceData.isAdvancedFog && !faceData.useQuickAdvancedFogPass) {
-				psyqo::Color midFogColour02 = midColour(node.fogColours[0], node.fogColours[2]),
-							 midFogColour13 = midColour(node.fogColours[1], node.fogColours[3]);
-
-				quadA.fogColours[0] = node.fogColours[0];
-				quadA.fogColours[1] = node.fogColours[1];
-				quadA.fogColours[2] = midFogColour02;
-				quadA.fogColours[3] = midFogColour13;
-
-				quadB.fogColours[0] = midFogColour02;
-				quadB.fogColours[1] = midFogColour13;
-				quadB.fogColours[2] = node.fogColours[2];
-				quadB.fogColours[3] = node.fogColours[3];
-			}
-		}*/
+		if (tb) {
+			swapSlots12(quadA);
+			swapSlots12(quadB);
+		}
 
 		ProcessQuadNode(quadA, subDivsionDepth + 1, faceData);
 		ProcessQuadNode(quadB, subDivsionDepth + 1, faceData);
