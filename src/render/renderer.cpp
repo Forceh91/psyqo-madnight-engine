@@ -299,10 +299,10 @@ void Renderer::RenderGameObjects(uint32_t deltaTime, const psyqo::Matrix33& came
 			g_madnightEngine.m_skeletonController.UpdateSkeletonBoneMatrices(mesh->skeleton);
 
 			// compute the bone rotation/translation offsets once per bone
-			psyqo::Matrix33 boneRotationOffsets[MAX_BONES] = {};
-			psyqo::Vec3 boneTranslationOffsets[MAX_BONES] = {};
+			psyqo::Matrix33 boneRotationOffsets[MAX_BONES];
+			psyqo::Vec3 boneTranslationOffsets[MAX_BONES];
 
-			for (int i = 0; i < MAX_BONES; i++) {
+			for (int i = 0; i < mesh->skeleton->numBones; i++) {
 				auto& bone = mesh->skeleton->bones[i];
 				if (!bone.isDirty) {
 					continue;
