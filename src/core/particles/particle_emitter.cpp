@@ -87,12 +87,7 @@ void ParticleEmitter::Process(const uint32_t& deltaTime) {
 	}
 
 	// clear out dead ones
-	for (int i = m_spawnedParticles.size() - 1; i >= 0; i--) {
-		auto const& particle = m_spawnedParticles.at(i);
-		if (particle.IsDead()) {
-			m_spawnedParticles.erase(m_spawnedParticles.begin() + i);
-		}
-	}
+	eastl::erase_if(m_spawnedParticles, [](const Particle& p) { return p.IsDead(); });
 
 	// make sure we're enabled
 	if (!m_isEnabled) {
