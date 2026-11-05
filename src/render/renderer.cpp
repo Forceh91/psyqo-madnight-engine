@@ -1286,14 +1286,16 @@ void Renderer::ProcessQuadNode(FaceNode& node, uint8_t subDivsionDepth, const Fa
 		if constexpr (SUBDIVISION_SCREEN_CUTOFF == 0) {
 			return true;
 		} else {
-			int16_t minX = node.projected[0].x, maxX = minX, minY = node.projected[0].y, maxY = minY;
-			for (int i = 1; i < 4; i++) {
-				minX = eastl::min(minX, node.projected[i].x);
-				maxX = eastl::max(maxX, node.projected[i].x);
-				minY = eastl::min(minY, node.projected[i].y);
-				maxY = eastl::max(maxY, node.projected[i].y);
-			}
-			return eastl::max(maxX - minX, maxY - minY) >= SUBDIVISION_SCREEN_CUTOFF;
+			// the same edge pairs as the 3d width/height below, measured on screen
+			auto screenEdgeLength = [](const psyqo::Vertex a, const psyqo::Vertex b) -> int32_t {
+				int32_t dx = a.x - b.x, dy = a.y - b.y;
+				return (dx < 0 ? -dx : dx) + (dy < 0 ? -dy : dy);
+			};
+			auto width = screenEdgeLength(node.projected[0], node.projected[1]) +
+						 screenEdgeLength(node.projected[2], node.projected[3]);
+			auto height = screenEdgeLength(node.projected[0], node.projected[2]) +
+						  screenEdgeLength(node.projected[1], node.projected[3]);
+			return eastl::max(width, height) >= 2 * SUBDIVISION_SCREEN_CUTOFF;
 		}
 	};
 	if (subDivsionDepth <= SUBDIVISION_MAX_DEPTH && bigOnScreen()) {
