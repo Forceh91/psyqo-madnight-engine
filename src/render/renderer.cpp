@@ -597,7 +597,7 @@ void Renderer::RenderParticles(uint32_t deltaTime, const psyqo::Matrix33& camera
 	finalCameraMatrix = identityMatrix;
 
 	for (auto const& emitter : emitters) {
-		auto const particles = emitter->particles();
+		auto const& particles = emitter->particles();
 
 		// send tpage info to gpu
 		auto texture = emitter->pParticleTexture();
@@ -634,12 +634,10 @@ void Renderer::RenderParticles(uint32_t deltaTime, const psyqo::Matrix33& camera
 				psyqo::Vertex vertex;
 				psyqo::GTE::read<psyqo::GTE::Register::SXY2>(&vertex.packed);
 
-				// calculate scaled size and make sure it doesnt go below 1
-				auto projectedSize = particle.size() * (1.0_fp * PROJECTION_DISTANCE) / finalParticlePos.z;
-				auto scaledSize = psyqo::Vertex{static_cast<int16_t>(projectedSize.x.integer()),
-												static_cast<int16_t>(projectedSize.y.integer())};
-				scaledSize = {eastl::clamp<int16_t>(scaledSize.x, 1, scaledSize.x),
-							  eastl::clamp<int16_t>(scaledSize.y, 1, scaledSize.y)};
+				// calculate size and make sure its at least one pixel
+				auto w = (particle.size().x.value * PROJECTION_DISTANCE) / finalParticlePos.z.value;
+				auto h = (particle.size().y.value * PROJECTION_DISTANCE) / finalParticlePos.z.value;
+				auto scaledSize = psyqo::Vertex{eastl::clamp<int16_t>(w, 1, w), eastl::clamp<int16_t>(h, 1, h)};
 
 				// make sure pos is sane, and the scaled size isnt gonna full the screen
 				auto pos = psyqo::Vertex{static_cast<int16_t>(vertex.x - scaledSize.x / 2),
