@@ -298,6 +298,25 @@ void Renderer::RenderGameObjects(uint32_t deltaTime, const psyqo::Matrix33& came
 			// update the bone/rotation matrices
 			g_madnightEngine.m_skeletonController.UpdateSkeletonBoneMatrices(mesh->skeleton);
 
+			// compute the bone rotation/translation offsets once per bone
+			psyqo::Matrix33 boneRotationOffsets[MAX_BONES] = {};
+			psyqo::Vec3 boneTranslationOffsets[MAX_BONES] = {};
+
+			for (int i = 0; i < MAX_BONES; i++) {
+				auto& bone = mesh->skeleton->bones[i];
+				if (!bone.isDirty) {
+					continue;
+				}
+
+				psyqo::GteMath::multiplyMatrix33(bone.worldMatrix.rotationMatrix, bone.bindPoseInverse.rotationMatrix,
+												 &boneRotationOffsets[i]);
+
+				// translation offset = world_T + (R_world * bindPoseInverse.translation)
+				psyqo::GteMath::matrixVecMul3(bone.worldMatrix.rotationMatrix, bone.bindPoseInverse.translation,
+											  &boneTranslationOffsets[i]);
+				boneTranslationOffsets[i] += bone.worldMatrix.translation;
+			}
+
 			// adjust pos of verts that are attached to bones
 			for (int32_t i = 0; i < mesh->facesCount; i++) {
 				auto& face = mesh->facesData[i];
@@ -313,18 +332,11 @@ void Renderer::RenderGameObjects(uint32_t deltaTime, const psyqo::Matrix33& came
 						continue;
 					}
 
-					psyqo::Matrix33 rotationOffset;
-					psyqo::GteMath::multiplyMatrix33(bone.worldMatrix.rotationMatrix,
-													 bone.bindPoseInverse.rotationMatrix, &rotationOffset);
-
-					// translation offset = world_T + (R_world * bindPoseInverse.translation)
-					psyqo::Vec3 translationOffset;
-					psyqo::GteMath::matrixVecMul3(bone.worldMatrix.rotationMatrix, bone.bindPoseInverse.translation,
-												  &translationOffset);
-					translationOffset += bone.worldMatrix.translation;
+					auto& rotationOffset = boneRotationOffsets[bone.id];
+					auto& translationOffset = boneTranslationOffsets[bone.id];
 
 					// final position
-					psyqo::Vec3 rotatedVert;
+					psyqo::Vec3 rotatedVert = {0, 0, 0};
 					psyqo::GteMath::matrixVecMul3(rotationOffset, vert, &rotatedVert);
 					auto packedBonePos = psyqo::GTE::PackedVec3(rotatedVert + translationOffset);
 
