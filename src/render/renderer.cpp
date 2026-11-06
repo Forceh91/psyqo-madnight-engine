@@ -1085,10 +1085,10 @@ void Renderer::ProcessMeshQuad(const RendererQuad& quad, int8_t depth, const Fac
 			}
 		}
 
-		stQuadCorners[0].uv = quad.uvA;
-		stQuadCorners[1].uv = quad.uvB;
-		stQuadCorners[2].uv = {quad.uvC.u, quad.uvC.v};
-		stQuadCorners[3].uv = {quad.uvD.u, quad.uvD.v};
+		stQuadCorners[0].uv = {static_cast<uint8_t>(quad.uvA.u + faceData.uvOffset.pos.x), quad.uvA.v};
+		stQuadCorners[1].uv = {static_cast<uint8_t>(quad.uvB.u + faceData.uvOffset.pos.x), quad.uvB.v};
+		stQuadCorners[2].uv = {static_cast<uint8_t>(quad.uvC.u + faceData.uvOffset.pos.x), quad.uvC.v};
+		stQuadCorners[3].uv = {static_cast<uint8_t>(quad.uvD.u + faceData.uvOffset.pos.x), quad.uvD.v};
 
 		QuadCorner* corners[4] = {&stQuadCorners[0], &stQuadCorners[1], &stQuadCorners[2], &stQuadCorners[3]};
 		ProcessQuadNode(corners, depth, faceData);
@@ -1510,13 +1510,13 @@ void Renderer::ProcessQuadNode(QuadCorner* const* corners, uint8_t subDivisionDe
 				quadPrim.primitive.clutIndex = {faceData.texture->clutX, faceData.texture->clutY};
 			}
 
-			quadPrim.primitive.uvA = {static_cast<uint8_t>(faceData.uvOffset.pos.x + corners[0]->uv.u),
+			quadPrim.primitive.uvA = {corners[0]->uv.u,
 									  static_cast<uint8_t>(faceData.uvOffset.pos.y - corners[0]->uv.v)};
-			quadPrim.primitive.uvB = {static_cast<uint8_t>(faceData.uvOffset.pos.x + corners[1]->uv.u),
+			quadPrim.primitive.uvB = {corners[1]->uv.u,
 									  static_cast<uint8_t>(faceData.uvOffset.pos.y - corners[1]->uv.v)};
-			quadPrim.primitive.uvC = {static_cast<uint8_t>(faceData.uvOffset.pos.x + corners[2]->uv.u),
+			quadPrim.primitive.uvC = {corners[2]->uv.u,
 									  static_cast<uint8_t>(faceData.uvOffset.pos.y - corners[2]->uv.v)};
-			quadPrim.primitive.uvD = {static_cast<uint8_t>(faceData.uvOffset.pos.x + corners[3]->uv.u),
+			quadPrim.primitive.uvD = {corners[3]->uv.u,
 									  static_cast<uint8_t>(faceData.uvOffset.pos.y - corners[3]->uv.v)};
 
 			faceData.orderingTable.insert(quadPrim, zIndex);
@@ -1581,13 +1581,13 @@ void Renderer::ProcessQuadNode(QuadCorner* const* corners, uint8_t subDivisionDe
 				textured.primitive.clutIndex = {faceData.texture->clutX, faceData.texture->clutY};
 			}
 
-			textured.primitive.uvA = {static_cast<uint8_t>(faceData.uvOffset.pos.x + corners[0]->uv.u),
+			textured.primitive.uvA = {corners[0]->uv.u,
 									  static_cast<uint8_t>(faceData.uvOffset.pos.y - corners[0]->uv.v)};
-			textured.primitive.uvB = {static_cast<uint8_t>(faceData.uvOffset.pos.x + corners[1]->uv.u),
+			textured.primitive.uvB = {corners[1]->uv.u,
 									  static_cast<uint8_t>(faceData.uvOffset.pos.y - corners[1]->uv.v)};
-			textured.primitive.uvC = {static_cast<uint8_t>(faceData.uvOffset.pos.x + corners[2]->uv.u),
+			textured.primitive.uvC = {corners[2]->uv.u,
 									  static_cast<uint8_t>(faceData.uvOffset.pos.y - corners[2]->uv.v)};
-			textured.primitive.uvD = {static_cast<uint8_t>(faceData.uvOffset.pos.x + corners[3]->uv.u),
+			textured.primitive.uvD = {corners[3]->uv.u,
 									  static_cast<uint8_t>(faceData.uvOffset.pos.y - corners[3]->uv.v)};
 			faceData.orderingTable.insert(textured, zIndex);
 
