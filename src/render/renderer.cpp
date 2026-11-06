@@ -1000,9 +1000,6 @@ bool Renderer::IsGameObjectVisible(const psyqo::Vec3& cameraPos, const AABBColli
 }
 
 void Renderer::ProcessMeshQuad(const RendererQuad& quad, int8_t depth, const FaceData& faceData) {
-	// projections for each vert
-	eastl::array<psyqo::Vertex, 4> projected;
-
 	auto* verts = quad.boneAdjustedVerts ? quad.boneAdjustedVerts : quad.verts;
 
 	// vertex 1->3
@@ -1041,39 +1038,6 @@ void Renderer::ProcessMeshQuad(const RendererQuad& quad, int8_t depth, const Fac
 		return;
 	}
 
-	// apply fog colours (skipped if advanced fog is enabled)
-	if (!faceData.isAdvancedFog) {
-		for (int i = 0; i < 4; i++) {
-			ApplyAmbientToColour(&stQuadCorners[i].colour);
-			stQuadCorners[i].colour = ApplyFogToColourGTE(stQuadCorners[i].colour, stQuadCorners[i].ir);
-		}
-	} else {
-		if (!faceData.useQuickAdvancedFogPass) {
-			GTESetFarColour({0, 0, 0});
-			for (int i = 0; i < 4; i++) {
-				ApplyAmbientToColour(&stQuadCorners[i].colour);
-				stQuadCorners[i].colour = GTEColourLerp(stQuadCorners[i].colour, stQuadCorners[i].ir);
-			}
-
-			GTESetFarColour(m_lighting->GetFogColour());
-			for (int i = 0; i < 4; i++) {
-				stQuadCorners[i].fogColour = GTEColourLerp({0, 0, 0}, stQuadCorners[i].ir);
-			}
-		} else {
-			for (int i = 0; i < 4; i++) {
-				auto density = 4096 - stQuadCorners[i].ir;
-				ApplyAmbientToColour(&stQuadCorners[i].colour);
-				stQuadCorners[i].colour = {uint8_t((stQuadCorners[i].colour.r * density) >> 12),
-										   uint8_t((stQuadCorners[i].colour.g * density) >> 12),
-										   uint8_t((stQuadCorners[i].colour.b * density) >> 12)};
-				m_qafIR0 += stQuadCorners[i].ir;
-			}
-
-			// average the quick fog t scale
-			m_qafIROCount += 4;
-		}
-	}
-
 	auto shouldSubDivide =
 		!quad.boneAdjustedVerts &&
 		(stQuadCorners[0].depth >= SUBDIVISION_MIN_DISTANCE || stQuadCorners[1].depth >= SUBDIVISION_MIN_DISTANCE ||
@@ -1086,6 +1050,39 @@ void Renderer::ProcessMeshQuad(const RendererQuad& quad, int8_t depth, const Fac
 		for (int i = 0; i < 4; i++) {
 			stQuadCorners[i].vert = quad.verts[i];
 			stQuadCorners[i].colour = quad.colours[i];
+		}
+
+		// apply fog colours (skipped if advanced fog is enabled)
+		if (!faceData.isAdvancedFog) {
+			for (int i = 0; i < 4; i++) {
+				ApplyAmbientToColour(&stQuadCorners[i].colour);
+				stQuadCorners[i].colour = ApplyFogToColourGTE(stQuadCorners[i].colour, stQuadCorners[i].ir);
+			}
+		} else {
+			if (!faceData.useQuickAdvancedFogPass) {
+				GTESetFarColour({0, 0, 0});
+				for (int i = 0; i < 4; i++) {
+					ApplyAmbientToColour(&stQuadCorners[i].colour);
+					stQuadCorners[i].colour = GTEColourLerp(stQuadCorners[i].colour, stQuadCorners[i].ir);
+				}
+
+				GTESetFarColour(m_lighting->GetFogColour());
+				for (int i = 0; i < 4; i++) {
+					stQuadCorners[i].fogColour = GTEColourLerp({0, 0, 0}, stQuadCorners[i].ir);
+				}
+			} else {
+				for (int i = 0; i < 4; i++) {
+					auto density = 4096 - stQuadCorners[i].ir;
+					ApplyAmbientToColour(&stQuadCorners[i].colour);
+					stQuadCorners[i].colour = {uint8_t((stQuadCorners[i].colour.r * density) >> 12),
+											   uint8_t((stQuadCorners[i].colour.g * density) >> 12),
+											   uint8_t((stQuadCorners[i].colour.b * density) >> 12)};
+					m_qafIR0 += stQuadCorners[i].ir;
+				}
+
+				// average the quick fog t scale
+				m_qafIROCount += 4;
+			}
 		}
 
 		stQuadCorners[0].uv = quad.uvA;
@@ -1107,7 +1104,8 @@ void Renderer::ProcessMeshQuad(const RendererQuad& quad, int8_t depth, const Fac
 		}
 
 		// make sure we're not past screen bounds
-		if (QuadClip(projected[0], projected[1], projected[2], projected[3])) {
+		if (QuadClip(stQuadCorners[0].projected, stQuadCorners[1].projected, stQuadCorners[2].projected,
+					 stQuadCorners[3].projected)) {
 			return;
 		}
 
@@ -1446,20 +1444,20 @@ void Renderer::ProcessQuadNode(QuadCorner* const* corners, uint8_t subDivisionDe
 		psyqo::GTE::read<psyqo::GTE::Register::SXY2>(&midPoints23.projected.packed);
 		psyqo::GTE::read<psyqo::GTE::Register::SZ3>(&midPoints23.depth);
 
-		midPoints01.uv.u = (corners[0]->uv.u + corners[1]->uv.u) >> 1;
-		midPoints01.uv.v = (corners[0]->uv.v + corners[1]->uv.v) >> 1;
-		midPoints23.uv.u = (corners[2]->uv.u + corners[3]->uv.u) >> 1;
-		midPoints23.uv.v = (corners[2]->uv.v + corners[3]->uv.v) >> 1;
+		midPoints01.uv.u = (stackCorners[0]->uv.u + stackCorners[1]->uv.u) >> 1;
+		midPoints01.uv.v = (stackCorners[0]->uv.v + stackCorners[1]->uv.v) >> 1;
+		midPoints23.uv.u = (stackCorners[2]->uv.u + stackCorners[3]->uv.u) >> 1;
+		midPoints23.uv.v = (stackCorners[2]->uv.v + stackCorners[3]->uv.v) >> 1;
 
-		midPoints01.colour = midColour(corners[0]->colour, corners[1]->colour),
-		midPoints23.colour = midColour(corners[2]->colour, corners[3]->colour);
+		midPoints01.colour = midColour(stackCorners[0]->colour, stackCorners[1]->colour),
+		midPoints23.colour = midColour(stackCorners[2]->colour, stackCorners[3]->colour);
 
 		QuadCorner* quadA[4] = {stackCorners[0], &midPoints01, stackCorners[2], &midPoints23};
 		QuadCorner* quadB[4] = {&midPoints01, stackCorners[1], &midPoints23, stackCorners[3]};
 
 		if (faceData.isAdvancedFog && !faceData.useQuickAdvancedFogPass) {
-			midPoints01.fogColour = midColour(corners[0]->fogColour, corners[1]->fogColour),
-			midPoints23.fogColour = midColour(corners[2]->fogColour, corners[3]->fogColour);
+			midPoints01.fogColour = midColour(stackCorners[0]->fogColour, stackCorners[1]->fogColour),
+			midPoints23.fogColour = midColour(stackCorners[2]->fogColour, stackCorners[3]->fogColour);
 		}
 
 		ProcessQuadNode(quadA, subDivisionDepth + 1, faceData);
