@@ -18,7 +18,7 @@ void Quaternion::Normalize() {
 		return;
 	}
 
-	auto r = psyqo::FixedPoint<>(1 / psyqo::SoftMath::squareRoot(psyqo::FixedPoint<>(s)));
+	auto r = psyqo::SoftMath::inverseSquareRoot(s);
 	w *= r;
 	x *= r;
 	y *= r;
