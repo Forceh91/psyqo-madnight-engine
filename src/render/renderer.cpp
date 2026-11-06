@@ -797,7 +797,7 @@ void Renderer::RenderParticles(uint32_t deltaTime, const psyqo::Matrix33& camera
 				psyqo::GTE::read<psyqo::GTE::Register::SXY2>(&projected[3].packed);
 
 				// out of screen space, it can be clipped
-				if (quad_clip(&SCREEN_SPACE, &projected[0], &projected[1], &projected[2], &projected[3])) {
+				if (QuadClip(projected.data())) {
 					continue;
 				}
 
@@ -1042,7 +1042,7 @@ void Renderer::ProcessMeshQuad(const RendererQuad& quad, int8_t depth, const Fac
 		}
 
 		// clip screen space
-		if (quad_clip(&SCREEN_SPACE, &node.projected[0], &node.projected[1], &node.projected[2], &node.projected[3])) {
+		if (QuadClip(projected.data())) {
 			return;
 		}
 
