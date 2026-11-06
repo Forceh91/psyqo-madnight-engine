@@ -1290,17 +1290,10 @@ static inline void swapSlots12(FaceNode& n) {
 void Renderer::ProcessQuadNode(FaceNode& node, uint8_t subDivsionDepth, const FaceData& faceData) {
 	// depth == 0 is handled by `ProcessMeshQuad`
 	if (subDivsionDepth > 0) {
-		// write the projected values back into sxy*
-		psyqo::GTE::write<psyqo::GTE::Register::SXY0, psyqo::GTE::Unsafe>(node.projected[0].packed);
-		psyqo::GTE::write<psyqo::GTE::Register::SXY1, psyqo::GTE::Unsafe>(node.projected[1].packed);
-		psyqo::GTE::write<psyqo::GTE::Register::SXY2, psyqo::GTE::Unsafe>(node.projected[2].packed);
-
 		// write the projected values back into sz*
 		psyqo::GTE::write<psyqo::GTE::Register::SZ0, psyqo::GTE::Unsafe>(node.projectedDepths[0]);
 		psyqo::GTE::write<psyqo::GTE::Register::SZ1, psyqo::GTE::Unsafe>(node.projectedDepths[1]);
 		psyqo::GTE::write<psyqo::GTE::Register::SZ2, psyqo::GTE::Safe>(node.projectedDepths[2]);
-
-		psyqo::GTE::write<psyqo::GTE::Register::SXY2, psyqo::GTE::Unsafe>(node.projected[3].packed);
 		psyqo::GTE::write<psyqo::GTE::Register::SZ3, psyqo::GTE::Safe>(node.projectedDepths[3]);
 	}
 
@@ -1993,11 +1986,6 @@ void Renderer::ProcessMeshTri(const RendererTri& tri, int8_t depth, const FaceDa
 void Renderer::ProcessTriNode(FaceNode& node, uint8_t subDivsionDepth, const FaceData& faceData) {
 	// depth == 0 is handled by `ProcessMeshTri`
 	if (subDivsionDepth > 0) {
-		// write the projected values back into sxy*
-		psyqo::GTE::write<psyqo::GTE::Register::SXY0, psyqo::GTE::Unsafe>(node.projected[0].packed);
-		psyqo::GTE::write<psyqo::GTE::Register::SXY1, psyqo::GTE::Unsafe>(node.projected[1].packed);
-		psyqo::GTE::write<psyqo::GTE::Register::SXY2, psyqo::GTE::Unsafe>(node.projected[2].packed);
-
 		// write the projected values back into sz*
 		psyqo::GTE::write<psyqo::GTE::Register::SZ1, psyqo::GTE::Unsafe>(node.projectedDepths[0]);
 		psyqo::GTE::write<psyqo::GTE::Register::SZ2, psyqo::GTE::Unsafe>(node.projectedDepths[1]);
