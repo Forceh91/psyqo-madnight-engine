@@ -24,8 +24,7 @@ void Particle::Process(const uint32_t& deltaTime) {
 	auto lifetimeMS = m_lifetimeMicroSeconds / 1000;
 
 	auto lifetimeLerp =
-		lifetimeMS > 0 ? psyqo::FixedPoint<>(int32_t(ageMS * 4096 / lifetimeMS), psyqo::FixedPoint<>::RAW) / lifetimeMS
-					   : 0.0_fp;
+		lifetimeMS > 0 ? psyqo::FixedPoint<>(int32_t(ageMS * 4096 / lifetimeMS), psyqo::FixedPoint<>::RAW) : 0.0_fp;
 	auto r = (m_startColour.r * (1.0_fp - lifetimeLerp) + m_endColour.r * lifetimeLerp).value >> 12;
 	auto g = (m_startColour.g * (1.0_fp - lifetimeLerp) + m_endColour.g * lifetimeLerp).value >> 12;
 	auto b = (m_startColour.b * (1.0_fp - lifetimeLerp) + m_endColour.b * lifetimeLerp).value >> 12;

@@ -17,7 +17,7 @@ using namespace psyqo::fixed_point_literals;
 
 void ParticleEmitter::Start(void) {
 	m_isEnabled = true;
-	m_timeSinceLastParticleSpawn = Renderer::Instance().GPU().now();
+	m_timeOfLastProcess = Renderer::Instance().GPU().now();
 }
 
 void ParticleEmitter::Stop(void) { m_isEnabled = false; }
