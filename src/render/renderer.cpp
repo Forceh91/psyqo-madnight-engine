@@ -7,7 +7,6 @@
 #include "renderer.hh"
 #include "EASTL/algorithm.h"
 #include "EASTL/array.h"
-#include "clip.hh"
 
 #include "../core/billboard/billboard_manager.hh"
 #include "../core/debug/debug_menu.hh"
@@ -149,6 +148,28 @@ inline constexpr int QuadClip(const psyqo::Vertex* verts) {
 	}
 
 	if ((c[1] & c[3]) == 0) {
+		return 0;
+	}
+
+	return 1;
+}
+
+inline constexpr int TriClip(const psyqo::Vertex* verts) {
+	int c[3] = {
+		TestClip(verts[0].x, verts[0].y),
+		TestClip(verts[1].x, verts[1].y),
+		TestClip(verts[2].x, verts[2].y),
+	};
+
+	if ((c[0] & c[1]) == 0) {
+		return 0;
+	}
+
+	if ((c[1] & c[2]) == 0) {
+		return 0;
+	}
+
+	if ((c[2] & c[0]) == 0) {
 		return 0;
 	}
 
@@ -1771,7 +1792,7 @@ void Renderer::ProcessMeshTri(const RendererTri& tri, int8_t depth, const FaceDa
 		}
 
 		// clip screen space
-		if (tri_clip(&SCREEN_SPACE, &node.projected[0], &node.projected[1], &node.projected[2])) {
+		if (TriClip(node.projected.data())) {
 			return;
 		}
 
@@ -2002,7 +2023,7 @@ void Renderer::ProcessTriNode(FaceNode& node, uint8_t subDivsionDepth, const Fac
 	}
 
 	// clip screen space
-	if (tri_clip(&SCREEN_SPACE, &node.projected[0], &node.projected[1], &node.projected[2])) {
+	if (TriClip(node.projected.data())) {
 		return;
 	}
 
