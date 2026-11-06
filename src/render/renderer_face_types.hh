@@ -42,3 +42,14 @@ struct FaceNode {
 	uint32_t irs[4];						  // irs
 	psyqo::PrimPieces::UVCoords uv[4];
 };
+
+// used for sub division on quads
+struct QuadCorner {
+	psyqo::GTE::PackedVec3 vert; // world space vert pos
+	psyqo::Vertex projected;	 // projected screen pos
+	uint32_t depth;				 // depth of the projected corner
+	uint32_t ir;				 // ir0 of the projected vert
+	psyqo::Color colour;
+	psyqo::Color fogColour; // if advanced fog is turned on
+	psyqo::PrimPieces::UVCoords uv;
+};

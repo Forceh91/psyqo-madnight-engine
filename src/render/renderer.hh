@@ -36,8 +36,8 @@ static constexpr uint16_t SUBDIVISION_MAX_DISTANCE = 750; // after view space tr
 // a node whose projected screen bounding box has its longer side below this many pixels is not
 // split further (0 = off)
 static constexpr uint16_t SUBDIVISION_SCREEN_CUTOFF = 32;
-static constexpr uint8_t SUBDIVISION_MAX_DEPTH = 2;		  // how deep to go when doing sub-division
-static constexpr uint8_t MAX_SPRITE_FRAGMENTS = 40;		  // per frame, shared by every RenderSprite caller
+static constexpr uint8_t SUBDIVISION_MAX_DEPTH = 2; // how deep to go when doing sub-division
+static constexpr uint8_t MAX_SPRITE_FRAGMENTS = 40; // per frame, shared by every RenderSprite caller
 static constexpr psyqo::Color c_loadingBackgroundColour = {.r = 0, .g = 0, .b = 0};
 
 using OT = psyqo::OrderingTable<ORDERING_TABLE_SIZE>;
@@ -95,7 +95,7 @@ class Renderer final {
 	void RenderGameObjects(uint32_t deltaTime, const psyqo::Matrix33& cameraRotationMatrix);
 
 	void ProcessMeshQuad(const RendererQuad& quad, int8_t depth, const FaceData& faceData);
-	void ProcessQuadNode(FaceNode& node, uint8_t subDivsionDepth, const FaceData& faceData);
+	void ProcessQuadNode(QuadCorner* const* corners, uint8_t subDivisionDepth, const FaceData& faceData);
 
 	void ProcessMeshTri(const RendererTri& tri, int8_t depth, const FaceData& faceData);
 	void ProcessTriNode(FaceNode& node, uint8_t subDivsionDepth, const FaceData& faceData);
