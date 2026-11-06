@@ -95,7 +95,7 @@ static constexpr psyqo::Color boneColours[MAX_BONES] = {
 };
 #endif
 
-enum ScreenSpaceClip : uint8_t { CLIP_LEFT = 0, CLIP_RIGHT = 2, CLIP_TOP = 4, CLIP_BOTTOM = 8 };
+enum ScreenSpaceClip : uint8_t { CLIP_LEFT = 1, CLIP_RIGHT = 2, CLIP_TOP = 4, CLIP_BOTTOM = 8 };
 
 inline constexpr int TestClip(int16_t x, int16_t y) {
 	int result = 0;
