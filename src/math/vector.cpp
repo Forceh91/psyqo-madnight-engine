@@ -18,10 +18,6 @@ bool IsVector3Zero(const psyqo::Vec3& v) {
 	return v.x.abs().value <= eps && v.y.abs().value <= eps && v.z.abs().value <= eps;
 }
 
-psyqo::Vec2 Lerp(const psyqo::Vec2& a, const psyqo::Vec2& b, const psyqo::FixedPoint<>& t) {
-	return a * (1.0_fp - t) + b * t;
-}
+psyqo::Vec2 Lerp(const psyqo::Vec2& a, const psyqo::Vec2& b, const psyqo::FixedPoint<>& t) { return a + (b - a) * t; }
 
-psyqo::Vec3 Lerp(const psyqo::Vec3& a, const psyqo::Vec3& b, const psyqo::FixedPoint<>& t) {
-	return a * (1.0_fp - t) + b * t;
-}
+psyqo::Vec3 Lerp(const psyqo::Vec3& a, const psyqo::Vec3& b, const psyqo::FixedPoint<>& t) { return a + (b - a) * t; }
