@@ -697,20 +697,24 @@ void Renderer::RenderParticles(uint32_t deltaTime, const psyqo::Matrix33& camera
 			tpage = g_madnightEngine.m_textureManager.GetTPageAttr(texture);
 		}
 
-		for (auto const& particle : particles) {
-			auto finalParticlePos = TransformObjectToViewSpace(particle.pos(), cameraRotationMatrix, finalCameraMatrix);
+		// one time setup for each particle that wont change
+		psyqo::GTE::writeSafe<psyqo::GTE::PseudoRegister::Rotation>(cameraRotationMatrix);
+		psyqo::GTE::writeSafe<psyqo::GTE::PseudoRegister::Translation>(psyqo::Vec3{0, 0, 0});
 
+		// fog/far colour also wont change per particle
+		if (m_lighting->IsAdvancedFogEnabled()) {
+			GTESetFarColour(m_lighting->GetFogColour());
+		}
+
+		for (auto const& particle : particles) {
 			if (emitter->AreParticles2D()) {
-				if (finalParticlePos.z <= 0) {
+				auto particlePos = particle.pos() - m_activeCamera->pos();
+				if (particlePos.z <= 0) {
 					continue;
 				}
 
-				// write the object position and camera rotation matrix
-				psyqo::GTE::writeSafe<psyqo::GTE::PseudoRegister::Rotation>(identityMatrix);
-				psyqo::GTE::writeSafe<psyqo::GTE::PseudoRegister::Translation>(finalParticlePos);
-
 				// we dont need to offset it
-				psyqo::GTE::writeSafe<psyqo::GTE::PseudoRegister::V0>(psyqo::Vec3{0, 0, 0});
+				psyqo::GTE::writeSafe<psyqo::GTE::PseudoRegister::V0>(particlePos);
 
 				// single point rotation/translation
 				psyqo::GTE::Kernels::rtps();
@@ -727,8 +731,8 @@ void Renderer::RenderParticles(uint32_t deltaTime, const psyqo::Matrix33& camera
 				psyqo::GTE::read<psyqo::GTE::Register::SXY2>(&vertex.packed);
 
 				// calculate size and make sure its at least one pixel
-				auto w = (particle.size().x.value * PROJECTION_DISTANCE) / finalParticlePos.z.value;
-				auto h = (particle.size().y.value * PROJECTION_DISTANCE) / finalParticlePos.z.value;
+				auto w = (particle.size().x.value * PROJECTION_DISTANCE) / particlePos.z.value;
+				auto h = (particle.size().y.value * PROJECTION_DISTANCE) / particlePos.z.value;
 				auto scaledSize = psyqo::Vertex{eastl::clamp<int16_t>(w, 1, w), eastl::clamp<int16_t>(h, 1, h)};
 
 				// make sure pos is sane, and the scaled size isnt gonna full the screen
@@ -744,8 +748,7 @@ void Renderer::RenderParticles(uint32_t deltaTime, const psyqo::Matrix33& camera
 				auto colour = particle.colour();
 				ApplyAmbientToColour(&colour);
 
-				if (m_lighting->IsAdvancedFogEnabled()) {
-					GTESetFarColour(m_lighting->GetFogColour());
+				if (!m_lighting->IsAdvancedFogEnabled()) {
 					colour = GTEColourLerp(colour, GetFogFactor(sz).value);
 				} else {
 					ApplyFogToColour(&colour, GetFogFactor(sz));
@@ -785,6 +788,9 @@ void Renderer::RenderParticles(uint32_t deltaTime, const psyqo::Matrix33& camera
 					ot.insert(rectangle, zIndex);
 				}
 			} else {
+				auto finalParticlePos =
+					TransformObjectToViewSpace(particle.pos(), cameraRotationMatrix, finalCameraMatrix);
+
 				if (texture) {
 					offset = g_madnightEngine.m_textureManager.GetTPageUVForTim(texture);
 					offset.pos.y += (texture->height - 1);
