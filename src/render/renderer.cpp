@@ -39,7 +39,7 @@ static constexpr psyqo::Matrix33 identityMatrix = {
 static constexpr uint8_t PROJECTION_DISTANCE = 120;
 
 static constexpr uint32_t SCRATCH_CORNER_COUNT = (4 + 2 * (SUBDIVISION_MAX_DEPTH + 1));
-__attribute__((section(".scratchpad"))) QuadCorner stQuadCorners[SCRATCH_CORNER_COUNT];
+__attribute__((section(".scratchpad"))) FaceCorner stFaceCorners[SCRATCH_CORNER_COUNT];
 
 #if ENABLE_BONE_DEBUG
 static constexpr psyqo::Color boneColours[MAX_BONES] = {
@@ -158,11 +158,11 @@ inline constexpr int QuadClip(const psyqo::Vertex& v0, const psyqo::Vertex& v1, 
 	return 1;
 }
 
-inline constexpr int TriClip(const psyqo::Vertex* verts) {
-	int c[3] = {
-		TestClip(verts[0].x, verts[0].y),
-		TestClip(verts[1].x, verts[1].y),
-		TestClip(verts[2].x, verts[2].y),
+inline constexpr int TriClip(const psyqo::Vertex& v0, const psyqo::Vertex& v1, const psyqo::Vertex& v2) {
+	int c[4] = {
+		TestClip(v0.x, v0.y),
+		TestClip(v1.x, v1.y),
+		TestClip(v2.x, v2.y),
 	};
 
 	if ((c[0] & c[1]) == 0) {
@@ -1006,7 +1006,7 @@ void Renderer::ProcessMeshQuad(const RendererQuad& quad, int8_t depth, const Fac
 	for (int i = 0; i < 3; i++) {
 		psyqo::GTE::writeSafe<psyqo::GTE::PseudoRegister::V0>(verts[i]);
 		psyqo::GTE::Kernels::rtps();
-		stQuadCorners[i].ir = psyqo::GTE::readRaw<psyqo::GTE::Register::IR0>();
+		stFaceCorners[i].ir = psyqo::GTE::readRaw<psyqo::GTE::Register::IR0>();
 	}
 
 	// figure out nclip and skip rendering if backfaced
@@ -1016,68 +1016,68 @@ void Renderer::ProcessMeshQuad(const RendererQuad& quad, int8_t depth, const Fac
 	}
 
 	// read projected verts
-	psyqo::GTE::read<psyqo::GTE::Register::SXY0>(&stQuadCorners[0].projected.packed);
-	psyqo::GTE::read<psyqo::GTE::Register::SXY1>(&stQuadCorners[1].projected.packed);
-	psyqo::GTE::read<psyqo::GTE::Register::SXY2>(&stQuadCorners[2].projected.packed);
+	psyqo::GTE::read<psyqo::GTE::Register::SXY0>(&stFaceCorners[0].projected.packed);
+	psyqo::GTE::read<psyqo::GTE::Register::SXY1>(&stFaceCorners[1].projected.packed);
+	psyqo::GTE::read<psyqo::GTE::Register::SXY2>(&stFaceCorners[2].projected.packed);
 
 	// final vert
 	psyqo::GTE::writeSafe<psyqo::GTE::PseudoRegister::V0>(verts[3]);
 	psyqo::GTE::Kernels::rtps();
-	stQuadCorners[3].ir = psyqo::GTE::readRaw<psyqo::GTE::Register::IR0>();
-	psyqo::GTE::read<psyqo::GTE::Register::SXY2>(&stQuadCorners[3].projected.packed);
+	stFaceCorners[3].ir = psyqo::GTE::readRaw<psyqo::GTE::Register::IR0>();
+	psyqo::GTE::read<psyqo::GTE::Register::SXY2>(&stFaceCorners[3].projected.packed);
 
 	// read all the SZ data
-	psyqo::GTE::read<psyqo::GTE::Register::SZ0>(&stQuadCorners[0].depth);
-	psyqo::GTE::read<psyqo::GTE::Register::SZ1>(&stQuadCorners[1].depth);
-	psyqo::GTE::read<psyqo::GTE::Register::SZ2>(&stQuadCorners[2].depth);
-	psyqo::GTE::read<psyqo::GTE::Register::SZ3>(&stQuadCorners[3].depth);
+	psyqo::GTE::read<psyqo::GTE::Register::SZ0>(&stFaceCorners[0].depth);
+	psyqo::GTE::read<psyqo::GTE::Register::SZ1>(&stFaceCorners[1].depth);
+	psyqo::GTE::read<psyqo::GTE::Register::SZ2>(&stFaceCorners[2].depth);
+	psyqo::GTE::read<psyqo::GTE::Register::SZ3>(&stFaceCorners[3].depth);
 
 	// we can skip a node if its going to be fully obscured by fog anyway
-	if (faceData.isAdvancedFog && stQuadCorners[0].ir >= 4096 && stQuadCorners[1].ir >= 4096 &&
-		stQuadCorners[2].ir >= 4096 && stQuadCorners[3].ir >= 4096) {
+	if (faceData.isAdvancedFog && stFaceCorners[0].ir >= 4096 && stFaceCorners[1].ir >= 4096 &&
+		stFaceCorners[2].ir >= 4096 && stFaceCorners[3].ir >= 4096) {
 		return;
 	}
 
 	auto shouldSubDivide =
 		!quad.boneAdjustedVerts &&
-		(stQuadCorners[0].depth >= SUBDIVISION_MIN_DISTANCE || stQuadCorners[1].depth >= SUBDIVISION_MIN_DISTANCE ||
-		 stQuadCorners[2].depth >= SUBDIVISION_MIN_DISTANCE || stQuadCorners[3].depth >= SUBDIVISION_MIN_DISTANCE) &&
-		(stQuadCorners[0].depth <= SUBDIVISION_MAX_DISTANCE || stQuadCorners[1].depth <= SUBDIVISION_MAX_DISTANCE ||
-		 stQuadCorners[2].depth <= SUBDIVISION_MAX_DISTANCE || stQuadCorners[3].depth <= SUBDIVISION_MAX_DISTANCE);
+		(stFaceCorners[0].depth >= SUBDIVISION_MIN_DISTANCE || stFaceCorners[1].depth >= SUBDIVISION_MIN_DISTANCE ||
+		 stFaceCorners[2].depth >= SUBDIVISION_MIN_DISTANCE || stFaceCorners[3].depth >= SUBDIVISION_MIN_DISTANCE) &&
+		(stFaceCorners[0].depth <= SUBDIVISION_MAX_DISTANCE || stFaceCorners[1].depth <= SUBDIVISION_MAX_DISTANCE ||
+		 stFaceCorners[2].depth <= SUBDIVISION_MAX_DISTANCE || stFaceCorners[3].depth <= SUBDIVISION_MAX_DISTANCE);
 
 	if (shouldSubDivide) {
 		// copy any remaining data we couldn't read straight from the GTE
 		for (int i = 0; i < 4; i++) {
-			stQuadCorners[i].vert = quad.verts[i];
-			stQuadCorners[i].colour = quad.colours[i];
+			stFaceCorners[i].vert = quad.verts[i];
+			stFaceCorners[i].colour = quad.colours[i];
 		}
 
 		// apply fog colours (skipped if advanced fog is enabled)
 		if (!faceData.isAdvancedFog) {
 			for (int i = 0; i < 4; i++) {
-				ApplyAmbientToColour(&stQuadCorners[i].colour);
-				stQuadCorners[i].colour = ApplyFogToColourGTE(stQuadCorners[i].colour, stQuadCorners[i].ir);
+				ApplyAmbientToColour(&stFaceCorners[i].colour);
+				stFaceCorners[i].colour = ApplyFogToColourGTE(stFaceCorners[i].colour, stFaceCorners[i].ir);
 			}
 		} else {
 			if (!faceData.useQuickAdvancedFogPass) {
 				GTESetFarColour({0, 0, 0});
 				for (int i = 0; i < 4; i++) {
-					ApplyAmbientToColour(&stQuadCorners[i].colour);
-					stQuadCorners[i].colour = GTEColourLerp(stQuadCorners[i].colour, stQuadCorners[i].ir);
+					ApplyAmbientToColour(&stFaceCorners[i].colour);
+					stFaceCorners[i].colour = GTEColourLerp(stFaceCorners[i].colour, stFaceCorners[i].ir);
 				}
 
 				GTESetFarColour(m_lighting->GetFogColour());
 				for (int i = 0; i < 4; i++) {
-					stQuadCorners[i].fogColour = GTEColourLerp({0, 0, 0}, stQuadCorners[i].ir);
+					stFaceCorners[i].fogColour = GTEColourLerp({0, 0, 0}, stFaceCorners[i].ir);
 				}
 			} else {
 				for (int i = 0; i < 4; i++) {
-					auto density = 4096 - stQuadCorners[i].ir;
-					ApplyAmbientToColour(&stQuadCorners[i].colour);
-					stQuadCorners[i].colour = {uint8_t((stQuadCorners[i].colour.r * density) >> 12),
-											   uint8_t((stQuadCorners[i].colour.g * density) >> 12),
-											   uint8_t((stQuadCorners[i].colour.b * density) >> 12)};
-					m_qafIR0 += stQuadCorners[i].ir;
+					auto density = 4096 - stFaceCorners[i].ir;
+					ApplyAmbientToColour(&stFaceCorners[i].colour);
+					stFaceCorners[i].colour = {uint8_t((stFaceCorners[i].colour.r * density) >> 12),
+											   uint8_t((stFaceCorners[i].colour.g * density) >> 12),
+											   uint8_t((stFaceCorners[i].colour.b * density) >> 12)};
+					m_qafIR0 += stFaceCorners[i].ir;
 				}
 
 				// average the quick fog t scale
@@ -1085,12 +1085,12 @@ void Renderer::ProcessMeshQuad(const RendererQuad& quad, int8_t depth, const Fac
 			}
 		}
 
-		stQuadCorners[0].uv = {static_cast<uint8_t>(quad.uvA.u + faceData.uvOffset.pos.x), quad.uvA.v};
-		stQuadCorners[1].uv = {static_cast<uint8_t>(quad.uvB.u + faceData.uvOffset.pos.x), quad.uvB.v};
-		stQuadCorners[2].uv = {static_cast<uint8_t>(quad.uvC.u + faceData.uvOffset.pos.x), quad.uvC.v};
-		stQuadCorners[3].uv = {static_cast<uint8_t>(quad.uvD.u + faceData.uvOffset.pos.x), quad.uvD.v};
+		stFaceCorners[0].uv = {static_cast<uint8_t>(quad.uvA.u + faceData.uvOffset.pos.x), quad.uvA.v};
+		stFaceCorners[1].uv = {static_cast<uint8_t>(quad.uvB.u + faceData.uvOffset.pos.x), quad.uvB.v};
+		stFaceCorners[2].uv = {static_cast<uint8_t>(quad.uvC.u + faceData.uvOffset.pos.x), quad.uvC.v};
+		stFaceCorners[3].uv = {static_cast<uint8_t>(quad.uvD.u + faceData.uvOffset.pos.x), quad.uvD.v};
 
-		QuadCorner* corners[4] = {&stQuadCorners[0], &stQuadCorners[1], &stQuadCorners[2], &stQuadCorners[3]};
+		FaceCorner* corners[4] = {&stFaceCorners[0], &stFaceCorners[1], &stFaceCorners[2], &stFaceCorners[3]};
 		ProcessQuadNode(corners, depth, faceData);
 	} else {
 		// it won't be sub divided so just emit it out
@@ -1104,8 +1104,8 @@ void Renderer::ProcessMeshQuad(const RendererQuad& quad, int8_t depth, const Fac
 		}
 
 		// make sure we're not past screen bounds
-		if (QuadClip(stQuadCorners[0].projected, stQuadCorners[1].projected, stQuadCorners[2].projected,
-					 stQuadCorners[3].projected)) {
+		if (QuadClip(stFaceCorners[0].projected, stFaceCorners[1].projected, stFaceCorners[2].projected,
+					 stFaceCorners[3].projected)) {
 			return;
 		}
 
@@ -1117,28 +1117,28 @@ void Renderer::ProcessMeshQuad(const RendererQuad& quad, int8_t depth, const Fac
 		if (!faceData.isAdvancedFog) {
 			for (int i = 0; i < 4; i++) {
 				ApplyAmbientToColour(&vertexColours[i]);
-				vertexColours[i] = ApplyFogToColourGTE(vertexColours[i], stQuadCorners[i].ir);
+				vertexColours[i] = ApplyFogToColourGTE(vertexColours[i], stFaceCorners[i].ir);
 			}
 		} else {
 			if (!faceData.useQuickAdvancedFogPass) {
 				GTESetFarColour({0, 0, 0});
 				for (int i = 0; i < 4; i++) {
 					ApplyAmbientToColour(&vertexColours[i]);
-					vertexColours[i] = GTEColourLerp(vertexColours[i], stQuadCorners[i].ir);
+					vertexColours[i] = GTEColourLerp(vertexColours[i], stFaceCorners[i].ir);
 				}
 
 				GTESetFarColour(m_lighting->GetFogColour());
 				for (int i = 0; i < 4; i++) {
-					fogColours[i] = GTEColourLerp({0, 0, 0}, stQuadCorners[i].ir);
+					fogColours[i] = GTEColourLerp({0, 0, 0}, stFaceCorners[i].ir);
 				}
 			} else {
 				for (int i = 0; i < 4; i++) {
-					auto density = 4096 - stQuadCorners[i].ir;
+					auto density = 4096 - stFaceCorners[i].ir;
 					ApplyAmbientToColour(&vertexColours[i]);
 					vertexColours[i] = {uint8_t((vertexColours[i].r * density) >> 12),
 										uint8_t((vertexColours[i].g * density) >> 12),
 										uint8_t((vertexColours[i].b * density) >> 12)};
-					m_qafIR0 += stQuadCorners[i].ir;
+					m_qafIR0 += stFaceCorners[i].ir;
 				}
 
 				m_qafIROCount += 4;
@@ -1146,17 +1146,17 @@ void Renderer::ProcessMeshQuad(const RendererQuad& quad, int8_t depth, const Fac
 		}
 
 		bool isAdvancedFog = faceData.isAdvancedFog &&
-							 (stQuadCorners[0].ir > 0 || stQuadCorners[1].ir > 0 || stQuadCorners[2].ir > 0 ||
-							  stQuadCorners[3].ir > 0) &&
+							 (stFaceCorners[0].ir > 0 || stFaceCorners[1].ir > 0 || stFaceCorners[2].ir > 0 ||
+							  stFaceCorners[3].ir > 0) &&
 							 !faceData.useQuickAdvancedFogPass;
 
 		// update overlay min/max points
 		if (faceData.isAdvancedFog && faceData.useQuickAdvancedFogPass) {
 			for (int i = 0; i < 4; i++) {
-				m_qafOverlayMinX = eastl::min(m_qafOverlayMinX, stQuadCorners[i].projected.x);
-				m_qafOverlayMinY = eastl::min(m_qafOverlayMinY, stQuadCorners[i].projected.y);
-				m_qafOverlayMaxX = eastl::max(m_qafOverlayMaxX, stQuadCorners[i].projected.x);
-				m_qafOverlayMaxY = eastl::max(m_qafOverlayMaxY, stQuadCorners[i].projected.y);
+				m_qafOverlayMinX = eastl::min(m_qafOverlayMinX, stFaceCorners[i].projected.x);
+				m_qafOverlayMinY = eastl::min(m_qafOverlayMinY, stFaceCorners[i].projected.y);
+				m_qafOverlayMaxX = eastl::max(m_qafOverlayMaxX, stFaceCorners[i].projected.x);
+				m_qafOverlayMaxY = eastl::max(m_qafOverlayMaxY, stFaceCorners[i].projected.y);
 			}
 
 			m_qafSmallestZ = eastl::min(m_qafSmallestZ, zIndex);
@@ -1165,10 +1165,10 @@ void Renderer::ProcessMeshQuad(const RendererQuad& quad, int8_t depth, const Fac
 		if (faceData.texture != nullptr) {
 			if (!isAdvancedFog || !(faceData.texture->flags & (1 << 0))) {
 				auto& quadPrim = faceData.bumpAllocator.allocateFragment<psyqo::Prim::GouraudTexturedQuad>();
-				quadPrim.primitive.pointA = stQuadCorners[0].projected;
-				quadPrim.primitive.pointB = stQuadCorners[1].projected;
-				quadPrim.primitive.pointC = stQuadCorners[2].projected;
-				quadPrim.primitive.pointD = stQuadCorners[3].projected;
+				quadPrim.primitive.pointA = stFaceCorners[0].projected;
+				quadPrim.primitive.pointB = stFaceCorners[1].projected;
+				quadPrim.primitive.pointC = stFaceCorners[2].projected;
+				quadPrim.primitive.pointD = stFaceCorners[3].projected;
 
 				quadPrim.primitive.setColorA(vertexColours[0]);
 				quadPrim.primitive.setColorB(vertexColours[1]);
@@ -1201,10 +1201,10 @@ void Renderer::ProcessMeshQuad(const RendererQuad& quad, int8_t depth, const Fac
 				// bucket.
 				if (isAdvancedFog) {
 					auto& quadFogPrim = faceData.bumpAllocator.allocateFragment<psyqo::Prim::GouraudQuad>();
-					quadFogPrim.primitive.pointA = stQuadCorners[0].projected;
-					quadFogPrim.primitive.pointB = stQuadCorners[1].projected;
-					quadFogPrim.primitive.pointC = stQuadCorners[2].projected;
-					quadFogPrim.primitive.pointD = stQuadCorners[3].projected;
+					quadFogPrim.primitive.pointA = stFaceCorners[0].projected;
+					quadFogPrim.primitive.pointB = stFaceCorners[1].projected;
+					quadFogPrim.primitive.pointC = stFaceCorners[2].projected;
+					quadFogPrim.primitive.pointD = stFaceCorners[3].projected;
 
 					quadFogPrim.primitive.setColorA(fogColours[0]);
 					quadFogPrim.primitive.setColorB(fogColours[1]);
@@ -1225,10 +1225,10 @@ void Renderer::ProcessMeshQuad(const RendererQuad& quad, int8_t depth, const Fac
 				faceData.orderingTable.insert(reset, zIndex);
 
 				auto& fog = faceData.bumpAllocator.allocateFragment<psyqo::Prim::GouraudQuad>();
-				fog.primitive.pointA = stQuadCorners[0].projected;
-				fog.primitive.pointB = stQuadCorners[1].projected;
-				fog.primitive.pointC = stQuadCorners[2].projected;
-				fog.primitive.pointD = stQuadCorners[3].projected;
+				fog.primitive.pointA = stFaceCorners[0].projected;
+				fog.primitive.pointB = stFaceCorners[1].projected;
+				fog.primitive.pointC = stFaceCorners[2].projected;
+				fog.primitive.pointD = stFaceCorners[3].projected;
 
 				fog.primitive.setColorA(fogColours[0]);
 				fog.primitive.setColorB(fogColours[1]);
@@ -1242,10 +1242,10 @@ void Renderer::ProcessMeshQuad(const RendererQuad& quad, int8_t depth, const Fac
 				faceData.orderingTable.insert(test, zIndex);
 
 				auto& textured = faceData.bumpAllocator.allocateFragment<psyqo::Prim::GouraudTexturedQuad>();
-				textured.primitive.pointA = stQuadCorners[0].projected;
-				textured.primitive.pointB = stQuadCorners[1].projected;
-				textured.primitive.pointC = stQuadCorners[2].projected;
-				textured.primitive.pointD = stQuadCorners[3].projected;
+				textured.primitive.pointA = stFaceCorners[0].projected;
+				textured.primitive.pointB = stFaceCorners[1].projected;
+				textured.primitive.pointC = stFaceCorners[2].projected;
+				textured.primitive.pointD = stFaceCorners[3].projected;
 
 				textured.primitive.setColorA(vertexColours[0]);
 				textured.primitive.setColorB(vertexColours[1]);
@@ -1273,10 +1273,10 @@ void Renderer::ProcessMeshQuad(const RendererQuad& quad, int8_t depth, const Fac
 				faceData.orderingTable.insert(fromSource, zIndex);
 
 				auto& marker = faceData.bumpAllocator.allocateFragment<psyqo::Prim::GouraudQuad>();
-				marker.primitive.pointA = stQuadCorners[0].projected;
-				marker.primitive.pointB = stQuadCorners[1].projected;
-				marker.primitive.pointC = stQuadCorners[2].projected;
-				marker.primitive.pointD = stQuadCorners[3].projected;
+				marker.primitive.pointA = stFaceCorners[0].projected;
+				marker.primitive.pointB = stFaceCorners[1].projected;
+				marker.primitive.pointC = stFaceCorners[2].projected;
+				marker.primitive.pointD = stFaceCorners[3].projected;
 
 				marker.primitive.setColorA({
 					0,
@@ -1311,10 +1311,10 @@ void Renderer::ProcessMeshQuad(const RendererQuad& quad, int8_t depth, const Fac
 			}
 		} else { // untextured
 			auto& quadPrim = faceData.bumpAllocator.allocateFragment<psyqo::Prim::GouraudQuad>();
-			quadPrim.primitive.pointA = stQuadCorners[0].projected;
-			quadPrim.primitive.pointB = stQuadCorners[1].projected;
-			quadPrim.primitive.pointC = stQuadCorners[2].projected;
-			quadPrim.primitive.pointD = stQuadCorners[3].projected;
+			quadPrim.primitive.pointA = stFaceCorners[0].projected;
+			quadPrim.primitive.pointB = stFaceCorners[1].projected;
+			quadPrim.primitive.pointC = stFaceCorners[2].projected;
+			quadPrim.primitive.pointD = stFaceCorners[3].projected;
 
 			if (faceData.isAdvancedFog && !faceData.useQuickAdvancedFogPass) {
 				psyqo::Color col[4];
@@ -1341,17 +1341,7 @@ void Renderer::ProcessMeshQuad(const RendererQuad& quad, int8_t depth, const Fac
 	}
 }
 
-static inline void swapSlots12(FaceNode& n) {
-	eastl::swap(n.verts[1], n.verts[2]);
-	eastl::swap(n.projected[1], n.projected[2]);
-	eastl::swap(n.projectedDepths[1], n.projectedDepths[2]);
-	eastl::swap(n.irs[1], n.irs[2]);
-	eastl::swap(n.colours[1], n.colours[2]);
-	eastl::swap(n.fogColours[1], n.fogColours[2]);
-	eastl::swap(n.uv[1], n.uv[2]);
-}
-
-void Renderer::ProcessQuadNode(QuadCorner* const* corners, uint8_t subDivisionDepth, const FaceData& faceData) {
+void Renderer::ProcessQuadNode(FaceCorner* const* corners, uint8_t subDivisionDepth, const FaceData& faceData) {
 	// depth == 0 is handled by `ProcessMeshQuad`
 	if (subDivisionDepth > 0) {
 		// write the projected values back into sz*
@@ -1418,15 +1408,15 @@ void Renderer::ProcessQuadNode(QuadCorner* const* corners, uint8_t subDivisionDe
 
 		auto midIR = [](const uint32_t& a, const uint32_t& b) -> auto { return (a + b) >> 1; };
 
-		QuadCorner* stackCorners[4] = {corners[0], corners[1], corners[2], corners[3]};
+		FaceCorner* stackCorners[4] = {corners[0], corners[1], corners[2], corners[3]};
 		if (width < height) {
 			eastl::swap(stackCorners[1], stackCorners[2]);
 		}
 
 		auto scratchPadDepth = 2 * subDivisionDepth;
 
-		auto& midPoints01 = stQuadCorners[4 + scratchPadDepth];
-		auto& midPoints23 = stQuadCorners[5 + scratchPadDepth];
+		auto& midPoints01 = stFaceCorners[4 + scratchPadDepth];
+		auto& midPoints23 = stFaceCorners[5 + scratchPadDepth];
 
 		// split left right, mid points of TL (v0), TR (v1)
 		midPoints01.vert = midVert(stackCorners[0]->vert, stackCorners[1]->vert),
@@ -1449,14 +1439,14 @@ void Renderer::ProcessQuadNode(QuadCorner* const* corners, uint8_t subDivisionDe
 		midPoints23.uv.u = (stackCorners[2]->uv.u + stackCorners[3]->uv.u) >> 1;
 		midPoints23.uv.v = (stackCorners[2]->uv.v + stackCorners[3]->uv.v) >> 1;
 
-		midPoints01.colour = midColour(stackCorners[0]->colour, stackCorners[1]->colour),
+		midPoints01.colour = midColour(stackCorners[0]->colour, stackCorners[1]->colour);
 		midPoints23.colour = midColour(stackCorners[2]->colour, stackCorners[3]->colour);
 
-		QuadCorner* quadA[4] = {stackCorners[0], &midPoints01, stackCorners[2], &midPoints23};
-		QuadCorner* quadB[4] = {&midPoints01, stackCorners[1], &midPoints23, stackCorners[3]};
+		FaceCorner* quadA[4] = {stackCorners[0], &midPoints01, stackCorners[2], &midPoints23};
+		FaceCorner* quadB[4] = {&midPoints01, stackCorners[1], &midPoints23, stackCorners[3]};
 
 		if (faceData.isAdvancedFog && !faceData.useQuickAdvancedFogPass) {
-			midPoints01.fogColour = midColour(stackCorners[0]->fogColour, stackCorners[1]->fogColour),
+			midPoints01.fogColour = midColour(stackCorners[0]->fogColour, stackCorners[1]->fogColour);
 			midPoints23.fogColour = midColour(stackCorners[2]->fogColour, stackCorners[3]->fogColour);
 		}
 
@@ -1664,16 +1654,14 @@ void Renderer::ProcessQuadNode(QuadCorner* const* corners, uint8_t subDivisionDe
 }
 
 void Renderer::ProcessMeshTri(const RendererTri& tri, int8_t depth, const FaceData& faceData) {
-	// projections for each vert
-	FaceNode node;
-
 	auto* verts = tri.boneAdjustedVerts ? tri.boneAdjustedVerts : tri.verts;
+	static constexpr uint8_t kCornerCount = 3;
 
 	// vertex 1->3
-	for (int i = 0; i < 3; i++) {
+	for (int i = 0; i < kCornerCount; i++) {
 		psyqo::GTE::writeSafe<psyqo::GTE::PseudoRegister::V0>(verts[i]);
 		psyqo::GTE::Kernels::rtps();
-		node.irs[i] = psyqo::GTE::readRaw<psyqo::GTE::Register::IR0>();
+		stFaceCorners[i].ir = psyqo::GTE::readRaw<psyqo::GTE::Register::IR0>();
 	}
 
 	// figure out nclip and skip rendering if backfaced
@@ -1683,39 +1671,74 @@ void Renderer::ProcessMeshTri(const RendererTri& tri, int8_t depth, const FaceDa
 	}
 
 	// read projected verts
-	psyqo::GTE::read<psyqo::GTE::Register::SXY0>(&node.projected[0].packed);
-	psyqo::GTE::read<psyqo::GTE::Register::SXY1>(&node.projected[1].packed);
-	psyqo::GTE::read<psyqo::GTE::Register::SXY2>(&node.projected[2].packed);
+	psyqo::GTE::read<psyqo::GTE::Register::SXY0>(&stFaceCorners[0].projected.packed);
+	psyqo::GTE::read<psyqo::GTE::Register::SXY1>(&stFaceCorners[1].projected.packed);
+	psyqo::GTE::read<psyqo::GTE::Register::SXY2>(&stFaceCorners[2].projected.packed);
 
 	// read all the SZ data
-	psyqo::GTE::read<psyqo::GTE::Register::SZ1>(&node.projectedDepths[0]);
-	psyqo::GTE::read<psyqo::GTE::Register::SZ2>(&node.projectedDepths[1]);
-	psyqo::GTE::read<psyqo::GTE::Register::SZ3>(&node.projectedDepths[2]);
+	psyqo::GTE::read<psyqo::GTE::Register::SZ1>(&stFaceCorners[1].depth);
+	psyqo::GTE::read<psyqo::GTE::Register::SZ2>(&stFaceCorners[2].depth);
+	psyqo::GTE::read<psyqo::GTE::Register::SZ3>(&stFaceCorners[3].depth);
 
 	// we can skip a node if its going to be fully obscured by fog anyway
-	if (faceData.isAdvancedFog && node.irs[0] >= 4096 && node.irs[1] >= 4096 && node.irs[2] >= 4096) {
+	if (faceData.isAdvancedFog && stFaceCorners[0].ir >= 4096 && stFaceCorners[1].ir >= 4096 &&
+		stFaceCorners[2].ir >= 4096) {
 		return;
 	}
 
 	auto shouldSubDivide =
 		!tri.boneAdjustedVerts &&
-		(node.projectedDepths[0] >= SUBDIVISION_MIN_DISTANCE || node.projectedDepths[1] >= SUBDIVISION_MIN_DISTANCE ||
-		 node.projectedDepths[2] >= SUBDIVISION_MIN_DISTANCE) &&
-		(node.projectedDepths[0] <= SUBDIVISION_MAX_DISTANCE || node.projectedDepths[1] <= SUBDIVISION_MAX_DISTANCE ||
-		 node.projectedDepths[2] <= SUBDIVISION_MAX_DISTANCE);
+		(stFaceCorners[0].depth >= SUBDIVISION_MIN_DISTANCE || stFaceCorners[1].depth >= SUBDIVISION_MIN_DISTANCE ||
+		 stFaceCorners[2].depth >= SUBDIVISION_MIN_DISTANCE) &&
+		(stFaceCorners[0].depth <= SUBDIVISION_MAX_DISTANCE || stFaceCorners[1].depth <= SUBDIVISION_MAX_DISTANCE ||
+		 stFaceCorners[2].depth <= SUBDIVISION_MAX_DISTANCE);
 
 	if (shouldSubDivide) {
 		// copy any remaining data we couldn't read straight from the GTE
-		for (int i = 0; i < 3; i++) {
-			node.verts[i] = tri.verts[i];
-			node.colours[i] = tri.colours[i];
+		for (int i = 0; i < kCornerCount; i++) {
+			stFaceCorners[i].vert = tri.verts[i];
+			stFaceCorners[i].colour = tri.colours[i];
 		}
 
-		node.uv[0] = tri.uvA;
-		node.uv[1] = tri.uvB;
-		node.uv[2] = {tri.uvC.u, tri.uvC.v};
+		// apply fog colours (skipped if advanced fog is enabled)
+		if (!faceData.isAdvancedFog) {
+			for (int i = 0; i < kCornerCount; i++) {
+				ApplyAmbientToColour(&stFaceCorners[i].colour);
+				stFaceCorners[i].colour = ApplyFogToColourGTE(stFaceCorners[i].colour, stFaceCorners[i].ir);
+			}
+		} else {
+			if (!faceData.useQuickAdvancedFogPass) {
+				GTESetFarColour({0, 0, 0});
+				for (int i = 0; i < kCornerCount; i++) {
+					ApplyAmbientToColour(&stFaceCorners[i].colour);
+					stFaceCorners[i].colour = GTEColourLerp(stFaceCorners[i].colour, stFaceCorners[i].ir);
+				}
 
-		ProcessTriNode(node, depth, faceData);
+				GTESetFarColour(m_lighting->GetFogColour());
+				for (int i = 0; i < kCornerCount; i++) {
+					stFaceCorners[i].fogColour = GTEColourLerp({0, 0, 0}, stFaceCorners[i].ir);
+				}
+			} else {
+				for (int i = 0; i < kCornerCount; i++) {
+					auto density = 4096 - stFaceCorners[i].ir;
+					ApplyAmbientToColour(&stFaceCorners[i].colour);
+					stFaceCorners[i].colour = {uint8_t((stFaceCorners[i].colour.r * density) >> 12),
+											   uint8_t((stFaceCorners[i].colour.g * density) >> 12),
+											   uint8_t((stFaceCorners[i].colour.b * density) >> 12)};
+					m_qafIR0 += stFaceCorners[i].ir;
+				}
+
+				// average the quick fog t scale
+				m_qafIROCount += kCornerCount;
+			}
+		}
+
+		stFaceCorners[0].uv = {static_cast<uint8_t>(tri.uvA.u + faceData.uvOffset.pos.x), tri.uvA.v};
+		stFaceCorners[1].uv = {static_cast<uint8_t>(tri.uvB.u + faceData.uvOffset.pos.x), tri.uvB.v};
+		stFaceCorners[2].uv = {static_cast<uint8_t>(tri.uvC.u + faceData.uvOffset.pos.x), tri.uvC.v};
+
+		FaceCorner* corners[kCornerCount] = {&stFaceCorners[0], &stFaceCorners[1], &stFaceCorners[2]};
+		ProcessTriNode(corners, depth, faceData);
 	} else {
 		// it won't be sub divided so just emit it out
 		// figure out avg z index
@@ -1727,56 +1750,57 @@ void Renderer::ProcessMeshTri(const RendererTri& tri, int8_t depth, const FaceDa
 			return;
 		}
 
-		// clip screen space
-		if (TriClip(node.projected.data())) {
+		// make sure we're not past screen bounds
+		if (TriClip(stFaceCorners[0].projected, stFaceCorners[1].projected, stFaceCorners[2].projected)) {
 			return;
 		}
 
 		// apply fog colours
-		eastl::array<psyqo::Color, 3> vertexColours = {tri.colours[0], tri.colours[1], tri.colours[2]};
-		eastl::array<psyqo::Color, 3> fogColours;
+		eastl::array<psyqo::Color, kCornerCount> vertexColours = {tri.colours[0], tri.colours[1], tri.colours[2]};
+		eastl::array<psyqo::Color, kCornerCount> fogColours;
 
 		if (!faceData.isAdvancedFog) {
-			for (int i = 0; i < 3; i++) {
+			for (int i = 0; i < kCornerCount; i++) {
 				ApplyAmbientToColour(&vertexColours[i]);
-				vertexColours[i] = ApplyFogToColourGTE(vertexColours[i], node.irs[i]);
+				vertexColours[i] = ApplyFogToColourGTE(vertexColours[i], stFaceCorners[i].ir);
 			}
 		} else {
 			if (!faceData.useQuickAdvancedFogPass) {
 				GTESetFarColour({0, 0, 0});
-				for (int i = 0; i < 3; i++) {
+				for (int i = 0; i < kCornerCount; i++) {
 					ApplyAmbientToColour(&vertexColours[i]);
-					vertexColours[i] = GTEColourLerp(vertexColours[i], node.irs[i]);
+					vertexColours[i] = GTEColourLerp(vertexColours[i], stFaceCorners[i].ir);
 				}
 
 				GTESetFarColour(m_lighting->GetFogColour());
-				for (int i = 0; i < 3; i++) {
-					fogColours[i] = GTEColourLerp({0, 0, 0}, node.irs[i]);
+				for (int i = 0; i < kCornerCount; i++) {
+					fogColours[i] = GTEColourLerp({0, 0, 0}, stFaceCorners[i].ir);
 				}
 			} else {
-				for (int i = 0; i < 3; i++) {
-					auto density = 4096 - node.irs[i];
+				for (int i = 0; i < kCornerCount; i++) {
+					auto density = 4096 - stFaceCorners[i].ir;
 					ApplyAmbientToColour(&vertexColours[i]);
 					vertexColours[i] = {uint8_t((vertexColours[i].r * density) >> 12),
 										uint8_t((vertexColours[i].g * density) >> 12),
 										uint8_t((vertexColours[i].b * density) >> 12)};
-					m_qafIR0 += node.irs[i];
+					m_qafIR0 += stFaceCorners[i].ir;
 				}
 
-				m_qafIROCount += 3;
+				m_qafIROCount += kCornerCount;
 			}
 		}
 
-		bool isAdvancedFog = faceData.isAdvancedFog && (node.irs[0] > 0 || node.irs[1] > 0 || node.irs[2] > 0) &&
+		bool isAdvancedFog = faceData.isAdvancedFog &&
+							 (stFaceCorners[0].ir > 0 || stFaceCorners[1].ir > 0 || stFaceCorners[2].ir > 0) &&
 							 !faceData.useQuickAdvancedFogPass;
 
 		// update overlay min/max points
 		if (faceData.isAdvancedFog && faceData.useQuickAdvancedFogPass) {
-			for (int i = 0; i < 3; i++) {
-				m_qafOverlayMinX = eastl::min(m_qafOverlayMinX, node.projected[i].x);
-				m_qafOverlayMinY = eastl::min(m_qafOverlayMinY, node.projected[i].y);
-				m_qafOverlayMaxX = eastl::max(m_qafOverlayMaxX, node.projected[i].x);
-				m_qafOverlayMaxY = eastl::max(m_qafOverlayMaxY, node.projected[i].y);
+			for (int i = 0; i < kCornerCount; i++) {
+				m_qafOverlayMinX = eastl::min(m_qafOverlayMinX, stFaceCorners[i].projected.x);
+				m_qafOverlayMinY = eastl::min(m_qafOverlayMinY, stFaceCorners[i].projected.y);
+				m_qafOverlayMaxX = eastl::max(m_qafOverlayMaxX, stFaceCorners[i].projected.x);
+				m_qafOverlayMaxY = eastl::max(m_qafOverlayMaxY, stFaceCorners[i].projected.y);
 			}
 
 			m_qafSmallestZ = eastl::min(m_qafSmallestZ, zIndex);
@@ -1785,9 +1809,9 @@ void Renderer::ProcessMeshTri(const RendererTri& tri, int8_t depth, const FaceDa
 		if (faceData.texture != nullptr) {
 			if (!isAdvancedFog || !(faceData.texture->flags & (1 << 0))) {
 				auto& triPrim = faceData.bumpAllocator.allocateFragment<psyqo::Prim::GouraudTexturedTriangle>();
-				triPrim.primitive.pointA = node.projected[0];
-				triPrim.primitive.pointB = node.projected[1];
-				triPrim.primitive.pointC = node.projected[2];
+				triPrim.primitive.pointA = stFaceCorners[0].projected;
+				triPrim.primitive.pointB = stFaceCorners[1].projected;
+				triPrim.primitive.pointC = stFaceCorners[2].projected;
 
 				triPrim.primitive.setColorA(vertexColours[0]);
 				triPrim.primitive.setColorB(vertexColours[1]);
@@ -1817,9 +1841,9 @@ void Renderer::ProcessMeshTri(const RendererTri& tri, int8_t depth, const FaceDa
 				// bucket.
 				if (isAdvancedFog) {
 					auto& triFogPrim = faceData.bumpAllocator.allocateFragment<psyqo::Prim::GouraudTriangle>();
-					triFogPrim.primitive.pointA = node.projected[0];
-					triFogPrim.primitive.pointB = node.projected[1];
-					triFogPrim.primitive.pointC = node.projected[2];
+					triFogPrim.primitive.pointA = stFaceCorners[0].projected;
+					triFogPrim.primitive.pointB = stFaceCorners[1].projected;
+					triFogPrim.primitive.pointC = stFaceCorners[2].projected;
 
 					triFogPrim.primitive.setColorA(fogColours[0]);
 					triFogPrim.primitive.setColorB(fogColours[1]);
@@ -1839,9 +1863,9 @@ void Renderer::ProcessMeshTri(const RendererTri& tri, int8_t depth, const FaceDa
 				faceData.orderingTable.insert(reset, zIndex);
 
 				auto& fog = faceData.bumpAllocator.allocateFragment<psyqo::Prim::GouraudTriangle>();
-				fog.primitive.pointA = node.projected[0];
-				fog.primitive.pointB = node.projected[1];
-				fog.primitive.pointC = node.projected[2];
+				fog.primitive.pointA = stFaceCorners[0].projected;
+				fog.primitive.pointB = stFaceCorners[1].projected;
+				fog.primitive.pointC = stFaceCorners[2].projected;
 
 				fog.primitive.setColorA(fogColours[0]);
 				fog.primitive.setColorB(fogColours[1]);
@@ -1854,9 +1878,9 @@ void Renderer::ProcessMeshTri(const RendererTri& tri, int8_t depth, const FaceDa
 				faceData.orderingTable.insert(test, zIndex);
 
 				auto& textured = faceData.bumpAllocator.allocateFragment<psyqo::Prim::GouraudTexturedTriangle>();
-				textured.primitive.pointA = node.projected[0];
-				textured.primitive.pointB = node.projected[1];
-				textured.primitive.pointC = node.projected[2];
+				textured.primitive.pointA = stFaceCorners[0].projected;
+				textured.primitive.pointB = stFaceCorners[1].projected;
+				textured.primitive.pointC = stFaceCorners[2].projected;
 
 				textured.primitive.setColorA(vertexColours[0]);
 				textured.primitive.setColorB(vertexColours[1]);
@@ -1881,9 +1905,9 @@ void Renderer::ProcessMeshTri(const RendererTri& tri, int8_t depth, const FaceDa
 				faceData.orderingTable.insert(fromSource, zIndex);
 
 				auto& marker = faceData.bumpAllocator.allocateFragment<psyqo::Prim::GouraudTriangle>();
-				marker.primitive.pointA = node.projected[0];
-				marker.primitive.pointB = node.projected[1];
-				marker.primitive.pointC = node.projected[2];
+				marker.primitive.pointA = stFaceCorners[0].projected;
+				marker.primitive.pointB = stFaceCorners[1].projected;
+				marker.primitive.pointC = stFaceCorners[2].projected;
 
 				marker.primitive.setColorA({
 					0,
@@ -1913,13 +1937,13 @@ void Renderer::ProcessMeshTri(const RendererTri& tri, int8_t depth, const FaceDa
 			}
 		} else { // untextured
 			auto& triPrim = faceData.bumpAllocator.allocateFragment<psyqo::Prim::GouraudTriangle>();
-			triPrim.primitive.pointA = node.projected[0];
-			triPrim.primitive.pointB = node.projected[1];
-			triPrim.primitive.pointC = node.projected[2];
+			triPrim.primitive.pointA = stFaceCorners[0].projected;
+			triPrim.primitive.pointB = stFaceCorners[1].projected;
+			triPrim.primitive.pointC = stFaceCorners[2].projected;
 
 			if (faceData.isAdvancedFog && !faceData.useQuickAdvancedFogPass) {
-				psyqo::Color col[3];
-				for (int i = 0; i < 3; i++) {
+				psyqo::Color col[kCornerCount];
+				for (int i = 0; i < kCornerCount; i++) {
 					col[i].r = eastl::min(255, vertexColours[i].r + fogColours[i].r);
 					col[i].g = eastl::min(255, vertexColours[i].g + fogColours[i].g);
 					col[i].b = eastl::min(255, vertexColours[i].b + fogColours[i].b);
@@ -1939,14 +1963,13 @@ void Renderer::ProcessMeshTri(const RendererTri& tri, int8_t depth, const FaceDa
 		}
 	}
 }
-
-void Renderer::ProcessTriNode(FaceNode& node, uint8_t subDivsionDepth, const FaceData& faceData) {
+void Renderer::ProcessTriNode(FaceCorner* const* corners, uint8_t subDivisionDepth, const FaceData& faceData) {
 	// depth == 0 is handled by `ProcessMeshTri`
-	if (subDivsionDepth > 0) {
+	if (subDivisionDepth > 0) {
 		// write the projected values back into sz*
-		psyqo::GTE::write<psyqo::GTE::Register::SZ1, psyqo::GTE::Unsafe>(node.projectedDepths[0]);
-		psyqo::GTE::write<psyqo::GTE::Register::SZ2, psyqo::GTE::Unsafe>(node.projectedDepths[1]);
-		psyqo::GTE::write<psyqo::GTE::Register::SZ3, psyqo::GTE::Safe>(node.projectedDepths[2]);
+		psyqo::GTE::write<psyqo::GTE::Register::SZ1, psyqo::GTE::Unsafe>(corners[0]->depth);
+		psyqo::GTE::write<psyqo::GTE::Register::SZ2, psyqo::GTE::Unsafe>(corners[1]->depth);
+		psyqo::GTE::write<psyqo::GTE::Register::SZ3, psyqo::GTE::Safe>(corners[2]->depth);
 	}
 
 	// figure out avg z index
@@ -1959,57 +1982,21 @@ void Renderer::ProcessTriNode(FaceNode& node, uint8_t subDivsionDepth, const Fac
 	}
 
 	// clip screen space
-	if (TriClip(node.projected.data())) {
+	if (TriClip(corners[0]->projected, corners[1]->projected, corners[2]->projected)) {
 		return;
 	}
 
-	// if its the parent then do colour work that can be propogated
-	if (subDivsionDepth == 0) {
-		// apply fog colours
-		if (!faceData.isAdvancedFog) {
-			for (int i = 0; i < 3; i++) {
-				ApplyAmbientToColour(&node.colours[i]);
-				node.colours[i] = ApplyFogToColourGTE(node.colours[i], node.irs[i]);
-			}
-		} else {
-			if (!faceData.useQuickAdvancedFogPass) {
-				GTESetFarColour({0, 0, 0});
-				for (int i = 0; i < 3; i++) {
-					ApplyAmbientToColour(&node.colours[i]);
-					node.colours[i] = GTEColourLerp(node.colours[i], node.irs[i]);
-				}
-
-				GTESetFarColour(m_lighting->GetFogColour());
-				for (int i = 0; i < 3; i++) {
-					node.fogColours[i] = GTEColourLerp({0, 0, 0}, node.irs[i]);
-				}
-			} else {
-				for (int i = 0; i < 3; i++) {
-					auto density = 4096 - node.irs[i];
-					ApplyAmbientToColour(&node.colours[i]);
-					node.colours[i] = {uint8_t((node.colours[i].r * density) >> 12),
-									   uint8_t((node.colours[i].g * density) >> 12),
-									   uint8_t((node.colours[i].b * density) >> 12)};
-					m_qafIR0 += node.irs[i];
-				}
-
-				// average the quick fog t scale
-				m_qafIROCount += 3;
-			}
-		}
-	}
-
 	// sub divide if we have depth and we're close enough
-	if (subDivsionDepth <= SUBDIVISION_MAX_DEPTH) {
+	if (subDivisionDepth <= SUBDIVISION_MAX_DEPTH) {
 		auto abs = [](int32_t v) -> int32_t { return v < 0 ? -v : v; };
 		auto edgeLength = [&abs](const psyqo::GTE::PackedVec3& a, const psyqo::GTE::PackedVec3& b) -> auto {
 			return abs(a.x.value - b.x.value) + abs(a.y.value - b.y.value) + abs(a.z.value - b.z.value);
 		};
 
 		// measure the edges in 3d, not just 2d.
-		const int32_t len01 = edgeLength(node.verts[0], node.verts[1]);
-		const int32_t len12 = edgeLength(node.verts[1], node.verts[2]);
-		const int32_t len20 = edgeLength(node.verts[2], node.verts[0]);
+		const int32_t len01 = edgeLength(corners[0]->vert, corners[1]->vert);
+		const int32_t len12 = edgeLength(corners[1]->vert, corners[2]->vert);
+		const int32_t len20 = edgeLength(corners[2]->vert, corners[0]->vert);
 
 		auto midVert = [](const psyqo::GTE::PackedVec3& a, const psyqo::GTE::PackedVec3& b) -> auto {
 			psyqo::GTE::PackedVec3 mid;
@@ -2024,268 +2011,55 @@ void Renderer::ProcessTriNode(FaceNode& node, uint8_t subDivsionDepth, const Fac
 								static_cast<uint8_t>((a.b + b.b) >> 1)};
 		};
 
-		FaceNode triA, triB;
-		if (len01 >= len12 && len01 >= len20) {
-			// split mid points of v0 and v1
-			psyqo::GTE::PackedVec3 midVert01 = midVert(node.verts[0], node.verts[1]);
-
-			psyqo::Vertex midProjectedVert01 = {};
-			uint32_t midIR01 = 0;
-			uint32_t midZ01 = 0;
-
-			psyqo::GTE::writeSafe<psyqo::GTE::PseudoRegister::V0>(midVert01);
-			psyqo::GTE::Kernels::rtps();
-			midIR01 = psyqo::GTE::readRaw<psyqo::GTE::Register::IR0>();
-			psyqo::GTE::read<psyqo::GTE::Register::SXY2>(&midProjectedVert01.packed);
-			psyqo::GTE::read<psyqo::GTE::Register::SZ3>(&midZ01);
-
-			psyqo::PrimPieces::UVCoords midUV01;
-			midUV01.u = (node.uv[0].u + node.uv[1].u) >> 1;
-			midUV01.v = (node.uv[0].v + node.uv[1].v) >> 1;
-
-			psyqo::Color midColour01 = midColour(node.colours[0], node.colours[1]);
-
-			// tri A
-			triA.verts[0] = node.verts[0];
-			triA.verts[1] = midVert01;
-			triA.verts[2] = node.verts[2];
-
-			triA.projected[0] = node.projected[0];
-			triA.projected[1] = midProjectedVert01;
-			triA.projected[2] = node.projected[2];
-
-			triA.projectedDepths[0] = node.projectedDepths[0];
-			triA.projectedDepths[1] = midZ01;
-			triA.projectedDepths[2] = node.projectedDepths[2];
-
-			triA.uv[0] = node.uv[0];
-			triA.uv[1] = midUV01;
-			triA.uv[2] = node.uv[2];
-
-			triA.colours[0] = node.colours[0];
-			triA.colours[1] = midColour01;
-			triA.colours[2] = node.colours[2];
-
-			triA.irs[0] = node.irs[0];
-			triA.irs[1] = midIR01;
-			triA.irs[2] = node.irs[2];
-
-			// tri B
-			triB.verts[0] = midVert01;
-			triB.verts[1] = node.verts[1];
-			triB.verts[2] = node.verts[2];
-
-			triB.projected[0] = midProjectedVert01;
-			triB.projected[1] = node.projected[1];
-			triB.projected[2] = node.projected[2];
-
-			triB.projectedDepths[0] = midZ01;
-			triB.projectedDepths[1] = node.projectedDepths[1];
-			triB.projectedDepths[2] = node.projectedDepths[2];
-
-			triB.uv[0] = midUV01;
-			triB.uv[1] = node.uv[1];
-			triB.uv[2] = node.uv[2];
-
-			triB.colours[0] = midColour01;
-			triB.colours[1] = node.colours[1];
-			triB.colours[2] = node.colours[2];
-
-			triB.irs[0] = midIR01;
-			triB.irs[1] = node.irs[1];
-			triB.irs[2] = node.irs[2];
-
-			if (faceData.isAdvancedFog && !faceData.useQuickAdvancedFogPass) {
-				psyqo::Color midFogColour01 = midColour(node.fogColours[0], node.fogColours[1]);
-
-				triA.fogColours[0] = node.fogColours[0];
-				triA.fogColours[1] = midFogColour01;
-				triA.fogColours[2] = node.fogColours[2];
-
-				triB.fogColours[0] = midFogColour01;
-				triB.fogColours[1] = node.fogColours[1];
-				triB.fogColours[2] = node.fogColours[2];
-			}
-		} else if (len12 >= len01 && len12 >= len20) {
-			// split mid points of v1 and v2
-			psyqo::GTE::PackedVec3 midVert12 = midVert(node.verts[1], node.verts[2]);
-
-			psyqo::Vertex midProjectedVert12 = {};
-			uint32_t midIR12 = 0;
-			uint32_t midZ12 = 0;
-
-			psyqo::GTE::writeSafe<psyqo::GTE::PseudoRegister::V0>(midVert12);
-			psyqo::GTE::Kernels::rtps();
-			midIR12 = psyqo::GTE::readRaw<psyqo::GTE::Register::IR0>();
-			psyqo::GTE::read<psyqo::GTE::Register::SXY2>(&midProjectedVert12.packed);
-			psyqo::GTE::read<psyqo::GTE::Register::SZ3>(&midZ12);
-
-			psyqo::PrimPieces::UVCoords midUV12;
-			midUV12.u = (node.uv[1].u + node.uv[2].u) >> 1;
-			midUV12.v = (node.uv[1].v + node.uv[2].v) >> 1;
-
-			psyqo::Color midColour12 = midColour(node.colours[1], node.colours[2]);
-
-			// tri A
-			triA.verts[0] = node.verts[0];
-			triA.verts[1] = node.verts[1];
-			triA.verts[2] = midVert12;
-
-			triA.projected[0] = node.projected[0];
-			triA.projected[1] = node.projected[1];
-			triA.projected[2] = midProjectedVert12;
-
-			triA.projectedDepths[0] = node.projectedDepths[0];
-			triA.projectedDepths[1] = node.projectedDepths[1];
-			triA.projectedDepths[2] = midZ12;
-
-			triA.uv[0] = node.uv[0];
-			triA.uv[1] = node.uv[1];
-			triA.uv[2] = midUV12;
-
-			triA.colours[0] = node.colours[0];
-			triA.colours[1] = node.colours[1];
-			triA.colours[2] = midColour12;
-
-			triA.irs[0] = node.irs[0];
-			triA.irs[1] = node.irs[1];
-			triA.irs[2] = midIR12;
-
-			// tri B
-			triB.verts[0] = node.verts[0];
-			triB.verts[1] = midVert12;
-			triB.verts[2] = node.verts[2];
-
-			triB.projected[0] = node.projected[0];
-			triB.projected[1] = midProjectedVert12;
-			triB.projected[2] = node.projected[2];
-
-			triB.projectedDepths[0] = node.projectedDepths[0];
-			triB.projectedDepths[1] = midZ12;
-			triB.projectedDepths[2] = node.projectedDepths[2];
-
-			triB.uv[0] = node.uv[0];
-			triB.uv[1] = midUV12;
-			triB.uv[2] = node.uv[2];
-
-			triB.colours[0] = node.colours[0];
-			triB.colours[1] = midColour12;
-			triB.colours[2] = node.colours[2];
-
-			triB.irs[0] = node.irs[0];
-			triB.irs[1] = midIR12;
-			triB.irs[2] = node.irs[2];
-
-			if (faceData.isAdvancedFog && !faceData.useQuickAdvancedFogPass) {
-				psyqo::Color midFogColour12 = midColour(node.fogColours[1], node.fogColours[2]);
-
-				triA.fogColours[0] = node.fogColours[0];
-				triA.fogColours[1] = node.fogColours[1];
-				triA.fogColours[2] = midFogColour12;
-
-				triB.fogColours[0] = node.fogColours[0];
-				triB.fogColours[1] = midFogColour12;
-				triB.fogColours[2] = node.fogColours[2];
-			}
-		} else {
-			// split mid points of v0 and v2
-			psyqo::GTE::PackedVec3 midVert02 = midVert(node.verts[0], node.verts[2]);
-
-			psyqo::Vertex midProjectedVert02 = {};
-			uint32_t midIR02 = 0;
-			uint32_t midZ02 = 0;
-
-			psyqo::GTE::writeSafe<psyqo::GTE::PseudoRegister::V0>(midVert02);
-			psyqo::GTE::Kernels::rtps();
-			midIR02 = psyqo::GTE::readRaw<psyqo::GTE::Register::IR0>();
-			psyqo::GTE::read<psyqo::GTE::Register::SXY2>(&midProjectedVert02.packed);
-			psyqo::GTE::read<psyqo::GTE::Register::SZ3>(&midZ02);
-
-			psyqo::PrimPieces::UVCoords midUV02;
-			midUV02.u = (node.uv[0].u + node.uv[2].u) >> 1;
-			midUV02.v = (node.uv[0].v + node.uv[2].v) >> 1;
-
-			psyqo::Color midColour02 = midColour(node.colours[0], node.colours[2]);
-
-			// tri A
-			triA.verts[0] = node.verts[0];
-			triA.verts[1] = node.verts[1];
-			triA.verts[2] = midVert02;
-
-			triA.projected[0] = node.projected[0];
-			triA.projected[1] = node.projected[1];
-			triA.projected[2] = midProjectedVert02;
-
-			triA.projectedDepths[0] = node.projectedDepths[0];
-			triA.projectedDepths[1] = node.projectedDepths[1];
-			triA.projectedDepths[2] = midZ02;
-
-			triA.uv[0] = node.uv[0];
-			triA.uv[1] = node.uv[1];
-			triA.uv[2] = midUV02;
-
-			triA.colours[0] = node.colours[0];
-			triA.colours[1] = node.colours[1];
-			triA.colours[2] = midColour02;
-
-			triA.irs[0] = node.irs[0];
-			triA.irs[1] = node.irs[1];
-			triA.irs[2] = midIR02;
-
-			// tri B
-			triB.verts[0] = midVert02;
-			triB.verts[1] = node.verts[1];
-			triB.verts[2] = node.verts[2];
-
-			triB.projected[0] = midProjectedVert02;
-			triB.projected[1] = node.projected[1];
-			triB.projected[2] = node.projected[2];
-
-			triB.projectedDepths[0] = midZ02;
-			triB.projectedDepths[1] = node.projectedDepths[1];
-			triB.projectedDepths[2] = node.projectedDepths[2];
-
-			triB.uv[0] = midUV02;
-			triB.uv[1] = node.uv[1];
-			triB.uv[2] = node.uv[2];
-
-			triB.colours[0] = midColour02;
-			triB.colours[1] = node.colours[1];
-			triB.colours[2] = node.colours[2];
-
-			triB.irs[0] = midIR02;
-			triB.irs[1] = node.irs[1];
-			triB.irs[2] = node.irs[2];
-
-			if (faceData.isAdvancedFog && !faceData.useQuickAdvancedFogPass) {
-				psyqo::Color midFogColour02 = midColour(node.fogColours[0], node.fogColours[2]);
-
-				triA.fogColours[0] = node.fogColours[0];
-				triA.fogColours[1] = node.fogColours[1];
-				triA.fogColours[2] = midFogColour02;
-
-				triB.fogColours[0] = midFogColour02;
-				triB.fogColours[1] = node.fogColours[1];
-				triB.fogColours[2] = node.fogColours[2];
-			}
+		// do some fancy starting vert index so we don't need 10 million if statements
+		int k = 0; // k being the corner where the longest edge starts
+		if (len12 > len01) {
+			k = 1;
+		}
+		if (len20 > (k ? len12 : len01)) {
+			k = 2;
 		}
 
-		ProcessTriNode(triA, subDivsionDepth + 1, faceData);
-		ProcessTriNode(triB, subDivsionDepth + 1, faceData);
+		static constexpr uint8_t next[5] = {0, 1, 2, 0, 1};
+		FaceCorner* stackCorners[3] = {corners[k], corners[next[k + 1]], corners[next[k + 2]]};
+		auto scratchPadDepth = 2 * subDivisionDepth;
+
+		auto midPoints01 = stFaceCorners[3 * (2 * subDivisionDepth)];
+		midPoints01.vert = midVert(stackCorners[0]->vert, stackCorners[1]->vert);
+
+		psyqo::GTE::writeSafe<psyqo::GTE::PseudoRegister::V0>(midPoints01.vert);
+		psyqo::GTE::Kernels::rtps();
+		midPoints01.ir = psyqo::GTE::readRaw<psyqo::GTE::Register::IR0>();
+		psyqo::GTE::read<psyqo::GTE::Register::SXY2>(&midPoints01.projected.packed);
+		psyqo::GTE::read<psyqo::GTE::Register::SZ3>(&midPoints01.depth);
+
+		midPoints01.uv.u = (stackCorners[0]->uv.u + stackCorners[1]->uv.u) >> 1;
+		midPoints01.uv.v = (stackCorners[0]->uv.v + stackCorners[1]->uv.v) >> 1;
+
+		midPoints01.colour = midColour(stackCorners[0]->colour, stackCorners[1]->colour);
+		FaceCorner* triA[3] = {stackCorners[0], &midPoints01, stackCorners[2]};
+		FaceCorner* triB[3] = {&midPoints01, stackCorners[1], stackCorners[2]};
+
+		if (faceData.isAdvancedFog && !faceData.useQuickAdvancedFogPass) {
+			midPoints01.fogColour = midColour(stackCorners[0]->fogColour, stackCorners[1]->fogColour);
+		}
+
+		ProcessTriNode(triA, subDivisionDepth + 1, faceData);
+		ProcessTriNode(triB, subDivisionDepth + 1, faceData);
 		return;
 	} // OTHERWISE continue to process and add to OT
 
 	// textured
-	bool isAdvancedFog = faceData.isAdvancedFog && (node.irs[0] > 0 || node.irs[1] > 0 || node.irs[2] > 0) &&
+	bool isAdvancedFog = faceData.isAdvancedFog && (corners[0]->ir > 0 || corners[1]->ir > 0 || corners[2]->ir > 0) &&
 						 !faceData.useQuickAdvancedFogPass;
 
 	// update overlay min/max points
 	if (faceData.isAdvancedFog && faceData.useQuickAdvancedFogPass) {
 		for (int i = 0; i < 3; i++) {
-			m_qafOverlayMinX = eastl::min(m_qafOverlayMinX, node.projected[i].x);
-			m_qafOverlayMinY = eastl::min(m_qafOverlayMinY, node.projected[i].y);
-			m_qafOverlayMaxX = eastl::max(m_qafOverlayMaxX, node.projected[i].x);
-			m_qafOverlayMaxY = eastl::max(m_qafOverlayMaxY, node.projected[i].y);
+			m_qafOverlayMinX = eastl::min(m_qafOverlayMinX, corners[i]->projected.x);
+			m_qafOverlayMinY = eastl::min(m_qafOverlayMinY, corners[i]->projected.y);
+			m_qafOverlayMaxX = eastl::max(m_qafOverlayMaxX, corners[i]->projected.x);
+			m_qafOverlayMaxY = eastl::max(m_qafOverlayMaxY, corners[i]->projected.y);
 		}
 		m_qafSmallestZ = eastl::min(m_qafSmallestZ, zIndex);
 	}
@@ -2293,13 +2067,13 @@ void Renderer::ProcessTriNode(FaceNode& node, uint8_t subDivsionDepth, const Fac
 	if (faceData.texture != nullptr) {
 		if (!isAdvancedFog || !(faceData.texture->flags & (1 << 0))) {
 			auto& triPrim = faceData.bumpAllocator.allocateFragment<psyqo::Prim::GouraudTexturedTriangle>();
-			triPrim.primitive.pointA = node.projected[0];
-			triPrim.primitive.pointB = node.projected[1];
-			triPrim.primitive.pointC = node.projected[2];
+			triPrim.primitive.pointA = corners[0]->projected;
+			triPrim.primitive.pointB = corners[1]->projected;
+			triPrim.primitive.pointC = corners[2]->projected;
 
-			triPrim.primitive.setColorA(node.colours[0]);
-			triPrim.primitive.setColorB(node.colours[1]);
-			triPrim.primitive.setColorC(node.colours[2]);
+			triPrim.primitive.setColorA(corners[0]->colour);
+			triPrim.primitive.setColorB(corners[1]->colour);
+			triPrim.primitive.setColorC(corners[2]->colour);
 			if (!isAdvancedFog) {
 				triPrim.primitive.setOpaque();
 			} else {
@@ -2312,25 +2086,25 @@ void Renderer::ProcessTriNode(FaceNode& node, uint8_t subDivsionDepth, const Fac
 				triPrim.primitive.clutIndex = {faceData.texture->clutX, faceData.texture->clutY};
 			}
 
-			triPrim.primitive.uvA = {static_cast<uint8_t>(faceData.uvOffset.pos.x + node.uv[0].u),
-									 static_cast<uint8_t>(faceData.uvOffset.pos.y - node.uv[0].v)};
-			triPrim.primitive.uvB = {static_cast<uint8_t>(faceData.uvOffset.pos.x + node.uv[1].u),
-									 static_cast<uint8_t>(faceData.uvOffset.pos.y - node.uv[1].v)};
-			triPrim.primitive.uvC = {static_cast<uint8_t>(faceData.uvOffset.pos.x + node.uv[2].u),
-									 static_cast<uint8_t>(faceData.uvOffset.pos.y - node.uv[2].v)};
+			triPrim.primitive.uvA = {corners[0]->uv.u,
+									 static_cast<uint8_t>(faceData.uvOffset.pos.y - corners[0]->uv.v)};
+			triPrim.primitive.uvB = {corners[1]->uv.u,
+									 static_cast<uint8_t>(faceData.uvOffset.pos.y - corners[1]->uv.v)};
+			triPrim.primitive.uvC = {corners[2]->uv.u,
+									 static_cast<uint8_t>(faceData.uvOffset.pos.y - corners[2]->uv.v)};
 
 			faceData.orderingTable.insert(triPrim, zIndex);
 
 			// we insert the untextured fog prim last because `insert` puts each new prim at the front of the bucket.
 			if (isAdvancedFog) {
 				auto& triFogPrim = faceData.bumpAllocator.allocateFragment<psyqo::Prim::GouraudTriangle>();
-				triFogPrim.primitive.pointA = node.projected[0];
-				triFogPrim.primitive.pointB = node.projected[1];
-				triFogPrim.primitive.pointC = node.projected[2];
+				triFogPrim.primitive.pointA = corners[0]->projected;
+				triFogPrim.primitive.pointB = corners[1]->projected;
+				triFogPrim.primitive.pointC = corners[2]->projected;
 
-				triFogPrim.primitive.setColorA(node.fogColours[0]);
-				triFogPrim.primitive.setColorB(node.fogColours[1]);
-				triFogPrim.primitive.setColorC(node.fogColours[2]);
+				triFogPrim.primitive.setColorA(corners[0]->fogColour);
+				triFogPrim.primitive.setColorB(corners[1]->fogColour);
+				triFogPrim.primitive.setColorC(corners[2]->fogColour);
 				triFogPrim.primitive.setOpaque();
 
 				faceData.orderingTable.insert(triFogPrim, zIndex);
@@ -2346,13 +2120,13 @@ void Renderer::ProcessTriNode(FaceNode& node, uint8_t subDivsionDepth, const Fac
 			faceData.orderingTable.insert(reset, zIndex);
 
 			auto& fog = faceData.bumpAllocator.allocateFragment<psyqo::Prim::GouraudTriangle>();
-			fog.primitive.pointA = node.projected[0];
-			fog.primitive.pointB = node.projected[1];
-			fog.primitive.pointC = node.projected[2];
+			fog.primitive.pointA = corners[0]->projected;
+			fog.primitive.pointB = corners[1]->projected;
+			fog.primitive.pointC = corners[2]->projected;
 
-			fog.primitive.setColorA(node.fogColours[0]);
-			fog.primitive.setColorB(node.fogColours[1]);
-			fog.primitive.setColorC(node.fogColours[2]);
+			fog.primitive.setColorA(corners[0]->fogColour);
+			fog.primitive.setColorB(corners[1]->fogColour);
+			fog.primitive.setColorC(corners[2]->fogColour);
 			fog.primitive.setSemiTrans();
 			faceData.orderingTable.insert(fog, zIndex);
 
@@ -2361,13 +2135,13 @@ void Renderer::ProcessTriNode(FaceNode& node, uint8_t subDivsionDepth, const Fac
 			faceData.orderingTable.insert(test, zIndex);
 
 			auto& textured = faceData.bumpAllocator.allocateFragment<psyqo::Prim::GouraudTexturedTriangle>();
-			textured.primitive.pointA = node.projected[0];
-			textured.primitive.pointB = node.projected[1];
-			textured.primitive.pointC = node.projected[2];
+			textured.primitive.pointA = corners[0]->projected;
+			textured.primitive.pointB = corners[1]->projected;
+			textured.primitive.pointC = corners[2]->projected;
 
-			textured.primitive.setColorA(node.colours[0]);
-			textured.primitive.setColorB(node.colours[1]);
-			textured.primitive.setColorC(node.colours[2]);
+			textured.primitive.setColorA(corners[0]->colour);
+			textured.primitive.setColorB(corners[1]->colour);
+			textured.primitive.setColorC(corners[2]->colour);
 			textured.primitive.setOpaque();
 
 			textured.primitive.tpage = faceData.tpage;
@@ -2375,12 +2149,12 @@ void Renderer::ProcessTriNode(FaceNode& node, uint8_t subDivsionDepth, const Fac
 				textured.primitive.clutIndex = {faceData.texture->clutX, faceData.texture->clutY};
 			}
 
-			textured.primitive.uvA = {static_cast<uint8_t>(faceData.uvOffset.pos.x + node.uv[0].u),
-									  static_cast<uint8_t>(faceData.uvOffset.pos.y - node.uv[0].v)};
-			textured.primitive.uvB = {static_cast<uint8_t>(faceData.uvOffset.pos.x + node.uv[1].u),
-									  static_cast<uint8_t>(faceData.uvOffset.pos.y - node.uv[1].v)};
-			textured.primitive.uvC = {static_cast<uint8_t>(faceData.uvOffset.pos.x + node.uv[2].u),
-									  static_cast<uint8_t>(faceData.uvOffset.pos.y - node.uv[2].v)};
+			textured.primitive.uvA = {corners[0]->uv.u,
+									  static_cast<uint8_t>(faceData.uvOffset.pos.y - corners[0]->uv.v)};
+			textured.primitive.uvB = {corners[1]->uv.u,
+									  static_cast<uint8_t>(faceData.uvOffset.pos.y - corners[1]->uv.v)};
+			textured.primitive.uvC = {corners[2]->uv.u,
+									  static_cast<uint8_t>(faceData.uvOffset.pos.y - corners[2]->uv.v)};
 			faceData.orderingTable.insert(textured, zIndex);
 
 			auto& fromSource = faceData.bumpAllocator.allocateFragment<psyqo::Prim::MaskControl>();
@@ -2388,9 +2162,9 @@ void Renderer::ProcessTriNode(FaceNode& node, uint8_t subDivsionDepth, const Fac
 			faceData.orderingTable.insert(fromSource, zIndex);
 
 			auto& marker = faceData.bumpAllocator.allocateFragment<psyqo::Prim::GouraudTriangle>();
-			marker.primitive.pointA = node.projected[0];
-			marker.primitive.pointB = node.projected[1];
-			marker.primitive.pointC = node.projected[2];
+			marker.primitive.pointA = corners[0]->projected;
+			marker.primitive.pointB = corners[1]->projected;
+			marker.primitive.pointC = corners[2]->projected;
 
 			marker.primitive.setColorA({
 				0,
@@ -2420,25 +2194,25 @@ void Renderer::ProcessTriNode(FaceNode& node, uint8_t subDivsionDepth, const Fac
 		}
 	} else { // untextured
 		auto& triPrim = faceData.bumpAllocator.allocateFragment<psyqo::Prim::GouraudTriangle>();
-		triPrim.primitive.pointA = node.projected[0];
-		triPrim.primitive.pointB = node.projected[1];
-		triPrim.primitive.pointC = node.projected[2];
+		triPrim.primitive.pointA = corners[0]->projected;
+		triPrim.primitive.pointB = corners[1]->projected;
+		triPrim.primitive.pointC = corners[2]->projected;
 
 		if (faceData.isAdvancedFog && !faceData.useQuickAdvancedFogPass) {
 			psyqo::Color col[3];
 			for (int i = 0; i < 3; i++) {
-				col[i].r = eastl::min(255, node.colours[i].r + node.fogColours[i].r);
-				col[i].g = eastl::min(255, node.colours[i].g + node.fogColours[i].g);
-				col[i].b = eastl::min(255, node.colours[i].b + node.fogColours[i].b);
+				col[i].r = eastl::min(255, corners[i]->colour.r + corners[i]->fogColour.r);
+				col[i].g = eastl::min(255, corners[i]->colour.g + corners[i]->fogColour.g);
+				col[i].b = eastl::min(255, corners[i]->colour.b + corners[i]->fogColour.b);
 			}
 
 			triPrim.primitive.setColorA(col[0]);
 			triPrim.primitive.setColorB(col[1]);
 			triPrim.primitive.setColorC(col[2]);
 		} else {
-			triPrim.primitive.setColorA(node.colours[0]);
-			triPrim.primitive.setColorB(node.colours[1]);
-			triPrim.primitive.setColorC(node.colours[2]);
+			triPrim.primitive.setColorA(corners[0]->colour);
+			triPrim.primitive.setColorB(corners[1]->colour);
+			triPrim.primitive.setColorC(corners[2]->colour);
 		}
 		triPrim.primitive.setOpaque();
 

@@ -33,18 +33,8 @@ struct RendererTri {
 	psyqo::PrimPieces::UVCoordsPadded uvC = {};
 };
 
-struct FaceNode {
-	psyqo::GTE::PackedVec3 verts[4];		  // world space vert positions
-	eastl::array<psyqo::Vertex, 4> projected; // actually projected vert positions
-	uint32_t projectedDepths[4];			  // the z value of each projected corner
-	psyqo::Color colours[4];				  // colours
-	psyqo::Color fogColours[4];				  // for advanced fog colours
-	uint32_t irs[4];						  // irs
-	psyqo::PrimPieces::UVCoords uv[4];
-};
-
 // used for sub division on quads
-struct QuadCorner {
+struct FaceCorner {
 	psyqo::GTE::PackedVec3 vert; // world space vert pos
 	psyqo::Vertex projected;	 // projected screen pos
 	uint32_t depth;				 // depth of the projected corner
