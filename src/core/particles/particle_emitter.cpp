@@ -79,6 +79,7 @@ void ParticleEmitter::Process(const uint32_t& deltaTime) {
 	auto delta = now - m_timeOfLastProcess;
 
 	m_timeSinceLastParticleSpawn += delta;
+	m_timeOfLastProcess = now;
 
 	// process active particles
 	for (auto& particle : m_spawnedParticles) {
@@ -96,7 +97,6 @@ void ParticleEmitter::Process(const uint32_t& deltaTime) {
 	}
 
 	// make sure its been a second and we dont have too many spawned
-	m_timeOfLastProcess = now;
 	while (m_timeSinceLastParticleSpawn >= m_spawnRate && m_spawnedParticles.size() < m_maxParticles) {
 		// generate a particle at a random point on the circumfrence
 		psyqo::Vec2 pos = {0, 0};
@@ -145,8 +145,11 @@ void ParticleEmitter::Process(const uint32_t& deltaTime) {
 		m_timeSinceLastParticleSpawn -= m_spawnRate;
 	}
 
-	m_timeSinceLastParticleSpawn =
-		eastl::clamp(m_timeSinceLastParticleSpawn, m_spawnRate, m_timeSinceLastParticleSpawn);
+	// if the emitter is full, clamp the accumulator down to the spawn rate so we don't spawn in clumps when its caught
+	// up
+	if (m_spawnedParticles.size() >= m_maxParticles) {
+		m_timeSinceLastParticleSpawn = eastl::min(m_timeSinceLastParticleSpawn, m_spawnRate);
+	}
 }
 
 void ParticleEmitter::SetParticleVelocity(const psyqo::Vec3& particleVelocity) {
