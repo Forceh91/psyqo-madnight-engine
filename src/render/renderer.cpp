@@ -5,9 +5,6 @@
  */
 
 #include "renderer.hh"
-#include "EASTL/algorithm.h"
-#include "EASTL/array.h"
-
 #include "../core/billboard/billboard_manager.hh"
 #include "../core/debug/debug_menu.hh"
 #include "../core/debug/perf_monitor.hh"
@@ -474,15 +471,20 @@ void Renderer::RenderGameObjects(uint32_t deltaTime, const psyqo::Matrix33& came
 			m_qafIROCount = 0;
 		}
 
-		for (int32_t i = 0; i < mesh->facesCount; i++) {
-			const auto& rendererFace = mesh->facesData[i];
+		auto processFace = [this, mesh, faceData] {
+			for (int32_t i = 0; i < mesh->facesCount; i++) {
+				const auto& rendererFace = mesh->facesData[i];
 
-			if (rendererFace.isQuad) {
-				ProcessMeshQuad(mesh->quads[rendererFace.rendererFaceIx], 0, faceData);
-			} else {
-				ProcessMeshTri(mesh->tris[rendererFace.rendererFaceIx], 0, faceData);
+				if (rendererFace.isQuad) {
+					ProcessMeshQuad(mesh->quads[rendererFace.rendererFaceIx], 0, faceData);
+				} else {
+					ProcessMeshTri(mesh->tris[rendererFace.rendererFaceIx], 0, faceData);
+				}
 			}
-		}
+		};
+
+		m_faceLoop.initialize(eastl::move(processFace));
+		m_faceLoop.resume();
 
 		if (quickAdvancedFog && m_quickAdvancedFogOverlayQuad && m_qafOverlayMinX != INT16_MAX &&
 			m_qafOverlayMinX < m_qafOverlayMaxX) {

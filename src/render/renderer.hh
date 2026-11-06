@@ -77,6 +77,9 @@ class Renderer final {
 	// bump allocator so we're not guessing at runtime how many quads/lines/etc/etc/etc we're gonna have
 	BA m_allocators[2];
 
+	// put the stack on the scratchpad to speed up face processing
+	psyqo::ScratchpadStackful<736> m_faceLoop; // this is minus the corner slots already on the scratch pad (1024 - 280)
+
 	// texture page + sprite info
 	// TODO: move to bump allocator?
 	eastl::array<psyqo::Fragments::SimpleFragment<psyqo::Prim::TPage>, MAX_SPRITE_FRAGMENTS> m_tpages[2];
