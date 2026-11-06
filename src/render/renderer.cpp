@@ -1676,9 +1676,9 @@ void Renderer::ProcessMeshTri(const RendererTri& tri, int8_t depth, const FaceDa
 	psyqo::GTE::read<psyqo::GTE::Register::SXY2>(&stFaceCorners[2].projected.packed);
 
 	// read all the SZ data
-	psyqo::GTE::read<psyqo::GTE::Register::SZ1>(&stFaceCorners[1].depth);
-	psyqo::GTE::read<psyqo::GTE::Register::SZ2>(&stFaceCorners[2].depth);
-	psyqo::GTE::read<psyqo::GTE::Register::SZ3>(&stFaceCorners[3].depth);
+	psyqo::GTE::read<psyqo::GTE::Register::SZ1>(&stFaceCorners[0].depth);
+	psyqo::GTE::read<psyqo::GTE::Register::SZ2>(&stFaceCorners[1].depth);
+	psyqo::GTE::read<psyqo::GTE::Register::SZ3>(&stFaceCorners[2].depth);
 
 	// we can skip a node if its going to be fully obscured by fog anyway
 	if (faceData.isAdvancedFog && stFaceCorners[0].ir >= 4096 && stFaceCorners[1].ir >= 4096 &&
@@ -2024,7 +2024,7 @@ void Renderer::ProcessTriNode(FaceCorner* const* corners, uint8_t subDivisionDep
 		FaceCorner* stackCorners[3] = {corners[k], corners[next[k + 1]], corners[next[k + 2]]};
 		auto scratchPadDepth = 2 * subDivisionDepth;
 
-		auto midPoints01 = stFaceCorners[3 * (2 * subDivisionDepth)];
+		auto& midPoints01 = stFaceCorners[3 + (2 * subDivisionDepth)];
 		midPoints01.vert = midVert(stackCorners[0]->vert, stackCorners[1]->vert);
 
 		psyqo::GTE::writeSafe<psyqo::GTE::PseudoRegister::V0>(midPoints01.vert);
