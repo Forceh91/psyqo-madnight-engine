@@ -1460,6 +1460,11 @@ void Renderer::ProcessQuadNode(QuadCorner* const* corners, uint8_t subDivisionDe
 			midPoints23.fogColour = midColour(stackCorners[2]->fogColour, stackCorners[3]->fogColour);
 		}
 
+		if (width < height) {
+			eastl::swap(quadA[1], quadA[2]);
+			eastl::swap(quadB[1], quadB[2]);
+		}
+
 		ProcessQuadNode(quadA, subDivisionDepth + 1, faceData);
 		ProcessQuadNode(quadB, subDivisionDepth + 1, faceData);
 		return;
