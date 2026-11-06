@@ -7,6 +7,7 @@
 #include "particle_emitter.hh"
 #include "../../madnight.hh"
 #include "../../render/renderer.hh"
+#include "EASTL/algorithm.h"
 #include "particle.hh"
 
 #include <psyqo/gte-math.hh>
@@ -96,55 +97,56 @@ void ParticleEmitter::Process(const uint32_t& deltaTime) {
 
 	// make sure its been a second and we dont have too many spawned
 	m_timeOfLastProcess = now;
-	if (m_timeSinceLastParticleSpawn < m_spawnRate || m_spawnedParticles.size() >= m_maxParticles) {
-		return;
+	while (m_timeSinceLastParticleSpawn >= m_spawnRate && m_spawnedParticles.size() < m_maxParticles) {
+		// generate a particle at a random point on the circumfrence
+		psyqo::Vec2 pos = {0, 0};
+		if (m_spawnInsideRadius) {
+			pos = GenerateRandomPointWithinRadius();
+		} else {
+			pos = GenerateRandomPointOnCircumfrence();
+		}
+
+		auto spawnPos = m_rotatedPos + psyqo::Vec3{pos.x, 0, pos.y};
+		auto spreadStartVelocity = m_particleRotatedStartVelocity, spreadEndVelocity = m_particleRotatedEndVelocity;
+
+		// apply a random spread if we want
+		auto startSpreadX =
+			g_madnightEngine.m_rand.randInc(-m_particleVelocitySpread.x.value, m_particleVelocitySpread.x.value);
+		spreadStartVelocity.x += psyqo::FixedPoint<>(startSpreadX, psyqo::FixedPoint<>::RAW);
+
+		auto startSpreadY =
+			g_madnightEngine.m_rand.randInc(-m_particleVelocitySpread.y.value, m_particleVelocitySpread.y.value);
+		spreadStartVelocity.y += psyqo::FixedPoint<>(startSpreadY, psyqo::FixedPoint<>::RAW);
+
+		auto startSpreadZ =
+			g_madnightEngine.m_rand.randInc(-m_particleVelocitySpread.z.value, m_particleVelocitySpread.z.value);
+		spreadStartVelocity.z += psyqo::FixedPoint<>(startSpreadZ, psyqo::FixedPoint<>::RAW);
+
+		auto endSpreadX =
+			g_madnightEngine.m_rand.randInc(-m_particleVelocitySpread.x.value, m_particleVelocitySpread.x.value);
+		spreadEndVelocity.x += psyqo::FixedPoint<>(endSpreadX, psyqo::FixedPoint<>::RAW);
+
+		auto endSpreadY =
+			g_madnightEngine.m_rand.randInc(-m_particleVelocitySpread.y.value, m_particleVelocitySpread.y.value);
+		spreadEndVelocity.y += psyqo::FixedPoint<>(endSpreadY, psyqo::FixedPoint<>::RAW);
+
+		auto endSpreadZ =
+			g_madnightEngine.m_rand.randInc(-m_particleVelocitySpread.z.value, m_particleVelocitySpread.z.value);
+		spreadEndVelocity.z += psyqo::FixedPoint<>(endSpreadZ, psyqo::FixedPoint<>::RAW);
+
+		auto particle = Particle(spawnPos, m_particleStartSize, m_particleEndSize, m_particleStartColour,
+								 m_particleEndColour, spreadStartVelocity, spreadEndVelocity, m_particleLifeTime);
+
+		if (m_particleTexture) {
+			particle.SetUVCoords(m_particleUVCoords);
+		}
+
+		m_spawnedParticles.push_back(particle);
+		m_timeSinceLastParticleSpawn -= m_spawnRate;
 	}
 
-	// generate a particle at a random point on the circumfrence
-	psyqo::Vec2 pos = {0, 0};
-	if (m_spawnInsideRadius) {
-		pos = GenerateRandomPointWithinRadius();
-	} else {
-		pos = GenerateRandomPointOnCircumfrence();
-	}
-
-	auto spawnPos = m_rotatedPos + psyqo::Vec3{pos.x, 0, pos.y};
-	auto spreadStartVelocity = m_particleRotatedStartVelocity, spreadEndVelocity = m_particleRotatedEndVelocity;
-
-	// apply a random spread if we want
-	auto startSpreadX =
-		g_madnightEngine.m_rand.randInc(-m_particleVelocitySpread.x.value, m_particleVelocitySpread.x.value);
-	spreadStartVelocity.x += psyqo::FixedPoint<>(startSpreadX, psyqo::FixedPoint<>::RAW);
-
-	auto startSpreadY =
-		g_madnightEngine.m_rand.randInc(-m_particleVelocitySpread.y.value, m_particleVelocitySpread.y.value);
-	spreadStartVelocity.y += psyqo::FixedPoint<>(startSpreadY, psyqo::FixedPoint<>::RAW);
-
-	auto startSpreadZ =
-		g_madnightEngine.m_rand.randInc(-m_particleVelocitySpread.z.value, m_particleVelocitySpread.z.value);
-	spreadStartVelocity.z += psyqo::FixedPoint<>(startSpreadZ, psyqo::FixedPoint<>::RAW);
-
-	auto endSpreadX =
-		g_madnightEngine.m_rand.randInc(-m_particleVelocitySpread.x.value, m_particleVelocitySpread.x.value);
-	spreadEndVelocity.x += psyqo::FixedPoint<>(endSpreadX, psyqo::FixedPoint<>::RAW);
-
-	auto endSpreadY =
-		g_madnightEngine.m_rand.randInc(-m_particleVelocitySpread.y.value, m_particleVelocitySpread.y.value);
-	spreadEndVelocity.y += psyqo::FixedPoint<>(endSpreadY, psyqo::FixedPoint<>::RAW);
-
-	auto endSpreadZ =
-		g_madnightEngine.m_rand.randInc(-m_particleVelocitySpread.z.value, m_particleVelocitySpread.z.value);
-	spreadEndVelocity.z += psyqo::FixedPoint<>(endSpreadZ, psyqo::FixedPoint<>::RAW);
-
-	auto particle = Particle(spawnPos, m_particleStartSize, m_particleEndSize, m_particleStartColour,
-							 m_particleEndColour, spreadStartVelocity, spreadEndVelocity, m_particleLifeTime);
-
-	if (m_particleTexture) {
-		particle.SetUVCoords(m_particleUVCoords);
-	}
-
-	m_spawnedParticles.push_back(particle);
-	m_timeSinceLastParticleSpawn = 0;
+	m_timeSinceLastParticleSpawn =
+		eastl::clamp(m_timeSinceLastParticleSpawn, m_spawnRate, m_timeSinceLastParticleSpawn);
 }
 
 void ParticleEmitter::SetParticleVelocity(const psyqo::Vec3& particleVelocity) {
