@@ -96,6 +96,65 @@ static constexpr psyqo::Color boneColours[MAX_BONES] = {
 };
 #endif
 
+enum ScreenSpaceClip : uint8_t { CLIP_LEFT = 0, CLIP_RIGHT = 2, CLIP_TOP = 4, CLIP_BOTTOM = 8 };
+
+inline constexpr int TestClip(int16_t x, int16_t y) {
+	int result = 0;
+
+	if (x < SCREEN_SPACE.pos.x) {
+		result |= CLIP_LEFT;
+	}
+
+	if (x >= (SCREEN_SPACE.pos.x + SCREEN_SPACE.size.w)) {
+		result |= CLIP_RIGHT;
+	}
+
+	if (y < SCREEN_SPACE.pos.y) {
+		result |= CLIP_TOP;
+	}
+
+	if (y >= (SCREEN_SPACE.pos.y + SCREEN_SPACE.size.h)) {
+		result |= CLIP_BOTTOM;
+	}
+
+	return result;
+}
+
+inline constexpr int QuadClip(const psyqo::Vertex* verts) {
+	int c[4] = {
+		TestClip(verts[0].x, verts[0].y),
+		TestClip(verts[1].x, verts[1].y),
+		TestClip(verts[2].x, verts[2].y),
+		TestClip(verts[3].x, verts[3].y),
+	};
+
+	if ((c[0] & c[1]) == 0) {
+		return 0;
+	}
+
+	if ((c[1] & c[2]) == 0) {
+		return 0;
+	}
+
+	if ((c[2] & c[3]) == 0) {
+		return 0;
+	}
+
+	if ((c[3] & c[0]) == 0) {
+		return 0;
+	}
+
+	if ((c[0] & c[2]) == 0) {
+		return 0;
+	}
+
+	if ((c[1] & c[3]) == 0) {
+		return 0;
+	}
+
+	return 1;
+}
+
 void Renderer::Init(psyqo::GPU& gpuInstance) {
 	if (m_instance != nullptr) {
 		return;
@@ -520,7 +579,7 @@ void Renderer::RenderBillboards(uint32_t deltaTime, const psyqo::Matrix33& camer
 		psyqo::GTE::read<psyqo::GTE::Register::SXY1>(&projected[2].packed);
 		psyqo::GTE::read<psyqo::GTE::Register::SXY2>(&projected[3].packed);
 
-		if (quad_clip(&SCREEN_SPACE, &projected[0], &projected[1], &projected[2], &projected[3])) {
+		if (QuadClip(projected.data())) {
 			continue;
 		}
 
@@ -1241,12 +1300,6 @@ void Renderer::ProcessQuadNode(FaceNode& node, uint8_t subDivsionDepth, const Fa
 		psyqo::GTE::write<psyqo::GTE::Register::SZ1, psyqo::GTE::Unsafe>(node.projectedDepths[1]);
 		psyqo::GTE::write<psyqo::GTE::Register::SZ2, psyqo::GTE::Safe>(node.projectedDepths[2]);
 
-		// figure out nclip and skip rendering if backfaced
-		psyqo::GTE::Kernels::nclip();
-		if ((int32_t)psyqo::GTE::readRaw<psyqo::GTE::Register::MAC0>() == 0) {
-			return;
-		}
-
 		psyqo::GTE::write<psyqo::GTE::Register::SXY2, psyqo::GTE::Unsafe>(node.projected[3].packed);
 		psyqo::GTE::write<psyqo::GTE::Register::SZ3, psyqo::GTE::Safe>(node.projectedDepths[3]);
 	}
@@ -1261,7 +1314,7 @@ void Renderer::ProcessQuadNode(FaceNode& node, uint8_t subDivsionDepth, const Fa
 	}
 
 	// clip screen space
-	if (quad_clip(&SCREEN_SPACE, &node.projected[0], &node.projected[1], &node.projected[2], &node.projected[3])) {
+	if (QuadClip(node.projected.data())) {
 		return;
 	}
 
@@ -1949,12 +2002,6 @@ void Renderer::ProcessTriNode(FaceNode& node, uint8_t subDivsionDepth, const Fac
 		psyqo::GTE::write<psyqo::GTE::Register::SZ1, psyqo::GTE::Unsafe>(node.projectedDepths[0]);
 		psyqo::GTE::write<psyqo::GTE::Register::SZ2, psyqo::GTE::Unsafe>(node.projectedDepths[1]);
 		psyqo::GTE::write<psyqo::GTE::Register::SZ3, psyqo::GTE::Safe>(node.projectedDepths[2]);
-
-		// figure out nclip and skip rendering if backfaced
-		psyqo::GTE::Kernels::nclip();
-		if ((int32_t)psyqo::GTE::readRaw<psyqo::GTE::Register::MAC0>() == 0) {
-			return;
-		}
 	}
 
 	// figure out avg z index
