@@ -7,12 +7,13 @@
 #pragma once
 
 #include "../core/collision_types.hh"
+#include "../mesh/mesh_manager.hh"
 #include "../textures/texture_manager.hh"
-#include "EASTL/array.h"
 #include "camera.hh"
 #include "lighting.hh"
-#include "psyqo/ordering-table.hh"
 #include "renderer_face_types.hh"
+
+#include <EASTL/array.h>
 
 #include <psyqo/bump-allocator.hh>
 #include <psyqo/fixed-point.hh>
@@ -20,6 +21,7 @@
 #include <psyqo/fragments.hh>
 #include <psyqo/gpu.hh>
 #include <psyqo/matrix.hh>
+#include <psyqo/ordering-table.hh>
 #include <psyqo/primitives/common.hh>
 #include <psyqo/primitives/quads.hh>
 #include <psyqo/primitives/triangles.hh>
@@ -36,8 +38,8 @@ static constexpr uint16_t SUBDIVISION_MAX_DISTANCE = 750; // after view space tr
 // a node whose projected screen bounding box has its longer side below this many pixels is not
 // split further (0 = off)
 static constexpr uint16_t SUBDIVISION_SCREEN_CUTOFF = 32;
-static constexpr uint8_t SUBDIVISION_MAX_DEPTH = 2;		  // how deep to go when doing sub-division
-static constexpr uint8_t MAX_SPRITE_FRAGMENTS = 40;		  // per frame, shared by every RenderSprite caller
+static constexpr uint8_t SUBDIVISION_MAX_DEPTH = 2; // how deep to go when doing sub-division
+static constexpr uint8_t MAX_SPRITE_FRAGMENTS = 40; // per frame, shared by every RenderSprite caller
 static constexpr psyqo::Color c_loadingBackgroundColour = {.r = 0, .g = 0, .b = 0};
 
 using OT = psyqo::OrderingTable<ORDERING_TABLE_SIZE>;
@@ -51,6 +53,11 @@ struct FaceData {
 	OT& orderingTable;
 	const bool isAdvancedFog;
 	const bool useQuickAdvancedFogPass;
+};
+
+struct ProcessFaceData {
+	const MeshBin* mesh;
+	const FaceData* faceData;
 };
 
 class Renderer final {
@@ -77,6 +84,9 @@ class Renderer final {
 	// bump allocator so we're not guessing at runtime how many quads/lines/etc/etc/etc we're gonna have
 	BA m_allocators[2];
 
+	// put the stack on the scratchpad to speed up face processing
+	psyqo::ScratchpadStackful<712> m_faceLoop; // minus the corner slots and the face data on the scratch pad (1024 - 280 - 28, rounded down to 8)
+
 	// texture page + sprite info
 	// TODO: move to bump allocator?
 	eastl::array<psyqo::Fragments::SimpleFragment<psyqo::Prim::TPage>, MAX_SPRITE_FRAGMENTS> m_tpages[2];
@@ -95,10 +105,10 @@ class Renderer final {
 	void RenderGameObjects(uint32_t deltaTime, const psyqo::Matrix33& cameraRotationMatrix);
 
 	void ProcessMeshQuad(const RendererQuad& quad, int8_t depth, const FaceData& faceData);
-	void ProcessQuadNode(FaceNode& node, uint8_t subDivsionDepth, const FaceData& faceData);
+	void ProcessQuadNode(FaceCorner* const* corners, uint8_t subDivisionDepth, const FaceData& faceData);
 
 	void ProcessMeshTri(const RendererTri& tri, int8_t depth, const FaceData& faceData);
-	void ProcessTriNode(FaceNode& node, uint8_t subDivsionDepth, const FaceData& faceData);
+	void ProcessTriNode(FaceCorner* const* corners, uint8_t subDivisionDepth, const FaceData& faceData);
 
 	void RenderBillboards(uint32_t deltaTime, const psyqo::Matrix33& cameraRotationMatrix);
 	void RenderParticles(uint32_t deltaTime, const psyqo::Matrix33& cameraRotationMatrix);
