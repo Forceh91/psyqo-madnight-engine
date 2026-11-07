@@ -35,11 +35,12 @@ struct RendererTri {
 
 // used for sub division on quads
 struct FaceCorner {
-	psyqo::GTE::PackedVec3 vert; // world space vert pos
-	psyqo::Vertex projected;	 // projected screen pos
-	uint32_t depth;				 // depth of the projected corner
-	uint32_t ir;				 // ir0 of the projected vert
+	psyqo::GTE::PackedVec3 vert;	// world space vert pos
+	psyqo::PrimPieces::UVCoords uv; // packs in next to the 6-byte vert, 28 bytes instead of 32
+	psyqo::Vertex projected;		// projected screen pos
+	uint32_t depth;					// depth of the projected corner
+	uint32_t ir;					// ir0 of the projected vert
 	psyqo::Color colour;
 	psyqo::Color fogColour; // if advanced fog is turned on
-	psyqo::PrimPieces::UVCoords uv;
 };
+static_assert(sizeof(FaceCorner) == 28);
