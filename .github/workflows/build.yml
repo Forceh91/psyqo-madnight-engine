@@ -112,7 +112,7 @@ jobs:
           cat tech-demo.log
           [ $status -eq 0 ] && grep -q '^TECHDEMO card=ok' tech-demo.log || exit 1
           # worst frame of the lap in vsyncs; the limit is Redux's number, not hardware's
-          limit=10
+          limit=4
           worst=$(sed -n 's/^TECHDEMO lap=.* worst=\([0-9][0-9]*\).*/\1/p' tech-demo.log | head -n 1)
           if [ -z "$worst" ]; then echo "no TECHDEMO lap line in the log"; exit 1; fi
           if [ "$worst" -gt "$limit" ]; then echo "worst frame $worst vsyncs, limit $limit"; exit 1; fi

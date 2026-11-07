@@ -36,7 +36,7 @@ constexpr uint8_t CREAK_CHANNEL = 1;
 constexpr uint32_t CREAK_INTERVAL = 600;
 
 // the hall runs along +Z from 0 to 24 units (48 m), see tools/make_assets.py
-constexpr int32_t HERO_START_Z = 2;
+constexpr psyqo::FixedPoint<> HERO_START_Z = 2.0_ws;
 constexpr int32_t HERO_SPEED = 24; // 1/16ths of a raw unit per vsync, about 1.4 m/s
 
 constexpr psyqo::Color FOG_COLOUR = {.r = 92, .g = 96, .b = 100};
@@ -107,9 +107,8 @@ void HallScene::CreateWorld(void) {
 		m_hall->SetTexture(HALL_TEXTURE);
 	}
 
-	m_heroZ = HERO_START_Z * 128 * 16;
-	m_hero = objects.CreateGameObject("hero", {0, 0, psyqo::FixedPoint<>(HERO_START_Z * 128, psyqo::FixedPoint<>::RAW)},
-									  {0, 0, 0}, GameObjectTag::INTERACTABLE);
+	m_heroZ = HERO_START_Z.value * 16;
+	m_hero = objects.CreateGameObject("hero", {0, 0, HERO_START_Z}, {0, 0, 0}, GameObjectTag::INTERACTABLE);
 	if (m_hero) {
 		m_hero->SetMesh(HERO_MESH);
 		m_hero->SetTexture(HERO_TEXTURE);
@@ -255,7 +254,7 @@ void HallScene::EndLap(void) {
 
 	m_lap = {};
 	m_lapTime = 0;
-	m_heroZ = HERO_START_Z * 128 * 16;
+	m_heroZ = HERO_START_Z.value * 16;
 	m_heroDirection = 1;
 	if (m_hero) {
 		m_hero->SetRotation(0, 0, 0);
