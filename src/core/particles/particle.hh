@@ -40,6 +40,7 @@ class Particle final : public Billboard {
 		m_lastUpdate = 0;
 
 		// billboard settings
+		m_spawnPos = pos;
 		m_pos = pos;
 		m_size = startSize;
 		m_colour = m_startColour;
@@ -52,6 +53,7 @@ class Particle final : public Billboard {
 	psyqo::Vec2 m_endSize;
 	psyqo::Vec3 m_startVelocity;
 	psyqo::Vec3 m_endVelocity;
+	psyqo::Vec3 m_spawnPos;
 	uint8_t m_lifetime = 1;
 	uint32_t m_lifetimeMicroSeconds = 0;
 	uint32_t m_age = 0;

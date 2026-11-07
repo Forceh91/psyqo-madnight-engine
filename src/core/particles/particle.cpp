@@ -18,8 +18,6 @@ void Particle::Process(const uint32_t& deltaTime) {
 
 	m_age += deltaTime;
 
-	// need to convert delta time into seconds to get fp first
-	auto fpDeltaTime = 1.0_fp * (deltaTime / 1000) / 1000;
 	auto ageMS = static_cast<int32_t>(m_age / 1000);
 	auto lifetimeMS = m_lifetimeMicroSeconds / 1000;
 
@@ -35,8 +33,16 @@ void Particle::Process(const uint32_t& deltaTime) {
 	auto lerpedSize = Lerp(m_startSize, m_endSize, lifetimeLerp);
 	setSize(lerpedSize);
 
+	// work out the position from the age instead of adding velocity * deltaTime every frame, at short frame times that
+	// truncates to 0 for slow particles. velocity changes linearly so the distance so far is the average of the start
+	// and current velocity * age. (start + current) * ageMS has to fit in an int32, so with the max 255s lifetime keep
+	// velocities under ~4200 raw (~32_ws) per second
 	auto lerpedVelocity = Lerp(m_startVelocity, m_endVelocity, lifetimeLerp);
-	auto deltaTimeVelocity = lerpedVelocity * fpDeltaTime;
+	auto displacement = [ageMS](const psyqo::FixedPoint<>& start, const psyqo::FixedPoint<>& current) {
+		return psyqo::FixedPoint<>((start.value + current.value) * ageMS / 2000, psyqo::FixedPoint<>::RAW);
+	};
 
-	SetPosition(m_pos + deltaTimeVelocity);
+	SetPosition(m_spawnPos + psyqo::Vec3{displacement(m_startVelocity.x, lerpedVelocity.x),
+										 displacement(m_startVelocity.y, lerpedVelocity.y),
+										 displacement(m_startVelocity.z, lerpedVelocity.z)});
 }
