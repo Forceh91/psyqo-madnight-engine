@@ -85,7 +85,7 @@ class Renderer final {
 	BA m_allocators[2];
 
 	// put the stack on the scratchpad to speed up face processing
-	psyqo::ScratchpadStackful<736> m_faceLoop; // this is minus the corner slots already on the scratch pad (1024 - 280)
+	psyqo::ScratchpadStackful<712> m_faceLoop; // minus the corner slots and the face data on the scratch pad (1024 - 280 - 28, rounded down to 8)
 
 	// texture page + sprite info
 	// TODO: move to bump allocator?

@@ -37,6 +37,7 @@ static constexpr uint8_t PROJECTION_DISTANCE = 120;
 
 static constexpr uint32_t SCRATCH_CORNER_COUNT = (4 + 2 * (SUBDIVISION_MAX_DEPTH + 1));
 __attribute__((section(".scratchpad"))) FaceCorner stFaceCorners[SCRATCH_CORNER_COUNT];
+__attribute__((section(".scratchpad"))) alignas(FaceData) uint8_t stFaceDataStorage[sizeof(FaceData)];
 
 #if ENABLE_BONE_DEBUG
 static constexpr psyqo::Color boneColours[MAX_BONES] = {
@@ -453,8 +454,9 @@ void Renderer::RenderGameObjects(uint32_t deltaTime, const psyqo::Matrix33& came
 
 		const auto& quickAdvancedFog =
 			m_lighting->IsAdvancedFogEnabled() && gameObject->HasRenderFlag(RF_QUICK_ADVANCED_FOG);
-		const FaceData faceData = {texture,			tpage, offset, allocator, ot, m_lighting->IsAdvancedFogEnabled(),
-								   quickAdvancedFog};
+		// built in place in the scratch pad, FaceData has const and reference members so it can't be assigned
+		const FaceData& faceData = *new (stFaceDataStorage) FaceData{
+			texture, tpage, offset, allocator, ot, m_lighting->IsAdvancedFogEnabled(), quickAdvancedFog};
 
 		// if we're doing a character then quick advanced fog is used (stp untextured quad on top)
 		if (quickAdvancedFog) {
