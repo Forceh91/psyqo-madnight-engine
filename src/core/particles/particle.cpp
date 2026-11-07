@@ -38,7 +38,9 @@ void Particle::Process(const uint32_t& deltaTime) {
 	// fits an int32 for velocities under ~32_ws per second at the max 255s lifetime
 	auto lerpedVelocity = Lerp(m_startVelocity, m_endVelocity, lifetimeLerp);
 	auto displacement = [ageMS](const psyqo::FixedPoint<>& start, const psyqo::FixedPoint<>& current) {
-		return psyqo::FixedPoint<>((start.value + current.value) * ageMS / 2000, psyqo::FixedPoint<>::RAW);
+		// signed divisor: an unsigned one would turn a negative velocity into a huge positive one
+		constexpr int32_t divisor = 2 * MILLISECONDS_IN_A_SECOND;
+		return psyqo::FixedPoint<>((start.value + current.value) * ageMS / divisor, psyqo::FixedPoint<>::RAW);
 	};
 
 	SetPosition(m_spawnPos + psyqo::Vec3{displacement(m_startVelocity.x, lerpedVelocity.x),
