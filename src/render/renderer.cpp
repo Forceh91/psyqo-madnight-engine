@@ -471,14 +471,15 @@ void Renderer::RenderGameObjects(uint32_t deltaTime, const psyqo::Matrix33& came
 			m_qafIROCount = 0;
 		}
 
-		auto processFace = [this, mesh, faceData] {
-			for (int32_t i = 0; i < mesh->facesCount; i++) {
-				const auto& rendererFace = mesh->facesData[i];
+		ProcessFaceData processData = {mesh, &faceData};
+		auto processFace = [this, args = &processData] {
+			for (int32_t i = 0; i < args->mesh->facesCount; i++) {
+				const auto& rendererFace = args->mesh->facesData[i];
 
 				if (rendererFace.isQuad) {
-					ProcessMeshQuad(mesh->quads[rendererFace.rendererFaceIx], 0, faceData);
+					ProcessMeshQuad(args->mesh->quads[rendererFace.rendererFaceIx], 0, *args->faceData);
 				} else {
-					ProcessMeshTri(mesh->tris[rendererFace.rendererFaceIx], 0, faceData);
+					ProcessMeshTri(args->mesh->tris[rendererFace.rendererFaceIx], 0, *args->faceData);
 				}
 			}
 		};

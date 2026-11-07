@@ -7,12 +7,13 @@
 #pragma once
 
 #include "../core/collision_types.hh"
+#include "../mesh/mesh_manager.hh"
 #include "../textures/texture_manager.hh"
-#include "EASTL/array.h"
 #include "camera.hh"
 #include "lighting.hh"
-#include "psyqo/ordering-table.hh"
 #include "renderer_face_types.hh"
+
+#include <EASTL/array.h>
 
 #include <psyqo/bump-allocator.hh>
 #include <psyqo/fixed-point.hh>
@@ -20,6 +21,7 @@
 #include <psyqo/fragments.hh>
 #include <psyqo/gpu.hh>
 #include <psyqo/matrix.hh>
+#include <psyqo/ordering-table.hh>
 #include <psyqo/primitives/common.hh>
 #include <psyqo/primitives/quads.hh>
 #include <psyqo/primitives/triangles.hh>
@@ -51,6 +53,11 @@ struct FaceData {
 	OT& orderingTable;
 	const bool isAdvancedFog;
 	const bool useQuickAdvancedFogPass;
+};
+
+struct ProcessFaceData {
+	const MeshBin* mesh;
+	const FaceData* faceData;
 };
 
 class Renderer final {
