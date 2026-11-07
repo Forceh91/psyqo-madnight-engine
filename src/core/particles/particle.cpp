@@ -33,10 +33,9 @@ void Particle::Process(const uint32_t& deltaTime) {
 	auto lerpedSize = Lerp(m_startSize, m_endSize, lifetimeLerp);
 	setSize(lerpedSize);
 
-	// work out the position from the age instead of adding velocity * deltaTime every frame, at short frame times that
-	// truncates to 0 for slow particles. velocity changes linearly so the distance so far is the average of the start
-	// and current velocity * age. (start + current) * ageMS has to fit in an int32, so with the max 255s lifetime keep
-	// velocities under ~4200 raw (~32_ws) per second
+	// position from age, not velocity * deltaTime per frame (that truncates to 0 for slow particles at short frames).
+	// distance = average of start and current velocity * age: / 2 for the average, / 1000 for ms -> s
+	// fits an int32 for velocities under ~32_ws per second at the max 255s lifetime
 	auto lerpedVelocity = Lerp(m_startVelocity, m_endVelocity, lifetimeLerp);
 	auto displacement = [ageMS](const psyqo::FixedPoint<>& start, const psyqo::FixedPoint<>& current) {
 		return psyqo::FixedPoint<>((start.value + current.value) * ageMS / 2000, psyqo::FixedPoint<>::RAW);

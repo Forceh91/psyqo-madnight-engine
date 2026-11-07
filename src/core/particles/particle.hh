@@ -38,9 +38,9 @@ class Particle final : public Billboard {
 		m_age = 0;
 		m_lifetimeMicroSeconds = MICROSECONDS_IN_A_SECOND * m_lifetime;
 		m_lastUpdate = 0;
+		m_spawnPos = pos;
 
 		// billboard settings
-		m_spawnPos = pos;
 		m_pos = pos;
 		m_size = startSize;
 		m_colour = m_startColour;
