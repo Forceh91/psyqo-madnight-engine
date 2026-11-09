@@ -2,6 +2,10 @@
 ENGINE := ..
 
 TARGET = tech-demo
+
+# The engine's face loop runs on a 712-byte scratchpad stack, which subdivision
+# overflows at -Os (the nugget default). Build the demo at -O3 unless told otherwise.
+BUILD ?= ReleaseFast
 TYPE = ps-exe
 
 CPPFLAGS += -I$(ENGINE)/src
