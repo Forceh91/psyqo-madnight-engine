@@ -85,7 +85,10 @@ class Renderer final {
 	BA m_allocators[2];
 
 	// put the stack on the scratchpad to speed up face processing
-	psyqo::ScratchpadStackful<712> m_faceLoop; // minus the corner slots and the face data on the scratch pad (1024 - 280 - 28, rounded down to 8)
+	psyqo::ScratchpadStackful<712>
+		m_faceLoop; // minus the corner slots and the face data on the scratch pad (1024 - 280 - 28, rounded down to 8)
+
+	int32_t m_fogDepth = 0;
 
 	// texture page + sprite info
 	// TODO: move to bump allocator?
@@ -113,8 +116,7 @@ class Renderer final {
 	void RenderBillboards(uint32_t deltaTime, const psyqo::Matrix33& cameraRotationMatrix);
 	void RenderParticles(uint32_t deltaTime, const psyqo::Matrix33& cameraRotationMatrix);
 
-	bool IsGameObjectVisible(const psyqo::Vec3& objectPos, const AABBCollision& collisionBox,
-							 const int32_t& boundingSphereRadius);
+	bool IsGameObjectVisible(const psyqo::Vec3& objectPos, const int32_t& boundingSphereRadius);
 
 	psyqo::FixedPoint<> GetFogFactor(uint32_t z);
 

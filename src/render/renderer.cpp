@@ -30,10 +30,15 @@
 
 Renderer* Renderer::m_instance = nullptr;
 psyqo::Font<100> Renderer::m_systemFont;
-static constexpr psyqo::Rect SCREEN_SPACE = {.pos = {0, 0}, .size = {320, 240}};
 static constexpr psyqo::Matrix33 identityMatrix = {
 	{{1.0_fp, 0.0_fp, 0.0_fp}, {0.0_fp, 1.0_fp, 0.0_fp}, {0.0_fp, 0.0_fp, 1.0_fp}}};
+
+static constexpr psyqo::Rect SCREEN_SPACE = {.pos = {0, 0}, .size = {320, 240}};
 static constexpr uint8_t PROJECTION_DISTANCE = 120;
+
+static constexpr int16_t SCREEN_WIDTH_HALF = SCREEN_SPACE.size.x / 2, SCREEN_HEIGHT_HALF = SCREEN_SPACE.size.y / 2;
+static constexpr int32_t WIDTH_PLANE_LENGTH = 200;	// sqrt(PROJECTION_DISTANCE squared + SCREEN_WIDTH_HALF squared)
+static constexpr int32_t HEIGHT_PLANE_LENGTH = 170; // sqrt(PROJECTION_DISTANCE squared + SCREEN_HEIGHT_HALF squared)
 
 static constexpr uint32_t SCRATCH_CORNER_COUNT = (4 + 2 * (SUBDIVISION_MAX_DEPTH + 1));
 __attribute__((section(".scratchpad"))) FaceCorner stFaceCorners[SCRATCH_CORNER_COUNT];
@@ -248,6 +253,8 @@ void Renderer::SetFogNearFar(psyqo::FixedPoint<> near, psyqo::FixedPoint<> far) 
 
 	psyqo::GTE::write<psyqo::GTE::Register::DQA, psyqo::GTE::Unsafe>(dqaF);
 	psyqo::GTE::write<psyqo::GTE::Register::DQB, psyqo::GTE::Safe>(dqbF);
+
+	m_fogDepth = (b * PROJECTION_DISTANCE / h);
 }
 
 /* this must be called at the start of each frame */
@@ -365,7 +372,7 @@ void Renderer::RenderGameObjects(uint32_t deltaTime, const psyqo::Matrix33& came
 		// see if the entire game object will be visible based off its aabb centre
 		psyqo::Vec3 centre = gameObject->mesh()->bsphere.centre + gameObject->pos();
 		auto deltaCentre = TransformObjectToViewSpace(centre, cameraRotationMatrix, finalCameraMatrix);
-		if (!IsGameObjectVisible(deltaCentre, gameObject->mesh()->collisionBox, gameObject->mesh()->bsphere.radius)) {
+		if (!IsGameObjectVisible(deltaCentre, gameObject->mesh()->bsphere.radius)) {
 			continue;
 		}
 
@@ -968,11 +975,10 @@ void Renderer::RenderSprite(const TimFile* texture, const psyqo::Rect rect, cons
 
 void Renderer::SetActiveCamera(Camera* camera) { m_activeCamera = camera; }
 
-bool Renderer::IsGameObjectVisible(const psyqo::Vec3& cameraPos, const AABBCollision& collisionBox,
-								   const int32_t& boundingSphereRadius) {
-	int32_t cx = cameraPos.x.value;
-	int32_t cy = cameraPos.y.value;
-	int32_t cz = cameraPos.z.value;
+bool Renderer::IsGameObjectVisible(const psyqo::Vec3& objectPos, const int32_t& boundingSphereRadius) {
+	int32_t cx = objectPos.x.value;
+	int32_t cy = objectPos.y.value;
+	int32_t cz = objectPos.z.value;
 	int32_t r = boundingSphereRadius;
 
 	// reject if sphere is entirely behind near plane
@@ -980,24 +986,33 @@ bool Renderer::IsGameObjectVisible(const psyqo::Vec3& cameraPos, const AABBColli
 		return false;
 	}
 
-	// clamp to near plane to avoid divide by zero
-	if (cz < 1) {
-		cz = 1;
-	}
-
-	// project centre onto screen
-	int32_t sx = (cx * PROJECTION_DISTANCE) / cz + SCREEN_SPACE.size.x / 2;
-	int32_t sy = (cy * PROJECTION_DISTANCE) / cz + SCREEN_SPACE.size.y / 2;
-
-	// screen space radius
-	int32_t sr = (r * PROJECTION_DISTANCE) / cz;
-
-	// reject if sphere projection does not overlap viewport
-	if (sx + sr < 0 || sx - sr > SCREEN_SPACE.size.x) {
+	// reject if its too far away (and the fog is on)
+	if ((cz - r) >= m_fogDepth && (m_lighting->IsSimpleFogEnabled() || m_lighting->IsAdvancedFogEnabled())) {
 		return false;
 	}
 
-	if (sy + sr < 0 || sy - sr > SCREEN_SPACE.size.y) {
+	// reject depending on the four left/right/top/bottom values
+	auto projectedCX = PROJECTION_DISTANCE * cx, projectedCY = PROJECTION_DISTANCE * cy,
+		 projectedCZ = PROJECTION_DISTANCE * cz, projectedWidthRadius = WIDTH_PLANE_LENGTH * r,
+		 projectedHeightRadius = HEIGHT_PLANE_LENGTH * r;
+
+	// left
+	if (projectedCX + (SCREEN_WIDTH_HALF * cz) < -projectedWidthRadius) {
+		return false;
+	}
+
+	// right
+	if ((SCREEN_WIDTH_HALF * cz) - projectedCX < -projectedWidthRadius) {
+		return false;
+	}
+
+	// top
+	if (projectedCY + (SCREEN_HEIGHT_HALF * cz) < -projectedHeightRadius) {
+		return false;
+	}
+
+	// bottom
+	if ((SCREEN_HEIGHT_HALF * cz) - projectedCY < -projectedHeightRadius) {
 		return false;
 	}
 
