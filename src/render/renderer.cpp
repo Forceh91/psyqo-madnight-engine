@@ -772,8 +772,6 @@ void Renderer::RenderParticles(uint32_t deltaTime, const psyqo::Matrix33& camera
 
 				if (!m_lighting->IsAdvancedFogEnabled() && m_lighting->IsSimpleFogEnabled()) {
 					colour = GTEColourLerp(colour, GetFogFactor(sz).value);
-				} else {
-					ApplyFogToColour(&colour, GetFogFactor(sz));
 				}
 
 				// if its textured use a sprite
