@@ -27,8 +27,6 @@
 #include <psyqo/primitives/triangles.hh>
 
 static constexpr uint16_t ORDERING_TABLE_SIZE = 3'000;
-static constexpr uint16_t FULL_FOG_DISTANCE = 3'500; // screen z
-static constexpr uint16_t NEAR_FOG_DISTANCE = 2'000; // screen z
 static constexpr uint32_t BUMP_ALLOCATOR_BYTES =
 	125'000; // this is for each frame, so double what this number is is used up in RAM
 static constexpr uint8_t SUBDIVISION_MIN_DISTANCE =
@@ -85,7 +83,12 @@ class Renderer final {
 	BA m_allocators[2];
 
 	// put the stack on the scratchpad to speed up face processing
-	psyqo::ScratchpadStackful<712> m_faceLoop; // minus the corner slots and the face data on the scratch pad (1024 - 280 - 28, rounded down to 8)
+	psyqo::ScratchpadStackful<712>
+		m_faceLoop; // minus the corner slots and the face data on the scratch pad (1024 - 280 - 28, rounded down to 8)
+
+	// used for `IsGameObjectVisible` distance culling
+	int32_t m_fogNearDepth = 0;
+	int32_t m_fogFarDepth = 0;
 
 	// texture page + sprite info
 	// TODO: move to bump allocator?
@@ -113,8 +116,7 @@ class Renderer final {
 	void RenderBillboards(uint32_t deltaTime, const psyqo::Matrix33& cameraRotationMatrix);
 	void RenderParticles(uint32_t deltaTime, const psyqo::Matrix33& cameraRotationMatrix);
 
-	bool IsGameObjectVisible(const psyqo::Vec3& objectPos, const AABBCollision& collisionBox,
-							 const int32_t& boundingSphereRadius);
+	bool IsGameObjectVisible(const psyqo::Vec3& objectPos, const int32_t& boundingSphereRadius);
 
 	psyqo::FixedPoint<> GetFogFactor(uint32_t z);
 
