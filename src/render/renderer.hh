@@ -27,8 +27,6 @@
 #include <psyqo/primitives/triangles.hh>
 
 static constexpr uint16_t ORDERING_TABLE_SIZE = 3'000;
-static constexpr uint16_t FULL_FOG_DISTANCE = 3'500; // screen z
-static constexpr uint16_t NEAR_FOG_DISTANCE = 2'000; // screen z
 static constexpr uint32_t BUMP_ALLOCATOR_BYTES =
 	125'000; // this is for each frame, so double what this number is is used up in RAM
 static constexpr uint8_t SUBDIVISION_MIN_DISTANCE =
@@ -88,7 +86,9 @@ class Renderer final {
 	psyqo::ScratchpadStackful<712>
 		m_faceLoop; // minus the corner slots and the face data on the scratch pad (1024 - 280 - 28, rounded down to 8)
 
-	int32_t m_fogDepth = 0;
+	// used for `IsGameObjectVisible` distance culling
+	int32_t m_fogNearDepth = 0;
+	int32_t m_fogFarDepth = 0;
 
 	// texture page + sprite info
 	// TODO: move to bump allocator?
