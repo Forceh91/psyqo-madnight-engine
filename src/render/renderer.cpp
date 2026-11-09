@@ -217,6 +217,10 @@ void Renderer::StartScene(void) {
 	psyqo::GTE::write<psyqo::GTE::Register::ZSF3, psyqo::GTE::Unsafe>(ORDERING_TABLE_SIZE / 3);
 	psyqo::GTE::write<psyqo::GTE::Register::ZSF4, psyqo::GTE::Unsafe>(ORDERING_TABLE_SIZE / 4);
 
+	// default the fog near/far depths
+	m_fogNearDepth = 0;
+	m_fogFarDepth = 0;
+
 	// set fog colour (FC)
 	if (m_lighting->IsAdvancedFogEnabled()) {
 		SetFogNearFar(0.33_fp, 1.1_fp);
@@ -994,8 +998,7 @@ bool Renderer::IsGameObjectVisible(const psyqo::Vec3& objectPos, const int32_t& 
 
 	// reject depending on the four left/right/top/bottom values
 	auto projectedCX = PROJECTION_DISTANCE * cx, projectedCY = PROJECTION_DISTANCE * cy,
-		 projectedCZ = PROJECTION_DISTANCE * cz, projectedWidthRadius = WIDTH_PLANE_LENGTH * r,
-		 projectedHeightRadius = HEIGHT_PLANE_LENGTH * r;
+		 projectedWidthRadius = WIDTH_PLANE_LENGTH * r, projectedHeightRadius = HEIGHT_PLANE_LENGTH * r;
 
 	// left
 	if (projectedCX + (SCREEN_WIDTH_HALF * cz) < -projectedWidthRadius) {
@@ -2242,9 +2245,14 @@ void Renderer::ProcessTriNode(FaceCorner* const* corners, uint8_t subDivisionDep
 }
 
 psyqo::FixedPoint<> Renderer::GetFogFactor(uint32_t z) {
+	if (m_fogFarDepth == 0) {
+		return 0.0_fp;
+	}
+
 	if (z <= m_fogNearDepth) {
 		return 0.0_fp;
 	}
+
 	if (z >= m_fogFarDepth) {
 		return 1.0_fp;
 	}
