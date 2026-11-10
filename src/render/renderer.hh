@@ -82,9 +82,14 @@ class Renderer final {
 	// bump allocator so we're not guessing at runtime how many quads/lines/etc/etc/etc we're gonna have
 	BA m_allocators[2];
 
-	// put the stack on the scratchpad to speed up face processing
+	// put the stack on the scratchpad to speed up face processing. subdivision needs more than 712 bytes at -Os
+	// and -O0, so those builds use a stack in RAM instead
+#if defined(__OPTIMIZE_SIZE__) || !defined(__OPTIMIZE__)
+	psyqo::Stackful<2048> m_faceLoop;
+#else
 	psyqo::ScratchpadStackful<712>
 		m_faceLoop; // minus the corner slots and the face data on the scratch pad (1024 - 280 - 28, rounded down to 8)
+#endif
 
 	// used for `IsGameObjectVisible` distance culling
 	int32_t m_fogNearDepth = 0;
