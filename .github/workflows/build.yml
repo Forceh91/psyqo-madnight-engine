@@ -118,7 +118,12 @@ jobs:
           if [ "$worst" -gt "$limit" ]; then echo "worst frame $worst vsyncs, limit $limit"; exit 1; fi
           echo "worst frame $worst vsyncs, limit $limit"
 
-      - uses: actions/upload-artifact@v4
+      - name: Generate Tech Demo Artifact
+        run: |
+          zip tech-demo.zip tech-demo/tech-demo.ps-exe build/techdemo.bin
+
+      - name: Upload artifact
+        uses: actions/upload-artifact@v4
         with:
-          name: tech-demo.ps-exe
-          path: tech-demo/tech-demo.ps-exe
+          name: tech-demo
+          path: tech-demo.zip
