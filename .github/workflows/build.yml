@@ -117,3 +117,8 @@ jobs:
           if [ -z "$worst" ]; then echo "no TECHDEMO lap line in the log"; exit 1; fi
           if [ "$worst" -gt "$limit" ]; then echo "worst frame $worst vsyncs, limit $limit"; exit 1; fi
           echo "worst frame $worst vsyncs, limit $limit"
+
+      - uses: actions/upload-artifact@v4
+        with:
+          name: tech-demo.ps-exe
+          path: tech-demo/tech-demo.ps-exe
