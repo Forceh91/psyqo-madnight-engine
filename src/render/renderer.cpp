@@ -217,6 +217,10 @@ void Renderer::StartScene(void) {
 	psyqo::GTE::write<psyqo::GTE::Register::ZSF3, psyqo::GTE::Unsafe>(ORDERING_TABLE_SIZE / 3);
 	psyqo::GTE::write<psyqo::GTE::Register::ZSF4, psyqo::GTE::Unsafe>(ORDERING_TABLE_SIZE / 4);
 
+	ApplyFogMode();
+}
+
+void Renderer::ApplyFogMode(void) {
 	// default the fog near/far depths
 	m_fogNearDepth = 0;
 	m_fogFarDepth = 0;
@@ -224,9 +228,13 @@ void Renderer::StartScene(void) {
 	// set fog colour (FC)
 	if (m_lighting->IsAdvancedFogEnabled()) {
 		SetFogNearFar(0.33_fp, 1.1_fp);
+		m_appliedFogMode = FOG_ADVANCED;
 	} else if (m_lighting->IsSimpleFogEnabled()) {
 		SetFogColour(m_lighting->GetFogColour());
 		SetFogNearFar(0.5_fp, 1.55_fp);
+		m_appliedFogMode = FOG_SIMPLE;
+	} else {
+		m_appliedFogMode = FOG_OFF;
 	}
 }
 
@@ -265,6 +273,16 @@ void Renderer::SetFogNearFar(psyqo::FixedPoint<> near, psyqo::FixedPoint<> far) 
 /* this must be called at the start of each frame */
 uint32_t Renderer::Process(void) {
 	uint32_t currentFrameCount = m_gpu.getFrameCount();
+
+	// fog can be turned on or switched mode after `StartScene`, so set the near/far for the new mode
+	if (m_lighting) {
+		const FogMode fogMode = m_lighting->IsAdvancedFogEnabled()
+									? FOG_ADVANCED
+									: (m_lighting->IsSimpleFogEnabled() ? FOG_SIMPLE : FOG_OFF);
+		if (fogMode != m_appliedFogMode) {
+			ApplyFogMode();
+		}
+	}
 
 	// figure out delta time (last frame count minus current frame count)
 	uint32_t deltaTime = currentFrameCount - m_lastFrameCounter;

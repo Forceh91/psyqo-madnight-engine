@@ -95,6 +95,11 @@ class Renderer final {
 	int32_t m_fogNearDepth = 0;
 	int32_t m_fogFarDepth = 0;
 
+	enum FogMode : uint8_t { FOG_OFF, FOG_SIMPLE, FOG_ADVANCED };
+
+	// fog mode the near/far depths were last set for
+	FogMode m_appliedFogMode = FOG_OFF;
+
 	// texture page + sprite info
 	// TODO: move to bump allocator?
 	eastl::array<psyqo::Fragments::SimpleFragment<psyqo::Prim::TPage>, MAX_SPRITE_FRAGMENTS> m_tpages[2];
@@ -134,6 +139,7 @@ class Renderer final {
 
 	void GTESetFarColour(const psyqo::Color& far);
 	void SetFogNearFar(psyqo::FixedPoint<> near, psyqo::FixedPoint<> far);
+	void ApplyFogMode(void);
 
   public:
 	static void Init(psyqo::GPU& gpuInstance);

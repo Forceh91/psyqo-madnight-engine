@@ -355,7 +355,7 @@ g_madnightEngine.SwitchScene(&gameplayScene); // gameplayScene's start() calls S
 
 Things to know:
 
-- The on/off state is checked every frame, so `DisableSimpleFog()` and `DisableAdvancedFog()` take effect straight away. Turning a mode on, or switching from one mode to the other, after `StartScene()` draws with whatever fog distances the GTE was last given, if any, rather than that mode's own. Call `StartScene()` again or set the mode before the scene starts.
+- The on/off state is checked every frame, so enabling, disabling or switching fog mode takes effect straight away, with that mode's own fog distances, including after `StartScene()`.
 - The fog distances are fixed per mode. `Renderer::SetFogNearFar` is private, so a game can't move them. Advanced fog starts closer to the camera and reaches full fog sooner than simple fog.
 
 ### Changing the fog colour

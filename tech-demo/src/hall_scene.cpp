@@ -45,7 +45,6 @@ constexpr psyqo::Color AMBIENT = {.r = 100, .g = 96, .b = 92};
 } // namespace
 
 void HallScene::start(StartReason reason) {
-	// the fog mode is read once by StartScene, so set it first
 	Lighting::instance().EnableAdvancedFog();
 	Lighting::instance().SetAmbientColour(AMBIENT);
 	Renderer::Instance().SetFogColour(FOG_COLOUR);
