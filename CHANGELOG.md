@@ -1,5 +1,13 @@
 # Changelog
 
+## [1.0.1](https://github.com/Forceh91/psyqo-madnight-engine/compare/v1.0.0...v1.0.1) (2026-11-13)
+
+
+### Bug Fixes
+
+* **renderer:** fog 2D particles with advanced fog on ([#154](https://github.com/Forceh91/psyqo-madnight-engine/issues/154)) ([7991f6b](https://github.com/Forceh91/psyqo-madnight-engine/commit/7991f6b7bb63ccc872bd57a69733dd48b030af3e))
+* **renderer:** set fog distances when fog is turned on after StartScene ([#155](https://github.com/Forceh91/psyqo-madnight-engine/issues/155)) ([88e09dd](https://github.com/Forceh91/psyqo-madnight-engine/commit/88e09dd7b38e3543705cd5ea16a4430deedc0d88))
+
 ## [1.0.0](https://github.com/Forceh91/psyqo-madnight-engine/compare/v0.1.0...v1.0.0) (2026-11-10)
 
 
