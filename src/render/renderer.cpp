@@ -770,7 +770,7 @@ void Renderer::RenderParticles(uint32_t deltaTime, const psyqo::Matrix33& camera
 				auto colour = particle.colour();
 				ApplyAmbientToColour(&colour);
 
-				if (!m_lighting->IsAdvancedFogEnabled() && m_lighting->IsSimpleFogEnabled()) {
+				if (m_lighting->IsAdvancedFogEnabled() || m_lighting->IsSimpleFogEnabled()) {
 					colour = GTEColourLerp(colour, GetFogFactor(sz).value);
 				}
 
