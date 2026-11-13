@@ -77,7 +77,7 @@ Anything you wrote as `N * ONE_METRE` is now half as long. To keep the old lengt
 
 ### Fog constants removed
 
-`NEAR_FOG_DISTANCE` and `FULL_FOG_DISTANCE` are no longer in `renderer.hh` ([#143](https://github.com/Forceh91/psyqo-madnight-engine/pull/143)). They only set the fog on 2D particles. There is nothing to replace them with in game code: the near and far distances now come from the fog mode `StartScene()` sets up, the same ones meshes use. Delete any reference to the two constants.
+`NEAR_FOG_DISTANCE` and `FULL_FOG_DISTANCE` are no longer in `renderer.hh` ([#143](https://github.com/Forceh91/psyqo-madnight-engine/pull/143)). They only set the fog on 2D particles. There is nothing to replace them with in game code: the near and far distances now come from the current fog mode, the same ones meshes use. Delete any reference to the two constants.
 
 Other fog behaviour that changed in the same release:
 

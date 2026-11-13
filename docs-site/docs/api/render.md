@@ -335,13 +335,13 @@ If both are turned on, advanced fog wins and simple fog does nothing.
 
 ### Turning fog on
 
-`StartScene()` looks at which mode is on and writes that mode's fog distances to the GTE. It does that once, when it's called, so turn the mode on before `StartScene()` runs: at the top of your scene's `start()`, or before you switch to the scene.
+`StartScene()` looks at which mode is on and writes that mode's fog distances to the GTE, and `Process()` writes them again whenever the mode changes, so a mode can be turned on at any point. The usual place is the top of your scene's `start()`.
 
 ```cpp
 void GameplayScene::start(StartReason reason) {
   Lighting::instance().EnableAdvancedFog();
   Renderer::Instance().SetFogColour({20, 20, 30});
-  Renderer::Instance().StartScene(); // picks up the fog mode set above
+  Renderer::Instance().StartScene();
   // ...
 }
 ```
@@ -432,7 +432,7 @@ The cost is four extra GPU commands per object (the quad plus three state change
 
 Billboards and particles use one colour for all their corners. It's scaled by the ambient colour, then blended toward the fog colour using the depth of a single corner. That's a plain colour blend in both modes, without advanced fog's second primitive, so a textured billboard or particle is tinted toward the fog colour the way [simple fog](#simple-fog) tints textured faces.
 
-Particles from a 2D emitter (`AreParticles2D()`) are drawn as sprites and take their fog amount from the CPU instead of the GTE: none up to the near fog distance, full at the far fog distance, and a straight line between the two. Those distances are the ones `StartScene()` set for the current fog mode. With fog off they are drawn unfogged.
+Particles from a 2D emitter (`AreParticles2D()`) are drawn as sprites and take their fog amount from the CPU instead of the GTE: none up to the near fog distance, full at the far fog distance, and a straight line between the two. Those are the current fog mode's distances. With fog off they are drawn unfogged.
 
 ## Colour constants
 
