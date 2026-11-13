@@ -15,6 +15,105 @@ git add madnight_engine
 git commit -m "Update madnight_engine submodule"
 ```
 
+The engine pins its own copy of nugget (psyqo), so update that too after pulling:
+
+```bash
+cd madnight_engine
+git submodule update --init --recursive
+```
+
+## v0.1.0 to v1.0.0
+
+v1.0.0 needs the nugget revision it pins. The renderer uses `psyqo::ScratchpadStackful`, which the v0.1.0 nugget does not have, so run the `git submodule update` above or the engine will not build.
+
+No asset format changed between these versions and the exporters in `tools/` are the same, so `.MESHBIN`, `.ANIMBIN`, `.COLBIN` and `.scenebin` files do not need re-exporting.
+
+### Camera position is no longer applied twice
+
+The renderer used to subtract the camera position from every object and then add the camera translation again, so a `FIXED` or `FREE_LOOK` camera at `c` drew the scene as if it were at `2 * c`. `FOLLOW` mode cancelled this out and drew correctly. As of v1.0.0 every mode draws from the position you give the camera ([#121](https://github.com/Forceh91/psyqo-madnight-engine/pull/121)).
+
+What to do, for `FIXED` and `FREE_LOOK` cameras:
+
+- If you set a camera position by eye, double it to get the same view back.
+- If you placed positions that get compared with the camera or player position (triggers, spawn points, raycast targets) so they lined up with what was on screen, double those too.
+- Placing meshes relative to each other is unaffected.
+
+The example from #121, an exit trigger placed to match a level where the camera moves:
+
+```cpp
+// before
+m_exitLevelTrigger = g_madnightEngine.m_gameObjectManager.CreateGameObject(
+    "EXIT_LEVEL", {0, 0, -26.0_ws}, {0, 0, 0}, PORTAL_EXIT);
+
+// after
+m_exitLevelTrigger = g_madnightEngine.m_gameObjectManager.CreateGameObject(
+    "EXIT_LEVEL", {0, 0, -52.0_ws}, {0, 0, 0}, PORTAL_EXIT);
+```
+
+`Camera::deltaOffset()`, which only existed to undo the doubling in `FOLLOW` mode, is gone.
+
+### LookAt is no longer mirrored
+
+`Camera::LookAt` built its right vector the wrong way round, so a view from `LookAt` was mirrored left to right. That includes `FOLLOW` mode, which calls `LookAt` every frame ([#123](https://github.com/Forceh91/psyqo-madnight-engine/pull/123)). If you flipped an axis or the orbit input to make it look right, remove that.
+
+### ONE_METRE is half its old size
+
+`ONE_METRE` was `0.03125_fp` (128 units, which is one Blender unit). It is now `0.5_ws` (64 units), matching the convention that one Blender unit is 2 m ([#92](https://github.com/Forceh91/psyqo-madnight-engine/pull/92)). The `_ws` literal did not change.
+
+Anything you wrote as `N * ONE_METRE` is now half as long. To keep the old length, double `N` or switch to the literal:
+
+```cpp
+// before: 10 * 128 units
+.maxDistance = 10 * ONE_METRE
+
+// after: same length
+.maxDistance = 20 * ONE_METRE // or 10.0_ws
+```
+
+### Raycasts
+
+- `maxRayDistance` is now `10.0_ws` (20 m) ([#129](https://github.com/Forceh91/psyqo-madnight-engine/pull/129)). That is the same number of units as v0.1.0's `ONE_METRE * 10`, so the limit has not moved, but in the new `ONE_METRE` it allows up to `20 * ONE_METRE`.
+- A game object with a mesh is now tested against its mesh box moved to the object's position. v0.1.0 tested the box as if the object were at the origin ([#99](https://github.com/Forceh91/psyqo-madnight-engine/pull/99)). Remove any offset you added to the ray to make up for it.
+
+### Fog constants removed
+
+`NEAR_FOG_DISTANCE` and `FULL_FOG_DISTANCE` are no longer in `renderer.hh` ([#143](https://github.com/Forceh91/psyqo-madnight-engine/pull/143)). They only set the fog on 2D particles. There is nothing to replace them with in game code: the near and far distances now come from the current fog mode, the same ones meshes use. Delete any reference to the two constants.
+
+Other fog behaviour that changed in the same release:
+
+- While simple or advanced fog is on, a game object whose bounding sphere is entirely past the far fog distance is not drawn at all. Before, it was drawn fully fogged. If your clear colour differs from the fog colour, far objects now disappear rather than showing as fog-coloured shapes.
+- 2D particles are no longer fogged with fog off. v0.1.0 fogged them anyway. See [Fog on billboards and particles](../api/render#fog-on-billboards-and-particles).
+
+### atan2_fixed is deprecated
+
+`atan2_fixed` is marked `[[deprecated]]`, so calling it now gives a compiler warning ([#79](https://github.com/Forceh91/psyqo-madnight-engine/pull/79)). Use `psyqo::atan2` from `<psyqo/atan2.hh>`. It takes the same `(y, x)` order and returns a `psyqo::Angle` in the same `(-1.0_pi, 1.0_pi]` range, but takes `int32_t` and only the ratio of the two matters, so you no longer need to scale inputs into -128 to 127.
+
+```cpp
+// before
+psyqo::Angle yaw = atan2_fixed(dz, dx);
+
+// after
+#include <psyqo/atan2.hh>
+psyqo::Angle yaw = psyqo::atan2(dz, dx);
+```
+
+### Particles
+
+- Emitters spawn at the rate you ask for. Below 16 particles per second the spawn interval overflowed and they spawned faster than asked ([#127](https://github.com/Forceh91/psyqo-madnight-engine/pull/127)), and an emitter now spawns more than one particle in a frame when its rate needs it ([#139](https://github.com/Forceh91/psyqo-madnight-engine/pull/139)). Retune particle counts you picked by eye.
+- Slow particles move at short frame times. Their position now comes from their age instead of adding `velocity * deltaTime` each frame, which rounded to zero ([#140](https://github.com/Forceh91/psyqo-madnight-engine/pull/140)).
+- An emitter builds its rotation matrix when it is created, so particles move without a `SetRotation` call ([#98](https://github.com/Forceh91/psyqo-madnight-engine/pull/98)). Calling `SetRotation({0, 0, 0})` as a workaround is harmless but no longer needed.
+
+### Smaller behaviour changes
+
+- `DestroyGameObject` now also clears flags, render flags and the quad type, so a reused slot starts clean ([#97](https://github.com/Forceh91/psyqo-madnight-engine/pull/97)). You can drop `ClearFlags()`/`ClearRenderFlags()` calls you added after `CreateGameObject` for this.
+- Disabled menu items no longer react to the confirm button or custom buttons ([#82](https://github.com/Forceh91/psyqo-madnight-engine/pull/82)).
+- MOD music: the volume starts at `DEFAULT_MUSIC_VOLUME` instead of 0, calling `PlayMusic` while music is playing replaces the update timer instead of adding a second one, and `LoadMODSound` stops the current music before loading ([#117](https://github.com/Forceh91/psyqo-madnight-engine/pull/117)).
+- VAG samples loaded before the first hard load now go to the right place in SPU RAM and play ([#116](https://github.com/Forceh91/psyqo-madnight-engine/pull/116)).
+- Skeletal animations blend between keys instead of snapping to the earlier key, slerp takes the short way round, and `LerpAngle` takes the short way across +-180 degrees ([#86](https://github.com/Forceh91/psyqo-madnight-engine/pull/86)).
+- Bright ambient colours saturate at 255 instead of wrapping round to dark ([#90](https://github.com/Forceh91/psyqo-madnight-engine/pull/90)).
+- Subdivision stops splitting a face once its longer side on screen is under 32 pixels (`SUBDIVISION_SCREEN_CUTOFF` in `renderer.hh`, 0 turns it off) ([#133](https://github.com/Forceh91/psyqo-madnight-engine/pull/133)).
+- Builds at `-Os` and `-O0` run the face loop on a stack in main RAM, because subdivision overflows the scratchpad stack there ([#146](https://github.com/Forceh91/psyqo-madnight-engine/pull/146)). Your game's `BUILD` setting needs no change. The tech demo in this repository builds with `BUILD ?= ReleaseFast` ([#144](https://github.com/Forceh91/psyqo-madnight-engine/pull/144)).
+
 ## v0.0.1: instance-based managers
 
 The engine's managers used to be classes with `static` methods over static state. As of v0.0.1 they're **non-`static` members owned by `MadnightEngine`**, so every call site needs an instance to call through — the global `g_madnightEngine`:

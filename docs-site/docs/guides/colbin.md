@@ -17,7 +17,7 @@ Two conventions, and which one applies depends on the field, not on the struct i
 
 | Data | Convention |
 |---|---|
-| Positions: grid origin, cell size, floor vertices, OBB centre, OBB half extents | x128 integer (128 units per engine metre) |
+| Positions: grid origin, cell size, floor vertices, OBB centre, OBB half extents | x128 integer (128 units per Blender unit, which is 2 m) |
 | Directions: floor normals, OBB axes | FP12 (x4096) |
 
 Both end up in fields whose C++ type is nominally 12-bit fixed point, so the type does not

@@ -52,7 +52,7 @@ public:
   void ClearFixed(void); // returns to the previously set mode
 
   // pos: pointer to what you want to track (e.g. player position).
-  // distance is in metres — keep it small (128px = 1m).
+  // keep distance small: 128 raw units is 1.0_ws, which is 2 m.
   // forces FOLLOW mode; only takes effect while in that mode.
   void SetFollow(psyqo::Vec3 *pos, psyqo::FixedPoint<> distance);
   void SetFollow(psyqo::Vec3 *pos, psyqo::Vec2 offsetPos, psyqo::FixedPoint<> distance);
@@ -195,17 +195,18 @@ public:
 
 Key constants (`src/render/renderer.hh`):
 
-| Constant               | Value   | Purpose                                                                                                                                                                        |
-| ---------------------- | ------- | ------------------------------------------------------------------------------------------------------------------------------------------------------------------------------ |
-| `ORDERING_TABLE_SIZE`  | 10,000  | Depth buckets in each frame's ordering table                                                                                                                                   |
-| `FULL_FOG_DISTANCE`    | 3,500   | Screen-space Z past which fog is fully opaque, 2D sprite particles only (see [Fog on billboards and particles](#fog-on-billboards-and-particles))                              |
-| `NEAR_FOG_DISTANCE`    | 2,000   | Screen-space Z where fog starts blending in, 2D sprite particles only (see [Fog on billboards and particles](#fog-on-billboards-and-particles))                                |
-| `BUMP_ALLOCATOR_BYTES` | 125,000 | Per-frame draw-command arena (×2 for double buffering)                                                                                                                         |
-| `SUBDIVISION_DISTANCE` | 750     | View-space distance closer than which large textured quads/tris get subdivided to reduce perspective warping (`renderer.cpp` subdivides when `zIndex <= SUBDIVISION_DISTANCE`) |
+| Constant | Value | Purpose |
+| --- | --- | --- |
+| `ORDERING_TABLE_SIZE` | 3,000 | Depth buckets in each frame's ordering table |
+| `BUMP_ALLOCATOR_BYTES` | 125,000 | Per-frame draw-command arena (x2 for double buffering) |
+| `SUBDIVISION_MIN_DISTANCE` | 1 | A face is only subdivided if at least one corner's view-space depth is this or more |
+| `SUBDIVISION_MAX_DISTANCE` | 750 | and at least one corner's view-space depth is this or less. Subdivision reduces perspective warping on large textured quads/tris |
+| `SUBDIVISION_SCREEN_CUTOFF` | 32 | A node whose longer side on screen is under this many pixels is not split further (0 turns it off) |
+| `SUBDIVISION_MAX_DEPTH` | 2 | How many times a face can be split |
 
 ### The per-frame flow
 
-Call `StartScene()` once from your scene's `start()`, then each frame call `Process()` to get `deltaTime`, update your game objects/scene, then `Render(deltaTime)` to flush the ordering table to the GPU. `Render()` clears the screen itself (see [Clear colour](#clear-colour)), so `Clear()` is only needed in frames that draw without it. `Renderer` draws whatever `GameObjectManager::GetActiveGameObjects` returns each frame (see [Core](./core#gameobjectmanager) on the renderable-objects subset, which currently isn't wired up to anything); visibility is culled per-object against the camera via `IsGameObjectVisible` internally, using each object's bounding volume.
+Call `StartScene()` once from your scene's `start()`, then each frame call `Process()` to get `deltaTime`, update your game objects/scene, then `Render(deltaTime)` to flush the ordering table to the GPU. `Render()` clears the screen itself (see [Clear colour](#clear-colour)), so `Clear()` is only needed in frames that draw without it. `Renderer` draws whatever `GameObjectManager::GetActiveGameObjects` returns each frame (see [Core](./core#gameobjectmanager) on the renderable-objects subset, which currently isn't wired up to anything); visibility is culled per-object against the camera via `IsGameObjectVisible` internally, using each object's bounding sphere. While fog is on, an object whose bounding sphere is entirely past the far fog distance is culled too.
 
 Ambient colour, the clear colour and fog are all applied by the renderer but configured through `Lighting`; see [Lighting](#lighting) and [Fog](#fog) below.
 
@@ -334,13 +335,13 @@ If both are turned on, advanced fog wins and simple fog does nothing.
 
 ### Turning fog on
 
-`StartScene()` looks at which mode is on and writes that mode's fog distances to the GTE. It does that once, when it's called, so turn the mode on before `StartScene()` runs: at the top of your scene's `start()`, or before you switch to the scene.
+`StartScene()` looks at which mode is on and writes that mode's fog distances to the GTE, and `Process()` writes them again whenever the mode changes, so a mode can be turned on at any point. The usual place is the top of your scene's `start()`.
 
 ```cpp
 void GameplayScene::start(StartReason reason) {
   Lighting::instance().EnableAdvancedFog();
   Renderer::Instance().SetFogColour({20, 20, 30});
-  Renderer::Instance().StartScene(); // picks up the fog mode set above
+  Renderer::Instance().StartScene();
   // ...
 }
 ```
@@ -357,7 +358,6 @@ Things to know:
 
 - The on/off state is checked every frame, so enabling, disabling or switching fog mode takes effect straight away, with that mode's own fog distances, including after `StartScene()`.
 - The fog distances are fixed per mode. `Renderer::SetFogNearFar` is private, so a game can't move them. Advanced fog starts closer to the camera and reaches full fog sooner than simple fog.
-
 ### Changing the fog colour
 
 Use `Renderer::Instance().SetFogColour`. It stores the colour on `Lighting` and also writes it into the GTE, which is where simple fog reads it from. You can call it at any time, including mid-scene.
@@ -432,7 +432,7 @@ The cost is four extra GPU commands per object (the quad plus three state change
 
 Billboards and particles use one colour for all their corners. It's scaled by the ambient colour, then blended toward the fog colour using the depth of a single corner. That's a plain colour blend in both modes, without advanced fog's second primitive, so a textured billboard or particle is tinted toward the fog colour the way [simple fog](#simple-fog) tints textured faces.
 
-Particles from a 2D emitter (`AreParticles2D()`) are drawn as sprites and take their fog amount from the CPU instead of the GTE: none up to a screen depth of `NEAR_FOG_DISTANCE` (2,000), full at `FULL_FOG_DISTANCE` (3,500), and a straight line between the two. Those two constants only affect 2D particles, so they won't line up exactly with the fog on meshes and billboards.
+Particles from a 2D emitter (`AreParticles2D()`) are drawn as sprites and take their fog amount from the CPU instead of the GTE: none up to the near fog distance, full at the far fog distance, and a straight line between the two. Those are the current fog mode's distances. With fog off they are drawn unfogged.
 
 ## Colour constants
 
