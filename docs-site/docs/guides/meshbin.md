@@ -18,15 +18,15 @@ Three different conventions appear in this file and they are not interchangeable
 
 | Data | Convention | Meaning |
 |---|---|---|
-| Positions (vertices, AABB, bounding sphere, bone `localPos`) | x128 integer | 128 units = one engine metre, matching `ONE_METRE` in `world_defs.hh`. The exporter multiplies by `ONE_ENGINE_METRE = 128`. |
-| Bone `localRotation` | FP12 (x4096) | A `psyqo::GTE::Short`, i.e. `FixedPoint<12, int16_t>`. |
+| Positions (vertices, AABB, bounding sphere, bone `localPos`) | x128 integer | 128 units = one Blender unit, which is 2 m (`1.0_ws`); `ONE_METRE` in `world_defs.hh` is 64 units. The exporter multiplies by `ONE_ENGINE_METRE = 128`. |
+| Bone `localRotation` | FP12 (x4096) | Stored as `int16_t`, sign-extended into the 32-bit `psyqo::FixedPoint<>` components of a `Quaternion` on load. |
 | UVs | raw texel bytes | 0-255, no scaling. |
 
 Position values are copied straight into the `.value` of a `psyqo::Vec3`, whose nominal
 precision is 12 bits. The reader never rescales, so the x128 convention is what actually
 round-trips. Do not assume a position field behaves like a 12-bit fixed-point number just
 because its C++ type says so: `FixedPoint::integer()` on one of these divides by 4096, not
-128, and will return 0 for anything under 32 metres.
+128, and will return 0 for anything under 32 Blender units (64 m).
 
 ## Header
 

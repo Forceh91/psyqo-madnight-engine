@@ -50,7 +50,7 @@ auto yaw = LerpAngle(object->rotation().y, targetYaw, t);
 `t` is a `FixedPoint<10>` (10 fractional bits), not the usual `FixedPoint<>`. The result is not re-wrapped, so it can land just outside `±1.0_pi`.
 
 :::caution[atan2_fixed is deprecated]
-`atan2_fixed` will be removed in the next major release; use `psyqo::atan2` instead. The deprecation notice says it is not reliable: it drifts from the expected values (by about 3.5 degrees) or takes the long path instead of the short one.
+`atan2_fixed` is marked `[[deprecated]]`, so calling it gives a compiler warning, and it will be removed in a later release. Use `psyqo::atan2` (`<psyqo/atan2.hh>`) instead, which takes `(y, x)` in the same order but as `int32_t`. The deprecation notice says it is not reliable: it drifts from the expected values (by about 3.5 degrees) or takes the long path instead of the short one.
 :::
 
 ## Matrix

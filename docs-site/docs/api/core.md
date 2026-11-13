@@ -77,9 +77,7 @@ The renderer checks `RF_QUICK_ADVANCED_FOG` for each object when it draws it, an
 hero->SetRenderFlag(RF_QUICK_ADVANCED_FOG);
 ```
 
-:::caution[Flags are not cleared when an object is destroyed]
-`DestroyGameObject` resets the position, mesh, texture, tag and collision state, but not the flags or render flags. When a slot is reused, the new object can inherit the old one's flags, so call `ClearFlags()` and `ClearRenderFlags()` right after creating an object if you rely on them. Tracked in [#93](https://github.com/Forceh91/psyqo-madnight-engine/issues/93).
-:::
+`DestroyGameObject` resets the position, rotation, mesh, texture, tag, collision state, flags, render flags and quad type, and `CreateGameObject` clears the flags again, so an object made in a reused slot starts with none set.
 
 ### GameObjectTag
 
@@ -226,9 +224,7 @@ void GameplayScene::frame() {
 `ParticleEmitter::Process` measures elapsed time from the GPU clock itself and ignores the `deltaTime` you pass. You still have to call it every frame, but passing a different value changes nothing.
 :::
 
-:::caution[Call SetRotation before you expect particles to move]
-`SetRotation` is what builds the emitter's rotation matrix. A pooled emitter does not get one from `CreateParticleEmitter`, so until you call `SetRotation` (even with zero angles, as above) the particle velocities are rotated by an empty matrix and every particle stays where it spawned. Tracked in [#94](https://github.com/Forceh91/psyqo-madnight-engine/issues/94).
-:::
+`CreateParticleEmitter` builds the emitter's rotation matrix from zero angles, so particles move along the velocities you set without a `SetRotation` call. Call `SetRotation` to point the emitter somewhere else.
 
 Particles are spawned at a random point on a flat circle of the emitter's radius (in the X/Z plane), not inside a sphere. `SetRotation` tilts the emitter so the circle and the particle velocities rotate with it.
 

@@ -61,10 +61,6 @@ Limits:
 - All samples share the SPU's 512 KB of sound RAM. A sample that does not fit is not loaded.
 - Samples are never freed one by one. A hard load (`HardLoadingScreen`) silences every channel and drops all of them at once.
 
-:::caution[Load samples after the first hard load]
-The SPU upload position is only set up by a hard load. A sample loaded before the first `HardLoadingScreen` (for example with `SoftLoadingScreen` or `LoadVAGFile` straight from `InitialLoad`) is uploaded to the wrong place in SPU RAM and `PlayVAGFile` will silently refuse to play it.
-:::
-
 ### Playing a sound effect
 
 Build a playback config for the sample, then play it on a channel.
@@ -122,7 +118,7 @@ if (track != nullptr) {
 
 Always pass a real pointer as the second argument. It is set to `nullptr` if loading fails. `CurrentMODSoundFile()` returns the last file that loaded.
 
-Loading another MOD replaces the current one; there is no unload call. A hard load does not unload music.
+Loading another MOD stops the current music and replaces it; there is no unload call. A hard load does not unload music.
 
 ### Controlling playback
 
@@ -140,8 +136,8 @@ All of these do nothing until a MOD file has loaded, including `SetMusicVolume`,
 
 Limits:
 
-- Call `PlayMusic` once to start. Calling it again while the music is already playing starts a second update timer, the track plays too fast, and `PauseMusic` and `StopMusic` only cancel the newer timer. Use `SetMusicVolume` to change volume, and `PauseMusic` before calling `PlayMusic` again.
-- `PlayMusic()` with no argument uses the last volume you set, which starts at 0. Pass a volume the first time.
+- Calling `PlayMusic` while the music is already playing restarts its update timer and sets the volume, it does not start a second copy. Use `SetMusicVolume` to change volume without touching the timer.
+- `PlayMusic()` with no argument uses the last volume you set, which starts at `DEFAULT_MUSIC_VOLUME`.
 - Neither `PauseMusic` nor `StopMusic` rewinds the track. To start a track from the top, load it again.
 - The music uses the low SPU channels, one per MOD channel (0 to 3 for a 4-channel MOD). Keep your own channel choices clear of them.
 
