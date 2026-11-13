@@ -82,7 +82,7 @@ Anything you wrote as `N * ONE_METRE` is now half as long. To keep the old lengt
 Other fog behaviour that changed in the same release:
 
 - While simple or advanced fog is on, a game object whose bounding sphere is entirely past the far fog distance is not drawn at all. Before, it was drawn fully fogged. If your clear colour differs from the fog colour, far objects now disappear rather than showing as fog-coloured shapes.
-- 2D particles get fog only with simple fog on. v0.1.0 fogged them even with fog off. See [Fog on billboards and particles](../api/render#fog-on-billboards-and-particles).
+- 2D particles are no longer fogged with fog off. v0.1.0 fogged them anyway. See [Fog on billboards and particles](../api/render#fog-on-billboards-and-particles).
 
 ### atan2_fixed is deprecated
 

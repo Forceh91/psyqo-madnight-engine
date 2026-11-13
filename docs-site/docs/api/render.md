@@ -358,8 +358,6 @@ Things to know:
 
 - The on/off state is checked every frame, so enabling, disabling or switching fog mode takes effect straight away, with that mode's own fog distances, including after `StartScene()`.
 - The fog distances are fixed per mode. `Renderer::SetFogNearFar` is private, so a game can't move them. Advanced fog starts closer to the camera and reaches full fog sooner than simple fog.
-- Turning fog on after a `StartScene()` that ran with fog off leaves the far fog distance at 0, and objects past it are culled, so almost every game object disappears. Turn fog on before `StartScene()`, or call it again after.
-
 ### Changing the fog colour
 
 Use `Renderer::Instance().SetFogColour`. It stores the colour on `Lighting` and also writes it into the GTE, which is where simple fog reads it from. You can call it at any time, including mid-scene.
@@ -434,7 +432,7 @@ The cost is four extra GPU commands per object (the quad plus three state change
 
 Billboards and particles use one colour for all their corners. It's scaled by the ambient colour, then blended toward the fog colour using the depth of a single corner. That's a plain colour blend in both modes, without advanced fog's second primitive, so a textured billboard or particle is tinted toward the fog colour the way [simple fog](#simple-fog) tints textured faces.
 
-Particles from a 2D emitter (`AreParticles2D()`) are drawn as sprites and take their fog amount from the CPU instead of the GTE: none up to the near fog distance, full at the far fog distance, and a straight line between the two. Those distances are the ones `StartScene()` set for the current fog mode. 2D particles are only fogged with simple fog on; with advanced fog on, or no fog, they are drawn unfogged.
+Particles from a 2D emitter (`AreParticles2D()`) are drawn as sprites and take their fog amount from the CPU instead of the GTE: none up to the near fog distance, full at the far fog distance, and a straight line between the two. Those distances are the ones `StartScene()` set for the current fog mode. With fog off they are drawn unfogged.
 
 ## Colour constants
 
