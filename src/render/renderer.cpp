@@ -228,13 +228,13 @@ void Renderer::ApplyFogMode(void) {
 	// set fog colour (FC)
 	if (m_lighting->IsAdvancedFogEnabled()) {
 		SetFogNearFar(0.33_fp, 1.1_fp);
-		m_appliedFogMode = 2;
+		m_appliedFogMode = FOG_ADVANCED;
 	} else if (m_lighting->IsSimpleFogEnabled()) {
 		SetFogColour(m_lighting->GetFogColour());
 		SetFogNearFar(0.5_fp, 1.55_fp);
-		m_appliedFogMode = 1;
+		m_appliedFogMode = FOG_SIMPLE;
 	} else {
-		m_appliedFogMode = 0;
+		m_appliedFogMode = FOG_OFF;
 	}
 }
 
@@ -276,8 +276,9 @@ uint32_t Renderer::Process(void) {
 
 	// fog can be turned on or switched mode after `StartScene`, so set the near/far for the new mode
 	if (m_lighting) {
-		const uint8_t fogMode =
-			m_lighting->IsAdvancedFogEnabled() ? 2 : (m_lighting->IsSimpleFogEnabled() ? 1 : 0);
+		const FogMode fogMode = m_lighting->IsAdvancedFogEnabled()
+									? FOG_ADVANCED
+									: (m_lighting->IsSimpleFogEnabled() ? FOG_SIMPLE : FOG_OFF);
 		if (fogMode != m_appliedFogMode) {
 			ApplyFogMode();
 		}

@@ -95,8 +95,10 @@ class Renderer final {
 	int32_t m_fogNearDepth = 0;
 	int32_t m_fogFarDepth = 0;
 
-	// fog mode the near/far depths were last set for (0 = off, 1 = simple, 2 = advanced)
-	uint8_t m_appliedFogMode = 0;
+	enum FogMode : uint8_t { FOG_OFF, FOG_SIMPLE, FOG_ADVANCED };
+
+	// fog mode the near/far depths were last set for
+	FogMode m_appliedFogMode = FOG_OFF;
 
 	// texture page + sprite info
 	// TODO: move to bump allocator?
