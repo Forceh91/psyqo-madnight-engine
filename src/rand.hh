@@ -26,6 +26,7 @@ SOFTWARE.
 
 #pragma once
 
+#include <EASTL/utility.h>
 #include <stdint.h>
 
 // An extremely simple random number generator that is absolutely
@@ -47,9 +48,7 @@ class Rand {
 	// Gets a random number between min and max, inclusive. The bounds can be given in either order.
 	int32_t randInc(int32_t min, int32_t max) {
 		if (max < min) {
-			int32_t swap = min;
-			min = max;
-			max = swap;
+			eastl::swap(min, max);
 		}
 
 		// the full int32 range wraps to 0
