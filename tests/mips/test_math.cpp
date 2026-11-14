@@ -3,6 +3,7 @@
 #include "math/matrix.hh"
 #include "math/trig.hh"
 #include "math/vector.hh"
+#include "rand.hh"
 
 #include <third_party/snitch/snitch_all.hpp>
 
@@ -151,4 +152,22 @@ TEST_CASE("LerpAngle interpolates between two angles") {
 TEST_CASE("LerpAngle takes the shortest way across the +-180 degree seam") {
 	auto mid = LerpAngle(0.9_pi, -0.9_pi, psyqo::FixedPoint<10>(0.5));
 	CHECK((mid.value == 1024 || mid.value == -1024));
+}
+
+TEST_CASE("Rand::randInc stays inside the bounds, given in either order") {
+	Rand rng;
+	for (int i = 0; i < 1000; i++) {
+		auto forward = rng.randInc(-100, 100);
+		CHECK(forward >= -100);
+		CHECK(forward <= 100);
+		auto reversed = rng.randInc(100, -100);
+		CHECK(reversed >= -100);
+		CHECK(reversed <= 100);
+	}
+}
+
+TEST_CASE("Rand::randInc with equal bounds returns that value") {
+	Rand rng;
+	CHECK(rng.randInc(7, 7) == 7);
+	CHECK(rng.randInc(-3, -3) == -3);
 }

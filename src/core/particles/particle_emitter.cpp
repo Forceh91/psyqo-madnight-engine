@@ -56,7 +56,9 @@ void ParticleEmitter::Destroy(void) {
 }
 
 psyqo::Vec2 ParticleEmitter::GenerateRandomPointOnCircumfrence(void) {
-	auto angle = g_madnightEngine.m_rand.rand<360>() * psyqo::Angle(3.14 * 2);
+	// 1.0_pi is 1024, so 0 to 2047 covers the whole circle
+	psyqo::Angle angle;
+	angle.value = g_madnightEngine.m_rand.rand<2048>();
 	return {
 		g_madnightEngine.m_trig.cos(angle) * m_radius,
 		g_madnightEngine.m_trig.sin(angle) * m_radius,
