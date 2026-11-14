@@ -43,6 +43,7 @@ const sidebars = {
         'api/textures',
         'api/ui',
         'api/helpers',
+        'api/memory-card',
       ],
     },
   ],

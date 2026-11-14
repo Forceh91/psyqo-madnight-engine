@@ -75,13 +75,16 @@ auto toLocal = TransposeMatrix33(object->rotationMatrix()); // undo the object's
 
 `src/rand.hh`, reached as `g_madnightEngine.m_rand`.
 
-A small random number generator. It is not secure, and `seed(0)` breaks it. Seed it once at start-up, or you get the same sequence every run.
+A small random number generator (a linear congruential generator). It is not secure. Seed it once at start-up, or you get the same sequence every run.
 
 ```cpp
 g_madnightEngine.m_rand.seed(Renderer::Instance().GPU().now());
 
 auto roll = g_madnightEngine.m_rand.rand(1, 7); // 1 to 6
 auto pick = g_madnightEngine.m_rand.rand<4>();  // 0 to 3
+auto tilt = g_madnightEngine.m_rand.randInc(-8, 8); // -8 to 8
 ```
 
-`rand(max)` and `rand<RANGE>()` give `0` up to but not including the limit. `rand(min, max)` also leaves out `max`, and needs `max` greater than `min`. `rand()` with no arguments gives a full 32-bit number and never returns 0.
+`rand(max)` and `rand<RANGE>()` give `0` up to but not including the limit. `rand(min, max)` also leaves out `max`, and needs `max` greater than `min`. `rand()` with no arguments gives a full 32-bit number.
+
+`randInc(min, max)` includes both ends, and works on signed `int32_t`, so it is the one to use for a range that goes below zero. `randInc(5, 5)` always gives 5. The bounds can be given in either order, so `randInc(100, -100)` is the same as `randInc(-100, 100)`.

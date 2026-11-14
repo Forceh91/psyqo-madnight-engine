@@ -99,7 +99,7 @@ class Camera final {
 	void ClearFixed(void);
 
 	// pointer to a vec3 (e.g. player position) that you want to track
-	// distance is in metres. try to keep this value small. 128px = 1m
+	// distance is in world units. try to keep this value small. 64 units (ONE_METRE, 0.5_ws) = 1m
 	// NOTE: will force the camera into follow mode, and will only take affect when in that mode
 	void SetFollow(psyqo::Vec3* pos, psyqo::FixedPoint<> distance);
 	void SetFollow(psyqo::Vec3* pos, psyqo::Vec2 offsetPos, psyqo::FixedPoint<> distance);

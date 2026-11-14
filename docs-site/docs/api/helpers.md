@@ -27,7 +27,7 @@ The engine's convention is that one Blender unit is 2 metres.
 | --- | --- | --- |
 | `1.0_ws` | 1 | 2 m |
 | `0.5_ws` | 0.5 | 1 m (`ONE_METRE`) |
-| `5.0_ws` | 5 | 10 m (`maxRayDistance`) |
+| `10.0_ws` | 10 | 20 m (`maxRayDistance`) |
 
 If Blender's grid says a wall is 25 units long, write `25.0_ws`. Blender itself will call that 25 m, though the engine treats it as 50 m. To make Blender's displayed metres match the engine, set the scene's Unit Scale to 2.0, or model everything at half size.
 
