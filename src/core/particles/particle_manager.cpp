@@ -38,6 +38,19 @@ void ParticleEmitterManager::DestroyParticleEmitter(ParticleEmitter* emitter) {
 	emitter->Destroy();
 }
 
+void ParticleEmitterManager::Dump(void) {
+	auto count = m_pool.size();
+	for (auto i = 0; i < count; i++) {
+		auto* emitter = m_pool.Get(i);
+		if (emitter && emitter->id() != INVALID_POOL_ID) {
+			emitter->Destroy();
+		}
+	}
+
+	m_activeEmitters.clear();
+	m_pool.Dump();
+}
+
 const eastl::fixed_vector<ParticleEmitter*, MAX_PARTICLE_EMITTERS>& ParticleEmitterManager::GetActiveEmitters(void) {
 	m_activeEmitters.clear();
 

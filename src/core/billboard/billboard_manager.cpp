@@ -32,6 +32,19 @@ void BillboardManager::DestroyBillboard(Billboard* billboard) {
 	billboard->Destroy();
 }
 
+void BillboardManager::Dump(void) {
+	auto count = m_pool.size();
+	for (auto i = 0; i < count; i++) {
+		auto* billboard = m_pool.Get(i);
+		if (billboard && billboard->id() != INVALID_POOL_ID) {
+			billboard->Destroy();
+		}
+	}
+
+	m_activeBillboards.clear();
+	m_pool.Dump();
+}
+
 const eastl::fixed_vector<Billboard*, MAX_BILLBOARDS>& BillboardManager::GetActiveBillboards(void) {
 	m_activeBillboards.clear();
 
