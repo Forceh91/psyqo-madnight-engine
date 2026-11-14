@@ -19,6 +19,7 @@ class ParticleEmitterManager final {
 										   const psyqo::FixedPoint<>& radius, const uint8_t& particlesPerSecond,
 										   const uint8_t& particleLifeTimeSecs);
 	void DestroyParticleEmitter(ParticleEmitter* emitter);
+	void Dump(void);
 
 	const eastl::fixed_vector<ParticleEmitter*, MAX_PARTICLE_EMITTERS>& GetActiveEmitters(void);
 	const constexpr ParticleEmitter* GetEmitters(void) const { return m_pool.Entries(); }

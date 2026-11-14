@@ -109,9 +109,7 @@ TEST_CASE("Soft loading screen keeps the current scene's game objects") {
 	mgr.Dump();
 }
 
-// docs/api/core.md: the file loader "does not touch billboards or particle emitters, so destroy those yourself
-// when you change scene". this pins that, then checks destroying them by hand does empty both pools.
-TEST_CASE("Hard loading screen teardown leaves billboards and emitters for the game to destroy") {
+TEST_CASE("Hard loading screen teardown destroys every billboard and emitter and frees both pools") {
 	auto& billboards = g_madnightEngine.m_billboardManager;
 	auto& emitters = g_madnightEngine.m_particleEmitterManager;
 
@@ -123,12 +121,6 @@ TEST_CASE("Hard loading screen teardown leaves billboards and emitters for the g
 
 	RunLoadFiles(true);
 
-	CHECK(billboards.GetActiveBillboards().size() == 1);
-	CHECK(emitters.GetActiveEmitters().size() == 1);
-
-	billboards.DestroyBillboard(billboard);
-	emitters.DestroyParticleEmitter(emitter);
-
 	REQUIRE(billboards.GetActiveBillboards().empty());
 	REQUIRE(emitters.GetActiveEmitters().empty());
 	for (auto i = 0; i < MAX_BILLBOARDS; i++) {
@@ -137,4 +129,11 @@ TEST_CASE("Hard loading screen teardown leaves billboards and emitters for the g
 	for (auto i = 0; i < MAX_PARTICLE_EMITTERS; i++) {
 		REQUIRE(emitters.GetEmitters()[i].id() == INVALID_POOL_ID);
 	}
+
+	// every slot is free again
+	for (auto i = 0; i < MAX_BILLBOARDS; i++) {
+		REQUIRE(billboards.CreateBillboard("refill", ZeroPos(), UnitSize()) != nullptr);
+	}
+	REQUIRE(billboards.CreateBillboard("one too many", ZeroPos(), UnitSize()) == nullptr);
+	billboards.Dump();
 }

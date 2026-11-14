@@ -18,6 +18,7 @@ class BillboardManager final {
   public:
 	Billboard* CreateBillboard(const eastl::string_view& name, psyqo::Vec3 pos, psyqo::Vec2 size);
 	void DestroyBillboard(Billboard* billboard);
+	void Dump(void);
 
 	const eastl::fixed_vector<Billboard*, MAX_BILLBOARDS>& GetActiveBillboards(void);
 	const constexpr Billboard* GetBillboards(void) const { return m_pool.Entries(); }

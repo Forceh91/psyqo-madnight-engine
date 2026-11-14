@@ -124,7 +124,7 @@ Names are hashed, so lookup compares a 64-bit hash and returns the first match. 
 g_madnightEngine.m_gameObjectManager.DestroyGameObject(crate);
 ```
 
-This frees the slot and wipes the object. Do not use the pointer afterwards. `Dump()` destroys every object at once. You rarely call it yourself, because the file loader dumps game objects, meshes, textures, collision data and sounds for you when it starts a loading screen. It does not touch billboards or particle emitters, so destroy those yourself when you change scene.
+This frees the slot and wipes the object. Do not use the pointer afterwards. `Dump()` destroys every object at once. You rarely call it yourself, because the file loader dumps game objects, billboards, particle emitters, meshes, textures, collision data and sounds for you when it starts a hard loading screen.
 
 ### Rendering only some objects
 

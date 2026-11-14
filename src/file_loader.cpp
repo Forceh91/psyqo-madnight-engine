@@ -20,6 +20,8 @@
 psyqo::Coroutine<> FileLoader::LoadFiles(eastl::vector<LoadQueue>&& files, bool clearPools) {
 	if (clearPools) {
 		g_madnightEngine.m_gameObjectManager.Dump();
+		g_madnightEngine.m_billboardManager.Dump();
+		g_madnightEngine.m_particleEmitterManager.Dump();
 		g_madnightEngine.m_meshManager.Dump();
 		g_madnightEngine.m_textureManager.Dump();
 		g_madnightEngine.m_colbinManager.Dump();
