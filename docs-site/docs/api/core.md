@@ -226,7 +226,29 @@ void GameplayScene::frame() {
 
 `CreateParticleEmitter` builds the emitter's rotation matrix from zero angles, so particles move along the velocities you set without a `SetRotation` call. Call `SetRotation` to point the emitter somewhere else.
 
-Particles are spawned at a random point on a flat circle of the emitter's radius (in the X/Z plane), not inside a sphere. `SetRotation` tilts the emitter so the circle and the particle velocities rotate with it.
+By default particles are spawned at a random point on the edge of a flat circle of the emitter's radius (in the X/Z plane), not inside a sphere. `SetRotation` tilts the emitter so the circle and the particle velocities rotate with it.
+
+Velocities are in world units per second, so `0.5_ws` moves a particle 1 m a second.
+
+### Spawn area and velocity spread
+
+```cpp
+sparks->SetSpawnInsideRadius(true);                         // anywhere inside the circle
+sparks->SetParticleVelocitySpread({0.1_ws, 0.05_ws, 0.1_ws}); // up to +/-0.1_ws a second on X and Z
+```
+
+`SetSpawnInsideRadius(true)` spawns particles anywhere inside the circle instead of on its edge. Each particle gets a random angle and a random distance from the centre, up to just under the radius. The distance is the larger of two random picks, which spreads particles evenly over the circle's area instead of bunching them in the middle. `SetSpawnInsideRadius(false)`, the default, goes back to the edge.
+
+`SetParticleVelocitySpread(spread)` makes each particle's velocity a little different. When a particle spawns, each axis of its start velocity gets a random amount between `-spread` and `+spread` added, ends included, and its end velocity gets a second amount picked the same way. The default is `{0, 0, 0}`, no spread. Some things to know:
+
+- The spread is in the same units as the velocity, world units per second. It is picked in the smallest fixed-point step, which for world space is 1/64 m a second.
+- It is added after the emitter's rotation, so the X, Y and Z of `spread` are world axes. `SetRotation` does not turn it.
+- The start and end amounts are picked separately, so a particle can drift one way at the start of its life and another way at the end.
+- It is picked when a particle spawns, so changing it only affects particles spawned after the call. The same goes for `SetSpawnInsideRadius`.
+
+:::caution[Keep every spread value zero or positive]
+The spread for each axis is picked with `Rand::randInc(-spread, spread)`. A negative value makes the minimum bigger than the maximum, and `randInc` then returns numbers from nearly the whole 32-bit range, so those particles fly off at huge speeds.
+:::
 
 ## ParticleEmitterManager
 

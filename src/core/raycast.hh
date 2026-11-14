@@ -16,7 +16,7 @@ static constexpr psyqo::FixedPoint<> maxRayDistance = 10.0_ws; // 20m
 typedef struct _RAY {
 	psyqo::Vec3 origin = {0, 0, 0};
 	psyqo::Vec3 direction = {0, 0, 0};	 // normalized
-	psyqo::FixedPoint<> maxDistance = 0; // in metres. try to keep this value small. 128px = 1m
+	psyqo::FixedPoint<> maxDistance = 0; // in world units. try to keep this value small. 64 units (ONE_METRE, 0.5_ws) = 1m
 } Ray;
 
 typedef struct _RAY_HIT {
