@@ -548,7 +548,7 @@ void Renderer::RenderBillboards(uint32_t deltaTime, const psyqo::Matrix33& camer
 
 		psyqo::GTE::Kernels::avsz4();
 		zIndex = psyqo::GTE::readRaw<psyqo::GTE::Register::OTZ>();
-		if (zIndex == 0 || zIndex >= ORDERING_TABLE_SIZE) {
+		if (IsOutsideOrderingTable(zIndex)) {
 			continue;
 		}
 
@@ -680,7 +680,7 @@ void Renderer::RenderParticles(uint32_t deltaTime, const psyqo::Matrix33& camera
 				// keep it within the OT. we dont have all sz points written here so we need to derive it ourselves
 				auto sz = psyqo::GTE::readRaw<psyqo::GTE::Register::SZ3>();
 				zIndex = ((ORDERING_TABLE_SIZE / 3) * 3 * sz) >> 12;
-				if (zIndex == 0 || zIndex >= ORDERING_TABLE_SIZE) {
+				if (IsOutsideOrderingTable(zIndex)) {
 					continue;
 				}
 
@@ -770,7 +770,7 @@ void Renderer::RenderParticles(uint32_t deltaTime, const psyqo::Matrix33& camera
 
 				psyqo::GTE::Kernels::avsz4();
 				zIndex = psyqo::GTE::readRaw<psyqo::GTE::Register::OTZ>();
-				if (zIndex == 0 || zIndex >= ORDERING_TABLE_SIZE) {
+				if (IsOutsideOrderingTable(zIndex)) {
 					continue;
 				}
 
@@ -1057,7 +1057,7 @@ void Renderer::ProcessMeshQuad(const RendererQuad& quad, int8_t depth, const Fac
 
 		// keep inside OT bounds
 		uint32_t zIndex = psyqo::GTE::readRaw<psyqo::GTE::Register::OTZ>();
-		if (zIndex == 0 || zIndex >= ORDERING_TABLE_SIZE) {
+		if (IsOutsideOrderingTable(zIndex)) {
 			return;
 		}
 
@@ -1314,7 +1314,7 @@ void Renderer::ProcessQuadNode(FaceCorner* const* corners, uint8_t subDivisionDe
 
 	// keep inside OT bounds
 	uint32_t zIndex = psyqo::GTE::readRaw<psyqo::GTE::Register::OTZ>();
-	if (zIndex == 0 || zIndex >= ORDERING_TABLE_SIZE) {
+	if (IsOutsideOrderingTable(zIndex)) {
 		return;
 	}
 
@@ -1704,7 +1704,7 @@ void Renderer::ProcessMeshTri(const RendererTri& tri, int8_t depth, const FaceDa
 
 		// keep inside OT bounds
 		uint32_t zIndex = psyqo::GTE::readRaw<psyqo::GTE::Register::OTZ>();
-		if (zIndex == 0 || zIndex >= ORDERING_TABLE_SIZE) {
+		if (IsOutsideOrderingTable(zIndex)) {
 			return;
 		}
 
@@ -1935,7 +1935,7 @@ void Renderer::ProcessTriNode(FaceCorner* const* corners, uint8_t subDivisionDep
 
 	// keep inside OT bounds
 	uint32_t zIndex = psyqo::GTE::readRaw<psyqo::GTE::Register::OTZ>();
-	if (zIndex == 0 || zIndex >= ORDERING_TABLE_SIZE) {
+	if (IsOutsideOrderingTable(zIndex)) {
 		return;
 	}
 
