@@ -87,4 +87,4 @@ auto tilt = g_madnightEngine.m_rand.randInc(-8, 8); // -8 to 8
 
 `rand(max)` and `rand<RANGE>()` give `0` up to but not including the limit. `rand(min, max)` also leaves out `max`, and needs `max` greater than `min`. `rand()` with no arguments gives a full 32-bit number.
 
-`randInc(min, max)` includes both ends, and works on signed `int32_t`, so it is the one to use for a range that goes below zero. `randInc(5, 5)` always gives 5. It needs `max` to be at least `min`: with `max` one less than `min` it divides by zero, and with `max` lower than that it returns numbers outside the range.
+`randInc(min, max)` includes both ends, and works on signed `int32_t`, so it is the one to use for a range that goes below zero. `randInc(5, 5)` always gives 5. The bounds can be given in either order, so `randInc(100, -100)` is the same as `randInc(-100, 100)`.

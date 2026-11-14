@@ -245,10 +245,7 @@ sparks->SetParticleVelocitySpread({0.1_ws, 0.05_ws, 0.1_ws}); // up to +/-0.1_ws
 - It is added after the emitter's rotation, so the X, Y and Z of `spread` are world axes. `SetRotation` does not turn it.
 - The start and end amounts are picked separately, so a particle can drift one way at the start of its life and another way at the end.
 - It is picked when a particle spawns, so changing it only affects particles spawned after the call. The same goes for `SetSpawnInsideRadius`.
-
-:::caution[Keep every spread value zero or positive]
-The spread for each axis is picked with `Rand::randInc(-spread, spread)`. A negative value makes the minimum bigger than the maximum, and `randInc` then returns numbers from nearly the whole 32-bit range, so those particles fly off at huge speeds.
-:::
+- A negative spread value behaves the same as the positive one.
 
 ## ParticleEmitterManager
 
