@@ -27,6 +27,9 @@
 #include <psyqo/primitives/triangles.hh>
 
 static constexpr uint16_t ORDERING_TABLE_SIZE = 3'000;
+
+// a primitive whose ordering table depth is 0 or past the last bucket is not drawn
+inline constexpr bool IsOutsideOrderingTable(uint32_t zIndex) { return zIndex == 0 || zIndex >= ORDERING_TABLE_SIZE; }
 static constexpr uint32_t BUMP_ALLOCATOR_BYTES =
 	125'000; // this is for each frame, so double what this number is is used up in RAM
 static constexpr uint8_t SUBDIVISION_MIN_DISTANCE =

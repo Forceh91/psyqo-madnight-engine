@@ -13,6 +13,7 @@
 #include "../defs.hh"
 #include "../madnight.hh"
 #include "renderer_face_types.hh"
+#include "clip.hh"
 
 #include <psyqo/fixed-point.hh>
 #include <psyqo/fragments.hh>
@@ -33,7 +34,6 @@ psyqo::Font<100> Renderer::m_systemFont;
 static constexpr psyqo::Matrix33 identityMatrix = {
 	{{1.0_fp, 0.0_fp, 0.0_fp}, {0.0_fp, 1.0_fp, 0.0_fp}, {0.0_fp, 0.0_fp, 1.0_fp}}};
 
-static constexpr psyqo::Rect SCREEN_SPACE = {.pos = {0, 0}, .size = {320, 240}};
 static constexpr uint8_t PROJECTION_DISTANCE = 120;
 
 static constexpr int16_t SCREEN_WIDTH_HALF = SCREEN_SPACE.size.x / 2, SCREEN_HEIGHT_HALF = SCREEN_SPACE.size.y / 2;
@@ -100,88 +100,6 @@ static constexpr psyqo::Color boneColours[MAX_BONES] = {
 	{255, 180, 50}	// 40: RightToe_End
 };
 #endif
-
-enum ScreenSpaceClip : uint8_t { CLIP_LEFT = 1, CLIP_RIGHT = 2, CLIP_TOP = 4, CLIP_BOTTOM = 8 };
-
-inline constexpr int TestClip(int16_t x, int16_t y) {
-	int result = 0;
-
-	if (x < SCREEN_SPACE.pos.x) {
-		result |= CLIP_LEFT;
-	}
-
-	if (x >= (SCREEN_SPACE.pos.x + SCREEN_SPACE.size.w)) {
-		result |= CLIP_RIGHT;
-	}
-
-	if (y < SCREEN_SPACE.pos.y) {
-		result |= CLIP_TOP;
-	}
-
-	if (y >= (SCREEN_SPACE.pos.y + SCREEN_SPACE.size.h)) {
-		result |= CLIP_BOTTOM;
-	}
-
-	return result;
-}
-
-inline constexpr int QuadClip(const psyqo::Vertex& v0, const psyqo::Vertex& v1, const psyqo::Vertex& v2,
-							  const psyqo::Vertex& v3) {
-	int c[4] = {
-		TestClip(v0.x, v0.y),
-		TestClip(v1.x, v1.y),
-		TestClip(v2.x, v2.y),
-		TestClip(v3.x, v3.y),
-	};
-
-	if ((c[0] & c[1]) == 0) {
-		return 0;
-	}
-
-	if ((c[1] & c[2]) == 0) {
-		return 0;
-	}
-
-	if ((c[2] & c[3]) == 0) {
-		return 0;
-	}
-
-	if ((c[3] & c[0]) == 0) {
-		return 0;
-	}
-
-	if ((c[0] & c[2]) == 0) {
-		return 0;
-	}
-
-	if ((c[1] & c[3]) == 0) {
-		return 0;
-	}
-
-	return 1;
-}
-
-inline constexpr int TriClip(const psyqo::Vertex& v0, const psyqo::Vertex& v1, const psyqo::Vertex& v2) {
-	int c[4] = {
-		TestClip(v0.x, v0.y),
-		TestClip(v1.x, v1.y),
-		TestClip(v2.x, v2.y),
-	};
-
-	if ((c[0] & c[1]) == 0) {
-		return 0;
-	}
-
-	if ((c[1] & c[2]) == 0) {
-		return 0;
-	}
-
-	if ((c[2] & c[0]) == 0) {
-		return 0;
-	}
-
-	return 1;
-}
 
 void Renderer::Init(psyqo::GPU& gpuInstance) {
 	if (m_instance != nullptr) {
@@ -630,7 +548,7 @@ void Renderer::RenderBillboards(uint32_t deltaTime, const psyqo::Matrix33& camer
 
 		psyqo::GTE::Kernels::avsz4();
 		zIndex = psyqo::GTE::readRaw<psyqo::GTE::Register::OTZ>();
-		if (zIndex == 0 || zIndex >= ORDERING_TABLE_SIZE) {
+		if (IsOutsideOrderingTable(zIndex)) {
 			continue;
 		}
 
@@ -762,7 +680,7 @@ void Renderer::RenderParticles(uint32_t deltaTime, const psyqo::Matrix33& camera
 				// keep it within the OT. we dont have all sz points written here so we need to derive it ourselves
 				auto sz = psyqo::GTE::readRaw<psyqo::GTE::Register::SZ3>();
 				zIndex = ((ORDERING_TABLE_SIZE / 3) * 3 * sz) >> 12;
-				if (zIndex == 0 || zIndex >= ORDERING_TABLE_SIZE) {
+				if (IsOutsideOrderingTable(zIndex)) {
 					continue;
 				}
 
@@ -852,7 +770,7 @@ void Renderer::RenderParticles(uint32_t deltaTime, const psyqo::Matrix33& camera
 
 				psyqo::GTE::Kernels::avsz4();
 				zIndex = psyqo::GTE::readRaw<psyqo::GTE::Register::OTZ>();
-				if (zIndex == 0 || zIndex >= ORDERING_TABLE_SIZE) {
+				if (IsOutsideOrderingTable(zIndex)) {
 					continue;
 				}
 
@@ -1139,7 +1057,7 @@ void Renderer::ProcessMeshQuad(const RendererQuad& quad, int8_t depth, const Fac
 
 		// keep inside OT bounds
 		uint32_t zIndex = psyqo::GTE::readRaw<psyqo::GTE::Register::OTZ>();
-		if (zIndex == 0 || zIndex >= ORDERING_TABLE_SIZE) {
+		if (IsOutsideOrderingTable(zIndex)) {
 			return;
 		}
 
@@ -1396,7 +1314,7 @@ void Renderer::ProcessQuadNode(FaceCorner* const* corners, uint8_t subDivisionDe
 
 	// keep inside OT bounds
 	uint32_t zIndex = psyqo::GTE::readRaw<psyqo::GTE::Register::OTZ>();
-	if (zIndex == 0 || zIndex >= ORDERING_TABLE_SIZE) {
+	if (IsOutsideOrderingTable(zIndex)) {
 		return;
 	}
 
@@ -1786,7 +1704,7 @@ void Renderer::ProcessMeshTri(const RendererTri& tri, int8_t depth, const FaceDa
 
 		// keep inside OT bounds
 		uint32_t zIndex = psyqo::GTE::readRaw<psyqo::GTE::Register::OTZ>();
-		if (zIndex == 0 || zIndex >= ORDERING_TABLE_SIZE) {
+		if (IsOutsideOrderingTable(zIndex)) {
 			return;
 		}
 
@@ -2017,7 +1935,7 @@ void Renderer::ProcessTriNode(FaceCorner* const* corners, uint8_t subDivisionDep
 
 	// keep inside OT bounds
 	uint32_t zIndex = psyqo::GTE::readRaw<psyqo::GTE::Register::OTZ>();
-	if (zIndex == 0 || zIndex >= ORDERING_TABLE_SIZE) {
+	if (IsOutsideOrderingTable(zIndex)) {
 		return;
 	}
 
