@@ -32,7 +32,7 @@ SOFTWARE.
 // not cryptographically secure, and not very good.
 class Rand {
   public:
-	// Gets a 32-bits random number, except the value 0.
+	// Gets a 32-bits random number.
 	uint32_t rand();
 
 	// Gets a random number between 0 and RANGE, exclusive.
@@ -44,14 +44,27 @@ class Rand {
 	// Gets a random number between min and max, exclusive.
 	uint32_t rand(uint32_t min, uint32_t max) { return min + rand() % (max - min); }
 
-	// Gets a random number between min and max, inclusive.
-	int32_t randInc(int32_t min, int32_t max) { return min + rand() % (max - min + 1); }
+	// Gets a random number between min and max, inclusive. The bounds can be given in either order.
+	int32_t randInc(int32_t min, int32_t max) {
+		if (max < min) {
+			int32_t swap = min;
+			min = max;
+			max = swap;
+		}
+
+		// the full int32 range wraps to 0
+		uint32_t range = uint32_t(max) - uint32_t(min) + 1;
+		if (range == 0) {
+			return int32_t(rand());
+		}
+
+		return min + int32_t(rand() % range);
+	}
 
 	// Initializes the random number generator. Optional, but
 	// recommended to avoid the same sequence every time. Use
 	// for example the `now` function of the `GPU` class to
-	// pass as a seed argument. Due to the way it works,
-	// the random number generator will break if seed == 0.
+	// pass as a seed argument.
 	void seed(uint32_t seed);
 
   private:
