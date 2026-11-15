@@ -146,6 +146,9 @@ becomes the smallest rectangle around it if the faces cover at least `Merge Tole
 while it still fits, then the next chunk starts. With it off, each wall face gets its own box
 lined up with the face's longest edge.
 
+Wall boxes are 64 units thick and centred on the face, so they work for walls seen from both
+sides (shelf panels, house walls). A collider stops 32 units in front of the visible surface.
+
 A custom property `colbin_mode` on an object overrides the choice: `box` makes the whole
 object one box, `faces` never boxes it.
 
