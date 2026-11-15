@@ -160,14 +160,10 @@ bool Collision::IsSATCollision(const OBB& collisionA, const OBB& collisionB, Col
 		auto overlap = aRadius + bRadius;
 		auto penetration = overlap - distance;
 
-		// no overlap if distance is greater than radius
-		if (distance > overlap) {
+		// no overlap if distance is at least the radius. boxes that only touch are apart, otherwise
+		// the touching axis would be skipped and the push would come from another one
+		if (distance >= overlap) {
 			return false;
-		}
-
-		// skip axis on negative penetration
-		if (penetration <= 0) {
-			continue;
 		}
 
 		// keep track of what the min penetration and axes we're pushed on is
