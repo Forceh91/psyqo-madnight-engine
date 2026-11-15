@@ -1,6 +1,6 @@
 # Tech demo
 
-One scene that uses most of the engine at once, so it doubles as a regression and performance check: a long stone hall under advanced fog, a skinned character walking into the fog and back with quick advanced fog, two particle emitters, trigger volumes that turn the character round, a pause menu (Start) and a memory card save of the last lap's numbers.
+One scene that uses most of the engine at once, so it doubles as a regression and performance check: a long stone hall under advanced fog, a skinned character walking into the fog and back with quick advanced fog, two particle emitters, trigger volumes that turn the character round, collision against the hall's walls, a pause menu (Start) and a memory card save of the last lap's numbers.
 
 Sound: `FCNTNA.VAG` loops as background music and `AMBIENT_CREAK.VAG` plays every 600 vsyncs. Both come from Supermarket Sweep and are used with its owner's permission. On start the scene reads the last save from slot 1, if there is one, and shows it at the bottom of the screen.
 
@@ -29,7 +29,7 @@ Switching between a PCDRV and a disc build needs a `make -C tech-demo clean` fir
 
 ## Bench mode
 
-`make -C tech-demo DEFINES=PCDRV BENCH=1` runs one lap, prints `TECHDEMO lap=...` with the frame count and vsyncs, saves the numbers to the card in slot 1, reads them back and exits the emulator (under `-testmode`). CI runs it this way and fails if the card read-back does not match.
+`make -C tech-demo DEFINES=PCDRV BENCH=1` runs one lap, prints `TECHDEMO lap=...` with the frame count and vsyncs, then walks the character into the right wall and along it and prints `TECHDEMO wall=ok` if the wall stopped it at the face of its box and it kept sliding (`wall=FAIL` with the numbers if not, or if the lap touched a wall). It then saves the lap to the card in slot 1, reads it back and exits the emulator (under `-testmode`). CI runs it this way and fails if the wall check fails or the card read-back does not match.
 
 ## Assets
 
