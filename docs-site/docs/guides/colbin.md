@@ -6,8 +6,8 @@ sidebar_position: 3
 # COLBIN
 
 Collision geometry: floor triangles, wall boxes, and a uniform grid over the walls. Produced
-by `tools/blender_colbin.py` from a `COL` collection, consumed by
-`ColbinManager::LoadColbin`.
+by `tools/blender_colbin.py`, either from a hand built `COL` collection or inferred from the
+level's own meshes (see [Exporting](#exporting)), consumed by `ColbinManager::LoadColbin`.
 
 Every multi-byte field is little-endian.
 
@@ -80,11 +80,19 @@ followed by no index bytes at all.
 | halfExtents | int32_t x3 | 12 | x128 |
 | flags | uint32_t | 4 | reserved, always 0 |
 
-`axes` are the source object's local X, Y and Z in world space, **in that order**. The
-exporter does not sort them. Whichever half extent is numerically smallest is clamped to a
-minimum thickness of 32 units so that a flat wall still has volume, but that can be index 0,
-1 or 2 depending on how the source mesh is oriented. Do not assume the thin axis is
-`axes[2]`.
+What `axes` hold depends on where the box came from. For a face in the `COL` collection they
+are the source object's local X, Y and Z in world space, **in that order**. For an inferred
+wall they are the wall's long in-plane direction, its other in-plane direction and its
+normal. For an inferred prop box they are whichever of the object's axes or the smallest
+upright box fits tighter. The exporter does not sort them. Whichever half extent is
+numerically smallest is clamped to a minimum of 32 units so that a flat wall still has
+volume, but that can be index 0, 1 or 2, and on a face narrower than 64 units the clamped
+normal is no longer the smallest. Do not assume the thin axis is `axes[2]`.
+
+`center` is the middle of the box's extents along its axes.
+
+The exporter inserts a wall into every cell its world space footprint (the AABB of the
+rotated box on X and Z) overlaps.
 
 ## Caveats
 
@@ -95,6 +103,63 @@ minimum thickness of 32 units so that a flat wall still has volume, but that can
   behaviour, and has been removed. The mapping the exporter uses when it populates cells is
   `floor((x - originX) / cellSize)`, clamped to the grid bounds, if you want to implement
   the lookup against it.
+
+## Exporting
+
+`File > Export > Collision Binary (.colbin)`. The `Source` option picks the geometry:
+
+| Source | Uses |
+|---|---|
+| `COL` | Every mesh directly in a collection named `COL`. The default when that collection exists. |
+| `Selected` | The selected mesh objects, collision inferred from their faces. |
+| `Scene` | Every visible mesh object, collision inferred, plus the `COL` collection as hand built extras. The default when there is no `COL` collection. |
+
+Every source reads the evaluated mesh, so modifiers are applied.
+
+`Scene` skips objects in a collection named `NOCOL` and objects with a custom property
+`colbin_ignore` set to a true value; `Selected` honours `colbin_ignore` too. Objects in `COL`
+are not inferred again.
+
+### Hand built (`COL`)
+
+Each face whose normal, flipped to point along +Y, has a Y of at least `Floor Threshold`
+(default 0.7) becomes floor triangles, fan triangulated. That includes ceilings. Every other
+face becomes one wall box in the object's own axes. `COL` objects are exported even when
+hidden.
+
+### Inferred (`Selected`, `Scene`)
+
+Each loose part of a mesh is looked at on its own:
+
+- **Props.** A part that is closed and fills at least `Prop Fill Ratio` (default 0.6) of
+  the box around it becomes that one box, and nothing else: no floor triangles on top.
+  A part whose normals point inwards (a room) is never boxed.
+- **Everything else** goes face by face. Faces facing up past `Floor Threshold` are floor
+  triangles. Faces facing down past it (ceilings, the undersides of shelves) are dropped.
+  Faces smaller than one square engine unit (slivers left by cuts) are dropped. The rest are
+  wall faces.
+
+With `Merge Walls` on (the default), wall faces from all inferred objects are grouped by
+plane, faces in a plane that share a stretch of edge are joined into regions, and each region
+becomes the smallest rectangle around it if the faces cover at least `Merge Tolerance`
+(default 0.9) of that rectangle. A region that does not is split: a chunk grows from one face
+while it still fits, then the next chunk starts. With it off, each wall face gets its own box
+lined up with the face's longest edge.
+
+Wall boxes are 64 units thick and centred on the face, so they work for walls seen from both
+sides (shelf panels, house walls). A collider stops 32 units in front of the visible surface.
+
+A custom property `colbin_mode` on an object overrides the choice: `box` makes the whole
+object one box, `faces` never boxes it.
+
+From a script, after the add-on is registered:
+
+```python
+bpy.ops.export.colbin(filepath="LEVEL.COLBIN", source='SCENE', merge_walls=True)
+```
+
+The exporter prints one line with the floor triangle count, wall box count, grid size and
+file size, and for inferred sources a second line with where the faces went.
 
 ## Changelog
 
