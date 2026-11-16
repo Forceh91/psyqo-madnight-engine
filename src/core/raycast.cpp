@@ -20,20 +20,27 @@ bool Raycast::RaycastScene(const Ray& ray, GameObjectTag targetTag, RayHit* hitO
 	}
 
 	// find all objects of type, if none then presume no hit
+	// test every object of the tag and keep the nearest hit, overlapping boxes would otherwise go to whichever
+	// came first in the pool
 	auto objects = g_madnightEngine.m_gameObjectManager.GetGameObjectsWithTag(targetTag);
-	if (!objects.empty()) {
-		for (auto& object : objects) {
-			psyqo::FixedPoint<> distance;
-			if ((hitOut->hit = DoesRaycastInterceptAABB(ray, object, &distance))) {
-				hitOut->distance = distance; // get distance? do we need it
-				hitOut->object = object;
-				hitOut->hitPos = ray.origin + ray.direction * distance;
-				return true;
-			}
+	for (auto& object : objects) {
+		psyqo::FixedPoint<> distance;
+		if (!DoesRaycastInterceptAABB(ray, object, &distance)) {
+			continue;
+		}
+
+		if (!hitOut->hit || distance < hitOut->distance) {
+			hitOut->hit = true;
+			hitOut->distance = distance;
+			hitOut->object = object;
 		}
 	}
 
-	return false;
+	if (hitOut->hit) {
+		hitOut->hitPos = ray.origin + ray.direction * hitOut->distance;
+	}
+
+	return hitOut->hit;
 }
 
 // NOTE: this will be very inaccurate if the object is rotated at all.

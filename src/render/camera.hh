@@ -71,17 +71,12 @@ class Camera final {
 	const constexpr psyqo::Vec3 pos(void) const { return m_pos; };
 	const constexpr psyqo::Vec3* posPtr(void) const { return &m_pos; }
 	const constexpr CameraAngle* angle(void) const { return &m_angle; }
-	constexpr psyqo::Vec3 forwardVector(void) {
-		return {-m_rotationMatrix.vs[0].z, m_rotationMatrix.vs[1].z, m_rotationMatrix.vs[2].z};
-	}
+	// the rotation matrix takes world space to view space, so its rows are the view axes in world space
+	constexpr psyqo::Vec3 forwardVector(void) { return m_rotationMatrix.vs[2]; }
 
-	constexpr psyqo::Vec3 rightVector(void) {
-		return {m_rotationMatrix.vs[0].x, m_rotationMatrix.vs[1].x, m_rotationMatrix.vs[2].x};
-	}
+	constexpr psyqo::Vec3 rightVector(void) { return m_rotationMatrix.vs[0]; }
 
-	constexpr psyqo::Vec3 upVector(void) {
-		return {m_rotationMatrix.vs[0].y, m_rotationMatrix.vs[1].y, m_rotationMatrix.vs[2].y};
-	}
+	constexpr psyqo::Vec3 upVector(void) { return m_rotationMatrix.vs[1]; }
 
 	const constexpr psyqo::Matrix33& rotationMatrix(void) const { return m_rotationMatrix; }
 	psyqo::Matrix33 inverseRotationMatrix(void);
