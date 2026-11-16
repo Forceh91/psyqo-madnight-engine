@@ -240,16 +240,25 @@ uint32_t HallScene::CollideHero(void) {
 		return 0;
 	}
 
-	// the cells under the hero's footprint on X and Z, whichever way it faces
+	// the walls are bucketed into a grid of cells on X and Z, so only the cells under the
+	// hero need testing. first find how far the hero's box reaches from its centre along
+	// world X and world Z. the box can be turned, so that is not simply halfExtents.x and
+	// halfExtents.z: each of the box's three axes adds |axis.x| * its half extent to the
+	// X reach (and |axis.z| * half to the Z reach). unturned, that collapses to
+	// halfExtents.x and halfExtents.z; turned 45 degrees on Y, both reaches grow
 	const auto& grid = colbin->gridHeader;
 	const OBB& box = m_hero->obb();
-	int32_t reach[2] = {};
+	int32_t reach[2] = {}; // [0] = X, [1] = Z, in raw units
 	for (int i = 0; i < 3; i++) {
 		auto half = i == 0 ? box.halfExtents.x : i == 1 ? box.halfExtents.y : box.halfExtents.z;
 		reach[0] += (box.axes[i].x.abs() * half).value;
 		reach[1] += (box.axes[i].z.abs() * half).value;
 	}
-	// signed, so a hero outside the grid clamps to its edge
+	// world position -> cell index, the same mapping the exporter used to fill the cells:
+	// floor((position - origin) / cellSize), clamped to the grid. offset is the position
+	// minus the grid origin. keep it all signed: dividing a negative int32_t by the
+	// uint32_t cellSize would convert it to unsigned and give a huge index. a hero outside
+	// the grid reads the cells along its edge
 	auto cell = [&grid](int32_t offset, int32_t count) {
 		int32_t index = offset < 0 ? 0 : offset / int32_t(grid.cellSize);
 		return index < count ? index : count - 1;
@@ -258,8 +267,11 @@ uint32_t HallScene::CollideHero(void) {
 	int32_t x1 = cell(box.center.x.value + reach[0] - grid.originX, grid.gridWidth);
 	int32_t z0 = cell(box.center.z.value - reach[1] - grid.originZ, grid.gridHeight);
 	int32_t z1 = cell(box.center.z.value + reach[1] - grid.originZ, grid.gridHeight);
+	// x0..x1 and z0..z1 are now the block of cells the box touches, usually just one
 
-	// a wall that crosses cells is listed in each of them
+	// collect the walls listed in those cells. a wall that crosses cells is listed in each
+	// of them, so skip any index already collected, or it would be pushed out of twice.
+	// cells are stored X-major, one column of gridHeight cells per X
 	eastl::fixed_vector<uint16_t, 16> nearby;
 	for (int32_t x = x0; x <= x1; x++) {
 		for (int32_t z = z0; z <= z1; z++) {
