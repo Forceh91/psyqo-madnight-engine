@@ -63,7 +63,7 @@ class HallScene final : public psyqo::Scene {
 	ParticleEmitter* m_embers = nullptr;
 	ParticleEmitter* m_dust = nullptr;
 
-	// hero position along the hall in 1/16ths of a raw unit, so slow speeds don't round to 0
+	// hero position along the hall in 1/HERO_SUBUNITS of a raw unit, see HERO_SPEED
 	int32_t m_heroZ = 0;
 	int8_t m_heroDirection = 1;
 	uint32_t m_lapHits = 0; // walls the hero touched this lap, the path should touch none

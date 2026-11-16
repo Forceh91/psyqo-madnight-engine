@@ -39,7 +39,12 @@ constexpr uint32_t CREAK_INTERVAL = 600;
 
 // the hall runs along +Z from 0 to 24 units (48 m), see tools/make_assets.py
 constexpr psyqo::FixedPoint<> HERO_START_Z = 2.0_ws;
-constexpr int32_t HERO_SPEED = 24; // 1/16ths of a raw unit per vsync, about 1.4 m/s
+// the hero's position along the hall is kept in fractions of a raw unit (m_heroZ), so it can
+// walk at speeds that are not a whole number of raw units per vsync. 1 m is 64 raw units
+// (0.5_ws), so whole units only give 0.94 m/s steps and anything under that rounds to 0.
+// sixteenths give 0.06 m/s steps
+constexpr int32_t HERO_SUBUNITS = 16;
+constexpr int32_t HERO_SPEED = 24; // HERO_SUBUNITS per vsync: 1.5 raw units, about 1.4 m/s
 
 // the bench walks the hero into the right wall from here, see CheckWall(). the brick face
 // is at x = 1.5, and the wall's box reaches 32 raw units (the exporter's minimum half
@@ -114,7 +119,7 @@ void HallScene::CreateWorld(void) {
 		m_hall->SetTexture(HALL_TEXTURE);
 	}
 
-	m_heroZ = HERO_START_Z.value * 16;
+	m_heroZ = HERO_START_Z.value * HERO_SUBUNITS;
 	m_hero = objects.CreateGameObject("hero", {0, 0, HERO_START_Z}, {0, 0, 0}, GameObjectTag::INTERACTABLE);
 	if (m_hero) {
 		m_hero->SetMesh(HERO_MESH);
@@ -214,11 +219,11 @@ void HallScene::UpdateHero(uint32_t deltaTime) {
 
 	m_heroZ += HERO_SPEED * m_heroDirection * int32_t(deltaTime);
 	auto pos = m_hero->pos();
-	pos.z.value = m_heroZ / 16;
+	pos.z.value = m_heroZ / HERO_SUBUNITS;
 	m_hero->SetPosition(pos);
 	if (auto hits = CollideHero()) {
 		m_lapHits += hits;
-		m_heroZ = m_hero->pos().z.value * 16;
+		m_heroZ = m_hero->pos().z.value * HERO_SUBUNITS;
 	}
 
 	// turn round at whichever end it is walking towards
@@ -363,7 +368,7 @@ void HallScene::EndLap(void) {
 
 	m_lap = {};
 	m_lapTime = 0;
-	m_heroZ = HERO_START_Z.value * 16;
+	m_heroZ = HERO_START_Z.value * HERO_SUBUNITS;
 	m_heroDirection = 1;
 	if (m_hero) {
 		m_hero->SetRotation(0, 0, 0);
