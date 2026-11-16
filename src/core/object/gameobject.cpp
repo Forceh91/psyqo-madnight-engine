@@ -77,9 +77,9 @@ void GameObject::SetAsTrigger(const psyqo::Vec3& triggerSize) {
 	UpdateOBB();
 }
 
-void GameObject::SetCollisionBox(const psyqo::Vec3& triggerSize) {
+void GameObject::SetCollisionBox(const psyqo::Vec3& size) {
 	// generate half extents from trigger size, this should never need to change
-	m_obb.halfExtents = triggerSize / 2;
+	m_obb.halfExtents = size / 2;
 
 	// generate the obb axes
 	UpdateOBB();
