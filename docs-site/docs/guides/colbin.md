@@ -102,8 +102,9 @@ rotated box on X and Z) overlaps.
   world-position-to-cell code sample; it described intended behaviour, not shipped
   behaviour, and has been removed. The mapping the exporter uses when it populates cells is
   `floor((x - originX) / cellSize)`, clamped to the grid bounds, if you want to implement
-  the lookup against it.
-
+  the lookup against it. The tech demo has a small one in `HallScene::CollideHero`
+  (`tech-demo/src/hall_scene.cpp`): every cell under the collider's X/Z footprint, each wall
+  tested once, pushed out along `CollisionTest::mtv`.
 ## Exporting
 
 `File > Export > Collision Binary (.colbin)`. The `Source` option picks the geometry:

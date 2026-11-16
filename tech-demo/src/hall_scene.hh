@@ -18,12 +18,14 @@
 /*
  * one scene that uses as much of the engine as it can at once: a dim hall under
  * advanced fog, a skinned character walking through it with quick advanced fog,
- * two particle emitters, trigger volumes, a pause menu and a memory card save.
+ * two particle emitters, trigger volumes, collision against the hall's walls, a pause
+ * menu and a memory card save.
  *
  * the camera runs on a fixed path keyed to elapsed vsyncs, so every lap draws the
  * same frames, and the HUD shows how many vsyncs each frame took. built with
  * TECHDEMO_BENCH defined it runs one lap, prints the numbers, saves them to the
- * memory card, reads them back and exits the emulator.
+ * memory card, reads them back and exits the emulator. after the lap it also walks the
+ * hero into a wall and prints whether the wall stopped it.
  */
 class HallScene final : public psyqo::Scene {
   public:
@@ -44,6 +46,8 @@ class HallScene final : public psyqo::Scene {
 	void CreateWorld(void);
 	void CreateMenu(void);
 	void UpdateHero(uint32_t deltaTime);
+	uint32_t CollideHero(void);
+	void CheckWall(void);
 	void UpdateCamera(void);
 	void EndLap(void);
 	void LoadStats(void);
@@ -59,9 +63,10 @@ class HallScene final : public psyqo::Scene {
 	ParticleEmitter* m_embers = nullptr;
 	ParticleEmitter* m_dust = nullptr;
 
-	// hero position along the hall in 1/16ths of a raw unit, so slow speeds don't round to 0
+	// hero position along the hall in 1/HERO_SUBUNITS of a raw unit, see HERO_SPEED
 	int32_t m_heroZ = 0;
 	int8_t m_heroDirection = 1;
+	uint32_t m_lapHits = 0; // walls the hero touched this lap, the path should touch none
 
 	uint32_t m_lapTime = 0; // vsyncs into the current lap
 	uint32_t m_creakTimer = 0; // vsyncs since the last ambient creak

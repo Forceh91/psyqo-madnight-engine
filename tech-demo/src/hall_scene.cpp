@@ -12,7 +12,9 @@
 #include "madnight.hh"
 #include "render/renderer.hh"
 
+#include <EASTL/algorithm.h>
 #include <EASTL/fixed_string.h>
+#include <EASTL/fixed_vector.h>
 #include <psyqo/xprintf.h>
 
 using namespace psyqo::fixed_point_literals;
@@ -37,7 +39,18 @@ constexpr uint32_t CREAK_INTERVAL = 600;
 
 // the hall runs along +Z from 0 to 24 units (48 m), see tools/make_assets.py
 constexpr psyqo::FixedPoint<> HERO_START_Z = 2.0_ws;
-constexpr int32_t HERO_SPEED = 24; // 1/16ths of a raw unit per vsync, about 1.4 m/s
+// the hero's position along the hall is kept in fractions of a raw unit (m_heroZ), so it can
+// walk at speeds that are not a whole number of raw units per vsync. 1 m is 64 raw units
+// (0.5_ws), so whole units only give 0.94 m/s steps and anything under that rounds to 0.
+// sixteenths give 0.06 m/s steps
+constexpr int32_t HERO_SUBUNITS = 16;
+constexpr int32_t HERO_SPEED = 24; // HERO_SUBUNITS per vsync: 1.5 raw units, about 1.4 m/s
+
+// the bench walks the hero into the right wall from here, see CheckWall(). the brick face
+// is at x = 1.5, and the wall's box reaches 32 raw units (the exporter's minimum half
+// thickness) in front of it
+constexpr psyqo::Vec3 WALL_TEST_START = {0, 0, 5.0_ws};
+constexpr int32_t WALL_TEST_FACE = (1.25_ws).value;
 
 constexpr psyqo::Color FOG_COLOUR = {.r = 92, .g = 96, .b = 100};
 constexpr psyqo::Color AMBIENT = {.r = 100, .g = 96, .b = 92};
@@ -106,7 +119,7 @@ void HallScene::CreateWorld(void) {
 		m_hall->SetTexture(HALL_TEXTURE);
 	}
 
-	m_heroZ = HERO_START_Z.value * 16;
+	m_heroZ = HERO_START_Z.value * HERO_SUBUNITS;
 	m_hero = objects.CreateGameObject("hero", {0, 0, HERO_START_Z}, {0, 0, 0}, GameObjectTag::INTERACTABLE);
 	if (m_hero) {
 		m_hero->SetMesh(HERO_MESH);
@@ -206,8 +219,12 @@ void HallScene::UpdateHero(uint32_t deltaTime) {
 
 	m_heroZ += HERO_SPEED * m_heroDirection * int32_t(deltaTime);
 	auto pos = m_hero->pos();
-	pos.z.value = m_heroZ / 16;
+	pos.z.value = m_heroZ / HERO_SUBUNITS;
 	m_hero->SetPosition(pos);
+	if (auto hits = CollideHero()) {
+		m_lapHits += hits;
+		m_heroZ = m_hero->pos().z.value * HERO_SUBUNITS;
+	}
 
 	// turn round at whichever end it is walking towards
 	auto* end = m_heroDirection > 0 ? m_farTrigger : m_nearTrigger;
@@ -217,6 +234,104 @@ void HallScene::UpdateHero(uint32_t deltaTime) {
 		// the mesh faces +Z
 		m_hero->SetRotation(0, m_heroDirection > 0 ? 0.0_pi : 1.0_pi, 0);
 	}
+}
+
+// pushes the hero out of every hall wall it overlaps, which leaves it sliding along them.
+// returns how many it hit
+uint32_t HallScene::CollideHero(void) {
+	auto& colbins = g_madnightEngine.m_colbinManager;
+	auto* colbin = colbins.Colbin();
+	if (!m_hero || !colbin->gridCells) {
+		return 0;
+	}
+
+	// the walls are bucketed into a grid of cells on X and Z, so only the cells under the
+	// hero need testing. first find how far the hero's box reaches from its centre along
+	// world X and world Z. the box can be turned, so that is not simply halfExtents.x and
+	// halfExtents.z: each of the box's three axes adds |axis.x| * its half extent to the
+	// X reach (and |axis.z| * half to the Z reach). unturned, that collapses to
+	// halfExtents.x and halfExtents.z; turned 45 degrees on Y, both reaches grow
+	const auto& grid = colbin->gridHeader;
+	const OBB& box = m_hero->obb();
+	int32_t reach[2] = {}; // [0] = X, [1] = Z, in raw units
+	for (int i = 0; i < 3; i++) {
+		auto half = i == 0 ? box.halfExtents.x : i == 1 ? box.halfExtents.y : box.halfExtents.z;
+		reach[0] += (box.axes[i].x.abs() * half).value;
+		reach[1] += (box.axes[i].z.abs() * half).value;
+	}
+	// world position -> cell index, the same mapping the exporter used to fill the cells:
+	// floor((position - origin) / cellSize), clamped to the grid. offset is the position
+	// minus the grid origin. keep it all signed: dividing a negative int32_t by the
+	// uint32_t cellSize would convert it to unsigned and give a huge index. a hero outside
+	// the grid reads the cells along its edge
+	auto cell = [&grid](int32_t offset, int32_t count) {
+		int32_t index = offset < 0 ? 0 : offset / int32_t(grid.cellSize);
+		return index < count ? index : count - 1;
+	};
+	int32_t x0 = cell(box.center.x.value - reach[0] - grid.originX, grid.gridWidth);
+	int32_t x1 = cell(box.center.x.value + reach[0] - grid.originX, grid.gridWidth);
+	int32_t z0 = cell(box.center.z.value - reach[1] - grid.originZ, grid.gridHeight);
+	int32_t z1 = cell(box.center.z.value + reach[1] - grid.originZ, grid.gridHeight);
+	// x0..x1 and z0..z1 are now the block of cells the box touches, usually just one
+
+	// collect the walls listed in those cells. a wall that crosses cells is listed in each
+	// of them, so skip any index already collected, or it would be pushed out of twice.
+	// cells are stored X-major, one column of gridHeight cells per X
+	eastl::fixed_vector<uint16_t, 16> nearby;
+	for (int32_t x = x0; x <= x1; x++) {
+		for (int32_t z = z0; z <= z1; z++) {
+			const auto& gridCell = colbin->gridCells[x * grid.gridHeight + z];
+			for (int i = 0; i < gridCell.count; i++) {
+				if (eastl::find(nearby.begin(), nearby.end(), gridCell.indices[i]) == nearby.end()) {
+					nearby.push_back(gridCell.indices[i]);
+				}
+			}
+		}
+	}
+
+	uint32_t hits = 0;
+	auto walls = colbins.walls();
+	for (auto index : nearby) {
+		CollisionTest result;
+		if (!g_madnightEngine.m_collisionHelper.IsSATCollision(m_hero->obb(), walls[index], &result)) {
+			continue;
+		}
+		// out along the contact normal only, so the rest of the move carries on along the wall
+		m_hero->SetPosition(m_hero->pos() + result.mtv);
+		hits++;
+	}
+	return hits;
+}
+
+// walks the hero diagonally into the right wall, then along it, and checks that the wall
+// stopped it at its face while it kept sliding down the hall
+void HallScene::CheckWall(void) {
+	if (!m_hero) {
+		return;
+	}
+	auto saved = m_hero->pos();
+	m_hero->SetPosition(WALL_TEST_START);
+
+	constexpr int32_t intoWall = 100, alongWall = 40;
+	uint32_t hits = 0;
+	for (int32_t i = 0; i < intoWall + alongWall; i++) {
+		auto pos = m_hero->pos();
+		pos.x.value += i < intoWall ? 2 : 0;
+		pos.z.value += 1;
+		m_hero->SetPosition(pos);
+		hits += CollideHero();
+	}
+
+	const OBB& box = m_hero->obb();
+	int32_t face = box.center.x.value + box.halfExtents.x.value;
+	int32_t z = m_hero->pos().z.value;
+	int32_t slid = z - WALL_TEST_START.z.value;
+	bool stopped = face <= WALL_TEST_FACE && face >= WALL_TEST_FACE - 1;
+	bool ok = stopped && slid == intoWall + alongWall && hits > 0 && m_lapHits == 0;
+	printf("TECHDEMO wall=%s face=%d expected=%d slid=%d hits=%u lap_hits=%u\n", ok ? "ok" : "FAIL", face,
+		   WALL_TEST_FACE, slid, hits, m_lapHits);
+
+	m_hero->SetPosition(saved);
 }
 
 void HallScene::UpdateCamera(void) {
@@ -253,15 +368,17 @@ void HallScene::EndLap(void) {
 
 	m_lap = {};
 	m_lapTime = 0;
-	m_heroZ = HERO_START_Z.value * 16;
+	m_heroZ = HERO_START_Z.value * HERO_SUBUNITS;
 	m_heroDirection = 1;
 	if (m_hero) {
 		m_hero->SetRotation(0, 0, 0);
 	}
 
 #ifdef TECHDEMO_BENCH
+	CheckWall();
 	m_saveRequested = true;
 #endif
+	m_lapHits = 0;
 }
 
 void HallScene::LoadStats(void) {

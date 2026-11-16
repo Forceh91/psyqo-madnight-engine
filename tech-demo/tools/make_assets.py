@@ -4,8 +4,9 @@
 # small rigged character, plus their textures, the walk cycle and the scene
 # manifest. The meshes go through tools/obj-to-meshbin.py, the textures through
 # tools/tim_creator.py and the manifest through tools/scenebin_converter.py, so
-# the demo exercises the same pipeline a game does. Only the ANIMBIN is written
-# directly, because the engine's animation exporter runs inside Blender.
+# the demo exercises the same pipeline a game does. The ANIMBIN and the hall's
+# COLBIN are written directly, because the engine's animation and collision
+# exporters run inside Blender.
 #
 #   python3 tech-demo/tools/make_assets.py
 #
@@ -54,6 +55,7 @@ class Obj:
         self.uvs = 0
         self.norms = 0
         self.bones_for_verts = []
+        self.faces = []
 
     def vertex(self, p, colour, bone=None):
         self.lines.append("v %.5f %.5f %.5f %d %d %d" % (p[0], p[1], p[2], *colour))
@@ -78,6 +80,7 @@ class Obj:
 
     def quad(self, corners, normal, cell, colours, bone=None):
         # corners go round the face, cell is (x, y, w, h) in texels
+        self.faces.append(corners)
         n = self.normal(normal)
         x, y, w, h = cell
         texels = [(x, y), (x + w - 1, y), (x + w - 1, y + h - 1), (x, y + h - 1)]
@@ -287,6 +290,121 @@ def hall_mesh():
     return o
 
 
+# ---------------------------------------------------------------- hall collision
+
+# what tools/blender_colbin.py uses for the hall: 128 engine units per unit, its
+# default two unit grid cell and its minimum wall half thickness
+COLBIN_SCALE = 128
+COLBIN_CELL = 256
+COLBIN_MIN_HALF = 32
+COLBIN_UP = (0.0, -1.0, 0.0)
+
+
+def sub(a, b):
+    return tuple(x - y for x, y in zip(a, b))
+
+
+def dot(a, b):
+    return sum(x * y for x, y in zip(a, b))
+
+
+def cross(a, b):
+    return (a[1] * b[2] - a[2] * b[1], a[2] * b[0] - a[0] * b[2], a[0] * b[1] - a[1] * b[0])
+
+
+def unit(a):
+    length = math.sqrt(dot(a, a))
+    return tuple(x / length for x in a)
+
+
+def hall_colbin(hall):
+    # The hall's COLBIN as tools/blender_colbin.py exports it from the scene with walls
+    # merged: floor faces become floor triangles, ceilings are dropped, and the wall faces
+    # that share an edge on one plane become one box. The hall is all right angles, so
+    # each merged wall is the bounding box of its faces.
+    up = COLBIN_UP
+    floors = []
+    planes = {}  # (normal, distance) -> [face corners]
+    for corners in hall.faces:
+        pts = [tuple(c * COLBIN_SCALE for c in p) for p in corners]
+        # the winding normal, which is what the exporter reads, not the OBJ normal
+        n = unit(cross(sub(pts[1], pts[0]), sub(pts[2], pts[0])))
+        facing = dot(n, up)
+        if facing > 0.5:
+            fn = n if n[1] >= 0 else tuple(-c for c in n)
+            fn = tuple(int(round(c * 4096)) for c in fn)
+            for i in range(1, len(pts) - 1):
+                floors.append([tuple(int(round(c)) for c in p) for p in (pts[0], pts[i], pts[i + 1])] + [fn])
+        elif facing > -0.5:
+            key = (tuple(round(c, 6) for c in n), round(dot(n, pts[0]), 3))
+            planes.setdefault(key, []).append(pts)
+
+    walls = []
+    for (n, _), faces in planes.items():
+        u = unit(cross(up, n))
+        axes = (u, cross(n, u), n)
+        spans = [[(min(dot(a, p) for p in f), max(dot(a, p) for p in f)) for a in axes[:2]] for f in faces]
+
+        # faces on one plane that share an edge, by flood fill
+        def touch(a, b):
+            over = [min(a[i][1], b[i][1]) - max(a[i][0], b[i][0]) for i in range(2)]
+            return min(over) > -1e-6 and max(over) > 1e-6
+
+        left = list(range(len(faces)))
+        while left:
+            group = [left.pop(0)]
+            for i in group:
+                for j in [j for j in left if touch(spans[i], spans[j])]:
+                    left.remove(j)
+                    group.append(j)
+            pts = [p for i in group for p in faces[i]]
+            centre = [0.0, 0.0, 0.0]
+            half = []
+            for a in axes:
+                lo, hi = min(dot(a, p) for p in pts), max(dot(a, p) for p in pts)
+                centre = [c + x * (lo + hi) / 2 for c, x in zip(centre, a)]
+                half.append((hi - lo) / 2)
+            thin = half.index(min(half))
+            half[thin] = max(half[thin], COLBIN_MIN_HALF)
+            walls.append((centre, axes, half))
+
+    # the grid over the walls' X/Z footprints, laid out like the exporter's
+    bounds = []
+    for centre, axes, half in walls:
+        rx = sum(abs(a[0]) * h for a, h in zip(axes, half))
+        rz = sum(abs(a[2]) * h for a, h in zip(axes, half))
+        bounds.append((centre[0] - rx, centre[0] + rx, centre[2] - rz, centre[2] + rz))
+    min_x, max_x = min(b[0] for b in bounds), max(b[1] for b in bounds)
+    min_z, max_z = min(b[2] for b in bounds), max(b[3] for b in bounds)
+    origin_x, origin_z = int(min_x) - COLBIN_CELL, int(min_z) - COLBIN_CELL
+    width = math.ceil((max_x - min_x + COLBIN_CELL * 2) / COLBIN_CELL)
+    height = math.ceil((max_z - min_z + COLBIN_CELL * 2) / COLBIN_CELL)
+    cells = [[] for _ in range(width * height)]
+
+    def span(lo, hi, origin, count):
+        first = max(0, int((lo - origin) // COLBIN_CELL))
+        return range(first, min(count - 1, int((hi - origin) // COLBIN_CELL)) + 1)
+
+    for i, (x0, x1, z0, z1) in enumerate(bounds):
+        for gx in span(x0, x1, origin_x, width):
+            for gz in span(z0, z1, origin_z, height):
+                cells[gx * height + gz].append(i)
+
+    out = bytearray(b"COLBIN")
+    out += struct.pack("<BII", 2, len(floors), len(walls))
+    out += struct.pack("<iiIHH", origin_x, origin_z, COLBIN_CELL, width, height)
+    for cell in cells:
+        out += struct.pack("<H%dH" % len(cell), len(cell), *cell)
+    for v0, v1, v2, n in floors:
+        out += struct.pack("<9i3hxx", *v0, *v1, *v2, *n)
+    for centre, axes, half in walls:
+        out += struct.pack("<3i", *(int(round(c)) for c in centre))
+        for a in axes:
+            out += struct.pack("<3i", *(int(round(c * 4096)) for c in a))
+        out += struct.pack("<3iI", *(int(round(h)) for h in half), 0)
+    return bytes(out)
+
+
 # ---------------------------------------------------------------- character
 
 # bone ids
@@ -384,6 +502,7 @@ texture TEXTURES/HALL.TIM 320 0 0 240
 texture_extra TEXTURES/HERO.TIM 384 0 0 241 1
 object MODELS/HALL.MB
 object MODELS/HERO.MB
+colbin COLBIN/HALL.CB
 animation ANIMS/HERO.AB
 vag SFX/FCNTNA.VAG
 vag SFX/AMBIENT_CREAK.VAG
@@ -395,11 +514,14 @@ def run(*args):
 
 
 def main():
-    for d in ("MODELS", "TEXTURES", "ANIMS"):
+    for d in ("MODELS", "TEXTURES", "ANIMS", "COLBIN"):
         os.makedirs(os.path.join(OUT, d), exist_ok=True)
 
     with tempfile.TemporaryDirectory() as tmp:
-        hall_mesh().write(os.path.join(tmp, "hall.obj"))
+        hall = hall_mesh()
+        hall.write(os.path.join(tmp, "hall.obj"))
+        with open(os.path.join(OUT, "COLBIN", "HALL.CB"), "wb") as f:
+            f.write(hall_colbin(hall))
         hero, header = hero_mesh()
         hero.write(os.path.join(tmp, "hero.obj"), header)
         run(os.path.join(ENGINE_TOOLS, "obj-to-meshbin.py"), os.path.join(tmp, "hall.obj"),

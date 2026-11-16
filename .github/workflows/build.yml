@@ -111,6 +111,8 @@ jobs:
             -loadexe tech-demo/tech-demo.ps-exe > tech-demo.log 2>&1 || status=$?
           cat tech-demo.log
           [ $status -eq 0 ] && grep -q '^TECHDEMO card=ok' tech-demo.log || exit 1
+          # the hero walked into a wall after the lap and stopped at it
+          grep -q '^TECHDEMO wall=ok' tech-demo.log || exit 1
           # worst frame of the lap in vsyncs; the limit is Redux's number, not hardware's
           limit=4
           worst=$(sed -n 's/^TECHDEMO lap=.* worst=\([0-9][0-9]*\).*/\1/p' tech-demo.log | head -n 1)
