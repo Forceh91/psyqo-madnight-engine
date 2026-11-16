@@ -1,7 +1,7 @@
 # Madnight Engine Docs
 
 > [!NOTE]
-> AI usage in this repository has been limited to tooling and documentation generation. AI was not used to author any engine code, however existing logic in some areas may have been refactored with AI assistance.
+> AI usage in this repository has been limited to tooling, documentation generation, and unit testing. AI was **not** used to author any engine code. However, AI assistance was used to refactor existing logic and implement fixes for minor bugs and logic issues. All AI-generated changes went through the issue tracker and were reviewed and approved before being merged, and were submitted under @RixNobis.
 
 Docusaurus site for [psyqo-madnight-engine](https://github.com/Forceh91/psyqo-madnight-engine).
 
