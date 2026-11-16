@@ -102,6 +102,10 @@ class GameObject final {
 	void SetQuadType(const GameObjectQuadType quadType) { m_quadType = quadType; }
 	void SetAsTrigger(const psyqo::Vec3& size);
 
+	// allows you to set a collision box on an object without changing its type into a trigger. any `SetMesh` call will
+	// overwrite this so always call it AFTER setting the mesh if you wish to do an override
+	void SetCollisionBox(const psyqo::Vec3& size);
+
 	bool HasRenderFlag(const RenderFlags& rf) { return m_renderFlags & (1 << rf); }
 	void SetRenderFlag(const RenderFlags& rf) { m_renderFlags |= (1 << rf); }
 	void ClearRenderFlag(const RenderFlags& rf) { m_renderFlags &= ~(1 << rf); }
