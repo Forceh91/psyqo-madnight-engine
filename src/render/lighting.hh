@@ -6,9 +6,16 @@
 
 #pragma once
 
+#include "lights/point_light.hh"
+
+#include <EASTL/fixed_vector.h>
+#include <EASTL/span.h>
+
 #include <psyqo/primitives/common.hh>
 
 static constexpr psyqo::Color DEFAULT_CLEAR_COLOR = {.r = 0, .g = 0, .b = 0};
+static constexpr uint8_t MAX_POINT_LIGHTS = 8; // does this need to be shared across other types of lights? perhaps. we
+											   // could do a templated array in the future?
 
 class Lighting {
   public:
@@ -32,6 +39,14 @@ class Lighting {
 	const constexpr psyqo::Color& GetFogColour(void) const { return m_fogColour; }
 	void SetFogColour(psyqo::Color colour) { m_fogColour = colour; }
 
+	const constexpr eastl::span<PointLight> GetPointLights(void) {
+		return {m_pointLights.data(), m_pointLights.size()};
+	}
+
+	bool CreatePointLight(const psyqo::Vec3& pos, const psyqo::FixedPoint<>& radius, const psyqo::Color& colour,
+						  PointLight* pointLightOut);
+	bool DestroyPointLight(const PointLight* pointLight);
+
   private:
 	Lighting() = default;
 
@@ -41,4 +56,7 @@ class Lighting {
 	// clear colour IS fog colour
 	psyqo::Color m_fogColour = DEFAULT_CLEAR_COLOR;
 	psyqo::Color m_ambient = {128, 128, 128};
+
+	// light types
+	eastl::fixed_vector<PointLight, MAX_POINT_LIGHTS> m_pointLights = {};
 };
