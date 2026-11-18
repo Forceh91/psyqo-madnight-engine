@@ -185,7 +185,7 @@ bool Collision::IsSATCollision(const OBB& collisionA, const OBB& collisionB, Col
 }
 
 void Collision::PotentialColbinWallCollisions(
-	const OBB& obb, eastl::fixed_vector<OBB*, COLLISION_BROAD_PHASE_LIMIT>& potentialCollisions) {
+	const OBB& obb, eastl::fixed_vector<OBB*, COLLISION_BROAD_PHASE_LIMIT, false>& potentialCollisions) {
 	const auto& colBin = g_madnightEngine.m_colbinManager.Colbin();
 	if (!colBin || !colBin->header.version) {
 		return;
@@ -194,6 +194,9 @@ void Collision::PotentialColbinWallCollisions(
 	const auto& gridHeader = colBin->gridHeader;
 	const auto& gridCells = colBin->gridCells;
 	const auto& colliders = colBin->walls;
+	if (gridHeader.gridWidth == 0 || gridHeader.gridHeight == 0 || gridHeader.cellSize == 0) {
+		return;
+	}
 
 	potentialCollisions.clear();
 

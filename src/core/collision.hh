@@ -29,6 +29,7 @@ class Collision {
 	// for the OBB to compare against, whatever OBB your game object has is sufficient here.
 	// this function will automatically gather all walls from your colbin and do a grid check against them
 	// if no colbin is loaded then it early exists and your `potentialCollisions` vector is untouched
-	void PotentialColbinWallCollisions(const OBB& obb,
-									   eastl::fixed_vector<OBB*, COLLISION_BROAD_PHASE_LIMIT>& potentialCollisions);
+	void
+	PotentialColbinWallCollisions(const OBB& obb,
+								  eastl::fixed_vector<OBB*, COLLISION_BROAD_PHASE_LIMIT, false>& potentialCollisions);
 };
