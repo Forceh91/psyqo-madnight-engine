@@ -251,11 +251,10 @@ psyqo::Coroutine<> MeshManager::LoadMesh(const eastl::string_view& meshName, Mes
 			}
 
 			auto packedNormal = psyqo::GTE::PackedVec3(normalsData[indices[j]]);
-
 			if (isQuad) {
-				mesh.quads[quadFace].normal = packedNormal;
+				mesh.quads[quadFace].normals[j] = packedNormal;
 			} else {
-				mesh.tris[triFace].normal = packedNormal;
+				mesh.tris[triFace].normals[triIx] = packedNormal;
 				triIx++;
 			}
 		}

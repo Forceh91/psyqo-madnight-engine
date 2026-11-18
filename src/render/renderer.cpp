@@ -360,9 +360,9 @@ void Renderer::RenderGameObjects(uint32_t deltaTime, const psyqo::Matrix33& came
 			g.value = light.colour.g * 16;
 			b.value = light.colour.b * 16;
 
-			lcm.vs[0][llmIx] = r; // red
-			lcm.vs[1][llmIx] = g; // green
-			lcm.vs[2][llmIx] = b; // blue
+			lcm.vs[0][llmIx] = r << 5; // red
+			lcm.vs[1][llmIx] = g << 5; // green
+			lcm.vs[2][llmIx] = b << 5; // blue
 
 			// move over to the next light index
 			llmIx++;
@@ -371,6 +371,17 @@ void Renderer::RenderGameObjects(uint32_t deltaTime, const psyqo::Matrix33& came
 		// store this info into the GTE
 		psyqo::GTE::writeUnsafe<psyqo::GTE::PseudoRegister::Light>(llm);
 		psyqo::GTE::writeSafe<psyqo::GTE::PseudoRegister::Color>(lcm);
+
+		// as well as the ambient colour as background colour
+		auto& ambientCol = m_lighting->GetAmbientColour();
+		psyqo::GTE::write<psyqo::GTE::Register::RBK, psyqo::GTE::Unsafe>(ambientCol.r << 5);
+		psyqo::GTE::write<psyqo::GTE::Register::GBK, psyqo::GTE::Unsafe>(ambientCol.g << 5);
+		psyqo::GTE::write<psyqo::GTE::Register::BBK, psyqo::GTE::Safe>(ambientCol.b << 5);
+
+		// write the fog colour into the far colour
+		if (m_lighting->IsSimpleFogEnabled() && !m_lighting->IsAdvancedFogEnabled()) {
+			GTESetFarColour(m_lighting->GetFogColour());
+		}
 
 		// if we've got a skeleton on this mesh
 		if (mesh->hasSkeleton) {
@@ -1117,17 +1128,23 @@ void Renderer::ProcessMeshQuad(const RendererQuad& quad, int8_t depth, const Fac
 													   quad.colours[3]};
 		eastl::array<psyqo::Color, 4> fogColours;
 
+		auto lightingPass = [&](int32_t ix) {
+			psyqo::GTE::write<psyqo::GTE::Register::RGB, psyqo::GTE::Unsafe>(vertexColours[ix].packed);
+			psyqo::GTE::writeSafe<psyqo::GTE::PseudoRegister::V0>(quad.normals[ix]);
+			psyqo::GTE::write<psyqo::GTE::Register::IR0, psyqo::GTE::Safe>(stFaceCorners[ix].ir);
+			psyqo::GTE::Kernels::ncds();
+			vertexColours[ix].packed = psyqo::GTE::readRaw<psyqo::GTE::Register::RGB2>();
+		};
+
 		if (!faceData.isAdvancedFog) {
 			for (int i = 0; i < 4; i++) {
-				ApplyAmbientToColour(&vertexColours[i]);
-				vertexColours[i] = ApplyFogToColourGTE(vertexColours[i], stFaceCorners[i].ir);
+				lightingPass(i);
 			}
 		} else {
 			if (!faceData.useQuickAdvancedFogPass) {
 				GTESetFarColour({0, 0, 0});
 				for (int i = 0; i < 4; i++) {
-					ApplyAmbientToColour(&vertexColours[i]);
-					vertexColours[i] = GTEColourLerp(vertexColours[i], stFaceCorners[i].ir);
+					lightingPass(i);
 				}
 
 				GTESetFarColour(m_lighting->GetFogColour());
@@ -1137,7 +1154,7 @@ void Renderer::ProcessMeshQuad(const RendererQuad& quad, int8_t depth, const Fac
 			} else {
 				for (int i = 0; i < 4; i++) {
 					auto density = 4096 - stFaceCorners[i].ir;
-					ApplyAmbientToColour(&vertexColours[i]);
+					lightingPass(i);
 					vertexColours[i] = {uint8_t((vertexColours[i].r * density) >> 12),
 										uint8_t((vertexColours[i].g * density) >> 12),
 										uint8_t((vertexColours[i].b * density) >> 12)};
