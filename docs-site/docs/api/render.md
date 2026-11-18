@@ -269,7 +269,7 @@ lighting.SetAmbientColour({96, 96, 128}); // night: darker, with a blue cast
 lighting.SetAmbientColour({128, 128, 128});
 ```
 
-The cost is a multiply and a shift per colour channel on the CPU, for every vertex colour drawn. It's applied whether fog is on or not.
+On mesh faces it's free: the GTE adds it as part of the same command that applies point lights and fog. Billboards and particles still pay a multiply and a shift per colour channel on the CPU. It's applied whether fog is on or not.
 
 ### Clear colour
 
@@ -287,6 +287,35 @@ Renderer::Instance().SetFogColour({40, 60, 120}); // a blue sky behind everythin
 Renderer::Instance().Clear();          // fog colour
 Renderer::Instance().Clear({0, 0, 0}); // black, this frame only
 ```
+
+### Point lights
+
+A point light has a position, a radius and a colour. It lights the faces of any mesh whose bounding sphere reaches into its radius, on the faces that point towards it, fading from full strength at the light to nothing at the edge of the radius. Up to `MAX_POINT_LIGHTS` (8) can exist at once:
+
+```cpp
+auto &lighting = Lighting::instance();
+
+PointLight *lamp = nullptr;
+if (!lighting.CreatePointLight({0, -3.0_ws, 5.0_ws}, 8.0_ws, {255, 160, 64}, &lamp)) {
+  // all 8 slots are in use
+}
+
+lamp->pos.x += 0.1_ws; // move it, change the colour or radius whenever you like
+
+lighting.DestroyPointLight(lamp); // lamp is set to nullptr
+```
+
+The colour works on the same scale as the ambient colour, 128 being "normal" and 255 about double. A face's final colour is its vertex colour times (ambient + every light reaching it), clamped to 255 per channel, so a bright light over a bright ambient washes out to white.
+
+Things to know:
+
+- **Lighting is worked out once per object.** For each game object the renderer picks the 3 closest lights in range (`MAX_POINT_LIGHTS_PER_OBJECT`), measured from the centre of the mesh's bounding sphere, and works out one direction and one strength per light for the whole object. Faces then differ only by which way they point. That's right for small objects, but a big mesh lit by a nearby light gets the same strength on every face, near or far. Split large level geometry into chunks around the size of your light radius if you want a light to fall off across it.
+- **Meshes need normals.** A face with no normals only gets ambient. Tick Normals when exporting the OBJ; `obj-to-meshbin.py` warns when they're missing.
+- **Lights outlive scenes**, like the rest of `Lighting`. Call `DestroyAllPointLights()` when a scene ends if the next one shouldn't keep them.
+- **Pointers can go stale.** `DestroyPointLight` nulls the pointer you pass it, but `DestroyAllPointLights` can't reach your copies, and a freed slot is reused by the next `CreatePointLight`. Drop your pointers when you destroy everything.
+- Subdivided faces are lit at their original corners; the pieces in between take the blended colour.
+
+`GetPointLights()` returns all 8 slots, unused ones included, so check `active` before using one.
 
 ### Reference
 
@@ -308,6 +337,19 @@ public:
 
   const psyqo::Color &GetFogColour(void) const;
   void SetFogColour(psyqo::Color colour);
+
+  eastl::span<PointLight> GetPointLights(void);
+  bool CreatePointLight(const psyqo::Vec3 &pos, const psyqo::FixedPoint<> &radius, const psyqo::Color &colour,
+                        PointLight **pointLightOut);
+  bool DestroyPointLight(PointLight *&pointLight);
+  void DestroyAllPointLights(void);
+};
+
+struct PointLight {
+  psyqo::Vec3 pos;
+  psyqo::FixedPoint<> radius;
+  psyqo::Color colour;
+  bool active;
 };
 ```
 
