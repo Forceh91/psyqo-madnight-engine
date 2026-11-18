@@ -32,7 +32,7 @@ bool Lighting::CreatePointLight(const psyqo::Vec3& pos, const psyqo::FixedPoint<
 		return false;
 	}
 
-	*pointLightOut = &(m_pointLights[freeIx] = PointLight{pos, radius, colour, false});
+	*pointLightOut = &(m_pointLights[freeIx] = PointLight{pos, radius, colour, true});
 	return true;
 }
 
