@@ -1,5 +1,28 @@
 # Changelog
 
+## [1.1.0](https://github.com/Forceh91/psyqo-madnight-engine/compare/v1.0.0...v1.1.0) (2026-11-18)
+
+
+### Features
+
+* **collision:** add a helper for potential colbin wall collisions ([#169](https://github.com/Forceh91/psyqo-madnight-engine/issues/169)) ([a325498](https://github.com/Forceh91/psyqo-madnight-engine/commit/a325498c257249d8c17e8d4b121cdd005d593f1f))
+* **gameobject:** add `SetCollisionBox` to override the object's obb ([#166](https://github.com/Forceh91/psyqo-madnight-engine/issues/166)) ([baada97](https://github.com/Forceh91/psyqo-madnight-engine/commit/baada97f1967a93507863c9b25f12689b79cfaf4))
+* **lighting:** add point lights ([#171](https://github.com/Forceh91/psyqo-madnight-engine/issues/171)) ([97c6425](https://github.com/Forceh91/psyqo-madnight-engine/commit/97c64256f4751aa4bc1e160127844575261a7570))
+* **loader:** hard loads destroy billboards and emitters, scene teardown tests ([#157](https://github.com/Forceh91/psyqo-madnight-engine/issues/157)) ([7a97f86](https://github.com/Forceh91/psyqo-madnight-engine/commit/7a97f86b40524962353cbeec097ce5fa0d1b6c42))
+* **tech-demo:** add two point lights, one travelling the hall ([#173](https://github.com/Forceh91/psyqo-madnight-engine/issues/173)) ([bbd9ea2](https://github.com/Forceh91/psyqo-madnight-engine/commit/bbd9ea262799a595d8a891f3cd4cf8b61e8b6304))
+* **tech-demo:** collide the hero with the hall walls, check it in CI ([#163](https://github.com/Forceh91/psyqo-madnight-engine/issues/163)) ([b3b7ea9](https://github.com/Forceh91/psyqo-madnight-engine/commit/b3b7ea9d9c6be9c189aaf38577f577ce241f9ab8))
+* **tools:** infer collision from scene meshes in blender_colbin.py ([#161](https://github.com/Forceh91/psyqo-madnight-engine/issues/161)) ([885db38](https://github.com/Forceh91/psyqo-madnight-engine/commit/885db38105d712e269b5e84395f8ebddd925d0f1))
+
+
+### Bug Fixes
+
+* **collision:** treat boxes that only touch as apart in IsSATCollision ([#162](https://github.com/Forceh91/psyqo-madnight-engine/issues/162)) ([2f897aa](https://github.com/Forceh91/psyqo-madnight-engine/commit/2f897aa920c10c7bb841b56188b019fb8e6d0360))
+* **rand:** randInc bounds, circle spawn angle, rand comments ([#159](https://github.com/Forceh91/psyqo-madnight-engine/issues/159)) ([7360888](https://github.com/Forceh91/psyqo-madnight-engine/commit/736088879cacdc7cb1c4d84bcfe7ded88e5f648c))
+* **raycast:** aim the camera ray where the camera looks, and return the nearest hit ([#168](https://github.com/Forceh91/psyqo-madnight-engine/issues/168)) ([66120fa](https://github.com/Forceh91/psyqo-madnight-engine/commit/66120fa819721d75f60ea880bcd45b4b16d9f299))
+* **renderer:** fog 2D particles with advanced fog on ([#154](https://github.com/Forceh91/psyqo-madnight-engine/issues/154)) ([7991f6b](https://github.com/Forceh91/psyqo-madnight-engine/commit/7991f6b7bb63ccc872bd57a69733dd48b030af3e))
+* **renderer:** set fog distances when fog is turned on after StartScene ([#155](https://github.com/Forceh91/psyqo-madnight-engine/issues/155)) ([88e09dd](https://github.com/Forceh91/psyqo-madnight-engine/commit/88e09dd7b38e3543705cd5ea16a4430deedc0d88))
+* **tools:** obj-to-meshbin warns when faces have no normals ([#170](https://github.com/Forceh91/psyqo-madnight-engine/issues/170)) ([3b5645a](https://github.com/Forceh91/psyqo-madnight-engine/commit/3b5645ade612e425fb326fdc1bfd452889a7981b))
+
 ## [1.0.0](https://github.com/Forceh91/psyqo-madnight-engine/compare/v0.1.0...v1.0.0) (2026-11-10)
 
 
