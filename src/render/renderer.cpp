@@ -12,6 +12,7 @@
 #include "../core/particles/particle_manager.hh"
 #include "../defs.hh"
 #include "../madnight.hh"
+#include "../math/matrix.hh"
 #include "../math/vector.hh"
 #include "clip.hh"
 
@@ -325,6 +326,8 @@ void Renderer::RenderGameObjects(uint32_t deltaTime, const psyqo::Matrix33& came
 		auto pointLights = m_lighting->FindPointLightsForPos(gameObject->pos());
 
 		// now we know point lights we can fill in the LLM
+		psyqo::Matrix33 llm = {}; // light direction matrix
+		psyqo::Matrix33 lcm = {}; // light colour matrix
 		int llmIx = 0;
 		for (auto& light : pointLights) {
 			// do some complicated math to figure out the direction, and fade amount of this light
@@ -342,11 +345,31 @@ void Renderer::RenderGameObjects(uint32_t deltaTime, const psyqo::Matrix33& came
 			auto normalizedDirection = lightDirection * inv;
 
 			// now transform it into model space
+			auto transposeMatrix = TransposeMatrix33(gameObject->rotationMatrix());
+			psyqo::Vec3 rotatedPos;
+			psyqo::GteMath::matrixVecMul3(transposeMatrix, normalizedDirection * fadeAmount, &rotatedPos);
 
 			// write to the LLM row
+			llm.vs[llmIx] = rotatedPos;
 
-			// and write the colour LLC row
+			// and write the colour LCM row
+			// where each column is a colour (row 0 = red, 1 = green 2 = blue)
+			psyqo::FixedPoint<> r = 0, g = 0, b = 0;
+			r.value = light.colour.r * 16;
+			g.value = light.colour.g * 16;
+			b.value = light.colour.b * 16;
+
+			lcm.vs[0][llmIx] = r; // red
+			lcm.vs[1][llmIx] = g; // green
+			lcm.vs[2][llmIx] = b; // blue
+
+			// move over to the next light index
+			llmIx++;
 		}
+
+		// store this info into the GTE
+		psyqo::GTE::writeUnsafe<psyqo::GTE::PseudoRegister::Light>(llm);
+		psyqo::GTE::writeSafe<psyqo::GTE::PseudoRegister::Color>(lcm);
 
 		// if we've got a skeleton on this mesh
 		if (mesh->hasSkeleton) {
