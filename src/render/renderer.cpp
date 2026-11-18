@@ -345,7 +345,7 @@ void Renderer::RenderGameObjects(uint32_t deltaTime, const psyqo::Matrix33& came
 			auto length = lightDirectionSq * inv;
 
 			auto fadeAmount = 1 - length / light.radius;
-			eastl::clamp<psyqo::FixedPoint<>>(fadeAmount, 0, fadeAmount);
+			fadeAmount = eastl::clamp<psyqo::FixedPoint<>>(fadeAmount, 0.0_fp, fadeAmount);
 
 			auto normalizedDirection = lightDirection * inv;
 
@@ -1068,10 +1068,10 @@ void Renderer::ProcessMeshQuad(const RendererQuad& quad, int8_t depth, const Fac
 			stFaceCorners[i].colour = quad.colours[i];
 		}
 
-		auto lightingPass = [&](FaceCorner& corner, const psyqo::GTE::PackedVec3& quadNormal) {
+		auto lightingPass = [&](FaceCorner& corner, const psyqo::GTE::PackedVec3& quadNormal, const int32_t ir = -1) {
 			psyqo::GTE::write<psyqo::GTE::Register::RGB, psyqo::GTE::Unsafe>(corner.colour.packed);
 			psyqo::GTE::writeSafe<psyqo::GTE::PseudoRegister::V0>(quadNormal);
-			psyqo::GTE::write<psyqo::GTE::Register::IR0, psyqo::GTE::Safe>(corner.ir);
+			psyqo::GTE::write<psyqo::GTE::Register::IR0, psyqo::GTE::Safe>(ir == -1 ? corner.ir : ir);
 			psyqo::GTE::Kernels::ncds();
 			corner.colour.packed = psyqo::GTE::readRaw<psyqo::GTE::Register::RGB2>();
 		};
@@ -1095,7 +1095,7 @@ void Renderer::ProcessMeshQuad(const RendererQuad& quad, int8_t depth, const Fac
 			} else {
 				for (int i = 0; i < 4; i++) {
 					auto density = 4096 - stFaceCorners[i].ir;
-					lightingPass(stFaceCorners[i], quad.normals[i]);
+					lightingPass(stFaceCorners[i], quad.normals[i], 0);
 					stFaceCorners[i].colour = {uint8_t((stFaceCorners[i].colour.r * density) >> 12),
 											   uint8_t((stFaceCorners[i].colour.g * density) >> 12),
 											   uint8_t((stFaceCorners[i].colour.b * density) >> 12)};
