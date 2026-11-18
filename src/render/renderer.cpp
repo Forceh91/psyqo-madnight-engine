@@ -12,6 +12,7 @@
 #include "../core/particles/particle_manager.hh"
 #include "../defs.hh"
 #include "../madnight.hh"
+#include "../math/vector.hh"
 #include "clip.hh"
 
 #include <psyqo/fixed-point.hh>
@@ -26,6 +27,7 @@
 #include <psyqo/primitives/rectangles.hh>
 #include <psyqo/primitives/sprites.hh>
 #include <psyqo/primitives/triangles.hh>
+#include <psyqo/soft-math.hh>
 #include <psyqo/vector.hh>
 
 Renderer* Renderer::m_instance = nullptr;
@@ -317,7 +319,34 @@ void Renderer::RenderGameObjects(uint32_t deltaTime, const psyqo::Matrix33& came
 
 		// transform the game object into view space
 		renderedObjects++;
-		auto finalPos = TransformObjectToViewSpace(gameObject->pos(), cameraRotationMatrix, finalCameraMatrix);
+		TransformObjectToViewSpace(gameObject->pos(), cameraRotationMatrix, finalCameraMatrix);
+
+		// see if theres any point lights relevant to this object
+		auto pointLights = m_lighting->FindPointLightsForPos(gameObject->pos());
+
+		// now we know point lights we can fill in the LLM
+		int llmIx = 0;
+		for (auto& light : pointLights) {
+			// do some complicated math to figure out the direction, and fade amount of this light
+			// against the object
+			auto lightDirection = light.pos - gameObject->pos();
+			auto lightDirectionSq = DotProduct(lightDirection, lightDirection);
+			if (lightDirectionSq.raw() <= 1) {
+				continue;
+			}
+
+			auto inv = psyqo::SoftMath::inverseSquareRoot(lightDirectionSq);
+			auto length = lightDirectionSq * inv;
+
+			auto fadeAmount = 1 - length / light.radius;
+			auto normalizedDirection = lightDirection * inv;
+
+			// now transform it into model space
+
+			// write to the LLM row
+
+			// and write the colour LLC row
+		}
 
 		// if we've got a skeleton on this mesh
 		if (mesh->hasSkeleton) {
@@ -382,9 +411,6 @@ void Renderer::RenderGameObjects(uint32_t deltaTime, const psyqo::Matrix33& came
 			// give it its rotation data back since we just clobbered it doing math
 			psyqo::GTE::writeSafe<psyqo::GTE::PseudoRegister::Rotation>(finalCameraMatrix);
 		}
-
-		// see if theres any point lights relevant to this object
-		auto pointLights = m_lighting->FindPointLightsForPos(finalPos);
 
 		// now we've done all this we can render the mesh and apply texture (if needed)
 		// we dont need to get texture data for every single vert since it wont change, so lets only do that once
