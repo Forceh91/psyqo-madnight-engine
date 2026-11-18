@@ -1755,7 +1755,6 @@ void Renderer::ProcessMeshTri(const RendererTri& tri, int8_t depth, const FaceDa
 			} else {
 				for (int i = 0; i < kCornerCount; i++) {
 					auto density = 4096 - stFaceCorners[i].ir;
-					ApplyAmbientToColour(&stFaceCorners[i].colour);
 					lightingPass(stFaceCorners[i], tri.normals[i], 0);
 					stFaceCorners[i].colour = {uint8_t((stFaceCorners[i].colour.r * density) >> 12),
 											   uint8_t((stFaceCorners[i].colour.g * density) >> 12),
