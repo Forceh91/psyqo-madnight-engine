@@ -254,19 +254,25 @@ psyqo::Coroutine<> MeshManager::LoadMesh(const eastl::string_view& meshName, Mes
 			ptr += sizeof(int16_t);
 		}
 
-		const bool isQuad = indices[1] != -1;
-		const auto defaultNormals = psyqo::GTE::PackedVec3({0, 0, 0});
+		const bool isQuad = mesh.facesData[i].isQuad;
 		for (int j = 0, triIx = 0; j < 4; j++) {
+			// skip index 1 for tris
+			if (!isQuad && j == 1) {
+				continue;
+			}
+
+			// if theres nothing here dont write, but make sure we increase tri ix
 			if (indices[j] == -1) {
+				triIx++;
 				continue;
 			}
 
 			auto packedNormal = psyqo::GTE::PackedVec3(normalsData[indices[j]]);
+			auto& renderFaceIx = mesh.facesData[i].rendererFaceIx;
 			if (isQuad) {
-				mesh.quads[quadFace].normals[j] = packedNormal;
+				mesh.quads[renderFaceIx].normals[j] = packedNormal;
 			} else {
-				mesh.tris[triFace].normals[triIx] = packedNormal;
-				triIx++;
+				mesh.tris[renderFaceIx].normals[triIx++] = packedNormal;
 			}
 		}
 
