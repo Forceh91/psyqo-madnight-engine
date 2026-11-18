@@ -36,9 +36,6 @@ HALL_HEIGHT = 1.5  # 3 m
 HALL_LENGTH = 24  # 48 m, in whole units so the floor tiles line up
 PILLAR_EVERY = 4
 PILLAR_SIZE = 0.3
-EMBER_GLOW_POS = (-1.0, -0.1, 6.0)  # keep in step with the "embers" emitter
-EMBER_GLOW_RADIUS = 1.6
-EMBER_GLOW_STEP = 0.75  # faces the glow reaches are split this fine, in units, so it still shows
 HALL_SEGMENT = 2  # floor, ceiling and side wall faces are this many units long
 HALL_FLOOR_ACROSS = 3  # floor and ceiling faces across the width of the hall
 HALL_PIECE = 4  # the hall mesh is split into stretches this many units long, see hall_pieces()
@@ -222,36 +219,10 @@ def hall_mesh():
         # darker towards the far end and towards the ceiling, so the hall reads as dim
         # even before the fog takes over
         level = max(56, 112 - int(c[2] * 1.5) + int(c[1] * 16))
-        # warm glow baked around the ember emitter in hall_scene.cpp
-        f = max(0.0, 1.0 - math.dist(c, EMBER_GLOW_POS) / EMBER_GLOW_RADIUS) ** 2
-        return (min(255, level + int(120 * f)), min(255, level + int(50 * f)), max(0, level - int(10 * f)))
+        return (level, level, level)
 
     def face(corners, normal, cell):
-        # one quad, unless the ember glow reaches it: per-vertex colour needs vertices under
-        # the glow, so split it into a grid there, each piece taking its share of the cell so
-        # the texture still runs unbroken across the whole face
-        lo = [min(c[i] for c in corners) for i in range(3)]
-        hi = [max(c[i] for c in corners) for i in range(3)]
-        nearest = [min(max(EMBER_GLOW_POS[i], lo[i]), hi[i]) for i in range(3)]
-        n_u = n_v = 1
-        # (past three quarters of the radius the glow is a couple of colour steps, not worth it)
-        if math.dist(nearest, EMBER_GLOW_POS) < EMBER_GLOW_RADIUS * 0.75:
-            n_u = max(1, round(math.dist(corners[0], corners[1]) / EMBER_GLOW_STEP))
-            n_v = max(1, round(math.dist(corners[0], corners[3]) / EMBER_GLOW_STEP))
-        c0, c1, c3 = corners[0], corners[1], corners[3]
-        x, y, w, h = cell
-        whole_z = sum(c[2] for c in corners) / len(corners)  # the pieces stay together
-
-        def at(u, v):
-            return tuple(c0[i] + u * (c1[i] - c0[i]) + v * (c3[i] - c0[i]) for i in range(3))
-
-        for j in range(n_v):
-            for i in range(n_u):
-                u0, u1, v0, v1 = i / n_u, (i + 1) / n_u, j / n_v, (j + 1) / n_v
-                piece = [at(u0, v0), at(u1, v0), at(u1, v1), at(u0, v1)]
-                tx0, tx1 = x + round(w * u0), x + round(w * u1)
-                ty0, ty1 = y + round(h * v0), y + round(h * v1)
-                put(piece, normal, (tx0, ty0, tx1 - tx0, ty1 - ty0), [shade(c) for c in piece], whole_z)
+        put(corners, normal, cell, [shade(c) for c in corners])
 
     # floor, ceiling and side walls in faces HALL_SEGMENT units long: the engine subdivides
     # big quads near the camera, so the hall does not need small faces. A cell can't repeat
