@@ -227,6 +227,10 @@ void Collision::PotentialColbinWallCollisions(
 		for (auto z = z0; z <= z1; z++) {
 			const auto& gridCell = gridCells[x * gridHeader.gridHeight + z];
 			for (int i = 0; i < gridCell.count; i++) {
+				if (potentialCollisions.full()) {
+					return;
+				}
+
 				if (eastl::find(potentialCollisions.begin(), potentialCollisions.end(),
 								&colliders[gridCell.indices[i]]) == potentialCollisions.end()) {
 					potentialCollisions.push_back(&colliders[gridCell.indices[i]]);
