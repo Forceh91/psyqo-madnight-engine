@@ -49,7 +49,11 @@ class Lighting {
 
 	bool CreatePointLight(const psyqo::Vec3& pos, const psyqo::FixedPoint<>& radius, const psyqo::Color& colour,
 						  PointLight** pointLightOut);
-	bool DestroyPointLight(PointLight* pointLight);
+	bool DestroyPointLight(PointLight*& pointLight);
+
+	// this will destroy all point lights and reset them back to normal, if you have a pointer to a point light, it will
+	// no longer be what you expect when you are using this function make sure you clean up your pointers on your end
+	void DestroyAllPointLights(void);
 	eastl::fixed_vector<PointLight, MAX_POINT_LIGHTS_PER_OBJECT, false>
 	FindPointLightsForPos(const psyqo::Vec3& pos, const int32_t& objectRadius = 0);
 

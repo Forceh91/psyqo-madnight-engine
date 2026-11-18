@@ -36,13 +36,21 @@ bool Lighting::CreatePointLight(const psyqo::Vec3& pos, const psyqo::FixedPoint<
 	return true;
 }
 
-bool Lighting::DestroyPointLight(PointLight* light) {
+bool Lighting::DestroyPointLight(PointLight*& light) {
 	if (!light) {
 		return false;
 	}
 
-	light->active = false;
+	*light = {};
+	light = nullptr;
+
 	return true;
+}
+
+void Lighting::DestroyAllPointLights(void) {
+	for (auto& light : m_pointLights) {
+		light = {};
+	}
 }
 
 eastl::fixed_vector<PointLight, MAX_POINT_LIGHTS_PER_OBJECT, false>
