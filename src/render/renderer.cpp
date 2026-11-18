@@ -1728,18 +1728,24 @@ void Renderer::ProcessMeshTri(const RendererTri& tri, int8_t depth, const FaceDa
 			stFaceCorners[i].colour = tri.colours[i];
 		}
 
+		auto lightingPass = [&](FaceCorner& corner, const psyqo::GTE::PackedVec3& quadNormal, const int32_t ir = -1) {
+			psyqo::GTE::write<psyqo::GTE::Register::RGB, psyqo::GTE::Unsafe>(corner.colour.packed);
+			psyqo::GTE::writeSafe<psyqo::GTE::PseudoRegister::V0>(quadNormal);
+			psyqo::GTE::write<psyqo::GTE::Register::IR0, psyqo::GTE::Safe>(ir == -1 ? corner.ir : ir);
+			psyqo::GTE::Kernels::ncds();
+			corner.colour.packed = psyqo::GTE::readRaw<psyqo::GTE::Register::RGB2>();
+		};
+
 		// apply fog colours (skipped if advanced fog is enabled)
 		if (!faceData.isAdvancedFog) {
 			for (int i = 0; i < kCornerCount; i++) {
-				ApplyAmbientToColour(&stFaceCorners[i].colour);
-				stFaceCorners[i].colour = ApplyFogToColourGTE(stFaceCorners[i].colour, stFaceCorners[i].ir);
+				lightingPass(stFaceCorners[i], tri.normals[i]);
 			}
 		} else {
 			if (!faceData.useQuickAdvancedFogPass) {
 				GTESetFarColour({0, 0, 0});
 				for (int i = 0; i < kCornerCount; i++) {
-					ApplyAmbientToColour(&stFaceCorners[i].colour);
-					stFaceCorners[i].colour = GTEColourLerp(stFaceCorners[i].colour, stFaceCorners[i].ir);
+					lightingPass(stFaceCorners[i], tri.normals[i]);
 				}
 
 				GTESetFarColour(m_lighting->GetFogColour());
@@ -1750,6 +1756,7 @@ void Renderer::ProcessMeshTri(const RendererTri& tri, int8_t depth, const FaceDa
 				for (int i = 0; i < kCornerCount; i++) {
 					auto density = 4096 - stFaceCorners[i].ir;
 					ApplyAmbientToColour(&stFaceCorners[i].colour);
+					lightingPass(stFaceCorners[i], tri.normals[i], 0);
 					stFaceCorners[i].colour = {uint8_t((stFaceCorners[i].colour.r * density) >> 12),
 											   uint8_t((stFaceCorners[i].colour.g * density) >> 12),
 											   uint8_t((stFaceCorners[i].colour.b * density) >> 12)};
@@ -1787,17 +1794,23 @@ void Renderer::ProcessMeshTri(const RendererTri& tri, int8_t depth, const FaceDa
 		eastl::array<psyqo::Color, kCornerCount> vertexColours = {tri.colours[0], tri.colours[1], tri.colours[2]};
 		eastl::array<psyqo::Color, kCornerCount> fogColours;
 
+		auto lightingPass = [&](int32_t ix, uint32_t ir0) {
+			psyqo::GTE::write<psyqo::GTE::Register::RGB, psyqo::GTE::Unsafe>(vertexColours[ix].packed);
+			psyqo::GTE::writeSafe<psyqo::GTE::PseudoRegister::V0>(tri.normals[ix]);
+			psyqo::GTE::write<psyqo::GTE::Register::IR0, psyqo::GTE::Safe>(ir0);
+			psyqo::GTE::Kernels::ncds();
+			vertexColours[ix].packed = psyqo::GTE::readRaw<psyqo::GTE::Register::RGB2>();
+		};
+
 		if (!faceData.isAdvancedFog) {
 			for (int i = 0; i < kCornerCount; i++) {
-				ApplyAmbientToColour(&vertexColours[i]);
-				vertexColours[i] = ApplyFogToColourGTE(vertexColours[i], stFaceCorners[i].ir);
+				lightingPass(i, stFaceCorners[i].ir);
 			}
 		} else {
 			if (!faceData.useQuickAdvancedFogPass) {
 				GTESetFarColour({0, 0, 0});
 				for (int i = 0; i < kCornerCount; i++) {
-					ApplyAmbientToColour(&vertexColours[i]);
-					vertexColours[i] = GTEColourLerp(vertexColours[i], stFaceCorners[i].ir);
+					lightingPass(i, stFaceCorners[i].ir);
 				}
 
 				GTESetFarColour(m_lighting->GetFogColour());
@@ -1807,7 +1820,7 @@ void Renderer::ProcessMeshTri(const RendererTri& tri, int8_t depth, const FaceDa
 			} else {
 				for (int i = 0; i < kCornerCount; i++) {
 					auto density = 4096 - stFaceCorners[i].ir;
-					ApplyAmbientToColour(&vertexColours[i]);
+					lightingPass(i, 0);
 					vertexColours[i] = {uint8_t((vertexColours[i].r * density) >> 12),
 										uint8_t((vertexColours[i].g * density) >> 12),
 										uint8_t((vertexColours[i].b * density) >> 12)};
