@@ -50,7 +50,8 @@ class Lighting {
 	bool CreatePointLight(const psyqo::Vec3& pos, const psyqo::FixedPoint<>& radius, const psyqo::Color& colour,
 						  PointLight** pointLightOut);
 	bool DestroyPointLight(PointLight* pointLight);
-	eastl::fixed_vector<PointLight, MAX_POINT_LIGHTS_PER_OBJECT, false> FindPointLightsForPos(const psyqo::Vec3& pos);
+	eastl::fixed_vector<PointLight, MAX_POINT_LIGHTS_PER_OBJECT, false>
+	FindPointLightsForPos(const psyqo::Vec3& pos, const int32_t& objectRadius = 0);
 
   private:
 	Lighting() = default;

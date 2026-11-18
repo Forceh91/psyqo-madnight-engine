@@ -46,7 +46,7 @@ bool Lighting::DestroyPointLight(PointLight* light) {
 }
 
 eastl::fixed_vector<PointLight, MAX_POINT_LIGHTS_PER_OBJECT, false>
-Lighting::FindPointLightsForPos(const psyqo::Vec3& pos) {
+Lighting::FindPointLightsForPos(const psyqo::Vec3& pos, const int32_t& objectRadius) {
 	eastl::fixed_vector<PointLight, MAX_POINT_LIGHTS_PER_OBJECT, false> out;
 	eastl::fixed_vector<psyqo::FixedPoint<>, MAX_POINT_LIGHTS_PER_OBJECT, false> closestLights;
 
@@ -57,13 +57,14 @@ Lighting::FindPointLightsForPos(const psyqo::Vec3& pos) {
 
 		// no point going further if the diff is bigger than the lights radius
 		auto posDiff = light.pos - pos;
-		if (posDiff.x.abs() > light.radius || posDiff.y.abs() > light.radius || posDiff.z.abs() > light.radius) {
+		auto radius = light.radius + objectRadius;
+		if (posDiff.x.abs() > radius || posDiff.y.abs() > radius || posDiff.z.abs() > radius) {
 			continue;
 		}
 
 		// now for the final check to see if its within radius
 		auto posSq = DotProduct(posDiff, posDiff);
-		auto radiusSq = light.radius * light.radius;
+		auto radiusSq = radius * radius;
 		if (posSq > radiusSq) {
 			continue;
 		}

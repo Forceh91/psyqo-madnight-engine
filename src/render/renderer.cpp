@@ -324,7 +324,7 @@ void Renderer::RenderGameObjects(uint32_t deltaTime, const psyqo::Matrix33& came
 		}
 
 		// see if theres any point lights relevant to this object
-		auto pointLights = m_lighting->FindPointLightsForPos(gameObject->pos());
+		auto pointLights = m_lighting->FindPointLightsForPos(centre, gameObject->mesh()->bsphere.radius);
 
 		// now we know point lights we can fill in the LLM
 		psyqo::Matrix33 llm = {}; // light direction matrix
@@ -335,7 +335,7 @@ void Renderer::RenderGameObjects(uint32_t deltaTime, const psyqo::Matrix33& came
 		for (auto& light : pointLights) {
 			// do some complicated math to figure out the direction, and fade amount of this light
 			// against the object
-			auto lightDirection = light.pos - gameObject->pos();
+			auto lightDirection = light.pos - centre;
 			auto lightDirectionSq = DotProduct(lightDirection, lightDirection);
 			if (lightDirectionSq.raw() <= 1) {
 				continue;
