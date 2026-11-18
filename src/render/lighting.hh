@@ -41,6 +41,8 @@ class Lighting {
 	const constexpr psyqo::Color& GetFogColour(void) const { return m_fogColour; }
 	void SetFogColour(psyqo::Color colour) { m_fogColour = colour; }
 
+	// this returns all active and inactive lights up to `MAX_POINT_LIGHTS`. check `active` before using a light from
+	// this list, as it may just be one thats not been provisioned yet.
 	const constexpr eastl::span<PointLight> GetPointLights(void) {
 		return {m_pointLights.data(), m_pointLights.size()};
 	}
