@@ -341,6 +341,14 @@ def parse_obj_file_with_collision_data(path,texture_size):
                 bone_id = line.strip().split()[2]
                 bone_id_for_vert_ix.append(int(bone_id))
 
+    # without normals every corner loads as {0,0,0} and point lights can't light the face, so say so.
+    # usually it means normals were unticked in the obj export
+    faces_without_normals = sum(1 for face in faces if all(c[2] == -1 for c in face["corners"]))
+    if faces and not raw_norms:
+        print("Warning: the obj has faces but no normals (vn lines), lighting won't work on this mesh. Tick Normals in the obj export")
+    elif faces_without_normals:
+        print(f"Warning: {faces_without_normals} of {len(faces)} faces have no normals, lighting won't work on them")
+
     # normals: get them into the same space as the verts, make them unit length and store them
     # as fp12 (what psyqo::Vec3 expects). this used to int() the raw float, which left every
     # component as -1, 0 or 1
