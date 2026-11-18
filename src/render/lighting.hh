@@ -6,9 +6,18 @@
 
 #pragma once
 
+#include "lights/point_light.hh"
+
+#include <EASTL/fixed_vector.h>
+#include <EASTL/span.h>
+
 #include <psyqo/primitives/common.hh>
 
 static constexpr psyqo::Color DEFAULT_CLEAR_COLOR = {.r = 0, .g = 0, .b = 0};
+static constexpr uint8_t MAX_POINT_LIGHTS = 8; // does this need to be shared across other types of lights? perhaps. we
+											   // could do a templated array in the future?
+static constexpr uint8_t MAX_POINT_LIGHTS_PER_OBJECT =
+	3; // how many point lights will affect an object during rendering
 
 class Lighting {
   public:
@@ -32,6 +41,22 @@ class Lighting {
 	const constexpr psyqo::Color& GetFogColour(void) const { return m_fogColour; }
 	void SetFogColour(psyqo::Color colour) { m_fogColour = colour; }
 
+	// this returns all active and inactive lights up to `MAX_POINT_LIGHTS`. check `active` before using a light from
+	// this list, as it may just be one thats not been provisioned yet.
+	const constexpr eastl::span<PointLight> GetPointLights(void) {
+		return {m_pointLights.data(), m_pointLights.size()};
+	}
+
+	bool CreatePointLight(const psyqo::Vec3& pos, const psyqo::FixedPoint<>& radius, const psyqo::Color& colour,
+						  PointLight** pointLightOut);
+	bool DestroyPointLight(PointLight*& pointLight);
+
+	// this will destroy all point lights and reset them back to normal, if you have a pointer to a point light, it will
+	// no longer be what you expect when you are using this function make sure you clean up your pointers on your end
+	void DestroyAllPointLights(void);
+	eastl::fixed_vector<PointLight, MAX_POINT_LIGHTS_PER_OBJECT, false>
+	FindPointLightsForPos(const psyqo::Vec3& pos, const int32_t& objectRadius = 0);
+
   private:
 	Lighting() = default;
 
@@ -41,4 +66,7 @@ class Lighting {
 	// clear colour IS fog colour
 	psyqo::Color m_fogColour = DEFAULT_CLEAR_COLOR;
 	psyqo::Color m_ambient = {128, 128, 128};
+
+	// light types
+	eastl::array<PointLight, MAX_POINT_LIGHTS> m_pointLights = {};
 };

@@ -7,6 +7,7 @@
 #include "mesh_manager.hh"
 #include "../helpers/archive.hh"
 #include "../madnight.hh"
+#include "psyqo/gte-registers.hh"
 #include "skeleton/skeleton.hh"
 
 #include <EASTL/string.h>
@@ -200,11 +201,20 @@ psyqo::Coroutine<> MeshManager::LoadMesh(const eastl::string_view& meshName, Mes
 				mesh.quads[quadFace].vertIxs[j] = indices[j];
 				mesh.quads[quadFace].boneAdjustedVerts = nullptr;
 				mesh.quads[quadFace].colours[j] = {colour.r, colour.g, colour.b};
+				mesh.quads[quadFace].normals[j] = {};
+				mesh.quads[quadFace].uvA = {};
+				mesh.quads[quadFace].uvB = {};
+				mesh.quads[quadFace].uvC = {};
+				mesh.quads[quadFace].uvD = {};
 			} else {
 				mesh.tris[triFace].verts[triIx] = packedVertex;
 				mesh.tris[triFace].vertIxs[triIx] = indices[j];
 				mesh.tris[triFace].boneAdjustedVerts = nullptr;
 				mesh.tris[triFace].colours[triIx] = {colour.r, colour.g, colour.b};
+				mesh.tris[triFace].normals[triIx] = {};
+				mesh.tris[triFace].uvA = {};
+				mesh.tris[triFace].uvB = {};
+				mesh.tris[triFace].uvC = {};
 
 				triIx++;
 			}
@@ -244,19 +254,25 @@ psyqo::Coroutine<> MeshManager::LoadMesh(const eastl::string_view& meshName, Mes
 			ptr += sizeof(int16_t);
 		}
 
-		const bool isQuad = indices[1] != -1;
+		const bool isQuad = mesh.facesData[i].isQuad;
 		for (int j = 0, triIx = 0; j < 4; j++) {
+			// skip index 1 for tris
+			if (!isQuad && j == 1) {
+				continue;
+			}
+
+			// if theres nothing here dont write, but make sure we increase tri ix
 			if (indices[j] == -1) {
+				triIx++;
 				continue;
 			}
 
 			auto packedNormal = psyqo::GTE::PackedVec3(normalsData[indices[j]]);
-
+			auto& renderFaceIx = mesh.facesData[i].rendererFaceIx;
 			if (isQuad) {
-				mesh.quads[quadFace].normal = packedNormal;
+				mesh.quads[renderFaceIx].normals[j] = packedNormal;
 			} else {
-				mesh.tris[triFace].normal = packedNormal;
-				triIx++;
+				mesh.tris[renderFaceIx].normals[triIx++] = packedNormal;
 			}
 		}
 

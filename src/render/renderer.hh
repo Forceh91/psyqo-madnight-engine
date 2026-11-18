@@ -163,6 +163,7 @@ class Renderer final {
 
 	void SetFogColour(const psyqo::Color& colour);
 	const bool& IsSimpleFogEnabled(void) const { return m_lighting->IsSimpleFogEnabled(); }
+	const bool& IsAdvancedFogEnabled(void) const { return m_lighting->IsAdvancedFogEnabled(); }
 
 	static Renderer& Instance() { return *m_instance; }
 	psyqo::GPU& GPU() { return m_gpu; }
