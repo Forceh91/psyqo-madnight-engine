@@ -299,6 +299,11 @@ void Renderer::RenderGameObjects(uint32_t deltaTime, const psyqo::Matrix33& came
 		return;
 	}
 
+	// write the fog colour into the far colour
+	if (m_lighting->IsSimpleFogEnabled() && !m_lighting->IsAdvancedFogEnabled()) {
+		GTESetFarColour(m_lighting->GetFogColour());
+	}
+
 	// now for each object...
 	int renderedObjects = 0;
 	for (const auto& gameObject : gameObjects) {
@@ -317,10 +322,6 @@ void Renderer::RenderGameObjects(uint32_t deltaTime, const psyqo::Matrix33& came
 		if (!IsGameObjectVisible(deltaCentre, gameObject->mesh()->bsphere.radius)) {
 			continue;
 		}
-
-		// transform the game object into view space
-		renderedObjects++;
-		TransformObjectToViewSpace(gameObject->pos(), cameraRotationMatrix, finalCameraMatrix);
 
 		// see if theres any point lights relevant to this object
 		auto pointLights = m_lighting->FindPointLightsForPos(gameObject->pos());
@@ -356,13 +357,13 @@ void Renderer::RenderGameObjects(uint32_t deltaTime, const psyqo::Matrix33& came
 			// and write the colour LCM row
 			// where each column is a colour (row 0 = red, 1 = green 2 = blue)
 			psyqo::FixedPoint<> r = 0, g = 0, b = 0;
-			r.value = light.colour.r * 16;
-			g.value = light.colour.g * 16;
-			b.value = light.colour.b * 16;
+			r.value = light.colour.r << 5;
+			g.value = light.colour.g << 5;
+			b.value = light.colour.b << 5;
 
-			lcm.vs[0][llmIx] = r << 5; // red
-			lcm.vs[1][llmIx] = g << 5; // green
-			lcm.vs[2][llmIx] = b << 5; // blue
+			lcm.vs[0][llmIx] = r; // red
+			lcm.vs[1][llmIx] = g; // green
+			lcm.vs[2][llmIx] = b; // blue
 
 			// move over to the next light index
 			llmIx++;
@@ -378,10 +379,9 @@ void Renderer::RenderGameObjects(uint32_t deltaTime, const psyqo::Matrix33& came
 		psyqo::GTE::write<psyqo::GTE::Register::GBK, psyqo::GTE::Unsafe>(ambientCol.g << 5);
 		psyqo::GTE::write<psyqo::GTE::Register::BBK, psyqo::GTE::Safe>(ambientCol.b << 5);
 
-		// write the fog colour into the far colour
-		if (m_lighting->IsSimpleFogEnabled() && !m_lighting->IsAdvancedFogEnabled()) {
-			GTESetFarColour(m_lighting->GetFogColour());
-		}
+		// transform the game object into view space
+		renderedObjects++;
+		TransformObjectToViewSpace(gameObject->pos(), cameraRotationMatrix, finalCameraMatrix);
 
 		// if we've got a skeleton on this mesh
 		if (mesh->hasSkeleton) {
