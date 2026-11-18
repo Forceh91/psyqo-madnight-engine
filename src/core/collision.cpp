@@ -5,6 +5,7 @@
  */
 
 #include "collision.hh"
+#include "../madnight.hh"
 #include "../math/gte-math.hh"
 #include "../math/vector.hh"
 #include "../mesh/mesh_manager.hh"
@@ -181,4 +182,60 @@ bool Collision::IsSATCollision(const OBB& collisionA, const OBB& collisionB, Col
 
 	// no separated axis found, so we must be colliding
 	return true;
+}
+
+void Collision::PotentialColbinWallCollisions(
+	const OBB& obb, eastl::fixed_vector<OBB*, COLLISION_BROAD_PHASE_LIMIT, false>& potentialCollisions) {
+	const auto& colBin = g_madnightEngine.m_colbinManager.Colbin();
+	if (!colBin || !colBin->header.version) {
+		return;
+	}
+
+	const auto& gridHeader = colBin->gridHeader;
+	const auto& gridCells = colBin->gridCells;
+	const auto& colliders = colBin->walls;
+	if (gridHeader.gridWidth == 0 || gridHeader.gridHeight == 0 || gridHeader.cellSize == 0) {
+		return;
+	}
+
+	potentialCollisions.clear();
+
+	// convert the OBB into its reach of grid cells that it is overlapping
+	// we only care about the ones under the obb, and this handles the obb being rotated
+	int32_t reach[2] = {};		  // 0 = x, 1 = z, in raw fp12 value
+	for (int i = 0; i < 3; i++) { // for each axis on the obb
+		auto half = i == 0 ? obb.halfExtents.x : i == 1 ? obb.halfExtents.y : obb.halfExtents.z;
+		reach[0] += (obb.axes[i].x.abs() * half).value;
+		reach[1] += (obb.axes[i].z.abs() * half).value;
+	}
+
+	// now convert the world position to cell index (floor(position - origin) / cellSize), clamped to the grid
+	auto cell = [&gridHeader](int32_t offset, int32_t count) {
+		int32_t index = offset < 0 ? 0 : offset / int32_t(gridHeader.cellSize);
+		return index < count ? index : count - 1;
+	};
+
+	// this is the block of cells that the obb touches, and will normally just be one of them
+	auto x0 = cell(obb.center.x.value - reach[0] - gridHeader.originX, gridHeader.gridWidth);
+	auto x1 = cell(obb.center.x.value + reach[0] - gridHeader.originX, gridHeader.gridWidth);
+	auto z0 = cell(obb.center.z.value - reach[1] - gridHeader.originZ, gridHeader.gridHeight);
+	auto z1 = cell(obb.center.z.value + reach[1] - gridHeader.originZ, gridHeader.gridHeight);
+
+	// go and find the walls listed in those cells, making sure we only include each one once so we dont test
+	// against the same one more than once and cause unexpected pushing
+	for (auto x = x0; x <= x1; x++) {
+		for (auto z = z0; z <= z1; z++) {
+			const auto& gridCell = gridCells[x * gridHeader.gridHeight + z];
+			for (int i = 0; i < gridCell.count; i++) {
+				if (potentialCollisions.full()) {
+					return;
+				}
+
+				if (eastl::find(potentialCollisions.begin(), potentialCollisions.end(),
+								&colliders[gridCell.indices[i]]) == potentialCollisions.end()) {
+					potentialCollisions.push_back(&colliders[gridCell.indices[i]]);
+				}
+			}
+		}
+	}
 }
