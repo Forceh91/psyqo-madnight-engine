@@ -16,6 +16,8 @@
 static constexpr psyqo::Color DEFAULT_CLEAR_COLOR = {.r = 0, .g = 0, .b = 0};
 static constexpr uint8_t MAX_POINT_LIGHTS = 8; // does this need to be shared across other types of lights? perhaps. we
 											   // could do a templated array in the future?
+static constexpr uint8_t MAX_POINT_LIGHTS_PER_OBJECT =
+	3; // how many point lights will affect an object during rendering
 
 class Lighting {
   public:
@@ -46,6 +48,7 @@ class Lighting {
 	bool CreatePointLight(const psyqo::Vec3& pos, const psyqo::FixedPoint<>& radius, const psyqo::Color& colour,
 						  PointLight* pointLightOut);
 	bool DestroyPointLight(const PointLight* pointLight);
+	eastl::fixed_vector<PointLight, MAX_POINT_LIGHTS_PER_OBJECT, false> FindPointLightsForPos(const psyqo::Vec3& pos);
 
   private:
 	Lighting() = default;

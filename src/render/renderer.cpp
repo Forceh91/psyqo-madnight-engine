@@ -12,7 +12,6 @@
 #include "../core/particles/particle_manager.hh"
 #include "../defs.hh"
 #include "../madnight.hh"
-#include "renderer_face_types.hh"
 #include "clip.hh"
 
 #include <psyqo/fixed-point.hh>
@@ -299,7 +298,6 @@ void Renderer::RenderGameObjects(uint32_t deltaTime, const psyqo::Matrix33& came
 
 	// now for each object...
 	int renderedObjects = 0;
-	auto meshStart = 0;
 	for (const auto& gameObject : gameObjects) {
 		// we dont need to get mesh data for every single vert since it wont change, so lets only do that once
 		const auto* mesh = gameObject->mesh();
@@ -319,7 +317,7 @@ void Renderer::RenderGameObjects(uint32_t deltaTime, const psyqo::Matrix33& came
 
 		// transform the game object into view space
 		renderedObjects++;
-		TransformObjectToViewSpace(gameObject->pos(), cameraRotationMatrix, finalCameraMatrix);
+		auto finalPos = TransformObjectToViewSpace(gameObject->pos(), cameraRotationMatrix, finalCameraMatrix);
 
 		// if we've got a skeleton on this mesh
 		if (mesh->hasSkeleton) {
@@ -385,7 +383,9 @@ void Renderer::RenderGameObjects(uint32_t deltaTime, const psyqo::Matrix33& came
 			psyqo::GTE::writeSafe<psyqo::GTE::PseudoRegister::Rotation>(finalCameraMatrix);
 		}
 
-		meshStart = m_gpu.now();
+		// see if theres any point lights relevant to this object
+		auto pointLights = m_lighting->FindPointLightsForPos(finalPos);
+
 		// now we've done all this we can render the mesh and apply texture (if needed)
 		// we dont need to get texture data for every single vert since it wont change, so lets only do that once
 		// if its not a nullptr fill out some data so we don't have to do it every face
@@ -489,11 +489,6 @@ void Renderer::RenderGameObjects(uint32_t deltaTime, const psyqo::Matrix33& came
 		}
 #endif
 	}
-
-	m_gpu.pumpCallbacks();
-	auto delta = m_gpu.now() - meshStart;
-	auto avg = delta / renderedObjects;
-	// printf("processing %i objects took %ius (avg. %ius) to complete\n", renderedObjects, delta, avg);
 
 	g_madnightEngine.m_perfMonitor.SetRenderedGameObjects(renderedObjects, gameObjects.size());
 }
