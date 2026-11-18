@@ -345,6 +345,8 @@ void Renderer::RenderGameObjects(uint32_t deltaTime, const psyqo::Matrix33& came
 			auto length = lightDirectionSq * inv;
 
 			auto fadeAmount = 1 - length / light.radius;
+			eastl::clamp<psyqo::FixedPoint<>>(fadeAmount, 0, fadeAmount);
+
 			auto normalizedDirection = lightDirection * inv;
 
 			// now transform it into model space
