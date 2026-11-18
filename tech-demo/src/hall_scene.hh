@@ -9,6 +9,7 @@
 #include "core/object/gameobject.hh"
 #include "core/particles/particle_emitter.hh"
 #include "render/camera.hh"
+#include "render/lighting.hh"
 #include "ui/hud/gameplay_hud.hh"
 #include "ui/menu/menu.hh"
 
@@ -18,7 +19,8 @@
 /*
  * one scene that uses as much of the engine as it can at once: a dim hall under
  * advanced fog, a skinned character walking through it with quick advanced fog,
- * two particle emitters, trigger volumes, collision against the hall's walls, a pause
+ * two particle emitters, two point lights (one over the embers, one travelling the
+ * hall), trigger volumes, collision against the hall's walls, a pause
  * menu and a memory card save.
  *
  * the camera runs on a fixed path keyed to elapsed vsyncs, so every lap draws the
@@ -48,6 +50,7 @@ class HallScene final : public psyqo::Scene {
 	void UpdateHero(uint32_t deltaTime);
 	uint32_t CollideHero(void);
 	void CheckWall(void);
+	void UpdateLantern(void);
 	void UpdateCamera(void);
 	void EndLap(void);
 	void LoadStats(void);
@@ -56,12 +59,13 @@ class HallScene final : public psyqo::Scene {
 	void UpdateSound(uint32_t deltaTime);
 
 	Camera m_camera;
-	GameObject* m_hall = nullptr;
 	GameObject* m_hero = nullptr;
 	GameObject* m_nearTrigger = nullptr;
 	GameObject* m_farTrigger = nullptr;
 	ParticleEmitter* m_embers = nullptr;
 	ParticleEmitter* m_dust = nullptr;
+	PointLight* m_emberLight = nullptr;
+	PointLight* m_lantern = nullptr;
 
 	// hero position along the hall in 1/HERO_SUBUNITS of a raw unit, see HERO_SPEED
 	int32_t m_heroZ = 0;
