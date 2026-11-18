@@ -1128,23 +1128,23 @@ void Renderer::ProcessMeshQuad(const RendererQuad& quad, int8_t depth, const Fac
 													   quad.colours[3]};
 		eastl::array<psyqo::Color, 4> fogColours;
 
-		auto lightingPass = [&](int32_t ix) {
+		auto lightingPass = [&](int32_t ix, uint32_t ir0) {
 			psyqo::GTE::write<psyqo::GTE::Register::RGB, psyqo::GTE::Unsafe>(vertexColours[ix].packed);
 			psyqo::GTE::writeSafe<psyqo::GTE::PseudoRegister::V0>(quad.normals[ix]);
-			psyqo::GTE::write<psyqo::GTE::Register::IR0, psyqo::GTE::Safe>(stFaceCorners[ix].ir);
+			psyqo::GTE::write<psyqo::GTE::Register::IR0, psyqo::GTE::Safe>(ir0);
 			psyqo::GTE::Kernels::ncds();
 			vertexColours[ix].packed = psyqo::GTE::readRaw<psyqo::GTE::Register::RGB2>();
 		};
 
 		if (!faceData.isAdvancedFog) {
 			for (int i = 0; i < 4; i++) {
-				lightingPass(i);
+				lightingPass(i, stFaceCorners[i].ir);
 			}
 		} else {
 			if (!faceData.useQuickAdvancedFogPass) {
 				GTESetFarColour({0, 0, 0});
 				for (int i = 0; i < 4; i++) {
-					lightingPass(i);
+					lightingPass(i, stFaceCorners[i].ir);
 				}
 
 				GTESetFarColour(m_lighting->GetFogColour());
@@ -1154,7 +1154,7 @@ void Renderer::ProcessMeshQuad(const RendererQuad& quad, int8_t depth, const Fac
 			} else {
 				for (int i = 0; i < 4; i++) {
 					auto density = 4096 - stFaceCorners[i].ir;
-					lightingPass(i);
+					lightingPass(i, 0);
 					vertexColours[i] = {uint8_t((vertexColours[i].r * density) >> 12),
 										uint8_t((vertexColours[i].g * density) >> 12),
 										uint8_t((vertexColours[i].b * density) >> 12)};
