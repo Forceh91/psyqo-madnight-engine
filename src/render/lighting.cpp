@@ -57,7 +57,7 @@ Lighting::FindPointLightsForPos(const psyqo::Vec3& pos, const int32_t& objectRad
 
 		// no point going further if the diff is bigger than the lights radius
 		auto posDiff = light.pos - pos;
-		auto radius = light.radius + objectRadius;
+		auto radius = light.radius + psyqo::FixedPoint<>(objectRadius, psyqo::FixedPoint<>::RAW);
 		if (posDiff.x.abs() > radius || posDiff.y.abs() > radius || posDiff.z.abs() > radius) {
 			continue;
 		}
