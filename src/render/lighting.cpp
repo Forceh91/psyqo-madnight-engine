@@ -13,27 +13,36 @@
 #include "psyqo/fixed-point.hh"
 
 bool Lighting::CreatePointLight(const psyqo::Vec3& pos, const psyqo::FixedPoint<>& radius, const psyqo::Color& colour,
-								PointLight* pointLightOut) {
+								PointLight** pointLightOut) {
 
-	pointLightOut = nullptr;
+	*pointLightOut = nullptr;
 
-	if (m_pointLights.full()) {
+	int8_t ix = 0, freeIx = -1;
+	for (const auto& light : m_pointLights) {
+		if (light.active) {
+			ix++;
+			continue;
+		}
+
+		freeIx = ix;
+		break;
+	}
+
+	if (freeIx == -1) {
 		return false;
 	}
 
-	pointLightOut = &m_pointLights.emplace_back(PointLight{pos, radius, colour});
+	*pointLightOut = &(m_pointLights[freeIx] = PointLight{pos, radius, colour});
 	return true;
 }
 
-bool Lighting::DestroyPointLight(const PointLight* light) {
+bool Lighting::DestroyPointLight(PointLight* light) {
 	if (m_pointLights.empty()) {
 		return false;
 	}
 
-	auto sizeBefore = m_pointLights.size();
-	eastl::erase_if(m_pointLights, [light](const PointLight& l) { return &l == light; });
-
-	return m_pointLights.size() < sizeBefore;
+	light->active = false;
+	return true;
 }
 
 eastl::fixed_vector<PointLight, MAX_POINT_LIGHTS_PER_OBJECT, false>
@@ -42,6 +51,10 @@ Lighting::FindPointLightsForPos(const psyqo::Vec3& pos) {
 	eastl::fixed_vector<psyqo::FixedPoint<>, MAX_POINT_LIGHTS_PER_OBJECT, false> closestLights;
 
 	for (const auto& light : m_pointLights) {
+		if (!light.active) {
+			continue;
+		}
+
 		// no point going further if the diff is bigger than the lights radius
 		auto posDiff = light.pos - pos;
 		if (posDiff.x.abs() > light.radius || posDiff.y.abs() > light.radius || posDiff.z.abs() > light.radius) {

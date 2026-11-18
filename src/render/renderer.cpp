@@ -328,6 +328,8 @@ void Renderer::RenderGameObjects(uint32_t deltaTime, const psyqo::Matrix33& came
 		// now we know point lights we can fill in the LLM
 		psyqo::Matrix33 llm = {}; // light direction matrix
 		psyqo::Matrix33 lcm = {}; // light colour matrix
+		auto lightTransposeMatrix = TransposeMatrix33(gameObject->rotationMatrix());
+
 		int llmIx = 0;
 		for (auto& light : pointLights) {
 			// do some complicated math to figure out the direction, and fade amount of this light
@@ -345,9 +347,8 @@ void Renderer::RenderGameObjects(uint32_t deltaTime, const psyqo::Matrix33& came
 			auto normalizedDirection = lightDirection * inv;
 
 			// now transform it into model space
-			auto transposeMatrix = TransposeMatrix33(gameObject->rotationMatrix());
 			psyqo::Vec3 rotatedPos;
-			psyqo::GteMath::matrixVecMul3(transposeMatrix, normalizedDirection * fadeAmount, &rotatedPos);
+			psyqo::GteMath::matrixVecMul3(lightTransposeMatrix, normalizedDirection * fadeAmount, &rotatedPos);
 
 			// write to the LLM row
 			llm.vs[llmIx] = rotatedPos;

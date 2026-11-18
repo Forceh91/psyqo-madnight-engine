@@ -46,8 +46,8 @@ class Lighting {
 	}
 
 	bool CreatePointLight(const psyqo::Vec3& pos, const psyqo::FixedPoint<>& radius, const psyqo::Color& colour,
-						  PointLight* pointLightOut);
-	bool DestroyPointLight(const PointLight* pointLight);
+						  PointLight** pointLightOut);
+	bool DestroyPointLight(PointLight* pointLight);
 	eastl::fixed_vector<PointLight, MAX_POINT_LIGHTS_PER_OBJECT, false> FindPointLightsForPos(const psyqo::Vec3& pos);
 
   private:
@@ -61,5 +61,5 @@ class Lighting {
 	psyqo::Color m_ambient = {128, 128, 128};
 
 	// light types
-	eastl::fixed_vector<PointLight, MAX_POINT_LIGHTS> m_pointLights = {};
+	eastl::array<PointLight, MAX_POINT_LIGHTS> m_pointLights = {};
 };
