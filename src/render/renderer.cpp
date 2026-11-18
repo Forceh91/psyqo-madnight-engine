@@ -1068,18 +1068,24 @@ void Renderer::ProcessMeshQuad(const RendererQuad& quad, int8_t depth, const Fac
 			stFaceCorners[i].colour = quad.colours[i];
 		}
 
+		auto lightingPass = [&](FaceCorner& corner, const psyqo::GTE::PackedVec3& quadNormal) {
+			psyqo::GTE::write<psyqo::GTE::Register::RGB, psyqo::GTE::Unsafe>(corner.colour.packed);
+			psyqo::GTE::writeSafe<psyqo::GTE::PseudoRegister::V0>(quadNormal);
+			psyqo::GTE::write<psyqo::GTE::Register::IR0, psyqo::GTE::Safe>(corner.ir);
+			psyqo::GTE::Kernels::ncds();
+			corner.colour.packed = psyqo::GTE::readRaw<psyqo::GTE::Register::RGB2>();
+		};
+
 		// apply fog colours (skipped if advanced fog is enabled)
 		if (!faceData.isAdvancedFog) {
 			for (int i = 0; i < 4; i++) {
-				ApplyAmbientToColour(&stFaceCorners[i].colour);
-				stFaceCorners[i].colour = ApplyFogToColourGTE(stFaceCorners[i].colour, stFaceCorners[i].ir);
+				lightingPass(stFaceCorners[i], quad.normals[i]);
 			}
 		} else {
 			if (!faceData.useQuickAdvancedFogPass) {
 				GTESetFarColour({0, 0, 0});
 				for (int i = 0; i < 4; i++) {
-					ApplyAmbientToColour(&stFaceCorners[i].colour);
-					stFaceCorners[i].colour = GTEColourLerp(stFaceCorners[i].colour, stFaceCorners[i].ir);
+					lightingPass(stFaceCorners[i], quad.normals[i]);
 				}
 
 				GTESetFarColour(m_lighting->GetFogColour());
@@ -1089,7 +1095,7 @@ void Renderer::ProcessMeshQuad(const RendererQuad& quad, int8_t depth, const Fac
 			} else {
 				for (int i = 0; i < 4; i++) {
 					auto density = 4096 - stFaceCorners[i].ir;
-					ApplyAmbientToColour(&stFaceCorners[i].colour);
+					lightingPass(stFaceCorners[i], quad.normals[i]);
 					stFaceCorners[i].colour = {uint8_t((stFaceCorners[i].colour.r * density) >> 12),
 											   uint8_t((stFaceCorners[i].colour.g * density) >> 12),
 											   uint8_t((stFaceCorners[i].colour.b * density) >> 12)};
