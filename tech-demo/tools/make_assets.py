@@ -18,6 +18,7 @@
 
 import math
 import os
+import re
 import struct
 import subprocess
 import sys
@@ -40,6 +41,7 @@ EMBER_GLOW_RADIUS = 1.6
 EMBER_GLOW_STEP = 0.75  # faces the glow reaches are split this fine, in units, so it still shows
 HALL_SEGMENT = 2  # floor, ceiling and side wall faces are this many units long
 HALL_FLOOR_ACROSS = 3  # floor and ceiling faces across the width of the hall
+HALL_PIECE = 4  # the hall mesh is split into stretches this many units long, see hall_pieces()
 
 WALK_FRAMES = 40
 LIMB_REST_DEGREES = 0
@@ -202,10 +204,19 @@ def hero_texture():
 
 
 def hall_mesh():
+    # returns the whole hall as one Obj (what the collision is built from) and every quad
+    # in it, each tagged with the z it is sorted into a piece by, see hall_pieces()
     o = Obj(128)
+    quads = []
     half = HALL_WIDTH / 2
     top = -HALL_HEIGHT
     FLOOR, WALL, CEIL, PILLAR = (0, 0, 64, 64), (64, 0, 64, 64), (0, 64, 64, 64), (64, 64, 64, 64)
+
+    def put(corners, normal, cell, colours, z=None):
+        o.quad(corners, normal, cell, colours)
+        if z is None:
+            z = sum(c[2] for c in corners) / len(corners)
+        quads.append((z, corners, normal, cell, colours))
 
     def shade(c):
         # darker towards the far end and towards the ceiling, so the hall reads as dim
@@ -229,6 +240,7 @@ def hall_mesh():
             n_v = max(1, round(math.dist(corners[0], corners[3]) / EMBER_GLOW_STEP))
         c0, c1, c3 = corners[0], corners[1], corners[3]
         x, y, w, h = cell
+        whole_z = sum(c[2] for c in corners) / len(corners)  # the pieces stay together
 
         def at(u, v):
             return tuple(c0[i] + u * (c1[i] - c0[i]) + v * (c3[i] - c0[i]) for i in range(3))
@@ -239,7 +251,7 @@ def hall_mesh():
                 piece = [at(u0, v0), at(u1, v0), at(u1, v1), at(u0, v1)]
                 tx0, tx1 = x + round(w * u0), x + round(w * u1)
                 ty0, ty1 = y + round(h * v0), y + round(h * v1)
-                o.quad(piece, normal, (tx0, ty0, tx1 - tx0, ty1 - ty0), [shade(c) for c in piece])
+                put(piece, normal, (tx0, ty0, tx1 - tx0, ty1 - ty0), [shade(c) for c in piece], whole_z)
 
     # floor, ceiling and side walls in faces HALL_SEGMENT units long: the engine subdivides
     # big quads near the camera, so the hall does not need small faces. A cell can't repeat
@@ -266,7 +278,7 @@ def hall_mesh():
                     corners = [(x1, y1, z), (x0, y1, z), (x0, y0, z), (x1, y0, z)]
                 else:
                     corners = [(x0, y1, z), (x1, y1, z), (x1, y0, z), (x0, y0, z)]
-                o.quad(corners, normal, WALL, [shade(c) for c in corners])
+                put(corners, normal, WALL, [shade(c) for c in corners])
 
     # square pillars against both walls
     p = PILLAR_SIZE
@@ -286,8 +298,36 @@ def hall_mesh():
             else:
                 faces.append(([(x0, top, z1), (x0, top, z0), (x0, 0, z0), (x0, 0, z1)], (-1, 0, 0)))
             for corners, normal in faces:
-                o.quad(corners, normal, PILLAR, [shade(c) for c in corners])
-    return o
+                # a pillar goes into one piece whole, sorted by its middle
+                put(corners, normal, PILLAR, [shade(c) for c in corners], z)
+    return o, quads
+
+
+def hall_pieces(quads):
+    # The engine lights each object once, from the middle of its mesh's bounding sphere: a
+    # light gets one direction and one strength for the whole object. One hall-long mesh
+    # would be lit evenly end to end, so the hall is split into HALL_PIECE-unit stretches,
+    # and each stretch into its floor, its ceiling and each side (wall plus pillars), so a
+    # piece's middle sits on its own surface and a light beside it lights it from the
+    # right side. The end walls are a piece each. Every piece costs the renderer a little
+    # on its own, so the pillars go in with their wall rather than in pieces of their own
+    groups = {}
+    for z, corners, normal, cell, colours in quads:
+        stretch = min(int(z // HALL_PIECE), HALL_LENGTH // HALL_PIECE - 1)
+        if normal[1]:
+            side = normal
+        elif normal[2] and z in (0, HALL_LENGTH):
+            side = "end"
+        else:
+            side = "left" if sum(c[0] for c in corners) < 0 else "right"
+        groups.setdefault((stretch, side), []).append((corners, normal, cell, colours))
+    pieces = []
+    for key in sorted(groups, key=lambda k: (k[0], str(k[1]))):
+        o = Obj(128)
+        for corners, normal, cell, colours in groups[key]:
+            o.quad(corners, normal, cell, colours)
+        pieces.append(o)
+    return pieces
 
 
 # ---------------------------------------------------------------- hall collision
@@ -500,13 +540,26 @@ MANIFEST = """\
 # tech demo scene, converted with tools/scenebin_converter.py
 texture TEXTURES/HALL.TIM 320 0 0 240
 texture_extra TEXTURES/HERO.TIM 384 0 0 241 1
-object MODELS/HALL.MB
+@HALL_OBJECTS@
 object MODELS/HERO.MB
 colbin COLBIN/HALL.CB
 animation ANIMS/HERO.AB
 vag SFX/FCNTNA.VAG
 vag SFX/AMBIENT_CREAK.VAG
 """
+
+
+def check_piece_count(count):
+    # hall_scene.cpp creates HALL_PIECES objects and toc.json lists the files for a disc
+    # build; both are written by hand, so say so if they no longer match the pieces
+    with open(os.path.join(DEMO, "src", "hall_scene.cpp")) as f:
+        found = re.search(r"HALL_PIECES = (\d+);", f.read())
+    with open(os.path.join(DEMO, "toc.json")) as f:
+        toc = f.read()
+    missing = [n for n in ("MODELS/HALL%02d.MB" % i for i in range(count)) if '"name": "%s"' % n not in toc]
+    if not found or int(found.group(1)) != count or missing:
+        sys.exit("the hall is %d pieces: set HALL_PIECES in src/hall_scene.cpp to match and list "
+                 "MODELS/HALL00.MB to MODELS/HALL%02d.MB in toc.json" % (count, count - 1))
 
 
 def run(*args):
@@ -518,14 +571,24 @@ def main():
         os.makedirs(os.path.join(OUT, d), exist_ok=True)
 
     with tempfile.TemporaryDirectory() as tmp:
-        hall = hall_mesh()
-        hall.write(os.path.join(tmp, "hall.obj"))
+        hall, quads = hall_mesh()
         with open(os.path.join(OUT, "COLBIN", "HALL.CB"), "wb") as f:
             f.write(hall_colbin(hall))
+        pieces = hall_pieces(quads)
+        check_piece_count(len(pieces))
+        # pieces from an earlier split would still land in the PCDRV image
+        for old in os.listdir(os.path.join(OUT, "MODELS")):
+            if re.fullmatch(r"HALL\d+\.MB", old):
+                os.remove(os.path.join(OUT, "MODELS", old))
+        hall_names = []
+        for i, piece in enumerate(pieces):
+            name = "MODELS/HALL%02d.MB" % i
+            hall_names.append(name)
+            piece.write(os.path.join(tmp, "hall.obj"))
+            run(os.path.join(ENGINE_TOOLS, "obj-to-meshbin.py"), os.path.join(tmp, "hall.obj"),
+                os.path.join(OUT, name), "128")
         hero, header = hero_mesh()
         hero.write(os.path.join(tmp, "hero.obj"), header)
-        run(os.path.join(ENGINE_TOOLS, "obj-to-meshbin.py"), os.path.join(tmp, "hall.obj"),
-            os.path.join(OUT, "MODELS", "HALL.MB"), "128")
         run(os.path.join(ENGINE_TOOLS, "obj-to-meshbin.py"), os.path.join(tmp, "hero.obj"),
             os.path.join(OUT, "MODELS", "HERO.MB"), "64")
 
@@ -543,7 +606,7 @@ def main():
 
         manifest = os.path.join(tmp, "scene.txt")
         with open(manifest, "w") as f:
-            f.write(MANIFEST)
+            f.write(MANIFEST.replace("@HALL_OBJECTS@", "\n".join("object " + n for n in hall_names)))
         run(os.path.join(ENGINE_TOOLS, "scenebin_converter.py"), manifest, os.path.join(OUT, "DEMO.SCN"),
             "--asset-root", OUT)
 

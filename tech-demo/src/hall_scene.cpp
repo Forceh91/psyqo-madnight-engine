@@ -8,6 +8,7 @@
 
 #include "common/hardware/pcsxhw.h"
 #include "helpers/world_space.hh"
+#include "math/lerp.hh"
 #include "math/vector.hh"
 #include "madnight.hh"
 #include "render/renderer.hh"
@@ -22,7 +23,9 @@ using namespace psyqo::trig_literals;
 
 namespace {
 
-constexpr const char* HALL_MESH = "MODELS/HALL.MB";
+// the hall is split into pieces, MODELS/HALL00.MB onwards, so the point lights can light
+// one end of it and not the other. tools/make_assets.py checks this count
+constexpr uint32_t HALL_PIECES = 26;
 constexpr const char* HALL_TEXTURE = "TEXTURES/HALL.TIM";
 constexpr const char* HERO_MESH = "MODELS/HERO.MB";
 constexpr const char* HERO_TEXTURE = "TEXTURES/HERO.TIM";
@@ -55,6 +58,18 @@ constexpr int32_t WALL_TEST_FACE = (1.25_ws).value;
 constexpr psyqo::Color FOG_COLOUR = {.r = 92, .g = 96, .b = 100};
 constexpr psyqo::Color AMBIENT = {.r = 100, .g = 96, .b = 92};
 
+// a warm light over the embers, a little above the emitter so it reaches the floor too
+constexpr psyqo::Vec3 EMBER_LIGHT_POS = {-1.0_ws, -0.4_ws, 6.0_ws};
+constexpr psyqo::FixedPoint<> EMBER_LIGHT_RADIUS = 3.0_ws;
+constexpr psyqo::Color EMBER_LIGHT_COLOUR = {.r = 255, .g = 140, .b = 48};
+
+// a cold lantern under the ceiling that travels the hall and back once a lap
+constexpr psyqo::FixedPoint<> LANTERN_NEAR_Z = 2.0_ws;
+constexpr psyqo::FixedPoint<> LANTERN_FAR_Z = 22.0_ws;
+constexpr psyqo::Vec3 LANTERN_START = {0.4_ws, -1.2_ws, LANTERN_NEAR_Z};
+constexpr psyqo::FixedPoint<> LANTERN_RADIUS = 4.5_ws;
+constexpr psyqo::Color LANTERN_COLOUR = {.r = 110, .g = 170, .b = 255};
+
 } // namespace
 
 void HallScene::start(StartReason reason) {
@@ -84,6 +99,10 @@ void HallScene::start(StartReason reason) {
 void HallScene::teardown(TearDownReason reason) {
 	g_madnightEngine.m_input.setOnEvent(nullptr);
 	g_madnightEngine.m_soundManager.SilenceChannels((1 << MUSIC_CHANNEL) | (1 << CREAK_CHANNEL));
+	// lights belong to Lighting, not the scene, so they would outlive it
+	Lighting::instance().DestroyAllPointLights();
+	m_emberLight = nullptr;
+	m_lantern = nullptr;
 }
 
 void HallScene::StartSound(void) {
@@ -113,11 +132,21 @@ void HallScene::UpdateSound(uint32_t deltaTime) {
 void HallScene::CreateWorld(void) {
 	auto& objects = g_madnightEngine.m_gameObjectManager;
 
-	m_hall = objects.CreateGameObject("hall", {0, 0, 0}, {0, 0, 0}, GameObjectTag::ENVIRONMENT);
-	if (m_hall) {
-		m_hall->SetMesh(HALL_MESH);
-		m_hall->SetTexture(HALL_TEXTURE);
+	// every piece sits at the origin with its place in the hall baked into the mesh
+	for (uint32_t i = 0; i < HALL_PIECES; i++) {
+		eastl::fixed_string<char, 20> name, mesh;
+		name.sprintf("hall%02u", i);
+		mesh.sprintf("MODELS/HALL%02u.MB", i);
+		auto* piece = objects.CreateGameObject(name, {0, 0, 0}, {0, 0, 0}, GameObjectTag::ENVIRONMENT);
+		if (piece) {
+			piece->SetMesh(mesh);
+			piece->SetTexture(HALL_TEXTURE);
+		}
 	}
+
+	auto& lighting = Lighting::instance();
+	lighting.CreatePointLight(EMBER_LIGHT_POS, EMBER_LIGHT_RADIUS, EMBER_LIGHT_COLOUR, &m_emberLight);
+	lighting.CreatePointLight(LANTERN_START, LANTERN_RADIUS, LANTERN_COLOUR, &m_lantern);
 
 	m_heroZ = HERO_START_Z.value * HERO_SUBUNITS;
 	m_hero = objects.CreateGameObject("hero", {0, 0, HERO_START_Z}, {0, 0, 0}, GameObjectTag::INTERACTABLE);
@@ -334,6 +363,18 @@ void HallScene::CheckWall(void) {
 	m_hero->SetPosition(saved);
 }
 
+// the lantern runs down the hall for the first half of the lap and back for the second,
+// keyed to the lap time like the camera so every lap lights the same frames the same way
+void HallScene::UpdateLantern(void) {
+	if (!m_lantern) {
+		return;
+	}
+	constexpr uint32_t half = LAP_LENGTH / 2;
+	uint32_t t = m_lapTime < half ? m_lapTime : LAP_LENGTH - m_lapTime;
+	auto along = psyqo::FixedPoint<>(int32_t((t << 12) / half), psyqo::FixedPoint<>::RAW);
+	m_lantern->pos.z = Lerp(LANTERN_NEAR_Z, LANTERN_FAR_Z, along);
+}
+
 void HallScene::UpdateCamera(void) {
 	// first half: stand at the near end and watch the hero walk off into the fog and turn.
 	// second half: dolly down the hall towards it, crossing from one side to the other
@@ -468,6 +509,7 @@ void HallScene::frame() {
 	}
 
 	UpdateHero(deltaTime);
+	UpdateLantern();
 	UpdateCamera();
 	UpdateSound(deltaTime);
 	m_camera.Process(deltaTime);
