@@ -8,6 +8,7 @@ bl_info = {
     "category": "Import-Export",
 }
 
+import os
 import bpy
 import mathutils
 from bpy_extras.io_utils import ExportHelper, axis_conversion
@@ -53,7 +54,7 @@ def generate_aabb_for_verts(verts):
 
 def export_obj_skel(context, filepath, apply_modifiers=True, export_selected=True,
                     global_scale=1.0, forward_axis='Z', up_axis='-Y',
-                    aabb_auto=True, aabb_min=(0.0, 0.0, 0.0), aabb_max=(0.0, 0.0, 0.0)):
+                    aabb_auto=True, aabb_min=(0.0, 0.0, 0.0), aabb_max=(0.0, 0.0, 0.0), objs=None):
 
     global_matrix = axis_conversion(from_forward='Y', from_up='Z',
                                     to_forward=forward_axis, to_up=up_axis).to_4x4()
@@ -61,9 +62,10 @@ def export_obj_skel(context, filepath, apply_modifiers=True, export_selected=Tru
 
     ONE_ENGINE_METRE = global_scale
 
-    objs = [context.object]
-    if export_selected:
-        objs = context.selected_objects
+    if objs is None:
+        objs = [context.object]
+        if export_selected:
+            objs = context.selected_objects
 
     with open(filepath, "w", encoding="utf-8") as f:
         f.write("# Exported from Blender OBJ+SKEL exporter\n")
@@ -199,6 +201,12 @@ class ExportObjSkel(bpy.types.Operator, ExportHelper):
         name="Selected Objects Only",
         default=True,
     )
+    one_file_per_object: BoolProperty(
+        name="One File per Object",
+        description="Write each mesh to its own <object name>.obj next to the chosen file. "
+                    "With nothing selected, exports every mesh in the active collection",
+        default=False,
+    )
     global_scale: FloatProperty(
         name="Scale",
         default=1.0,
@@ -237,6 +245,7 @@ class ExportObjSkel(bpy.types.Operator, ExportHelper):
         layout = self.layout
         layout.prop(self, "apply_modifiers")
         layout.prop(self, "use_selection")
+        layout.prop(self, "one_file_per_object")
         layout.prop(self, "global_scale")
         layout.prop(self, "forward_axis")
         layout.prop(self, "up_axis")
@@ -247,13 +256,39 @@ class ExportObjSkel(bpy.types.Operator, ExportHelper):
             layout.prop(self, "aabb_max")
 
     def execute(self, context):
-        export_obj_skel(
-            context, self.filepath,
-            self.apply_modifiers, self.use_selection,
-            self.global_scale, self.forward_axis, self.up_axis,
-            self.aabb_auto, self.aabb_min, self.aabb_max,
-        )
+        if not self.one_file_per_object:
+            export_obj_skel(
+                context, self.filepath,
+                self.apply_modifiers, self.use_selection,
+                self.global_scale, self.forward_axis, self.up_axis,
+                self.aabb_auto, self.aabb_min, self.aabb_max,
+            )
+            return {'FINISHED'}
+
+        objs = objects_to_export(context, self.use_selection)
+        if not objs:
+            self.report({'WARNING'}, "No meshes to export")
+            return {'CANCELLED'}
+        folder = os.path.dirname(self.filepath)
+        for obj in objs:
+            export_obj_skel(
+                context, os.path.join(folder, bpy.path.clean_name(obj.name) + ".obj"),
+                self.apply_modifiers, True,
+                self.global_scale, self.forward_axis, self.up_axis,
+                self.aabb_auto, self.aabb_min, self.aabb_max, [obj],
+            )
+        self.report({'INFO'}, "Exported %d .obj files to %s" % (len(objs), folder))
         return {'FINISHED'}
+
+
+def objects_to_export(context, use_selection):
+    # the selected meshes, or with nothing selected every mesh in the active collection, so
+    # clicking a collection made by blender_split_mesh.py exports all of its pieces
+    if use_selection and context.selected_objects:
+        objs = context.selected_objects
+    else:
+        objs = context.view_layer.active_layer_collection.collection.all_objects
+    return sorted((o for o in objs if o.type == "MESH"), key=lambda o: o.name)
 
 
 def menu_func_export(self, context):

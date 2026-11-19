@@ -16,7 +16,9 @@ The engine lights each object once, from the middle of its bounding sphere, so o
 
 Install it as an add-on, select the meshes to split, or select nothing to split the whole scene, then run Object > Split Meshes for Madnight. A chunk size of 0 picks one from the size of the meshes. The pieces go into a `<object>_split` collection and the original is hidden; running it again replaces them. It prints how many mesh slots the pieces leave free, and warns when that drops under 10.
 
-A game object takes one texture, so faces with different materials always go in different pieces. For the fewest pieces give each material one texture, and keep each area of the level on as few materials as you can, ideally one atlas per area. It also runs headless:
+A game object takes one texture, so faces with different materials always go in different pieces. For the fewest pieces give each material one texture, and keep each area of the level on as few materials as you can, ideally one atlas per area.
+
+To export the pieces, select the `<object>_split` collection (or the pieces you want) and turn on One File per Object in the OBJ+SKEL exporter: each mesh is written to its own `<object name>.obj` next to the file you pick. It also runs headless:
 
 ```
 blender -b level.blend --python madnight_engine/tools/blender_split_mesh.py -- --cell 4 --save level_split.blend
