@@ -150,6 +150,11 @@ lined up with the face's longest edge.
 Wall boxes are 64 units thick and centred on the face, so they work for walls seen from both
 sides (shelf panels, house walls). A collider stops 32 units in front of the visible surface.
 
+`Min Wall Height` (Blender units, default 0, off) extends every inferred box shorter than it
+upward along its most upright axis: its bottom stays where it was and its top rises until the
+box is that tall, so a tall player is stopped by a low obstacle instead of pushed up by it.
+Hand built `COL` boxes are left alone.
+
 A custom property `colbin_mode` on an object overrides the choice: `box` makes the whole
 object one box, `faces` never boxes it.
 

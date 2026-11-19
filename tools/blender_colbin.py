@@ -100,6 +100,22 @@ def make_obb(points, axes):
     return (center, list(axes), half_extents)
 
 
+def raise_wall(obb, up, min_height):
+    # grow a short box along its most upright axis, moving the centre with it so the bottom
+    # stays put and only the top rises until the box is min_height tall
+    center, axes, half_extents = obb
+    ups = [axis.dot(up) for axis in axes]
+    height = 2.0 * sum(abs(u) * h for u, h in zip(ups, half_extents))
+    if height >= min_height:
+        return obb, False
+    k = max(range(3), key=lambda i: abs(ups[i]))
+    grow = (min_height - height) / (2.0 * abs(ups[k]))
+    half_extents = list(half_extents)
+    half_extents[k] += grow
+    center = center + axes[k] * (grow if ups[k] > 0 else -grow)
+    return (center, axes, half_extents), True
+
+
 def obb_volume(points, axes):
     vol = 1.0
     for axis in axes:
@@ -567,7 +583,7 @@ def gather_objects(context, source):
 
 
 def do_export(context, filepath, floor_normal_threshold, forward_axis, up_axis, scale, cell_size_blender,
-              source='COL', merge=True, fill_ratio=0.6, merge_tolerance=0.9):
+              source='COL', merge=True, fill_ratio=0.6, merge_tolerance=0.9, min_wall_height=0.0):
     started = time.perf_counter()
     hand, infer = gather_objects(context, source)
     if hand is None:
@@ -589,12 +605,14 @@ def do_export(context, filepath, floor_normal_threshold, forward_axis, up_axis, 
     wall_obbs  = []
     wall_faces = []
     stats = dict.fromkeys(("box_obbs", "box_faces", "floor_faces", "ceiling_faces", "sliver_faces",
-                           "duplicate", "region_faces", "region_obbs", "split_faces", "split_obbs"), 0)
+                           "duplicate", "region_faces", "region_obbs", "split_faces", "split_obbs",
+                           "raised_obbs"), 0)
 
     for obj in hand:
         bm, _ = evaluated_bmesh(obj, depsgraph, global_matrix)
         export_col_object(obj, bm, rot_only, floor_normal_threshold, floor_tris, wall_obbs)
         bm.free()
+    hand_obbs = len(wall_obbs)
 
     for obj in infer:
         bm, _ = evaluated_bmesh(obj, depsgraph, global_matrix)
@@ -606,6 +624,12 @@ def do_export(context, filepath, floor_normal_threshold, forward_axis, up_axis, 
         wall_obbs += merge_walls(wall_faces, up, merge_tolerance, stats)
     else:
         wall_obbs += [face_basis_obb(w) for w in wall_faces]
+
+    if min_wall_height > 0:
+        # only inferred boxes, hand built collision is left as modelled
+        for i in range(hand_obbs, len(wall_obbs)):
+            wall_obbs[i], raised = raise_wall(wall_obbs[i], up, min_wall_height * scale)
+            stats["raised_obbs"] += raised
 
     if len(wall_obbs) > 0xFFFF:
         return f"ERROR: {len(wall_obbs)} wall OBBs, the grid can only index 65535"
@@ -630,6 +654,8 @@ def do_export(context, filepath, floor_normal_threshold, forward_axis, up_axis, 
             msg += ("; merge: %d duplicates, %d faces in %d whole regions, %d faces in %d split chunks" % (
                 stats["duplicate"], stats["region_faces"], stats["region_obbs"],
                 stats["split_faces"], stats["split_obbs"]))
+        if min_wall_height > 0:
+            msg += "; %d wall OBBs raised to %g" % (stats["raised_obbs"], min_wall_height)
     return msg
 
 
@@ -703,6 +729,14 @@ class ExportCollBin(bpy.types.Operator, ExportHelper):
         max=1.0,
     )
 
+    min_wall_height: FloatProperty(
+        name="Min Wall Height",
+        description="Inferred walls shorter than this (Blender units) are extended upward, so short "
+                    "obstacles stop a tall player sideways instead of pushing it up. 0 is off",
+        default=0.0,
+        min=0.0,
+    )
+
     def resolve_source(self):
         if not self.properties.is_property_set("source"):
             self.source = 'COL' if find_collection(COLLECTION_NAME) else 'SCENE'
@@ -725,6 +759,7 @@ class ExportCollBin(bpy.types.Operator, ExportHelper):
             self.merge_walls,
             self.fill_ratio,
             self.merge_tolerance,
+            self.min_wall_height,
         )
         print(msg)
         if msg.startswith("ERROR"):
