@@ -1,3 +1,4 @@
+import argparse
 import struct
 import sys
 import os
@@ -275,10 +276,18 @@ def parse_obj_file_with_collision_data(path,texture_size):
                     uv_lookup.append(None)
                     continue
 
-                u, v = map(float, line.strip().split()[1:3])
+                raw_u, raw_v = map(float, line.strip().split()[1:3])
                 # blender starts bottom left for uvs which is opposite to psx which is top left
-                u = int(u*texture_size)-1
-                v = int(v*texture_size)-1
+                u = int(raw_u*texture_size)-1
+                v = int(raw_v*texture_size)-1
+                if u > 255 or v > 255:
+                    sys.exit(f"{path}: line {line_number}: uv ({raw_u}, {raw_v}) is past the edge of a "
+                             f"{texture_size} texture. The meshbin keeps uvs as bytes, so they have to stay "
+                             f"between 0 and 1: check the texture size given here, and that the uvs are not "
+                             f"tiled past the image in Blender")
+                if u >= texture_size or v >= texture_size:
+                    print(f"Warning: line {line_number}: uv ({raw_u}, {raw_v}) is past the edge of the "
+                          f"{texture_size} texture, so it reads whatever is next to it in vram")
                 if u < 0: u = 0
                 if v < 0: v = 0
                 uv_lookup.append(len(uvs))
@@ -440,16 +449,52 @@ def write_meshbin(filename, verts, norms, uvs, indices, uv_indices, normal_indic
             f.write(struct.pack("<B", bone_mapping))
 
 
-if __name__ == "__main__":
-    if len(sys.argv) != 4:
-        print(f"Usage: {os.path.basename(sys.argv[0])} input.obj output.meshbin texture_size")
-        sys.exit(1)
- 
-    input_obj = sys.argv[1]
-    output_bin = sys.argv[2]
-    texture_size = sys.argv[3]
+# the mesh manager refuses to load a mesh with this many faces or more (MAX_FACES_PER_MESH)
+MAX_FACES_PER_MESH = 1000
 
+
+def convert(input_obj, output_bin, texture_size):
     verts, norms, uvs, indices, uv_idx, norm_idx, num_faces, collision_verts, min_coords, max_coords, has_skeleton, skeleton_bone_count, skeleton_bones, bone_id_for_vert_ix, bsphere_centre, bsphere_radius = parse_obj_file_with_collision_data(input_obj, texture_size)
     write_meshbin(output_bin, verts, norms, uvs, indices, uv_idx, norm_idx, num_faces, collision_verts, min_coords, max_coords, has_skeleton, skeleton_bone_count, skeleton_bones, bone_id_for_vert_ix, bsphere_centre, bsphere_radius)
     print(f"Successfully wrote mesh binary to {output_bin}\n")
     print(f"verts: {len(verts)}. indices count: {len(indices)}. faces count: {num_faces}. uv count: {len(uvs)}. bone count: {skeleton_bone_count}")
+    if num_faces >= MAX_FACES_PER_MESH:
+        print(f"Warning: {num_faces} faces, the mesh manager will not load a mesh with {MAX_FACES_PER_MESH} or more")
+
+
+def output_name(pattern, n):
+    # "model" -> model_0.mb, model_1.mb ...; a pattern with {n} is used as given, so
+    # "HALL{n:02}.MB" -> HALL00.MB, HALL01.MB ...
+    if "{n" in pattern:
+        return pattern.format(n=n)
+    return f"{pattern}_{n}.mb"
+
+
+if __name__ == "__main__":
+    parser = argparse.ArgumentParser(
+        description="Convert an .obj, or every .obj in a directory, to meshbin. A directory "
+                    "writes output_dir/<obj name>.meshbin, or sequential names with --name.")
+    parser.add_argument("source", help="input .obj, or a directory of them")
+    parser.add_argument("destination", help="output .meshbin, or the output directory")
+    parser.add_argument("texture_size")
+    parser.add_argument("--name", help="directory only: name the outputs in sorted .obj order, "
+                                       "e.g. model gives model_0.mb, model_1.mb, and HALL{n:02}.MB "
+                                       "gives HALL00.MB, HALL01.MB")
+    args = parser.parse_args()
+
+    if not os.path.isdir(args.source):
+        if args.name:
+            sys.exit("--name only applies when converting a directory")
+        convert(args.source, args.destination, args.texture_size)
+        sys.exit(0)
+
+    objs = sorted(n for n in os.listdir(args.source) if n.lower().endswith(".obj"))
+    if not objs:
+        sys.exit(f"no .obj files in {args.source}")
+    os.makedirs(args.destination, exist_ok=True)
+    for n, name in enumerate(objs):
+        out = output_name(args.name, n) if args.name else os.path.splitext(name)[0] + ".meshbin"
+        convert(os.path.join(args.source, name), os.path.join(args.destination, out), args.texture_size)
+        if args.name:
+            print(f"{name} -> {out}")
+    print(f"Converted {len(objs)} .obj files into {args.destination}")

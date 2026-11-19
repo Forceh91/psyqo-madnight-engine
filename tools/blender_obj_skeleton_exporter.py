@@ -8,6 +8,7 @@ bl_info = {
     "category": "Import-Export",
 }
 
+import os
 import bpy
 import mathutils
 from bpy_extras.io_utils import ExportHelper, axis_conversion
@@ -53,7 +54,7 @@ def generate_aabb_for_verts(verts):
 
 def export_obj_skel(context, filepath, apply_modifiers=True, export_selected=True,
                     global_scale=1.0, forward_axis='Z', up_axis='-Y',
-                    aabb_auto=True, aabb_min=(0.0, 0.0, 0.0), aabb_max=(0.0, 0.0, 0.0)):
+                    aabb_auto=True, aabb_min=(0.0, 0.0, 0.0), aabb_max=(0.0, 0.0, 0.0), objs=None):
 
     global_matrix = axis_conversion(from_forward='Y', from_up='Z',
                                     to_forward=forward_axis, to_up=up_axis).to_4x4()
@@ -61,12 +62,16 @@ def export_obj_skel(context, filepath, apply_modifiers=True, export_selected=Tru
 
     ONE_ENGINE_METRE = global_scale
 
-    objs = [context.object]
-    if export_selected:
-        objs = context.selected_objects
+    if objs is None:
+        objs = [context.object]
+        if export_selected:
+            objs = context.selected_objects
 
     with open(filepath, "w", encoding="utf-8") as f:
         f.write("# Exported from Blender OBJ+SKEL exporter\n")
+
+        # obj indices count every v, vt and vn written so far in the file, not per object
+        vert_offset = uv_offset = normal_offset = 0
 
         for obj in objs:
             if obj.type != "MESH":
@@ -106,12 +111,26 @@ def export_obj_skel(context, filepath, apply_modifiers=True, export_selected=Tru
                 for uv in uvs:
                     f.write(f"vt {uv.x:.6f} {uv.y:.6f}\n")
 
+            # Normals, one per corner: obj-to-meshbin.py takes a face's front from them, and
+            # the engine lights with them
+            if hasattr(mesh_eval, "corner_normals"):
+                normals = [n.vector for n in mesh_eval.corner_normals]
+            else:
+                mesh_eval.calc_normals_split()
+                normals = [loop.normal for loop in mesh_eval.loops]
+            for n in normals:
+                f.write(f"vn {n.x:.6f} {n.y:.6f} {n.z:.6f}\n")
+
             # Faces
             for poly in mesh_eval.polygons:
                 f.write("f")
                 for loop_index in poly.loop_indices:
-                    vertex_index = mesh_eval.loops[loop_index].vertex_index
-                    f.write(f" {vertex_index + 1}/{loop_index + 1}")
+                    vertex_index = mesh_eval.loops[loop_index].vertex_index + vert_offset
+                    normal_index = loop_index + normal_offset
+                    if uv_layer:
+                        f.write(f" {vertex_index + 1}/{loop_index + uv_offset + 1}/{normal_index + 1}")
+                    else:
+                        f.write(f" {vertex_index + 1}//{normal_index + 1}")
                 f.write("\n")
 
             # AABB collision box
@@ -175,10 +194,14 @@ def export_obj_skel(context, filepath, apply_modifiers=True, export_selected=Tru
                         g = max(v.groups, key=lambda gr: gr.weight)
                         vg_name = obj.vertex_groups[g.group].name
                         bone_idx = next((i for i, pb in enumerate(deform_bones) if pb.name == vg_name), -1)
-                        f.write(f"vw {v.index + 1} {bone_idx}\n")
+                        f.write(f"vw {v.index + vert_offset + 1} {bone_idx}\n")
                     else:
-                        f.write(f"vw {v.index + 1} -1\n")
+                        f.write(f"vw {v.index + vert_offset + 1} -1\n")
 
+            vert_offset += len(mesh_eval.vertices)
+            if uv_layer:
+                uv_offset += len(mesh_eval.loops)
+            normal_offset += len(normals)
             obj.to_mesh_clear()
 
     print(f"Exported {filepath}")
@@ -198,6 +221,12 @@ class ExportObjSkel(bpy.types.Operator, ExportHelper):
     use_selection: BoolProperty(
         name="Selected Objects Only",
         default=True,
+    )
+    one_file_per_object: BoolProperty(
+        name="One File per Object",
+        description="Write each mesh to its own <object name>.obj next to the chosen file. "
+                    "With nothing selected, exports every mesh in the active collection",
+        default=False,
     )
     global_scale: FloatProperty(
         name="Scale",
@@ -237,6 +266,7 @@ class ExportObjSkel(bpy.types.Operator, ExportHelper):
         layout = self.layout
         layout.prop(self, "apply_modifiers")
         layout.prop(self, "use_selection")
+        layout.prop(self, "one_file_per_object")
         layout.prop(self, "global_scale")
         layout.prop(self, "forward_axis")
         layout.prop(self, "up_axis")
@@ -247,13 +277,63 @@ class ExportObjSkel(bpy.types.Operator, ExportHelper):
             layout.prop(self, "aabb_max")
 
     def execute(self, context):
-        export_obj_skel(
-            context, self.filepath,
-            self.apply_modifiers, self.use_selection,
-            self.global_scale, self.forward_axis, self.up_axis,
-            self.aabb_auto, self.aabb_min, self.aabb_max,
-        )
+        objs = objects_to_export(context, self.use_selection)
+        if not objs:
+            self.report({'WARNING'}, "No meshes to export")
+            return {'CANCELLED'}
+
+        if not self.one_file_per_object:
+            export_obj_skel(
+                context, self.filepath,
+                self.apply_modifiers, self.use_selection,
+                self.global_scale, self.forward_axis, self.up_axis,
+                self.aabb_auto, self.aabb_min, self.aabb_max, objs,
+            )
+            return {'FINISHED'}
+        folder = os.path.dirname(self.filepath)
+        for obj in objs:
+            export_obj_skel(
+                context, os.path.join(folder, bpy.path.clean_name(obj.name) + ".obj"),
+                self.apply_modifiers, True,
+                self.global_scale, self.forward_axis, self.up_axis,
+                self.aabb_auto, self.aabb_min, self.aabb_max, [obj],
+            )
+        self.report({'INFO'}, "Exported %d .obj files to %s" % (len(objs), folder))
         return {'FINISHED'}
+
+
+def outliner_collections(context):
+    # collections selected in an outliner. The exporter runs from the File menu, where
+    # selected_ids is empty, so look it up in each outliner on screen
+    found = []
+    for window in context.window_manager.windows:
+        for area in window.screen.areas:
+            if area.type != 'OUTLINER':
+                continue
+            region = next((r for r in area.regions if r.type == 'WINDOW'), None)
+            if region is None:
+                continue
+            with context.temp_override(window=window, area=area, region=region):
+                for item in getattr(bpy.context, "selected_ids", None) or []:
+                    if isinstance(item, bpy.types.Collection) and item not in found:
+                        found.append(item)
+    return found
+
+
+def objects_to_export(context, use_selection):
+    # the selected meshes; with none selected, every mesh in the collections selected in the
+    # outliner, or else in the active collection, so the collections made by
+    # blender_split_mesh.py export all of their pieces
+    if not use_selection:
+        objs = [context.object] if context.object else []
+    elif context.selected_objects:
+        objs = list(context.selected_objects)
+    else:
+        collections = outliner_collections(context) or [context.view_layer.active_layer_collection.collection]
+        objs = []
+        for collection in collections:
+            objs += [o for o in collection.all_objects if o not in objs]
+    return sorted((o for o in objs if o.type == "MESH"), key=lambda o: o.name)
 
 
 def menu_func_export(self, context):
