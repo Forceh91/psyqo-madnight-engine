@@ -128,6 +128,9 @@ Each face whose normal, flipped to point along +Y, has a Y of at least `Floor Th
 face becomes one wall box in the object's own axes. `COL` objects are exported even when
 hidden.
 
+For every source, a floor triangle with no area seen from above (its X/Z cross product is
+zero once snapped to engine units) is dropped, since nothing can stand on it.
+
 ### Inferred (`Selected`, `Scene`)
 
 Each loose part of a mesh is looked at on its own:
@@ -164,8 +167,8 @@ From a script, after the add-on is registered:
 bpy.ops.export.colbin(filepath="LEVEL.COLBIN", source='SCENE', merge_walls=True)
 ```
 
-The exporter prints one line with the floor triangle count, wall box count, grid size and
-file size, and for inferred sources a second line with where the faces went.
+The exporter prints one line with the floor triangle count (and how many degenerate ones were
+dropped), wall box count, grid size and file size, and for inferred sources a second line with where the faces went.
 
 ## Changelog
 

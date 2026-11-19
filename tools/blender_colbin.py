@@ -132,10 +132,22 @@ def floor_normal(normal):
     return n
 
 
+def flat_on_xz(a, b, c):
+    # no area seen from above once snapped to engine units, nothing can stand on it
+    return (b[0] - a[0]) * (c[2] - a[2]) - (b[2] - a[2]) * (c[0] - a[0]) == 0
+
+
 def add_floor_face(floor_tris, points, normal):
+    # returns how many triangles were dropped as degenerate
     n = axis_to_fixed(floor_normal(normal))
+    dropped = 0
     for i in range(1, len(points) - 1):
-        floor_tris.append((vec_to_int(points[0]), vec_to_int(points[i]), vec_to_int(points[i + 1]), n))
+        tri = (vec_to_int(points[0]), vec_to_int(points[i]), vec_to_int(points[i + 1]))
+        if flat_on_xz(*tri):
+            dropped += 1
+            continue
+        floor_tris.append(tri + (n,))
+    return dropped
 
 
 # ---------------------------------------------------------------- 2d helpers
@@ -413,7 +425,7 @@ def merge_walls(walls, up, tolerance, stats):
 # ---------------------------------------------------------------- per object
 
 
-def export_col_object(obj, bm, rot_only, floor_normal_threshold, floor_tris, wall_obbs):
+def export_col_object(obj, bm, rot_only, floor_normal_threshold, floor_tris, wall_obbs, stats):
     # hand built collision: every face is used, walls are boxed in the object's own axes
     obj_rot = rot_only @ obj.matrix_world.to_3x3().normalized()
     obj_axes = [obj_rot.col[0].normalized(),
@@ -423,7 +435,7 @@ def export_col_object(obj, bm, rot_only, floor_normal_threshold, floor_tris, wal
     for face in bm.faces:
         points = [v.co.copy() for v in face.verts]
         if floor_normal(face.normal).y >= floor_normal_threshold:
-            add_floor_face(floor_tris, points, face.normal)
+            stats["degenerate_tris"] += add_floor_face(floor_tris, points, face.normal)
         else:
             wall_obbs.append(make_obb(points, obj_axes))
 
@@ -460,7 +472,7 @@ def infer_object(obj, bm, rot_only, up, floor_normal_threshold, fill_ratio, floo
             up_dot = n.dot(up)
             points = [v.co.copy() for v in face.verts]
             if up_dot >= floor_normal_threshold:
-                add_floor_face(floor_tris, points, n)
+                stats["degenerate_tris"] += add_floor_face(floor_tris, points, n)
                 stats["floor_faces"] += 1
             elif up_dot <= -floor_normal_threshold:
                 # ceilings and the undersides of shelves are neither floor nor wall
@@ -606,11 +618,11 @@ def do_export(context, filepath, floor_normal_threshold, forward_axis, up_axis, 
     wall_faces = []
     stats = dict.fromkeys(("box_obbs", "box_faces", "floor_faces", "ceiling_faces", "sliver_faces",
                            "duplicate", "region_faces", "region_obbs", "split_faces", "split_obbs",
-                           "raised_obbs"), 0)
+                           "raised_obbs", "degenerate_tris"), 0)
 
     for obj in hand:
         bm, _ = evaluated_bmesh(obj, depsgraph, global_matrix)
-        export_col_object(obj, bm, rot_only, floor_normal_threshold, floor_tris, wall_obbs)
+        export_col_object(obj, bm, rot_only, floor_normal_threshold, floor_tris, wall_obbs, stats)
         bm.free()
     hand_obbs = len(wall_obbs)
 
@@ -642,7 +654,8 @@ def do_export(context, filepath, floor_normal_threshold, forward_axis, up_axis, 
     total_cells = grid_width * grid_height
     total_refs  = sum(len(v) for v in grid.values())
     max_refs    = max((len(v) for v in grid.values()), default=0)
-    msg = (f"Exported {len(floor_tris)} floor tris, {len(wall_obbs)} wall OBBs, "
+    msg = (f"Exported {len(floor_tris)} floor tris ({stats['degenerate_tris']} degenerate dropped), "
+           f"{len(wall_obbs)} wall OBBs, "
            f"{grid_width}x{grid_height} grid ({total_cells} cells, {total_refs} wall refs, max {max_refs} per cell), "
            f"{size} bytes in {time.perf_counter() - started:.2f}s -> {filepath}")
     if infer:
