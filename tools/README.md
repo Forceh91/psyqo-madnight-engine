@@ -16,6 +16,8 @@ Give it a directory instead and it converts every `.obj` in it to `<name>.meshbi
 python3 madnight_engine/tools/obj-to-meshbin.py ../assets/level_split/ cdrom/assets/level/ 128
 ```
 
+Add `--name model` to number the outputs `model_0.mb`, `model_1.mb` and so on, in sorted `.obj` order, or give a pattern with `{n}` such as `--name "HALL{n:02}.MB"` for `HALL00.MB`, `HALL01.MB`. It prints which `.obj` became which file.
+
 ### Splitting level meshes
 
 The engine lights each object once, from the middle of its bounding sphere, so one big level mesh is lit the same all over. [./blender_split_mesh.py] splits meshes into square chunks on the ground plane, and each chunk into its floor, its ceiling and its walls, so each piece is lit from its own side. It also keeps every piece under the mesh manager's face limit, so it doubles as level chunking.

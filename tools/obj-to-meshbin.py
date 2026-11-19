@@ -1,3 +1,4 @@
+import argparse
 import struct
 import sys
 import os
@@ -461,23 +462,39 @@ def convert(input_obj, output_bin, texture_size):
         print(f"Warning: {num_faces} faces, the mesh manager will not load a mesh with {MAX_FACES_PER_MESH} or more")
 
 
-if __name__ == "__main__":
-    if len(sys.argv) != 4:
-        print(f"Usage: {os.path.basename(sys.argv[0])} input.obj output.meshbin texture_size")
-        print(f"       {os.path.basename(sys.argv[0])} input_dir output_dir texture_size")
-        print("A directory converts every .obj in it to output_dir/<name>.meshbin")
-        sys.exit(1)
+def output_name(pattern, n):
+    # "model" -> model_0.mb, model_1.mb ...; a pattern with {n} is used as given, so
+    # "HALL{n:02}.MB" -> HALL00.MB, HALL01.MB ...
+    if "{n" in pattern:
+        return pattern.format(n=n)
+    return f"{pattern}_{n}.mb"
 
-    source, destination, texture_size = sys.argv[1:4]
-    if not os.path.isdir(source):
-        convert(source, destination, texture_size)
+
+if __name__ == "__main__":
+    parser = argparse.ArgumentParser(
+        description="Convert an .obj, or every .obj in a directory, to meshbin. A directory "
+                    "writes output_dir/<obj name>.meshbin, or sequential names with --name.")
+    parser.add_argument("source", help="input .obj, or a directory of them")
+    parser.add_argument("destination", help="output .meshbin, or the output directory")
+    parser.add_argument("texture_size")
+    parser.add_argument("--name", help="directory only: name the outputs in sorted .obj order, "
+                                       "e.g. model gives model_0.mb, model_1.mb, and HALL{n:02}.MB "
+                                       "gives HALL00.MB, HALL01.MB")
+    args = parser.parse_args()
+
+    if not os.path.isdir(args.source):
+        if args.name:
+            sys.exit("--name only applies when converting a directory")
+        convert(args.source, args.destination, args.texture_size)
         sys.exit(0)
 
-    objs = sorted(n for n in os.listdir(source) if n.lower().endswith(".obj"))
+    objs = sorted(n for n in os.listdir(args.source) if n.lower().endswith(".obj"))
     if not objs:
-        sys.exit(f"no .obj files in {source}")
-    os.makedirs(destination, exist_ok=True)
-    for name in objs:
-        convert(os.path.join(source, name), os.path.join(destination, os.path.splitext(name)[0] + ".meshbin"),
-                texture_size)
-    print(f"Converted {len(objs)} .obj files into {destination}")
+        sys.exit(f"no .obj files in {args.source}")
+    os.makedirs(args.destination, exist_ok=True)
+    for n, name in enumerate(objs):
+        out = output_name(args.name, n) if args.name else os.path.splitext(name)[0] + ".meshbin"
+        convert(os.path.join(args.source, name), os.path.join(args.destination, out), args.texture_size)
+        if args.name:
+            print(f"{name} -> {out}")
+    print(f"Converted {len(objs)} .obj files into {args.destination}")
