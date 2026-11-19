@@ -47,6 +47,9 @@ WALL_GAP = 0.25
 # a wall group with less than this share of the biggest wall group's area in its chunk (pillar
 # sides, trim) joins whichever bigger group in the chunk is closest
 SMALL_GROUP_AREA = 0.25
+# any piece with less than this share of the biggest piece's area in its chunk joins the closest
+# bigger piece, so stray faces do not each take a mesh slot
+SMALL_PIECE_AREA = 0.1
 
 
 def engine_limits():
@@ -216,22 +219,45 @@ def plan_pieces(obj, depsgraph, cell, origin, split_facing, max_faces):
                     groups.append(("wall%s%s%d" % ("+" if sign > 0 else "-", "XY"[axis], i), g))
         else:
             groups.append(("all", cells[key]))
+        # a game object takes one texture, so faces using different materials go in
+        # different pieces
+        chunk = []
         for name, g in groups:
-            # a game object takes one texture, so faces using different materials go in
-            # different pieces
             by_material = {}
             for f in g:
                 by_material.setdefault(f.material, []).append(f)
             for material in sorted(by_material):
-                label = name
-                if len(materials) > 1:
-                    label += "_" + (materials[material].name if material < len(materials) and materials[material]
-                                    else "mat%d" % material)
-                parts = split_to_fit(by_material[material], max_faces)
-                for j, part in enumerate(parts):
-                    suffix = "" if len(parts) == 1 else "_%d" % j
-                    pieces.append(("%s_%02d_%02d_%s%s" % (obj.name, key[0], key[1], label, suffix), part))
+                chunk.append([name, material, by_material[material]])
+        chunk = fold_small_groups(chunk)
+        for name, material, g in chunk:
+            label = name
+            if len(materials) > 1:
+                label += "_" + (materials[material].name if material < len(materials) and materials[material]
+                                else "mat%d" % material)
+            parts = split_to_fit(g, max_faces)
+            for j, part in enumerate(parts):
+                suffix = "" if len(parts) == 1 else "_%d" % j
+                pieces.append(("%s_%02d_%02d_%s%s" % (obj.name, key[0], key[1], label, suffix), part))
     return pieces
+
+
+def fold_small_groups(chunk):
+    # a few stray faces pointing their own way would cost a whole mesh slot, so a group with
+    # under SMALL_PIECE_AREA of the biggest same-material group's area in the chunk joins the
+    # closest bigger group of that material
+    for material in {m for _, m, _ in chunk}:
+        same = [c for c in chunk if c[1] == material]
+        biggest = max(sum(f.area for f in c[2]) for c in same)
+        keep = [c for c in same if sum(f.area for f in c[2]) >= biggest * SMALL_PIECE_AREA]
+        centres = [centre_of(c[2]) for c in keep]
+        for c in same:
+            if any(c is k for k in keep):
+                continue
+            here = centre_of(c[2])
+            i = min(range(len(keep)), key=lambda i: (centres[i] - here).length)
+            keep[i][2].extend(c[2])
+            chunk = [k for k in chunk if k is not c]
+    return chunk
 
 
 def build_piece(obj, depsgraph, name, face_indices, collection):
