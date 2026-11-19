@@ -85,7 +85,7 @@ def meshbin_face_count(face, matrix):
 
 
 class Face:
-    __slots__ = ("index", "centre", "normal", "area", "count")
+    __slots__ = ("index", "centre", "normal", "area", "count", "material")
 
     def __init__(self, face, matrix, normal_matrix, front):
         self.index = face.index
@@ -96,6 +96,7 @@ class Face:
         self.normal = n.normalized() if n.length else Vector((0, 0, 1))
         self.area = face.calc_area()
         self.count = meshbin_face_count(face, matrix)
+        self.material = face.material_index
 
 
 def facing_of(f):
@@ -186,6 +187,10 @@ def plan_pieces(obj, depsgraph, cell, origin, split_facing, max_faces):
               for p in mesh.polygons] if len(mesh.polygons) == len(bm.faces) else [None] * len(bm.faces)
     faces = [Face(f, matrix, normal_matrix, fronts[f.index]) for f in bm.faces]
     bm.free()
+    materials = list(obj.data.materials)
+    used = {f.material for f in faces}
+    if len(used) < 2:
+        materials = materials[:1]
 
     lo, hi = origin
     counts = [max(1, math.ceil((hi[i] - lo[i]) / cell[i] - 1e-6)) if cell[i] > 0 else 1 for i in range(2)]
@@ -212,10 +217,20 @@ def plan_pieces(obj, depsgraph, cell, origin, split_facing, max_faces):
         else:
             groups.append(("all", cells[key]))
         for name, g in groups:
-            parts = split_to_fit(g, max_faces)
-            for j, part in enumerate(parts):
-                suffix = "" if len(parts) == 1 else "_%d" % j
-                pieces.append(("%s_%02d_%02d_%s%s" % (obj.name, key[0], key[1], name, suffix), part))
+            # a game object takes one texture, so faces using different materials go in
+            # different pieces
+            by_material = {}
+            for f in g:
+                by_material.setdefault(f.material, []).append(f)
+            for material in sorted(by_material):
+                label = name
+                if len(materials) > 1:
+                    label += "_" + (materials[material].name if material < len(materials) and materials[material]
+                                    else "mat%d" % material)
+                parts = split_to_fit(by_material[material], max_faces)
+                for j, part in enumerate(parts):
+                    suffix = "" if len(parts) == 1 else "_%d" % j
+                    pieces.append(("%s_%02d_%02d_%s%s" % (obj.name, key[0], key[1], label, suffix), part))
     return pieces
 
 
@@ -226,11 +241,14 @@ def build_piece(obj, depsgraph, name, face_indices, collection):
     keep = set(face_indices)
     bmesh.ops.delete(bm, geom=[f for f in bm.faces if f.index not in keep], context="FACES")
     bmesh.ops.delete(bm, geom=[v for v in bm.verts if not v.link_faces], context="VERTS")
+    material = next((f.material_index for f in bm.faces), 0)
+    for f in bm.faces:
+        f.material_index = 0
     mesh = bpy.data.meshes.new(name)
     bm.to_mesh(mesh)
     bm.free()
-    for mat in obj.data.materials:
-        mesh.materials.append(mat)
+    if material < len(obj.data.materials):
+        mesh.materials.append(obj.data.materials[material])
     piece = bpy.data.objects.new(name, mesh)
     piece.matrix_world = obj.matrix_world.copy()
     collection.objects.link(piece)

@@ -14,7 +14,9 @@ python3 madnight_engine/tools/obj-to-meshbin.py ../assets/Lake\ Dock/map.obj cdr
 
 The engine lights each object once, from the middle of its bounding sphere, so one big level mesh is lit the same all over. [./blender_split_mesh.py] splits meshes into square chunks on the ground plane, and each chunk into its floor, its ceiling and its walls, so each piece is lit from its own side. It also keeps every piece under the mesh manager's face limit, so it doubles as level chunking.
 
-Install it as an add-on, select the meshes to split, or select nothing to split the whole scene, then run Object > Split Meshes for Madnight. A chunk size of 0 picks one from the size of the meshes. The pieces go into a `<object>_split` collection and the original is hidden; running it again replaces them. It prints how many mesh slots the pieces leave free, and warns when that drops under 10. It also runs headless:
+Install it as an add-on, select the meshes to split, or select nothing to split the whole scene, then run Object > Split Meshes for Madnight. A chunk size of 0 picks one from the size of the meshes. The pieces go into a `<object>_split` collection and the original is hidden; running it again replaces them. It prints how many mesh slots the pieces leave free, and warns when that drops under 10.
+
+A game object takes one texture, so faces with different materials always go in different pieces. For the fewest pieces give each material one texture, and keep each area of the level on as few materials as you can, ideally one atlas per area. It also runs headless:
 
 ```
 blender -b level.blend --python madnight_engine/tools/blender_split_mesh.py -- --cell 4 --save level_split.blend
