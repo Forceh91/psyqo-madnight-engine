@@ -286,16 +286,21 @@ def split_objects(context, objects, cell_size=0.0, cell_xy=None, split_facing=Tr
     log("largest piece %s, %d meshbin faces (limit %d)" % (biggest[0].name, biggest[1], max_faces - 1))
     for piece, count in made:
         if count >= max_faces:
-            log("WARNING: %s still has %d faces, a single face cluster too dense to split further" %
-                (piece.name, count))
+            log("ERROR: %s has %d faces and the mesh manager refuses anything over %d, so it will not "
+                "load at all. Its faces are packed too tight to split further: thin out that part of the "
+                "mesh" % (piece.name, count, max_faces - 1))
     left = max_meshes - len(made)
     if left >= 0:
         log("%d pieces, %d mesh slots left of %d" % (len(made), left, max_meshes))
     else:
         log("%d pieces, %d more than the %d mesh slots" % (len(made), -left, max_meshes))
-    if left < SPARE_MESH_SLOTS:
-        log("WARNING: this leaves fewer than %d mesh slots for the rest of the game's objects; "
-            "use a bigger chunk size or split fewer meshes" % SPARE_MESH_SLOTS)
+    if left < 0:
+        log("ERROR: the mesh manager holds %d meshes and this split makes %d. They cannot all be loaded, "
+            "even with nothing else in the game: use a bigger chunk size or split fewer meshes"
+            % (max_meshes, len(made)))
+    elif left < SPARE_MESH_SLOTS:
+        log("WARNING: this leaves %d mesh slots for the rest of the game's objects; use a bigger chunk "
+            "size or split fewer meshes" % left)
     return made
 
 
@@ -361,7 +366,9 @@ class OBJECT_OT_madnight_split_mesh(bpy.types.Operator):
                              (self.cell_x, self.cell_y) if self.advanced else None, self.split_facing,
                              log=lambda s: (print(s), lines.append(s)))
         for line in lines:
-            if line.startswith("WARNING: "):
+            if line.startswith("ERROR: "):
+                self.report({"ERROR"}, line[len("ERROR: "):])
+            elif line.startswith("WARNING: "):
                 self.report({"WARNING"}, line[len("WARNING: "):])
             else:
                 self.report({"INFO"}, line)
@@ -395,9 +402,13 @@ def main_background(argv):
         objects = [bpy.data.objects[n] for n in args.objects.split(",")]
     else:
         objects = meshes_in_scope(context)
-    split_objects(context, objects, args.cell, None, not args.no_facing)
+    errors = []
+    split_objects(context, objects, args.cell, None, not args.no_facing,
+                  log=lambda s: (print(s), s.startswith("ERROR: ") and errors.append(s)))
     if args.save:
         bpy.ops.wm.save_as_mainfile(filepath=os.path.abspath(args.save))
+    if errors:
+        sys.exit(1)
 
 
 if __name__ == "__main__":
