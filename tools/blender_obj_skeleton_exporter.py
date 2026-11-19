@@ -70,6 +70,9 @@ def export_obj_skel(context, filepath, apply_modifiers=True, export_selected=Tru
     with open(filepath, "w", encoding="utf-8") as f:
         f.write("# Exported from Blender OBJ+SKEL exporter\n")
 
+        # obj indices count every v, vt and vn written so far in the file, not per object
+        vert_offset = uv_offset = normal_offset = 0
+
         for obj in objs:
             if obj.type != "MESH":
                 continue
@@ -108,12 +111,26 @@ def export_obj_skel(context, filepath, apply_modifiers=True, export_selected=Tru
                 for uv in uvs:
                     f.write(f"vt {uv.x:.6f} {uv.y:.6f}\n")
 
+            # Normals, one per corner: obj-to-meshbin.py takes a face's front from them, and
+            # the engine lights with them
+            if hasattr(mesh_eval, "corner_normals"):
+                normals = [n.vector for n in mesh_eval.corner_normals]
+            else:
+                mesh_eval.calc_normals_split()
+                normals = [loop.normal for loop in mesh_eval.loops]
+            for n in normals:
+                f.write(f"vn {n.x:.6f} {n.y:.6f} {n.z:.6f}\n")
+
             # Faces
             for poly in mesh_eval.polygons:
                 f.write("f")
                 for loop_index in poly.loop_indices:
-                    vertex_index = mesh_eval.loops[loop_index].vertex_index
-                    f.write(f" {vertex_index + 1}/{loop_index + 1}")
+                    vertex_index = mesh_eval.loops[loop_index].vertex_index + vert_offset
+                    normal_index = loop_index + normal_offset
+                    if uv_layer:
+                        f.write(f" {vertex_index + 1}/{loop_index + uv_offset + 1}/{normal_index + 1}")
+                    else:
+                        f.write(f" {vertex_index + 1}//{normal_index + 1}")
                 f.write("\n")
 
             # AABB collision box
@@ -177,10 +194,14 @@ def export_obj_skel(context, filepath, apply_modifiers=True, export_selected=Tru
                         g = max(v.groups, key=lambda gr: gr.weight)
                         vg_name = obj.vertex_groups[g.group].name
                         bone_idx = next((i for i, pb in enumerate(deform_bones) if pb.name == vg_name), -1)
-                        f.write(f"vw {v.index + 1} {bone_idx}\n")
+                        f.write(f"vw {v.index + vert_offset + 1} {bone_idx}\n")
                     else:
-                        f.write(f"vw {v.index + 1} -1\n")
+                        f.write(f"vw {v.index + vert_offset + 1} -1\n")
 
+            vert_offset += len(mesh_eval.vertices)
+            if uv_layer:
+                uv_offset += len(mesh_eval.loops)
+            normal_offset += len(normals)
             obj.to_mesh_clear()
 
     print(f"Exported {filepath}")
