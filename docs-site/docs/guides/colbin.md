@@ -128,6 +128,9 @@ Each face whose normal, flipped to point along +Y, has a Y of at least `Floor Th
 face becomes one wall box in the object's own axes. `COL` objects are exported even when
 hidden.
 
+For every source, a floor triangle with no area seen from above (its X/Z cross product is
+zero once snapped to engine units) is dropped, since nothing can stand on it.
+
 ### Inferred (`Selected`, `Scene`)
 
 Each loose part of a mesh is looked at on its own:
@@ -150,6 +153,11 @@ lined up with the face's longest edge.
 Wall boxes are 64 units thick and centred on the face, so they work for walls seen from both
 sides (shelf panels, house walls). A collider stops 32 units in front of the visible surface.
 
+`Min Wall Height` (Blender units, default 0, off) extends every inferred box shorter than it
+upward along its most upright axis: its bottom stays where it was and its top rises until the
+box is that tall, so a tall player is stopped by a low obstacle instead of pushed up by it.
+Hand built `COL` boxes are left alone.
+
 A custom property `colbin_mode` on an object overrides the choice: `box` makes the whole
 object one box, `faces` never boxes it.
 
@@ -159,8 +167,8 @@ From a script, after the add-on is registered:
 bpy.ops.export.colbin(filepath="LEVEL.COLBIN", source='SCENE', merge_walls=True)
 ```
 
-The exporter prints one line with the floor triangle count, wall box count, grid size and
-file size, and for inferred sources a second line with where the faces went.
+The exporter prints one line with the floor triangle count (and how many degenerate ones were
+dropped), wall box count, grid size and file size, and for inferred sources a second line with where the faces went.
 
 ## Changelog
 
