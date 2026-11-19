@@ -256,19 +256,19 @@ class ExportObjSkel(bpy.types.Operator, ExportHelper):
             layout.prop(self, "aabb_max")
 
     def execute(self, context):
+        objs = objects_to_export(context, self.use_selection)
+        if not objs:
+            self.report({'WARNING'}, "No meshes to export")
+            return {'CANCELLED'}
+
         if not self.one_file_per_object:
             export_obj_skel(
                 context, self.filepath,
                 self.apply_modifiers, self.use_selection,
                 self.global_scale, self.forward_axis, self.up_axis,
-                self.aabb_auto, self.aabb_min, self.aabb_max,
+                self.aabb_auto, self.aabb_min, self.aabb_max, objs,
             )
             return {'FINISHED'}
-
-        objs = objects_to_export(context, self.use_selection)
-        if not objs:
-            self.report({'WARNING'}, "No meshes to export")
-            return {'CANCELLED'}
         folder = os.path.dirname(self.filepath)
         for obj in objs:
             export_obj_skel(
@@ -281,13 +281,37 @@ class ExportObjSkel(bpy.types.Operator, ExportHelper):
         return {'FINISHED'}
 
 
+def outliner_collections(context):
+    # collections selected in an outliner. The exporter runs from the File menu, where
+    # selected_ids is empty, so look it up in each outliner on screen
+    found = []
+    for window in context.window_manager.windows:
+        for area in window.screen.areas:
+            if area.type != 'OUTLINER':
+                continue
+            region = next((r for r in area.regions if r.type == 'WINDOW'), None)
+            if region is None:
+                continue
+            with context.temp_override(window=window, area=area, region=region):
+                for item in getattr(bpy.context, "selected_ids", None) or []:
+                    if isinstance(item, bpy.types.Collection) and item not in found:
+                        found.append(item)
+    return found
+
+
 def objects_to_export(context, use_selection):
-    # the selected meshes, or with nothing selected every mesh in the active collection, so
-    # clicking a collection made by blender_split_mesh.py exports all of its pieces
-    if use_selection and context.selected_objects:
-        objs = context.selected_objects
+    # the selected meshes; with none selected, every mesh in the collections selected in the
+    # outliner, or else in the active collection, so the collections made by
+    # blender_split_mesh.py export all of their pieces
+    if not use_selection:
+        objs = [context.object] if context.object else []
+    elif context.selected_objects:
+        objs = list(context.selected_objects)
     else:
-        objs = context.view_layer.active_layer_collection.collection.all_objects
+        collections = outliner_collections(context) or [context.view_layer.active_layer_collection.collection]
+        objs = []
+        for collection in collections:
+            objs += [o for o in collection.all_objects if o not in objs]
     return sorted((o for o in objs if o.type == "MESH"), key=lambda o: o.name)
 
 

@@ -18,7 +18,7 @@ Install it as an add-on, select the meshes to split, or select nothing to split 
 
 A game object takes one texture, so faces with different materials always go in different pieces. For the fewest pieces give each material one texture, and keep each area of the level on as few materials as you can, ideally one atlas per area.
 
-To export the pieces, select the `<object>_split` collection (or the pieces you want) and turn on One File per Object in the OBJ+SKEL exporter: each mesh is written to its own `<object name>.obj` next to the file you pick. It also runs headless:
+To export the pieces, select the `<object>_split` collections in the outliner (or the pieces you want) and turn on One File per Object in the OBJ+SKEL exporter: each mesh is written to its own `<object name>.obj` next to the file you pick. It also runs headless:
 
 ```
 blender -b level.blend --python madnight_engine/tools/blender_split_mesh.py -- --cell 4 --save level_split.blend
