@@ -19,7 +19,8 @@ Every multi-byte field is little-endian.
 | Field | Type | Bytes | Notes |
 |---|---|---|---|
 | magic | char[8] | 8 | `SCENEBIN`, no terminator. |
-| version | uint8_t | 1 | `2`. `SceneLoader::LoadScene` refuses any other value. |
+| marker | uint8_t | 1 | `0`. Version 1 files have a `uint8_t` fileCount here instead, see below. |
+| version | uint8_t | 1 | `2`. |
 | fileCount | uint16_t | 2 | 0-65535. |
 
 Then `fileCount` entries, each:
@@ -98,7 +99,7 @@ object MODELS/SCART.MB
 python3 tools/scenebin_converter.py scene.txt scene.scenebin --asset-root assets/
 ```
 
-That example converts to 6 entries and 140 bytes.
+That example converts to 6 entries and 141 bytes.
 
 ## Nested scenes
 
@@ -129,5 +130,7 @@ scene; hard clears the pools, soft does not.
   `nameLen` bytes. A tool writing a terminator will produce paths with a trailing NUL in
   them.
 - **`nameLen` is bounds-checked** against `MAX_ARCHIVE_FILE_NAME_LEN` (255) by the reader.
-- **Version 1 files are refused.** Version 1 had no version byte and a `uint8_t` `fileCount`.
-  Rebuild them from their source manifests with the current converter.
+- **Version 1 files still load.** Version 1 has no marker or version byte: the byte after the
+  magic is a `uint8_t` `fileCount`, so it holds at most 255 entries. The reader tells the two
+  apart by that byte: a `0` followed by more data is version 2, because a version 1 file with
+  0 entries ends there. The converter only writes version 2.

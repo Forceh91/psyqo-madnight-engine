@@ -200,7 +200,8 @@ def validate_paths(entries, asset_root: Path):
 def pack_binary(entries) -> bytes:
     out = bytearray()
     out += MAGIC
-    out += struct.pack("<BH", VERSION, len(entries))
+    # a 0 where version 1 had its uint8_t file count marks version 2
+    out += struct.pack("<BBH", 0, VERSION, len(entries))
 
     for entry in entries:
         type_val = TYPE_MAP[entry["type"]]

@@ -35,23 +35,26 @@ psyqo::Coroutine<> SceneLoader::LoadScene(const eastl::string_view& sceneFile, e
 	}
 	ptr += 8;
 
-	// format version
-	uint8_t version = 0;
-	__builtin_memcpy(&version, ptr, sizeof(uint8_t));
-	ptr += sizeof(uint8_t);
-	if (version != SCENEBIN_VERSION) {
-		printf("SCENE: Unsupported version %d (expected %d), rebuild it with scenebin_converter.py.\n", version,
-			   SCENEBIN_VERSION);
-		buffer.clear();
-
-		co_return;
-	}
-
-	// number of files
+	// version 1 has a uint8_t file count here. version 2 has a 0 here, then the version byte and
+	// a uint16_t file count. a version 1 file with 0 files ends after that 0, so a 0 followed by
+	// more data can only be version 2.
 	uint16_t fileCount = 0;
-	__builtin_memcpy(&fileCount, ptr, sizeof(uint16_t));
+	uint8_t firstByte = *ptr++;
+	if (firstByte == 0 && size > 9) {
+		uint8_t version = *ptr++;
+		if (version != SCENEBIN_VERSION) {
+			printf("SCENE: Unsupported version %d, aborting.\n", version);
+			buffer.clear();
+
+			co_return;
+		}
+
+		__builtin_memcpy(&fileCount, ptr, sizeof(uint16_t));
+		ptr += sizeof(uint16_t);
+	} else {
+		fileCount = firstByte;
+	}
 	queue.reserve(queue.size() + fileCount);
-	ptr += sizeof(uint16_t);
 
 	for (int i = 0; i < fileCount; i++) {
 		// file type
