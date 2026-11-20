@@ -32,7 +32,7 @@ To load one yourself from a coroutine:
 MeshBin *crate = nullptr;
 co_await g_madnightEngine.m_meshManager.LoadMesh("MODELS/CRATE.MB", &crate);
 if (crate == nullptr) {
-  // missing, invalid, too big, or all 250 slots are taken
+  // missing, invalid, too big, or all 500 slots are taken
 }
 ```
 
@@ -49,7 +49,7 @@ The fields you are likely to read are `collisionBox` (the mesh's min/max box), `
 
 Limits:
 
-- Up to 250 meshes loaded at once (`MAX_LOADED_MESHES`).
+- Up to 500 meshes loaded at once (`MAX_LOADED_MESHES`).
 - A mesh must have fewer than 1000 faces (`MAX_FACES_PER_MESH`). A mesh with 1000 or more is rejected.
 - A skinned mesh can have up to 15 bones (`MAX_BONES`). More than that and the mesh is rejected.
 

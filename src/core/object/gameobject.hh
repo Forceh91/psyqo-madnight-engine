@@ -59,7 +59,7 @@ class GameObject final {
 	void UpdateOBB(void);
 
 	void Init(const eastl::string_view& name, const uint64_t& nameHash, const psyqo::Vec3& pos,
-			  const GameObjectRotation& rotation, const GameObjectTag& tag, const uint8_t& id) {
+			  const GameObjectRotation& rotation, const GameObjectTag& tag, const int16_t& id) {
 		m_nameHash = nameHash;
 		m_name.assign(name.data(), name.length());
 		m_pos = pos;

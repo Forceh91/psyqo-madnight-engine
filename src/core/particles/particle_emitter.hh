@@ -26,7 +26,7 @@ typedef struct _EmitterRotation {
 
 class ParticleEmitter final {
   public:
-	void Init(const uint64_t& nameHash, const uint8_t& id, const psyqo::Vec3& pos, const psyqo::FixedPoint<> radius,
+	void Init(const uint64_t& nameHash, const int16_t& id, const psyqo::Vec3& pos, const psyqo::FixedPoint<> radius,
 			  const uint8_t& particlesPerSecond, const uint8_t& particleLifeTimeSecs) {
 		m_id = id;
 		m_nameHash = nameHash;
@@ -78,7 +78,7 @@ class ParticleEmitter final {
 	template <class T, int16_t N> friend class Pool;
 
 	ParticleEmitter() = default;
-	ParticleEmitter(uint64_t nameHash, const uint8_t& id, const psyqo::Vec3& pos, const psyqo::FixedPoint<> radius,
+	ParticleEmitter(uint64_t nameHash, const int16_t& id, const psyqo::Vec3& pos, const psyqo::FixedPoint<> radius,
 					const uint8_t& particlesPerSecond, const uint8_t& particleLifeTimeSecs) {
 		m_id = id;
 		m_pos = pos;

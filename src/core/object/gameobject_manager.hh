@@ -15,7 +15,7 @@
 #include <EASTL/span.h>
 #include <psyqo/vector.hh>
 
-static constexpr uint8_t MAX_GAME_OBJECTS = 250;
+static constexpr uint16_t MAX_GAME_OBJECTS = 500;
 
 class GameObjectManager final {
 	Pool<GameObject, MAX_GAME_OBJECTS> m_pool;
