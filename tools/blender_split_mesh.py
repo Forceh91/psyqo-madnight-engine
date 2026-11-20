@@ -33,7 +33,7 @@ from bpy.props import BoolProperty, FloatProperty
 
 # fallbacks for when src/mesh/mesh_manager.hh is not next to this script
 DEFAULT_MAX_FACES_PER_MESH = 1000
-DEFAULT_MAX_LOADED_MESHES = 250
+DEFAULT_MAX_LOADED_MESHES = 500
 SPARE_MESH_SLOTS = 10  # warn when a split leaves fewer than this many mesh slots for everything else
 
 # obj-to-meshbin.py sends a quad as two triangles when it is folded more than this

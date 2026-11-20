@@ -28,7 +28,7 @@ if (street != nullptr) {
 }
 ```
 
-This is the pattern `src/game.cpp` uses. `CreateGameObject` returns `nullptr` when all 250 slots are taken, so check the result. An object with no mesh is skipped by the renderer, so it is invisible but still exists for lookups and collision.
+This is the pattern `src/game.cpp` uses. `CreateGameObject` returns `nullptr` when all 500 slots are taken, so check the result. An object with no mesh is skipped by the renderer, so it is invisible but still exists for lookups and collision.
 
 Move and turn it with `SetPosition` and `SetRotation`. Both keep the object's collision box in step for you.
 
@@ -95,7 +95,7 @@ The tag is what you filter on with `GetGameObjectsWithTag`, and what [`Raycast::
 
 `src/core/object/gameobject_manager.hh`
 
-Owns a fixed pool of 250 `GameObject`s (`MAX_GAME_OBJECTS`) and is the only way to create or destroy one.
+Owns a fixed pool of 500 `GameObject`s (`MAX_GAME_OBJECTS`) and is the only way to create or destroy one.
 
 ### Finding objects
 
@@ -258,7 +258,7 @@ emitters.DestroyParticleEmitter(sparks);
 ```
 
 :::note[Only 3 emitters at once]
-`MAX_PARTICLE_EMITTERS` is 3, much smaller than the 200 and 250 slot pools for billboards and game objects. `CreateParticleEmitter` returns `nullptr` when all three are in use. Budget them, for example one for the player and one or two for the current room, rather than one per object that emits something.
+`MAX_PARTICLE_EMITTERS` is 10, much smaller than the 200 and 500 slot pools for billboards and game objects. `CreateParticleEmitter` returns `nullptr` when all ten are in use. Budget them, for example one for the player and one or two for the current room, rather than one per object that emits something.
 :::
 
 ## Pool

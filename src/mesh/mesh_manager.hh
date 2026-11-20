@@ -16,7 +16,7 @@
 #include <psyqo/primitives/common.hh>
 #include <psyqo/vector.hh>
 
-static constexpr uint8_t MAX_LOADED_MESHES = 250;
+static constexpr uint16_t MAX_LOADED_MESHES = 500;
 static constexpr uint16_t MAX_FACES_PER_MESH = 1000;
 
 struct MeshBinVertexColours {
