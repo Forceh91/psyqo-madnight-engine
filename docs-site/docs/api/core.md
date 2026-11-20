@@ -257,8 +257,8 @@ ParticleEmitter *sparks = emitters.GetEmitterByName("torch_sparks");
 emitters.DestroyParticleEmitter(sparks);
 ```
 
-:::note[Only 3 emitters at once]
-`MAX_PARTICLE_EMITTERS` is 10, much smaller than the 200 and 500 slot pools for billboards and game objects. `CreateParticleEmitter` returns `nullptr` when all ten are in use. Budget them, for example one for the player and one or two for the current room, rather than one per object that emits something.
+:::note[Up to 10 emitters at once]
+`MAX_PARTICLE_EMITTERS` is 10. `CreateParticleEmitter` returns `nullptr` when all ten are in use, so destroy emitters you no longer need, for example when the player leaves a room. An empty slot costs no frame time; each live particle does.
 :::
 
 ## Pool
