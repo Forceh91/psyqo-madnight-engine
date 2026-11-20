@@ -35,11 +35,23 @@ psyqo::Coroutine<> SceneLoader::LoadScene(const eastl::string_view& sceneFile, e
 	}
 	ptr += 8;
 
-	// number of files
-	uint8_t fileCount = 0;
-	__builtin_memcpy(&fileCount, ptr, sizeof(uint8_t));
-	queue.reserve(queue.size() + fileCount);
+	// format version
+	uint8_t version = 0;
+	__builtin_memcpy(&version, ptr, sizeof(uint8_t));
 	ptr += sizeof(uint8_t);
+	if (version != SCENEBIN_VERSION) {
+		printf("SCENE: Unsupported version %d (expected %d), rebuild it with scenebin_converter.py.\n", version,
+			   SCENEBIN_VERSION);
+		buffer.clear();
+
+		co_return;
+	}
+
+	// number of files
+	uint16_t fileCount = 0;
+	__builtin_memcpy(&fileCount, ptr, sizeof(uint16_t));
+	queue.reserve(queue.size() + fileCount);
+	ptr += sizeof(uint16_t);
 
 	for (int i = 0; i < fileCount; i++) {
 		// file type

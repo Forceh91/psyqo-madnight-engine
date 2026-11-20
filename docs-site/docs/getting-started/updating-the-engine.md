@@ -22,6 +22,10 @@ cd madnight_engine
 git submodule update --init --recursive
 ```
 
+## v1.1.0 to v2.0.0
+
+The SCENEBIN format is now version 2: a version byte after the magic, and a `uint16_t` file count, so one scene can list more than 255 files. `SceneLoader::LoadScene` refuses version 1 files and prints `SCENE: Unsupported version`, so re-run `tools/scenebin_converter.py` on every scene manifest. `.MESHBIN`, `.ANIMBIN` and `.COLBIN` files are unchanged.
+
 ## v0.1.0 to v1.0.0
 
 v1.0.0 needs the nugget revision it pins. The renderer uses `psyqo::ScratchpadStackful`, which the v0.1.0 nugget does not have, so run the `git submodule update` above or the engine will not build.
