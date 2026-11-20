@@ -25,8 +25,8 @@ import sys
 from pathlib import Path
 
 # Must match LoadFileType in C++. SCENE (255) is omitted because authoring nested
-# scenes is not implemented here yet; 255 fits the uint8_t type field fine, and both
-# SceneLoader::LoadScene and FileLoader::LoadFiles already handle SCENE entries.
+# scenes is not implemented here yet; both SceneLoader::LoadScene and
+# FileLoader::LoadFiles already handle SCENE entries.
 TYPE_MAP = {
     "object": 0,
     "texture": 1,
@@ -48,6 +48,8 @@ POSITION_FROM_FILE = 0xFFFF
 POSITION_FROM_FILE_KEYWORD = "auto"
 
 MAGIC = b"SCENEBIN"
+VERSION = 2  # keep in sync with SCENEBIN_VERSION in scene_loader.hh
+MAX_ENTRIES = 0xFFFF  # fileCount is a uint16_t
 
 
 class SourceError(Exception):
@@ -174,9 +176,9 @@ def parse_source(path: Path):
 
             entries.append(entry)
 
-    if len(entries) > 255:
+    if len(entries) > MAX_ENTRIES:
         raise SourceError(
-            f"too many entries ({len(entries)}) — fileCount is a uint8_t, max 255"
+            f"too many entries ({len(entries)}), fileCount is a uint16_t, max {MAX_ENTRIES}"
         )
 
     return entries
@@ -198,7 +200,8 @@ def validate_paths(entries, asset_root: Path):
 def pack_binary(entries) -> bytes:
     out = bytearray()
     out += MAGIC
-    out += struct.pack("<B", len(entries))
+    # a 0 where version 1 had its uint8_t file count marks version 2
+    out += struct.pack("<BBH", 0, VERSION, len(entries))
 
     for entry in entries:
         type_val = TYPE_MAP[entry["type"]]

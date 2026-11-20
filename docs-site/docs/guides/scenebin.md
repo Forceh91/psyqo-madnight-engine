@@ -12,14 +12,16 @@ A SCENEBIN does not contain assets. It expands into entries on `FileLoader`'s wo
 each of which is then loaded by the manager for its type. Loading one is how you avoid
 hand-writing a long `eastl::vector<LoadQueue>` in game code.
 
-Every multi-byte field is little-endian. There is no version byte.
+Every multi-byte field is little-endian.
 
 ## Binary layout
 
 | Field | Type | Bytes | Notes |
 |---|---|---|---|
 | magic | char[8] | 8 | `SCENEBIN`, no terminator. |
-| fileCount | uint8_t | 1 | 0-255. The converter refuses more than 255 entries. |
+| marker | uint8_t | 1 | `0`. Version 1 files have a `uint8_t` fileCount here instead, see below. |
+| version | uint8_t | 1 | `2`. |
+| fileCount | uint16_t | 2 | 0-65535. |
 
 Then `fileCount` entries, each:
 
@@ -97,7 +99,7 @@ object MODELS/SCART.MB
 python3 tools/scenebin_converter.py scene.txt scene.scenebin --asset-root assets/
 ```
 
-That example converts to 6 entries and 138 bytes.
+That example converts to 6 entries and 141 bytes.
 
 ## Nested scenes
 
@@ -128,5 +130,7 @@ scene; hard clears the pools, soft does not.
   `nameLen` bytes. A tool writing a terminator will produce paths with a trailing NUL in
   them.
 - **`nameLen` is bounds-checked** against `MAX_ARCHIVE_FILE_NAME_LEN` (255) by the reader.
-- **There is no version byte.** Any future layout change is silently incompatible with
-  existing files. COLBIN and MESHBIN both carry one.
+- **Version 1 files still load.** Version 1 has no marker or version byte: the byte after the
+  magic is a `uint8_t` `fileCount`, so it holds at most 255 entries. The reader tells the two
+  apart by that byte: a `0` followed by more data is version 2, because a version 1 file with
+  0 entries ends there. The converter only writes version 2.

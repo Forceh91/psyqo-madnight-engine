@@ -10,6 +10,9 @@
 #include <EASTL/vector.h>
 #include <psyqo/coroutine.hh>
 
+// keep in sync with VERSION in tools/scenebin_converter.py
+static constexpr uint8_t SCENEBIN_VERSION = 2;
+
 class SceneLoader final {
   public:
 	psyqo::Coroutine<> LoadScene(const eastl::string_view& sceneFile, eastl::vector<LoadQueue>& queue);
