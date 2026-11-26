@@ -1,5 +1,20 @@
 # Changelog
 
+## [1.2.0](https://github.com/Forceh91/psyqo-madnight-engine/compare/v1.1.0...v1.2.0) (2026-11-26)
+
+
+### Features
+
+* **core:** raise game object and mesh pools to 500, particle emitters to 10 ([#178](https://github.com/Forceh91/psyqo-madnight-engine/issues/178)) ([67225ab](https://github.com/Forceh91/psyqo-madnight-engine/commit/67225ab9a2ad8450da319989740e6063852a40f7))
+* **scenes:** SCENEBIN version 2 with a uint16_t file count ([#179](https://github.com/Forceh91/psyqo-madnight-engine/issues/179)) ([a413aeb](https://github.com/Forceh91/psyqo-madnight-engine/commit/a413aebfc1410570dcb3cb756e7e7938b9f14630))
+* **tools:** add a Blender script that splits level meshes into chunks ([#175](https://github.com/Forceh91/psyqo-madnight-engine/issues/175)) ([0453d24](https://github.com/Forceh91/psyqo-madnight-engine/commit/0453d2445ee8d116d3e9cf6450291fb7994061bf))
+* **tools:** min wall height option, drop degenerate floor triangles ([#174](https://github.com/Forceh91/psyqo-madnight-engine/issues/174)) ([217340d](https://github.com/Forceh91/psyqo-madnight-engine/commit/217340d71aa781fa27715f244a31e31ddc411680))
+
+
+### Bug Fixes
+
+* **tools:** tim_creator passes the quantized palette to Pillow as bytes ([#181](https://github.com/Forceh91/psyqo-madnight-engine/issues/181)) ([f871a85](https://github.com/Forceh91/psyqo-madnight-engine/commit/f871a85cac4acd750dd636a3338908ee25a887a4))
+
 ## [1.1.0](https://github.com/Forceh91/psyqo-madnight-engine/compare/v1.0.0...v1.1.0) (2026-11-18)
 
 
