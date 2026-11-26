@@ -41,7 +41,8 @@ def toIndexedImage(imageObj: Image.Image, numColors: int) -> Image.Image:
 
 	newImageObj: Image.Image = Image.fromarray(image, "P")
 
-	newImageObj.putpalette(clut, imageObj.mode)
+	# Pillow 13 no longer converts the palette to bytes itself.
+	newImageObj.putpalette(clut.tobytes(), imageObj.mode)
 	return newImageObj
 
 ## .TIM image converter
